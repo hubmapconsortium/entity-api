@@ -102,3 +102,11 @@ venv.bak/
 
 # mypy
 .mypy_cache/
+
+# additional ignores
+.pydevproject
+.project
+*.properties
+*.config
+*.conf
+*.ini
