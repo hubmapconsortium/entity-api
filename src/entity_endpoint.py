@@ -14,7 +14,6 @@ import sys
 import os
 from neo4j import TransactionError, CypherError
 from flask_cors import CORS, cross_origin
-#sys.path.append(os.path.join(os.path.dirname(__file__), '../provenance-metadata-services/', 'common-api'))
 
 from hubmap_const import HubmapConst 
 from neo4j_connection import Neo4jConnection
@@ -28,7 +27,7 @@ app = Flask(__name__)
 
 config = configparser.ConfigParser()
 try:
-    config.read(os.path.join(os.path.dirname(__file__), '../provenance-metadata-services/', 'common-api', 'app.properties'))
+    config.read(os.path.join(os.path.dirname(__file__), '..', 'conf', 'app.properties'))
     app.config['UUID_UI_URL'] = config.get('HUBMAP', 'UUID_UI_URL')
     app.config['APP_CLIENT_ID'] = config.get('GLOBUS', 'APP_CLIENT_ID')
     app.config['APP_CLIENT_SECRET'] = config.get(
@@ -52,7 +51,7 @@ def load_app_client():
 def load_config_file():    
     config = configparser.ConfigParser()
     try:
-        config.read(os.path.join(os.path.dirname(__file__), '..', 'common-api', 'app.properties'))
+        config.read(os.path.join(os.path.dirname(__file__), '..', 'conf', 'app.properties'))
         app.config['APP_CLIENT_ID'] = config.get('GLOBUS', 'APP_CLIENT_ID')
         app.config['APP_CLIENT_SECRET'] = config.get('GLOBUS', 'APP_CLIENT_SECRET')
         app.config['STAGING_ENDPOINT_UUID'] = config.get('GLOBUS', 'STAGING_ENDPOINT_UUID')
@@ -60,6 +59,9 @@ def load_config_file():
         app.config['SECRET_KEY'] = config.get('GLOBUS', 'SECRET_KEY')
         app.config['UUID_UI_URL'] = config.get('HUBMAP', 'UUID_UI_URL')
         app.config['GLOBUS_STORAGE_DIRECTORY_ROOT'] = config.get('FILE_SYSTEM','GLOBUS_STORAGE_DIRECTORY_ROOT')
+        app.config['NEO4J_SERVER'] = config.get('NEO4J', 'server')
+        app.config['NEO4J_USERNAME']  = config.get('NEO4J', 'username')
+        app.config['NEO4J_PASSWORD']  = config.get('NEO4J', 'password')
         #app.config['DEBUG'] = True
     except OSError as err:
         msg = "OS error.  Check config.ini file to make sure it exists and is readable: {0}".format(err)
@@ -93,7 +95,7 @@ def load_config_file():
 @cross_origin(origins=[app.config['UUID_UI_URL']], methods=['GET'])
 def get_entity_by_type(type_code):
     try:
-        conn = Neo4jConnection()
+        conn = Neo4jConnection(app.config['NEO4J_SERVER'], app.config['NEO4J_USERNAME'], app.config['NEO4J_PASSWORD'])
         driver = conn.get_driver()
         entity_list = Entity.get_entities_by_type(driver, type_code)
         return jsonify( {'uuids' : entity_list}), 200
@@ -107,7 +109,7 @@ def get_entity_by_type(type_code):
 @cross_origin(origins=[app.config['UUID_UI_URL']], methods=['GET'])
 def get_entity_types():
     try:
-        conn = Neo4jConnection()
+        conn = Neo4jConnection(app.config['NEO4J_SERVER'], app.config['NEO4J_USERNAME'], app.config['NEO4J_PASSWORD'])
         driver = conn.get_driver()
         type_list = Entity.get_entity_type_list(driver)
         return jsonify( {'entity_types' : type_list}), 200
@@ -121,7 +123,7 @@ def get_entity_types():
 @cross_origin(origins=[app.config['UUID_UI_URL']], methods=['GET'])
 def get_entity_by_sample_type():
     try:
-        conn = Neo4jConnection()
+        conn = Neo4jConnection(app.config['NEO4J_SERVER'], app.config['NEO4J_USERNAME'], app.config['NEO4J_PASSWORD'])
         driver = conn.get_driver()
         attribute_name = HubmapConst.SPECIMEN_TYPE_ATTRIBUTE
         search_term = None
@@ -145,7 +147,7 @@ def get_entity_by_sample_type():
 @cross_origin(origins=[app.config['UUID_UI_URL']], methods=['GET'])
 def get_entity_by_organ_type(organ_type):
     try:
-        conn = Neo4jConnection()
+        conn = Neo4jConnection(app.config['NEO4J_SERVER'], app.config['NEO4J_USERNAME'], app.config['NEO4J_PASSWORD'])
         driver = conn.get_driver()
         uuid_list = Entity.get_entities_by_metadata_attribute(driver, HubmapConst.ORGAN_TYPE_ATTRIBUTE, organ_type) 
         return jsonify( {'uuids' : uuid_list}), 200
@@ -162,7 +164,7 @@ def get_entity_by_organ_type(organ_type):
 def get_entity(identifier):
     try:
         token = str(request.headers["AUTHORIZATION"])[7:]
-        conn = Neo4jConnection()
+        conn = Neo4jConnection(app.config['NEO4J_SERVER'], app.config['NEO4J_USERNAME'], app.config['NEO4J_PASSWORD'])
         driver = conn.get_driver()
         identifier_list = getUUID(token, identifier)
         if len(identifier_list) == 0:
