@@ -17,7 +17,7 @@ from flask_cors import CORS, cross_origin
 
 from hubmap_const import HubmapConst 
 from neo4j_connection import Neo4jConnection
-from uuid_generator import getNewUUID, getUUID
+import uuid_generator 
 from hm_auth import AuthHelper, secured
 from entity import Entity
 from autherror import AuthError
@@ -166,7 +166,8 @@ def get_entity(identifier):
         token = str(request.headers["AUTHORIZATION"])[7:]
         conn = Neo4jConnection(app.config['NEO4J_SERVER'], app.config['NEO4J_USERNAME'], app.config['NEO4J_PASSWORD'])
         driver = conn.get_driver()
-        identifier_list = getUUID(token, identifier)
+        ug = uuid_generator(app.config['APP_CLIENT_ID'], app.config['APP_CLIENT_SECRET'])
+        identifier_list = ug.getUUID(token, identifier)
         if len(identifier_list) == 0:
             raise LookupError('unable to find information on identifier: ' + str(identifier))
         if len(identifier_list) > 1:
