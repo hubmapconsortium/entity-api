@@ -14,13 +14,13 @@ import sys
 import os
 from neo4j import TransactionError, CypherError
 from flask_cors import CORS, cross_origin
-sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'common-api'))
+#sys.path.append(os.path.join(os.path.dirname(__file__), '../provenance-metadata-services/', 'common-api'))
+
 from hubmap_const import HubmapConst 
 from neo4j_connection import Neo4jConnection
 from uuid_generator import getNewUUID, getUUID
 from hm_auth import AuthHelper, secured
 from entity import Entity
-from flask_cors import CORS, cross_origin
 from autherror import AuthError
 
 
@@ -28,7 +28,7 @@ app = Flask(__name__)
 
 config = configparser.ConfigParser()
 try:
-    config.read(os.path.join(os.path.dirname(__file__), '..', 'common-api', 'app.properties'))
+    config.read(os.path.join(os.path.dirname(__file__), '../provenance-metadata-services/', 'common-api', 'app.properties'))
     app.config['UUID_UI_URL'] = config.get('HUBMAP', 'UUID_UI_URL')
     app.config['APP_CLIENT_ID'] = config.get('GLOBUS', 'APP_CLIENT_ID')
     app.config['APP_CLIENT_SECRET'] = config.get(
@@ -170,7 +170,7 @@ def get_entity(identifier):
         if len(identifier_list) > 1:
             raise LookupError('found multiple records for identifier: ' + str(identifier))
 
-        entity_node = Entity.get_entity(driver, identifier_list[0]['hmuuid'])
+        entity_node = Entity.get_entity_metadata(driver, identifier_list[0]['hmuuid'])
         return jsonify( {'entity_node' : entity_node}), 200
     except AuthError as e:
         print(e)
