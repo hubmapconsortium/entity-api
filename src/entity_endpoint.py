@@ -14,7 +14,7 @@ import sys
 import os
 from neo4j import TransactionError, CypherError
 from flask_cors import CORS, cross_origin
-
+import argparse
 
 from hubmap_commons.hubmap_const import HubmapConst 
 from hubmap_commons.neo4j_connection import Neo4jConnection
@@ -186,6 +186,12 @@ to get list of uuids for organs: MATCH (e:Entity)-[:HAS_METADATA]-(m) WHERE m.or
 """
 if __name__ == '__main__':
     try:
-        app.run(port=5006)
+        parser = argparse.ArgumentParser()
+        parser.add_argument("-p", "--port")
+        args = parser.parse_args()
+        port = 5006
+        if args.port:
+            port = int(args.port)
+        app.run(port=port)
     finally:
         pass
