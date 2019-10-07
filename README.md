@@ -7,7 +7,11 @@ A description of the API calls is found here: [Entities API](https://drive.googl
 ## Deployment Steps
 This application includes an **app.properties.example** file in the /conf directory.  Copy the file and rename it **app.properties**.  Modify **app.properties** with the appropriate information.
 
-This code currently runs on port **5006**.
+This code runs by default on port **5006**.  You can change the port using a -p or --port switch at command line.  For instance:
+
+`-p 5001`
+
+changes the port to 5001.
 
 
 ### Deployment to Development
