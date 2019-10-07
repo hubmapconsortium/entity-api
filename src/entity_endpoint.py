@@ -15,13 +15,15 @@ import os
 from neo4j import TransactionError, CypherError
 from flask_cors import CORS, cross_origin
 
-from hubmap_const import HubmapConst 
-from neo4j_connection import Neo4jConnection
-import uuid_generator 
-from hm_auth import AuthHelper, secured
-from entity import Entity
-from autherror import AuthError
 
+from hubmap_commons.hubmap_const import HubmapConst 
+from hubmap_commons.neo4j_connection import Neo4jConnection
+from hubmap_commons.uuid_generator import UUID_Generator
+from hubmap_commons.hm_auth import AuthHelper, secured
+from hubmap_commons.entity import Entity
+from hubmap_commons.autherror import AuthError
+
+#from hubmap_commons import HubmapConst, Neo4jConnection, uuid_generator, AuthHelper, secured, Entity, AuthError
 
 app = Flask(__name__)
 
@@ -141,22 +143,6 @@ def get_entity_by_sample_type():
         for x in sys.exc_info():
             msg += str(x)
         abort(400, msg)
-
-"""
-@app.route('/entities/samples?organ-type=<organ_type>', methods = ['GET'])
-@cross_origin(origins=[app.config['UUID_UI_URL']], methods=['GET'])
-def get_entity_by_organ_type(organ_type):
-    try:
-        conn = Neo4jConnection(app.config['NEO4J_SERVER'], app.config['NEO4J_USERNAME'], app.config['NEO4J_PASSWORD'])
-        driver = conn.get_driver()
-        uuid_list = Entity.get_entities_by_metadata_attribute(driver, HubmapConst.ORGAN_TYPE_ATTRIBUTE, organ_type) 
-        return jsonify( {'uuids' : uuid_list}), 200
-    except:
-        msg = 'An error occurred: '
-        for x in sys.exc_info():
-            msg += str(x)
-        abort(400, msg)
-"""
 
 @app.route('/entities/<identifier>', methods = ['GET'])
 @cross_origin(origins=[app.config['UUID_UI_URL']], methods=['GET'])
