@@ -1,0 +1,17 @@
+# Ignore app.cfg
+src/instance
+
+# Ignore Dockerfile
+Dockerfile
+
+# Ignore itself
+.dockerignore
+
+# Ignore README
+README.md
+
+# Ignore log
+log
+
+# Ignore __pycache__ directories in any path
+**/__pycache__
