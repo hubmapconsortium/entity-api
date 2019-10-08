@@ -64,6 +64,8 @@ def load_config_file():
         app.config['NEO4J_SERVER'] = config.get('NEO4J', 'server')
         app.config['NEO4J_USERNAME']  = config.get('NEO4J', 'username')
         app.config['NEO4J_PASSWORD']  = config.get('NEO4J', 'password')
+        app.config['UUID_WEBSERVICE_URL']  = config.get('HUBMAP', 'UUID_WEBSERVICE_URL')
+
         #app.config['DEBUG'] = True
     except OSError as err:
         msg = "OS error.  Check config.ini file to make sure it exists and is readable: {0}".format(err)
@@ -146,13 +148,12 @@ def get_entity_by_sample_type():
 
 @app.route('/entities/<identifier>', methods = ['GET'])
 @cross_origin(origins=[app.config['UUID_UI_URL']], methods=['GET'])
-@secured(groups="HuBMAP-read")
 def get_entity(identifier):
     try:
         token = str(request.headers["AUTHORIZATION"])[7:]
         conn = Neo4jConnection(app.config['NEO4J_SERVER'], app.config['NEO4J_USERNAME'], app.config['NEO4J_PASSWORD'])
         driver = conn.get_driver()
-        ug = uuid_generator(app.config['APP_CLIENT_ID'], app.config['APP_CLIENT_SECRET'])
+        ug = UUID_Generator(app.config['UUID_WEBSERVICE_URL'])
         identifier_list = ug.getUUID(token, identifier)
         if len(identifier_list) == 0:
             raise LookupError('unable to find information on identifier: ' + str(identifier))
