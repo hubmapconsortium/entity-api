@@ -19,6 +19,3 @@ log
 # Ignore .git and .gitignore
 .git
 .gitignore
-
-# Ignore docker-run
-docker-run

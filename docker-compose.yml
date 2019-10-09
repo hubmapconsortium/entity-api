@@ -13,9 +13,6 @@ services:
     restart: always
     networks:
       - hubmap
-    # Mapping ports in the HOST:CONTAINER format
-    ports:
-      - "8080:80" 
     volumes:
       # Make the uwsgi logging generated on container available through from host
       - "./log:/usr/src/app/log"

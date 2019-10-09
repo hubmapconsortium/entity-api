@@ -1,4 +1,4 @@
-# Ignore app.properties and common_app.conf
+# Ignore config files
 conf/app.properties
 conf/common_app.conf
 
