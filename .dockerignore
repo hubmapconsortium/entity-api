@@ -1,5 +1,5 @@
-# Ignore app.cfg
-src/instance
+# Ignore conf since we'll use volume mount
+conf
 
 # Ignore Dockerfile
 Dockerfile
@@ -10,8 +10,15 @@ Dockerfile
 # Ignore README
 README.md
 
-# Ignore log
+# Ignore log since we'll use volume mount
 log
 
 # Ignore __pycache__ directories in any path
 **/__pycache__
+
+# Ignore .git and .gitignore
+.git
+.gitignore
+
+# Ignore docker-run
+docker-run
