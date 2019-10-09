@@ -1,0 +1,21 @@
+# Ignore conf since we'll use volume mount
+conf
+
+# Ignore Dockerfile
+Dockerfile
+
+# Ignore itself
+.dockerignore
+
+# Ignore README
+README.md
+
+# Ignore log since we'll use volume mount
+log
+
+# Ignore __pycache__ directories in any path
+**/__pycache__
+
+# Ignore .git and .gitignore
+.git
+.gitignore

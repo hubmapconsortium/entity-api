@@ -178,12 +178,8 @@ def get_entity(identifier):
         abort(400, msg)
 
 
-
-
-
 """
 to get list of uuids for organs: MATCH (e:Entity)-[:HAS_METADATA]-(m) WHERE m.organ IS NOT NULL RETURN e.uuid
-
 """
 if __name__ == '__main__':
     try:

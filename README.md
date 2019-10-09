@@ -4,24 +4,60 @@ A set of web service calls to return information about HuBMAP entities.
 The webservices are accessible through the /entities restful endpoint.
 A description of the API calls is found here: [Entities API](https://drive.google.com/open?id=16C5vINOV53mKO5hIpFycbSdETsi6SIYd2FzB4Py2jBI).  (You may need to ask for permission to view this document)
 
-## Deployment Steps
-This application includes an **app.properties.example** file in the /conf directory.  Copy the file and rename it **app.properties**.  Modify **app.properties** with the appropriate information.
+## Local development
 
-This code runs by default on port **5006**.  You can change the port using a -p or --port switch at command line.  For instance:
+### Flask config
 
-`-p 5001`
+This application is written in Flask and it includes an **app.properties.example** file in the `/conf` directory.  Copy the file and rename it **app.properties**.  Modify **app.properties** with the appropriate information.
 
-changes the port to 5001.
+### Install dependencies
+
+````
+sudo pip3 install -r src/requirements.txt
+````
+
+Note: if you need to use a modified version of the [HuBMAP commons] dependency, download the code and make changes, then install the dependency using `src/requirements_dev.txt` and make sure the local file system path is specified correctly.
+
+### Start Flask development server
+
+````
+cd src
+export FLASK_APP=app.py
+export FLASK_ENV=development
+flask run
+````
+
+This code runs by default on port 5006. You can change the port using a `-p` or `--port` switch at command line. For instance:
+
+````
+flask run -p 5001
+````
+
+## Local testing against HuBMAP Gateway
+
+This requires to have the [HuBMAP Gateway](https://github.com/hubmapconsortium/gateway) running locally.
+
+### Overview of tools
+
+- [Docker](https://docs.docker.com/install/)
+- [Docker Compose](https://docs.docker.com/compose/install/)
+
+Note: Docker Compose requires Docker to be installed and running first.
 
 
-### Deployment to Development
-This application has a dependency on the [HuBMAP Commons Code](https://github.com/hubmapconsortium/commons).  During development use the `requirements_dev.txt` file to manange the dependencies.  This file links to the HuBMAP Commons code on the local filesystem, not the one checked into github.  If you seem to be having problems during development, you may also want to uninstall and re-install this package through pip:
+### uWSGI config
 
-`python3 -m pip uninstall hubmap-commons`
+In the `Dockerfile`, we installed uWSGI and the uWSGI Python plugin via yum. There's also a uWSGI configuration file at `src/uwsgi.ini` and it tells uWSGI the details of running this Flask app.
 
-`python3 -m pip install -r requirements_dev.txt`
 
-### Deployment to Test/Production
-This application has a dependency on the [HuBMAP Commons Code](https://github.com/hubmapconsortium/commons).  To ensure you have the latest code, you may need to periodically run this command update the code:
+### Build docker image
 
-`python3 -m pip install -r requirements.txt`
+````
+sudo docker-compose build
+````
+
+### Start up service
+
+````
+sudo docker-compose up
+````

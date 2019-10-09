@@ -1,0 +1,23 @@
+version: "3.7"
+
+# Will use the hostname when talking between services on the same network
+services:
+  
+  entity-api:
+    build: .
+    # Build the image with name and tag
+    image: entity-api:0.1.0
+    hostname: entity-api
+    container_name: entity-api
+    init: true
+    restart: always
+    networks:
+      - hubmap
+    volumes:
+      # Make the uwsgi logging generated on container available through from host
+      - "./log:/usr/src/app/log"
+      # Mount all config files to container
+      - "./conf.d:/usr/src/app/conf"
+
+networks:
+  hubmap:
