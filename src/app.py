@@ -16,6 +16,7 @@ from neo4j import TransactionError, CypherError
 from flask_cors import CORS, cross_origin
 import argparse
 
+# HuBMAP commons
 from hubmap_commons.hubmap_const import HubmapConst 
 from hubmap_commons.neo4j_connection import Neo4jConnection
 from hubmap_commons.uuid_generator import UUID_Generator
@@ -177,10 +178,7 @@ def get_entity(identifier):
             msg += str(x)
         abort(400, msg)
 
-
-"""
-to get list of uuids for organs: MATCH (e:Entity)-[:HAS_METADATA]-(m) WHERE m.organ IS NOT NULL RETURN e.uuid
-"""
+# This is for development only
 if __name__ == '__main__':
     try:
         parser = argparse.ArgumentParser()
