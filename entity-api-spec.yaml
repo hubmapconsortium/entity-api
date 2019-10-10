@@ -1,31 +1,27 @@
-swagger: "2.0"
+openapi: 3.0.0
 info:
   description: |
-    This is the HuBMAP APIs specification
-    [http://swagger.io](http://swagger.io) or on 
-    [irc.freenode.net, #swagger](http://swagger.io/irc/).
-  version: 1.0.0
-  title: HuBMAP APIs
-  termsOfService: http://swagger.io/terms/
+    This is the HuBMAP Entity APIs specification
+    [http://www.hubmap.org](http://www.hubmap.org)
+  version: "1.0.0-oas3"
+  title: HuBMAP Entity APIs
+  termsOfService: "http://www.hubmap.org"
   contact:
-    email: apiteam@swagger.io
+    email: apiteam@hubmap.org
   license:
     name: Apache 2.0
-    url: http://www.apache.org/licenses/LICENSE-2.0.html
-# host: www.hubmap.org
+    url: "http://www.apache.org/licenses/LICENSE-2.0.html"
 tags:
   - name: dataset
     description: Operations about dataset
     externalDocs:
       description: Find out more about our dataset
-      url: http://swagger.io
+      url: "http://swagger.io"
   - name: entity
     description: Operations about entity
     externalDocs:
       description: Find out more about our store
-      url: http://swagger.io
-# schemes:
-# - http
+      url: "http://swagger.io"
 paths:
   /entities/types:
     get:
@@ -33,47 +29,48 @@ paths:
         - entity
       summary: Get Entity Types
       operationId: getEntityTypes
-      produces:
-        - application/json
       responses:
-        200:
+        "200":
           description: successful operation
-          schema:
-            type: array
-            items:
-              $ref: "#/definitions/EntityType"
-        401:
-          description: User is not authorized to look for entities
-        400:
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/EntityType"
+        "400":
           description: Invalid dataset Id
-        404:
+        "401":
+          description: User is not authorized to look for entities
+        "404":
           description: Dataset not found
-  /entities/types/{type_code}:
+  "/entities/types/{type_code}":
     get:
       tags:
         - entity
       summary: Get Entities by type code
       operationId: getEntityByType
-      produces:
-        - application/json
       parameters:
         - name: type_code
           in: path
           description: code of type
           required: true
-          type: string
-      responses:
-        200:
-          description: successful operation
           schema:
-            type: array
-            items:
-              $ref: "#/definitions/Entity"
-        401:
-          description: User is not authorized to look for entities
-        400:
+            type: string
+      responses:
+        "200":
+          description: successful operation
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Entity"
+        "400":
           description: Invalid dataset Id
-        404:
+        "401":
+          description: User is not authorized to look for entities
+        "404":
           description: Dataset not found
   /entities/samples:
     get:
@@ -81,84 +78,84 @@ paths:
         - entity
       summary: Get Entity Types
       operationId: getEntityBySampleType
-      produces:
-        - application/json
       parameters:
         - in: query
           name: sample_type
           description: a sample type code
           required: true
-          type: string
+          schema:
+            type: string
         - in: query
           name: organ_type
           description: a organ type code
           required: true
-          type: string
-      responses:
-        200:
-          description: successful operation
           schema:
-            type: array
-            items:
-              $ref: "#/definitions/EntityType"
-        401:
-          description: User is not authorized to look for entities
-        400:
+            type: string
+      responses:
+        "200":
+          description: successful operation
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/EntityType"
+        "400":
           description: Invalid dataset Id
-        404:
+        "401":
+          description: User is not authorized to look for entities
+        "404":
           description: Dataset not found
-  /entityes/{uuid}:
+  "/entityes/{uuid}":
     get:
       tags:
         - entity
       summary: Get Entity
       operationId: getEntity
-      produces:
-        - application/json
       parameters:
         - name: uuid
           in: path
           description: The unique UUID id of entity
           required: true
-          type: string
-      responses:
-        200:
-          description: successful operation
           schema:
-            type: array
-            items:
-              $ref: "#/definitions/EntityType"
-        401:
-          description: User is not authorized to look for entities
-        400:
+            type: string
+      responses:
+        "200":
+          description: successful operation
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/EntityType"
+        "400":
           description: Invalid dataset Id
-        404:
+        "401":
+          description: User is not authorized to look for entities
+        "404":
           description: Dataset not found
-securityDefinitions:
-  petstore_auth:
-    type: oauth2
-    authorizationUrl: http://petstore.swagger.io/oauth/dialog
-    flow: implicit
-    scopes:
-      write:pets: modify pets in your account
-      read:pets: read your pets
-  api_key:
-    type: apiKey
-    name: api_key
-    in: header
-definitions:
-  Entity:
-    type: object
-  EntityType:
-    type: object
 externalDocs:
   description: Find out more about Swagger
-  url: http://swagger.io
-# Added by API Auto Mocking Plugin
-host: virtserver.swaggerhub.com
-# basePath: /etlds/DataIngest/1.0.0
-schemes:
-  - https
-  - http
-# Added by API Auto Mocking Plugin
-basePath: /etlds/Entity/1.0.0
+  url: "http://swagger.io"
+servers:
+  - url: "https://virtserver.swaggerhub.com/etlds/Entity/1.0.0"
+  - url: "http://virtserver.swaggerhub.com/etlds/Entity/1.0.0"
+components:
+  securitySchemes:
+    petstore_auth:
+      type: oauth2
+      flows:
+        implicit:
+          authorizationUrl: "http://petstore.swagger.io/oauth/dialog"
+          scopes:
+            "write:pets": modify pets in your account
+            "read:pets": read your pets
+    api_key:
+      type: apiKey
+      name: api_key
+      in: header
+  schemas:
+    Entity:
+      type: object
+    EntityType:
+      type: object
