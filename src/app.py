@@ -23,6 +23,7 @@ from hubmap_commons.uuid_generator import UUID_Generator
 from hubmap_commons.hm_auth import AuthHelper, secured
 from hubmap_commons.entity import Entity
 from hubmap_commons.autherror import AuthError
+from hubmap_commons.provenance import Provenance
 
 #from hubmap_commons import HubmapConst, Neo4jConnection, uuid_generator, AuthHelper, secured, Entity, AuthError
 
@@ -141,6 +142,42 @@ def get_entity_by_sample_type():
         
         uuid_list = Entity.get_entities_by_metadata_attribute(driver, attribute_name, search_term) 
         return jsonify( {'uuids' : uuid_list}), 200
+    except:
+        msg = 'An error occurred: '
+        for x in sys.exc_info():
+            msg += str(x)
+        abort(400, msg)
+
+@app.route('/entities/<identifier>/provenance', methods = ['GET'])
+@cross_origin(origins=[app.config['UUID_UI_URL']], methods=['GET'])
+def get_entity_provenance(identifier):
+    try:
+        token = str(request.headers["AUTHORIZATION"])[7:]
+        conn = Neo4jConnection(app.config['NEO4J_SERVER'], app.config['NEO4J_USERNAME'], app.config['NEO4J_PASSWORD'])
+        driver = conn.get_driver()
+        ug = UUID_Generator(app.config['UUID_WEBSERVICE_URL'])
+        identifier_list = ug.getUUID(token, identifier)
+        if len(identifier_list) == 0:
+            raise LookupError('unable to find information on identifier: ' + str(identifier))
+        if len(identifier_list) > 1:
+            raise LookupError('found multiple records for identifier: ' + str(identifier))
+
+        if 'depth' in request.args:
+            depth = int(request.args.get('depth'))
+        
+        prov = Provenance(app.config['APP_CLIENT_ID'], app.config['APP_CLIENT_SECRET'], app.config['UUID_WEBSERVICE_URL'])
+
+        provenance_data = prov.get_provenance_history(driver, identifier_list[0]['hmuuid'], depth)
+        return jsonify( {'provenance_data' : provenance_data}), 200
+    except AuthError as e:
+        print(e)
+        return Response('token is invalid', 401)
+    except LookupError as le:
+        print(le)
+        return Response(str(le), 404)
+    except CypherError as ce:
+        print(ce)
+        return Response('Unable to perform query to find identifier: ' + identifier, 500)            
     except:
         msg = 'An error occurred: '
         for x in sys.exc_info():
