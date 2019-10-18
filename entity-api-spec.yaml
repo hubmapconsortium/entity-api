@@ -16,12 +16,12 @@ tags:
     description: Operations about dataset
     externalDocs:
       description: Find out more about our dataset
-      url: "http://swagger.io"
+      url: "http://hubmap.org"
   - name: entity
     description: Operations about entity
     externalDocs:
-      description: Find out more about our store
-      url: "http://swagger.io"
+      description: Find out more about our entity
+      url: "http://hubmap.org"
 paths:
   /entities/types:
     get:
@@ -134,22 +134,19 @@ paths:
           description: User is not authorized to look for entities
         "404":
           description: Dataset not found
-externalDocs:
-  description: Find out more about Swagger
-  url: "http://swagger.io"
 servers:
-  - url: "https://virtserver.swaggerhub.com/etlds/Entity/1.0.0"
-  - url: "http://virtserver.swaggerhub.com/etlds/Entity/1.0.0"
+  - url: "https://uuid.hubmapconsortium.org/entity"
+  - url: "http://uuid.hubmapconsortium.org/entity"
 components:
   securitySchemes:
-    petstore_auth:
+    globus_auth:
       type: oauth2
       flows:
         implicit:
-          authorizationUrl: "http://petstore.swagger.io/oauth/dialog"
+          authorizationUrl: "https://auth.globus.org/v2/oauth2/authorize"
           scopes:
-            "write:pets": modify pets in your account
-            "read:pets": read your pets
+            "write:entities": modify entities
+            "read:entities": read entities
     api_key:
       type: apiKey
       name: api_key
