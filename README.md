@@ -4,7 +4,9 @@ A set of web service calls to return information about HuBMAP entities.
 The webservices are accessible through the /entities restful endpoint.
 A description of the API calls is found here: [Entities API](https://drive.google.com/open?id=16C5vINOV53mKO5hIpFycbSdETsi6SIYd2FzB4Py2jBI).  (You may need to ask for permission to view this document)
 
-## Local development
+## Local standalone development
+
+This assumes you are developing the code with the Flask development server and you have access to the remote neo4j database.
 
 ### Flask config
 
@@ -33,11 +35,11 @@ This code runs by default on port 5006. You can change the port using a `-p` or 
 flask run -p 5001
 ````
 
-## Local testing against HuBMAP Gateway
+## Local testing against HuBMAP Gateway in a containeried environment
 
-This requires to have the [HuBMAP Gateway](https://github.com/hubmapconsortium/gateway) running locally.
+This option allows you to setup all the pieces (gateway for authentication, neo4j database server...) in a containerized environment with docker and docker-compose. This requires to have the [HuBMAP Gateway](https://github.com/hubmapconsortium/gateway) running locally.
 
-### Overview of tools
+### Required tools
 
 - [Docker](https://docs.docker.com/install/)
 - [Docker Compose](https://docs.docker.com/compose/install/)

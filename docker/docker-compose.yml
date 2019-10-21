@@ -12,7 +12,7 @@ services:
     init: true
     restart: always
     networks:
-      - hubmap
+      - gateway_hubmap
     volumes:
       # Mount the source code to container
       - "../src/:/usr/src/app/src"
@@ -33,10 +33,12 @@ services:
       - "7474:7474"
       - "7687:7687"
     networks:
-      - hubmap
+      - gateway_hubmap
     volumes:
       # Mount neo4j config file to container
       - "./hubmap-neo4j/neo4j.conf:/usr/src/app/neo4j/conf/neo4j.conf"
 
 networks:
-  hubmap:
+  # This is the network created by gateway to enable communicaton between multiple docker-compose projects
+  gateway_hubmap:
+    external: true
