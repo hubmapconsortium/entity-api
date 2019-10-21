@@ -1,0 +1,42 @@
+version: "3.7"
+
+# Will use the hostname when talking between services on the same network
+services:
+  
+  entity-api:
+    build: ./entity-api
+    # Build the image with name and tag
+    image: entity-api:0.1.0
+    hostname: entity-api
+    container_name: entity-api
+    init: true
+    restart: always
+    networks:
+      - hubmap
+    volumes:
+      # Mount the source code to container
+      - "../src/:/usr/src/app/src"
+      # Make the uwsgi logging generated on container available through from host
+      - "../log:/usr/src/app/log"
+      # Mount all config files to container
+      - "../conf:/usr/src/app/conf"
+
+  hubmap-neo4j:
+    build: ./hubmap-neo4j
+    # Build the image with name and tag
+    image: hubmap-neo4j:0.1.0
+    hostname: hubmap-neo4j
+    container_name: hubmap-neo4j
+    init: true
+    restart: always
+    ports:
+      - "7474:7474"
+      - "7687:7687"
+    networks:
+      - hubmap
+    volumes:
+      # Mount neo4j config file to container
+      - "./hubmap-neo4j/neo4j.conf:/usr/src/app/neo4j/conf/neo4j.conf"
+
+networks:
+  hubmap:

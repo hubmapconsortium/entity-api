@@ -1,0 +1,11 @@
+# Ignore Dockerfile
+Dockerfile
+
+# Ignore itself
+.dockerignore
+
+# Ignore README
+README.md
+
+# Ignore log since we'll use volume mount
+log
