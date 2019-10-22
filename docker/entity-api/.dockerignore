@@ -6,8 +6,3 @@ Dockerfile
 
 # Ignore README
 README.md
-
-# Ignore copied folders
-src
-conf
-log
