@@ -7,6 +7,3 @@ Dockerfile
 # Ignore README
 README.md
 
-# Ignore conf and log folders
-conf
-log
