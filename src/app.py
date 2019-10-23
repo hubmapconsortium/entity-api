@@ -97,6 +97,10 @@ def load_config_file():
         exit(0)
 
 
+@app.route('/', methods = ['GET'])
+def index():
+    return "Hello! This is HuBMAP Entity API service :)"
+
 @app.route('/entities/types/<type_code>', methods = ['GET'])
 @cross_origin(origins=[app.config['UUID_UI_URL']], methods=['GET'])
 def get_entity_by_type(type_code):
