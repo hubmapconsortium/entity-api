@@ -1,9 +1,6 @@
 #!/bin/bash
 
-# Copy over the src and conf folders
+# Copy over the src folder
 cp -r ../src entity-api/
-cp -r ../conf entity-api/
 
-# Create log folder
-mkdir entity-api/log
 

@@ -9,8 +9,11 @@ services:
     image: entity-api:0.1.0
     hostname: entity-api
     container_name: entity-api
-    init: true
-    restart: always
+    volumes:
+      # Mount the configuration to container
+      - "../conf:/usr/src/app/conf"
+      # Mount the logging to container
+      - "../log:/usr/src/app/log"
     networks:
       - gateway_hubmap
 
@@ -20,11 +23,15 @@ services:
     image: hubmap-neo4j:0.1.0
     hostname: hubmap-neo4j
     container_name: hubmap-neo4j
-    init: true
-    restart: always
+    # Use the same port mapping for dev and prod
     ports:
       - "7474:7474"
       - "7687:7687"
+    volumes:
+      # Mount the graph db folder to container
+      - "./hubmap.db:/usr/src/app/neo4j/data/databases/hubmap.db"
+      # Mount the neo4j configuration file to container
+      - "./neo4j.conf:/usr/src/app/neo4j/conf/neo4j.conf"
     networks:
       - gateway_hubmap
 

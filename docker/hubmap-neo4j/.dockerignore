@@ -7,5 +7,6 @@ Dockerfile
 # Ignore README
 README.md
 
-# Ignore log since we'll use volume mount
-log
+# Ignore the hubmap.db and neo4j.conf
+hubmap.db
+neo4j.conf

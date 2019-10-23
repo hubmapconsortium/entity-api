@@ -17,18 +17,14 @@ COPY . .
 # 4 - Extract neo4j tarball
 # 5 - Rename folder to neo4j
 # 6 - Remove the downloaded neo4j tarball
-# 7 - Move the hubmap.db to neo4j database directory
-# 8 - Move the neo4j config over to overwrite the default
-# 9 - Make the start script executable
-# 10 - Clean all yum cache
+# 7 - Make the start script executable
+# 8 - Clean all yum cache
 RUN yum update -y && \
     yum install -y wget java-1.8.0-openjdk && \
     wget http://dist.neo4j.org/neo4j-community-3.5.12-unix.tar.gz && \
     tar -zxvf neo4j-community-3.5.12-unix.tar.gz && \
     mv neo4j-community-3.5.12 neo4j && \
     rm neo4j-community-3.5.12-unix.tar.gz && \
-    mv hubmap.db /usr/src/app/neo4j/data/databases && \
-    mv neo4j.conf neo4j/conf && \
     chmod +x start.sh && \
     yum clean all
     
