@@ -6,8 +6,6 @@ Created on May 15, 2019
 from flask import Flask, jsonify, abort, request, make_response, url_for, session, redirect, json, Response
 import globus_sdk
 from globus_sdk import AccessTokenAuthorizer, TransferClient, AuthClient 
-import configparser
-from pprint import pprint
 import base64
 from globus_sdk.exc import TransferAPIError
 import sys
@@ -24,6 +22,9 @@ from hubmap_commons.hm_auth import AuthHelper, secured
 from hubmap_commons.entity import Entity
 from hubmap_commons.autherror import AuthError
 from hubmap_commons.provenance import Provenance
+
+# For debugging
+from pprint import pprint
 
 #from hubmap_commons import HubmapConst, Neo4jConnection, uuid_generator, AuthHelper, secured, Entity, AuthError
 
