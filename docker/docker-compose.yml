@@ -10,8 +10,6 @@ services:
     hostname: entity-api
     container_name: entity-api
     volumes:
-      # Mount the configuration to container
-      - "../conf:/usr/src/app/conf"
       # Mount the logging to container
       - "../log:/usr/src/app/log"
     networks:

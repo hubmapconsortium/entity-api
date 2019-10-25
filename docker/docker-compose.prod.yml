@@ -5,6 +5,9 @@ services:
   entity-api:
     init: true
     restart: always
+    volumes:
+      # Mount the app config to container in order to keep it outside of the image
+      - "../src/instance:/usr/src/app/src/instance"
     
   hubmap-neo4j:
     init: true
