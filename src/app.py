@@ -29,7 +29,7 @@ from pprint import pprint
 #from hubmap_commons import HubmapConst, Neo4jConnection, uuid_generator, AuthHelper, secured, Entity, AuthError
 
 # Specify the absolute path of the instance folder and use the config file relative to the instance path
-app = Flask(__name__, instance_path=os.path.join(os.path.abspath(os.curdir), '../instance'), instance_relative_config=True)
+app = Flask(__name__, instance_path=os.path.join(os.path.abspath(os.curdir), 'instance'), instance_relative_config=True)
 app.config.from_pyfile('app.cfg')
 
 @app.route('/', methods = ['GET'])

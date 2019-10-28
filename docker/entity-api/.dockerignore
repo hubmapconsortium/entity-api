@@ -7,3 +7,6 @@ Dockerfile
 # Ignore README
 README.md
 
+# Ignore the flask instance folder
+src/instance
+
