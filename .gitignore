@@ -1,5 +1,5 @@
 # Ignore config file
-instance/app.cfg
+src/instance/app.cfg
 
 # Ignore copied over folders
 docker/entity-api/src
