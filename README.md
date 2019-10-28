@@ -35,7 +35,7 @@ This code runs by default on port 5006. You can change the port using a `-p` or 
 flask run -p 5001
 ````
 
-## Local testing against HuBMAP Gateway in a containeried environment
+## Local testing against HuBMAP Gateway in a containerized environment
 
 This option allows you to setup all the pieces (gateway for authentication, neo4j database server...) in a containerized environment with docker and docker-compose. This requires to have the [HuBMAP Gateway](https://github.com/hubmapconsortium/gateway) running locally.
 
@@ -55,11 +55,15 @@ In the `Dockerfile`, we installed uWSGI and the uWSGI Python plugin via yum. The
 ### Build docker image
 
 ````
-sudo docker-compose build
+cd docker
+./docker-setup.sh
+sudo docker-compose -f docker-compose.yml -f docker-compose.dev.yml build
 ````
 
-### Start up service
+### Start up container
 
 ````
-sudo docker-compose up
+sudo docker-compose -p entity-api_and_neo4j -f docker-compose.yml -f docker-compose.dev.yml up -d
 ````
+
+Note: here we specify the docker compose project with the `-p` to avoid "WARNING: Found orphan containers ..." due to the fact that docker compose uses the directory name as the default project name.
