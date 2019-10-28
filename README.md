@@ -8,9 +8,9 @@ A description of the API calls is found here: [Entities API](https://drive.googl
 
 This assumes you are developing the code with the Flask development server and you have access to the remote neo4j database.
 
-### Flask config
+### Flask app configuration
 
-This application is written in Flask and it includes an **app.properties.example** file in the `/conf` directory.  Copy the file and rename it **app.properties**.  Modify **app.properties** with the appropriate information.
+This application is written in Flask and it includes an **app.cfg.example** file in the `/src/instance` directory.  Copy the file and rename it **app.cfg** and modify  with the appropriate information.
 
 ### Install dependencies
 
