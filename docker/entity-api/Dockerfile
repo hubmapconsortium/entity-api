@@ -23,7 +23,7 @@ RUN yum update -y && \
     yum install -y epel-release && \
     yum install -y python36 python36-pip uwsgi uwsgi-plugin-python36.x86_64 && \
     pip3 install --upgrade pip && \
-    pip install -r requirements.txt && \
+    pip install -r src/requirements.txt && \
     yum clean all 
 
 # The EXPOSE instruction informs Docker that the container listens on the specified network ports at runtime. 
