@@ -4,13 +4,13 @@ A set of web service calls to return information about HuBMAP entities.
 The webservices are accessible through the /entities restful endpoint.
 A description of the API calls is found here: [Entities API](https://drive.google.com/open?id=16C5vINOV53mKO5hIpFycbSdETsi6SIYd2FzB4Py2jBI).  (You may need to ask for permission to view this document)
 
+## Flask app configuration
+
+This application is written in Flask and it includes an **app.cfg.example** file in the `/src/instance` directory.  Copy the file and rename it **app.cfg** and modify  with the appropriate information.
+
 ## Local standalone development
 
 This assumes you are developing the code with the Flask development server and you have access to the remote neo4j database.
-
-### Flask app configuration
-
-This application is written in Flask and it includes an **app.cfg.example** file in the `/src/instance` directory.  Copy the file and rename it **app.cfg** and modify  with the appropriate information.
 
 ### Install dependencies
 
@@ -37,12 +37,12 @@ flask run -p 5001
 
 ## Local testing against HuBMAP Gateway in a containerized environment
 
-This option allows you to setup all the pieces (gateway for authentication, neo4j database server...) in a containerized environment with docker and docker-compose. This requires to have the [HuBMAP Gateway](https://github.com/hubmapconsortium/gateway) running locally before starting building the Entity API docker compose project. Please follow the [instructions](https://github.com/hubmapconsortium/gateway#workflow-of-setting-up-multiple-hubmap-docker-compose-projects). It also requires the Gateway project to be configured accordingly.
+This option allows you to setup all the pieces in a containerized environment with docker and docker-compose. This requires to have the [HuBMAP Gateway](https://github.com/hubmapconsortium/gateway) running locally before starting building the Entity API docker compose project. Please follow the [instructions](https://github.com/hubmapconsortium/gateway#workflow-of-setting-up-multiple-hubmap-docker-compose-projects). It also requires the Gateway project to be configured accordingly.
 
 
 ### Flask app configuration
 
-Same as the configuration for the standalone local development, you'll need to rename the **app.cfg.example** file in the `/src/instance` directory to **app.cfg** and modify  with the appropriate information.
+Same as the configuration for the standalone local development, you'll need to rename the **app.cfg.example** file in the `/src/instance` directory to **app.cfg** and modify with the appropriate information.
 
 
 ### Build docker image
@@ -61,4 +61,4 @@ sudo docker-compose -p entity-api_and_neo4j -f docker-compose.yml -f docker-comp
 
 Note: here we specify the docker compose project with the `-p` to avoid "WARNING: Found orphan containers ..." due to the fact that docker compose uses the directory name as the default project name.
 
-Also note that the Gateway project uses the same shared network **gateway_hubmap** and this network will be used by Entity API so the containers can communicate to each other across multiple docker compose projects. This network needs to be created explicitly when setting up with `gateway` project.
+Also note that the Gateway and other API projects use the same shared network **gateway_hubmap** so the containers of each docker compose project can communicate to each other across multiple docker compose projects. This network needs to be created explicitly when setting up with `gateway` project.
