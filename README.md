@@ -39,12 +39,6 @@ flask run -p 5001
 
 This option allows you to setup all the pieces in a containerized environment with docker and docker-compose. This requires to have the [HuBMAP Gateway](https://github.com/hubmapconsortium/gateway) running locally before starting building the Entity API docker compose project. Please follow the [instructions](https://github.com/hubmapconsortium/gateway#workflow-of-setting-up-multiple-hubmap-docker-compose-projects). It also requires the Gateway project to be configured accordingly.
 
-
-### Flask app configuration
-
-Same as the configuration for the standalone local development, you'll need to rename the **app.cfg.example** file in the `/src/instance` directory to **app.cfg** and modify with the appropriate information.
-
-
 ### Build docker image
 
 ````
