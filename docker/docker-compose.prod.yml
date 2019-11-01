@@ -1,0 +1,12 @@
+version: "3.7"
+
+services:
+  
+  entity-api:
+    init: true
+    restart: always
+    
+  hubmap-neo4j:
+    init: true
+    restart: always
+

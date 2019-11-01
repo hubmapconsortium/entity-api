@@ -6,8 +6,6 @@ Created on May 15, 2019
 from flask import Flask, jsonify, abort, request, make_response, url_for, session, redirect, json, Response
 import globus_sdk
 from globus_sdk import AccessTokenAuthorizer, TransferClient, AuthClient 
-import configparser
-from pprint import pprint
 import base64
 from globus_sdk.exc import TransferAPIError
 import sys
@@ -25,72 +23,18 @@ from hubmap_commons.entity import Entity
 from hubmap_commons.autherror import AuthError
 from hubmap_commons.provenance import Provenance
 
+# For debugging
+from pprint import pprint
+
 #from hubmap_commons import HubmapConst, Neo4jConnection, uuid_generator, AuthHelper, secured, Entity, AuthError
 
-app = Flask(__name__)
+# Specify the absolute path of the instance folder and use the config file relative to the instance path
+app = Flask(__name__, instance_path=os.path.join(os.path.abspath(os.curdir), 'instance'), instance_relative_config=True)
+app.config.from_pyfile('app.cfg')
 
-config = configparser.ConfigParser()
-try:
-    config.read(os.path.join(os.path.dirname(__file__), '..', 'conf', 'app.properties'))
-    app.config['UUID_UI_URL'] = config.get('HUBMAP', 'UUID_UI_URL')
-    app.config['APP_CLIENT_ID'] = config.get('GLOBUS', 'APP_CLIENT_ID')
-    app.config['APP_CLIENT_SECRET'] = config.get(
-        'GLOBUS', 'APP_CLIENT_SECRET')
-    if AuthHelper.isInitialized() == False:
-        authcache = AuthHelper.create(
-            app.config['APP_CLIENT_ID'], app.config['APP_CLIENT_SECRET'])
-    else:
-        authcache = AuthHelper.instance()
-except:
-    msg = "Unexpected error:", sys.exc_info()[0]
-    print(msg + "  Program stopped.")
-    exit(0)
-
-@app.before_first_request
-def load_app_client():
-    load_config_file()
-    return globus_sdk.ConfidentialAppAuthClient(
-        app.config['APP_CLIENT_ID'], app.config['APP_CLIENT_SECRET'])
-
-def load_config_file():    
-    config = configparser.ConfigParser()
-    try:
-        config.read(os.path.join(os.path.dirname(__file__), '..', 'conf', 'app.properties'))
-        app.config['APP_CLIENT_ID'] = config.get('GLOBUS', 'APP_CLIENT_ID')
-        app.config['APP_CLIENT_SECRET'] = config.get('GLOBUS', 'APP_CLIENT_SECRET')
-        app.config['NEO4J_SERVER'] = config.get('NEO4J', 'server')
-        app.config['NEO4J_USERNAME']  = config.get('NEO4J', 'username')
-        app.config['NEO4J_PASSWORD']  = config.get('NEO4J', 'password')
-        app.config['UUID_WEBSERVICE_URL']  = config.get('HUBMAP', 'UUID_WEBSERVICE_URL')
-
-        #app.config['DEBUG'] = True
-    except OSError as err:
-        msg = "OS error.  Check app.properties file to make sure it exists and is readable: {0}".format(err)
-        print (msg + "  Program stopped.")
-        exit(0)
-    except configparser.NoSectionError as noSectError:
-        msg = "Error reading the app.properties file.  Check app.properties file to make sure it matches the structure in app.properties.example: {0}".format(noSectError)
-        print (msg + "  Program stopped.")
-        exit(0)
-    except configparser.NoOptionError as noOptError:
-        msg = "Error reading the app.properties file.  Check app.properties file to make sure it matches the structure in app.properties.example: {0}".format(noOptError)
-        print (msg + "  Program stopped.")
-        exit(0)
-    except SyntaxError as syntaxError:
-        msg = "Error reading the app.properties file.  Check app.properties file to make sure it matches the structure in app.properties.example: {0}".format(syntaxError)
-        msg = msg + "  Cannot read line: {0}".format(syntaxError.text)
-        print (msg + "  Program stopped.")
-        exit(0)        
-    except AttributeError as attrError:
-        msg = "Error reading the app.properties file.  Check app.properties file to make sure it matches the structure in app.properties.example: {0}".format(attrError)
-        msg = msg + "  Cannot read line: {0}".format(attrError.text)
-        print (msg + "  Program stopped.")
-        exit(0)        
-    except:
-        msg = "Unexpected error:", sys.exc_info()[0]
-        print (msg + "  Program stopped.")
-        exit(0)
-
+@app.route('/', methods = ['GET'])
+def index():
+    return "Hello! This is HuBMAP Entity API service :)"
 
 @app.route('/entities/types/<type_code>', methods = ['GET'])
 @cross_origin(origins=[app.config['UUID_UI_URL']], methods=['GET'])
