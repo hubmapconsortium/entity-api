@@ -7,6 +7,5 @@ Dockerfile
 # Ignore README
 README.md
 
-# Ignore the hubmap.db and neo4j.conf
-hubmap.db
+# Ignore the mounted neo4j.conf
 neo4j.conf

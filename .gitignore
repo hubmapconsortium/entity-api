@@ -3,8 +3,6 @@ src/instance/app.cfg
 
 # Ignore copied over folders
 docker/entity-api/src
-docker/entity-api/log
-docker/entity-api/conf
 
 # Ignore __pycache__ directories in any path
 **/__pycache__
