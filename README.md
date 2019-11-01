@@ -1,8 +1,8 @@
 # entity-api for HuBMAP
 A set of web service calls to return information about HuBMAP entities.
 
-The webservices are accessible through the /entities restful endpoint.
-A description of the API calls is found here: [Entities API](https://drive.google.com/open?id=16C5vINOV53mKO5hIpFycbSdETsi6SIYd2FzB4Py2jBI).  (You may need to ask for permission to view this document)
+The webservices are accessible through the `/entities` restful endpoint.
+A description of the API calls is found here: [Entities API](http://smart-api.info/ui/12af775769ba65a684476960f5f87e72).
 
 ## Flask app configuration
 
@@ -56,3 +56,4 @@ sudo docker-compose -p entity-api_and_neo4j -f docker-compose.yml -f docker-comp
 Note: here we specify the docker compose project with the `-p` to avoid "WARNING: Found orphan containers ..." due to the fact that docker compose uses the directory name as the default project name.
 
 Also note that the Gateway and other API projects use the same shared network **gateway_hubmap** so the containers of each docker compose project can communicate to each other across multiple docker compose projects. This network needs to be created explicitly when setting up with `gateway` project.
+
