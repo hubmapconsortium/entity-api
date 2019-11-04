@@ -6,7 +6,7 @@ services:
   entity-api:
     build: ./entity-api
     # Build the image with name and tag
-    image: entity-api:0.1.0
+    image: entity-api:1.0
     hostname: entity-api
     container_name: entity-api
     volumes:
@@ -20,7 +20,7 @@ services:
   hubmap-neo4j:
     build: ./hubmap-neo4j
     # Build the image with name and tag
-    image: hubmap-neo4j:0.1.0
+    image: hubmap-neo4j:1.0
     hostname: hubmap-neo4j
     container_name: hubmap-neo4j
     # Use the same port mapping for dev and prod
