@@ -100,7 +100,8 @@ def get_entity_provenance(identifier):
             raise LookupError('unable to find information on identifier: ' + str(identifier))
         if len(identifier_list) > 1:
             raise LookupError('found multiple records for identifier: ' + str(identifier))
-
+        
+        depth = None
         if 'depth' in request.args:
             depth = int(request.args.get('depth'))
         
