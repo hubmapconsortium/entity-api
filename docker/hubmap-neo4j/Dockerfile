@@ -16,16 +16,18 @@ COPY . .
 # 3 - Download neo4j community server
 # 4 - Extract neo4j tarball
 # 5 - Rename folder to neo4j
-# 6 - Copy the sample graph db to target location
-# 7 - Remove the downloaded neo4j tarball
-# 8 - Make the start script executable
-# 9 - Clean all yum cache
+# 6 - Move the sample graph db to target location
+# 7 - Move the apoc jar to neo4j plugins
+# 8 - Remove the downloaded neo4j tarball
+# 9 - Make the start script executable
+# 10 - Clean all yum cache
 RUN yum update -y && \
     yum install -y wget java-1.8.0-openjdk && \
     wget http://dist.neo4j.org/neo4j-community-3.5.12-unix.tar.gz && \
     tar -zxvf neo4j-community-3.5.12-unix.tar.gz && \
     mv neo4j-community-3.5.12 neo4j && \
     mv hubmap.db neo4j/data/databases/hubmap.db && \
+    mv apoc-3.5.0.5-all.jar neo4j/plugins && \
     rm neo4j-community-3.5.12-unix.tar.gz && \
     chmod +x start.sh && \
     yum clean all
