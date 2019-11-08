@@ -9,10 +9,7 @@ NEO4J_PASSWORD = '123'
 
 # URL for talking to UUID API
 # Don't use localhost since uuid-api running on a different container
-# In prod mode
-#UUID_WEBSERVICE_URL = 'http://hubmap-auth:8181/hmuuid'
-# In dev mode
-UUID_WEBSERVICE_URL = 'http://hubmap-auth:82/hmuuid'
+UUID_WEBSERVICE_URL = 'http://hubmap-auth:9999/hmuuid'
 
 # URL of UUID UI for Cross-Origin Resource Sharing (CORS)
 UUID_UI_URL = 'http://localhost/'
