@@ -37,7 +37,7 @@ def index():
     return "Hello! This is HuBMAP Entity API service :)"
 
 @app.route('/entities/types/<type_code>', methods = ['GET'])
-@cross_origin(origins=[app.config['UUID_UI_URL']], methods=['GET'])
+# @cross_origin(origins=[app.config['UUID_UI_URL']], methods=['GET'])
 def get_entity_by_type(type_code):
     try:
         conn = Neo4jConnection(app.config['NEO4J_SERVER'], app.config['NEO4J_USERNAME'], app.config['NEO4J_PASSWORD'])
@@ -51,7 +51,7 @@ def get_entity_by_type(type_code):
         abort(400, msg)
 
 @app.route('/entities/types', methods = ['GET'])
-@cross_origin(origins=[app.config['UUID_UI_URL']], methods=['GET'])
+# @cross_origin(origins=[app.config['UUID_UI_URL']], methods=['GET'])
 def get_entity_types():
     try:
         conn = Neo4jConnection(app.config['NEO4J_SERVER'], app.config['NEO4J_USERNAME'], app.config['NEO4J_PASSWORD'])
@@ -65,7 +65,7 @@ def get_entity_types():
         abort(400, msg)
 
 @app.route('/entities/samples', methods = ['GET'])
-@cross_origin(origins=[app.config['UUID_UI_URL']], methods=['GET'])
+# @cross_origin(origins=[app.config['UUID_UI_URL']], methods=['GET'])
 def get_entity_by_sample_type():
     try:
         conn = Neo4jConnection(app.config['NEO4J_SERVER'], app.config['NEO4J_USERNAME'], app.config['NEO4J_PASSWORD'])
@@ -88,7 +88,7 @@ def get_entity_by_sample_type():
         abort(400, msg)
 
 @app.route('/entities/<identifier>/provenance', methods = ['GET'])
-@cross_origin(origins=[app.config['UUID_UI_URL']], methods=['GET'])
+# @cross_origin(origins=[app.config['UUID_UI_URL']], methods=['GET'])
 def get_entity_provenance(identifier):
     try:
         token = str(request.headers["AUTHORIZATION"])[7:]
@@ -125,7 +125,7 @@ def get_entity_provenance(identifier):
         abort(400, msg)
 
 @app.route('/entities/<identifier>', methods = ['GET'])
-@cross_origin(origins=[app.config['UUID_UI_URL']], methods=['GET'])
+# @cross_origin(origins=[app.config['UUID_UI_URL']], methods=['GET'])
 def get_entity(identifier):
     try:
         token = str(request.headers["AUTHORIZATION"])[7:]
