@@ -2,13 +2,15 @@
 APP_CLIENT_ID = ''
 APP_CLIENT_SECRET = ''
 
-# Neo4j connection
+# Neo4j connection (default value used for dev environment)
+# Point to remote neo4j for testing and production deployment
 NEO4J_SERVER = 'bolt://hubmap-neo4j:7687'
 NEO4J_USERNAME = 'neo4j'
 NEO4J_PASSWORD = '123'
 
-# URL for talking to UUID API
+# URL for talking to UUID API (default value used for dev environment)
 # Don't use localhost since uuid-api running on a different container
+# Point to remote URL for testing and production deployment
 UUID_WEBSERVICE_URL = 'http://hubmap-auth:9999/hmuuid'
 
 # URL of UUID UI for Cross-Origin Resource Sharing (CORS)

@@ -17,22 +17,6 @@ services:
     networks:
       - gateway_hubmap
 
-  hubmap-neo4j:
-    build: ./hubmap-neo4j
-    # Build the image with name and tag
-    image: hubmap-neo4j:1.0
-    hostname: hubmap-neo4j
-    container_name: hubmap-neo4j
-    # Use the same port mapping for dev and prod
-    ports:
-      - "7474:7474"
-      - "7687:7687"
-    volumes:
-      # Mount the neo4j configuration file to container
-      - "./hubmap-neo4j/neo4j.conf:/usr/src/app/neo4j/conf/neo4j.conf"
-    networks:
-      - gateway_hubmap
-
 networks:
   # This is the network created by gateway to enable communicaton between multiple docker-compose projects
   gateway_hubmap:
