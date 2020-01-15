@@ -64,29 +64,6 @@ def get_entity_types():
             msg += str(x)
         abort(400, msg)
 
-@app.route('/entities/samples', methods = ['GET'])
-# @cross_origin(origins=[app.config['UUID_UI_URL']], methods=['GET'])
-def get_entity_by_sample_type():
-    try:
-        conn = Neo4jConnection(app.config['NEO4J_SERVER'], app.config['NEO4J_USERNAME'], app.config['NEO4J_PASSWORD'])
-        driver = conn.get_driver()
-        attribute_name = HubmapConst.SPECIMEN_TYPE_ATTRIBUTE
-        search_term = None
-        if 'sample_type' in request.args:
-            search_term = request.args.get('sample_type')
-        elif 'organ_type' in request.args:
-            search_term = request.args.get('organ_type')
-            attribute_name = HubmapConst.ORGAN_TYPE_ATTRIBUTE
-
-        
-        uuid_list = Entity.get_entities_by_metadata_attribute(driver, attribute_name, search_term) 
-        return jsonify( {'uuids' : uuid_list}), 200
-    except:
-        msg = 'An error occurred: '
-        for x in sys.exc_info():
-            msg += str(x)
-        abort(400, msg)
-
 @app.route('/entities/<identifier>/provenance', methods = ['GET'])
 # @cross_origin(origins=[app.config['UUID_UI_URL']], methods=['GET'])
 def get_entity_provenance(identifier):
@@ -108,7 +85,8 @@ def get_entity_provenance(identifier):
         prov = Provenance(app.config['APP_CLIENT_ID'], app.config['APP_CLIENT_SECRET'], app.config['UUID_WEBSERVICE_URL'])
 
         provenance_data = prov.get_provenance_history(driver, identifier_list[0]['hmuuid'], depth)
-        return jsonify( {'provenance_data' : provenance_data}), 200
+        #return jsonify( {'provenance_data' : provenance_data}), 200
+        return provenance_data, 200
     except AuthError as e:
         print(e)
         return Response('token is invalid', 401)
