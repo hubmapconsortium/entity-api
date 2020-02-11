@@ -9,6 +9,8 @@ services:
     image: entity-api:1.0
     hostname: entity-api
     container_name: entity-api
+    environment:
+      - HOST_UID=1000
     volumes:
       # Mount the app config to container in order to keep it outside of the image
       - "../src/instance:/usr/src/app/src/instance"
