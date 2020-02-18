@@ -11,7 +11,7 @@ services:
   hubmap-neo4j:
     build: ./hubmap-neo4j
     # Build the image with name and tag
-    image: hubmap-neo4j:1.0
+    image: hubmap-neo4j:1.1
     hostname: hubmap-neo4j
     container_name: hubmap-neo4j
     # Use the same port mapping for dev and prod
