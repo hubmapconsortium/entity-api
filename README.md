@@ -4,11 +4,20 @@ A set of web service calls to return information about HuBMAP entities.
 The webservices are accessible through the `/entities` restful endpoint.
 A description of the API calls is found here: [Entities API](http://smart-api.info/ui/12af775769ba65a684476960f5f87e72).
 
+## Development and deployment environments
+
+We have the following 4 development and deployment environments:
+
+* localhost - all the services will be deployed with docker containers including sample Neo4j and sample MySQL are running on the same localhost listing on different ports, without globus data
+* dev - all services except ingest-api will be running on AWS EC2 with SSL certificates, Neo4j and MySQL are dev versions on AWS, and ingest-api(and another nginx) will be running on PSC with domain and globus data
+* test - similar to dev but for production-like settings with Neo4j and MySQL test versions of database
+* prod - similar to test but for production settings with production versions of Neo4j and MySQL
+
 ## Flask app configuration
 
 This application is written in Flask and it includes an **app.cfg.example** file in the `/src/instance` directory.  Copy the file and rename it **app.cfg** and modify  with the appropriate information.
 
-## Standalone local development
+## Local development
 
 This assumes you are developing the code with the Flask development server and you have access to the remote neo4j database.
 
@@ -35,6 +44,6 @@ This code runs by default on port 5006. You can change the port using a `-p` or 
 flask run -p 5001
 ````
 
-## Deploy with other HuBMAP docker compose projects
+## Deploy with other HuBMAP docker compose projects on dev, test, and prod
 
 This option allows you to setup all the pieces in a containerized environment with docker and docker-compose. This requires to have the [HuBMAP Gateway](https://github.com/hubmapconsortium/gateway) running locally before starting building the Entity API docker compose project. Please follow the [instructions](https://github.com/hubmapconsortium/gateway#workflow-of-setting-up-multiple-hubmap-docker-compose-projects). It also requires the Gateway project to be configured accordingly.
