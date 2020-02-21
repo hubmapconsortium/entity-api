@@ -27,7 +27,7 @@ paths:
     get:
       tags:
         - entity
-      summary: Get Entity Types
+      summary: Get a list of the valid entity types
       operationId: getEntityTypes
       responses:
         "200":
@@ -35,20 +35,21 @@ paths:
           content:
             application/json:
               schema:
-                type: array
-                items:
-                  $ref: "#/components/schemas/EntityType"
+                type: object
+                properties:
+                  entity_types:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/EntityType"
         "400":
-          description: Invalid dataset Id
+          description: A system error occurred
         "401":
-          description: User is not authorized to look for entities
-        "404":
-          description: Dataset not found
+          description: The user's token has expired
   "/entities/types/{type_code}":
     get:
       tags:
         - entity
-      summary: Get Entities by type code
+      summary: Get uuids by type code
       operationId: getEntityByType
       parameters:
         - name: type_code
@@ -63,59 +64,27 @@ paths:
           content:
             application/json:
               schema:
-                type: array
-                items:
-                  $ref: "#/components/schemas/Entity"
-        "400":
-          description: Invalid dataset Id
+                type: object
+                properties:
+                  uuids:
+                    example: [13ceb39891c4d06fc8fb5dbb5b0c16a0, 51318fa4fff79c82d4de7b2d70e630cb]
+                    type: array
+                    items:
+                      type: string
         "401":
-          description: User is not authorized to look for entities
-        "404":
-          description: Dataset not found
-  /entities/samples:
-    get:
-      tags:
-        - entity
-      summary: Get Entity Types
-      operationId: getEntityBySampleType
-      parameters:
-        - in: query
-          name: sample_type
-          description: a sample type code
-          required: true
-          schema:
-            type: string
-        - in: query
-          name: organ_type
-          description: a organ type code
-          required: true
-          schema:
-            type: string
-      responses:
-        "200":
-          description: successful operation
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  $ref: "#/components/schemas/EntityType"
+          description: The user's token has expired
         "400":
-          description: Invalid dataset Id
-        "401":
-          description: User is not authorized to look for entities
-        "404":
-          description: Dataset not found
-  "/entityes/{uuid}":
+          description: Invalid type code or a system error
+  "/entities/{identifier}":
     get:
       tags:
         - entity
       summary: Get Entity
       operationId: getEntity
       parameters:
-        - name: uuid
+        - name: identifier
           in: path
-          description: The unique UUID id of entity
+          description: The unique identifier of entity.  This identifier can be a UUID, Display DOI (HBM365.KSBD.575) or DOI (365KSBD575).  This can also be the HuBMAP identifier (TEST0004, TEST0004-LK) for donors or samples.
           required: true
           schema:
             type: string
@@ -125,15 +94,40 @@ paths:
           content:
             application/json:
               schema:
-                type: array
-                items:
-                  $ref: "#/components/schemas/EntityType"
+                properties:
+                  entity_node:
+                    type: object
+                    items:
+                      $ref: "#/components/schemas/EntityNode"
         "400":
-          description: Invalid dataset Id
+          description: Invalid entity identifier or a system error
         "401":
-          description: User is not authorized to look for entities
-        "404":
-          description: Dataset not found
+          description: The user's token has expired
+  "/entities/{identifier}/provenance":
+    get:
+      tags:
+        - entity
+      summary: Get Provenance Data for Entity.  This returns a PROV JSON compliant representation of the entity's provenance. Refer to this document for more information regarding [PROV JSON format](https://www.w3.org/Submission/2013/SUBM-prov-json-20130424/)
+      operationId: getEntityProvenance
+      parameters:
+        - name: identifier
+          in: path
+          description: The unique identifier of entity.  This identifier can be a UUID, Display DOI (HBM365.KSBD.575) or DOI (365KSBD575).  This can also be the HuBMAP identifier (TEST0004, TEST0004-LK) for donors or samples.  
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: successful operation
+          content:
+            application/json:
+              schema:
+                type: object
+
+        "400":
+          description: Invalid entity identifier or a system error
+        "401":
+          description: The user's token has expired
 servers:
   - url: "https://uuid.hubmapconsortium.org/entity"
   - url: "http://uuid.hubmapconsortium.org/entity"
@@ -152,7 +146,29 @@ components:
       name: api_key
       in: header
   schemas:
-    Entity:
-      type: object
     EntityType:
+      description: 'A list of the types of entities.'
+      example: Lab, Sample, Donor, Dataset
+      type: string
+    EntityNode:
+      description: 'The information for a single entity.  This will vary a bit given the entity type'
       type: object
+      required:
+        - uuid
+        - doi
+        - display_doi
+        - entitytype
+      properties:
+        uuid:
+          type: string
+          example: b2a0b756658d295bb6b2500db707ae85
+        doi:
+          type: string
+          example: 434SQQX764
+        display_doi:
+          type: string
+          example: HBM:434-SQQX-764
+        entitytype:
+          type: string
+          example: Donor, Sample, Dataset
+
