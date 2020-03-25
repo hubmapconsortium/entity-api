@@ -102,35 +102,6 @@ def get_entity_provenance(identifier):
             msg += str(x)
         abort(400, msg)
 
-@app.route('/entities', methods = ['GET'])
-def get_entities():
-    """
-    Example: /entities?entitytypes=Donor,Sample,Dataset
-    """
-    entitytypes = request.args.get('entitytypes')
-    if entitytypes is None:
-        method = "get_entities"
-    else:
-        if entitytypes == "":
-            entitytypes = []
-        else:
-            entitytypes = entitytypes.split(',')
-        method = "get_entities_by_entitytypes"
-    
-    try:
-        conn = Neo4jConnection(app.config['NEO4J_SERVER'], app.config['NEO4J_USERNAME'], app.config['NEO4J_PASSWORD'])
-        driver = conn.get_driver()
-        args = [driver]
-        if entitytypes is not None:
-            args.append(entitytypes)
-        entities = getattr(Entity, method)(*args)
-        return jsonify(entities), 200
-    except:
-        msg = 'An error occurred: '
-        for x in sys.exc_info():
-            msg += str(x)
-        abort(400, msg)
-
 @app.route('/entities/<identifier>', methods = ['GET'])
 # @cross_origin(origins=[app.config['UUID_UI_URL']], methods=['GET'])
 def get_entity(identifier):
@@ -220,7 +191,7 @@ def get_descendants(uuid):
             msg += str(x)
         abort(400, msg)
 
-
+        
 # This is for development only
 if __name__ == '__main__':
     try:

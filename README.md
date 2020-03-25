@@ -47,7 +47,3 @@ flask run -p 5001
 ## Deploy with other HuBMAP docker compose projects on dev, test, and prod
 
 This option allows you to setup all the pieces in a containerized environment with docker and docker-compose. This requires to have the [HuBMAP Gateway](https://github.com/hubmapconsortium/gateway) running locally before starting building the Entity API docker compose project. Please follow the [instructions](https://github.com/hubmapconsortium/gateway#workflow-of-setting-up-multiple-hubmap-docker-compose-projects). It also requires the Gateway project to be configured accordingly.
-
-### Updating API Documentation
-
-The documentation for the API calls is hosted on SmartAPI.  Modifying the entity-api-spec.yaml file and commititng the changes to github should update the API shown on SmartAPI.  SmartAPI allows users to register API documents.  The Entity-API's are associated with this github account: api-developers@hubmapconsortium.org.  Please contact Chuck Borromeo (chb69@pitt.edu) if you want to register a new API on SmartAPI.
