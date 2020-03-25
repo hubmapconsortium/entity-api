@@ -162,6 +162,38 @@ def get_entity(identifier):
             msg += str(x)
         abort(400, msg)
 
+@app.route('/entities/uuid/<uuid>', methods = ['GET'])
+# @cross_origin(origins=[app.config['UUID_UI_URL']], methods=['GET'])
+def get_entity_by_uuid(uuid):
+    '''
+    get entity by uuid
+    '''
+    entity = {}
+    conn = Neo4jConnection(app.config['NEO4J_SERVER'], app.config['NEO4J_USERNAME'], app.config['NEO4J_PASSWORD'])
+    driver = conn.get_driver()
+    with driver.session() as session:
+        try:
+            stmt = f'MATCH (e:Entity), (e)-[r1:HAS_METADATA]->(m) WHERE e.uuid=\'{uuid}\' RETURN e, m'
+            
+            count = 0
+            for record in session.run(stmt, uuid=uuid):
+                entity.update(record.get('e')._properties)
+                for key, value in record.get('m')._properties.items():
+                    entity.setdefault(key, value)
+
+                count += 1
+            
+            if count > 1:
+                raise Exception("Two or more entity have same uuid in the Neo4j database.")
+            else:
+                return jsonify( {'entity' : entity}), 200
+        except CypherError as cse:
+            print ('A Cypher error was encountered: '+ cse.message)
+            raise
+        except BaseException as be:
+            pprint(be)
+            raise be
+
 @app.route('/entities/ancestors/<uuid>', methods = ['GET'])
 def get_ancestors(uuid):
     try:
