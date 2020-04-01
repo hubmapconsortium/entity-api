@@ -150,7 +150,12 @@ def get_entity_by_uuid(uuid):
             for record in session.run(stmt, uuid=uuid):
                 entity.update(record.get('e')._properties)
                 for key, value in record.get('m')._properties.items():
-                    entity.setdefault(key, value)
+                    if key == 'ingest_metadata':
+                        ingest_metadata = ast.literal_eval(value)
+                        for key, value in ingest_metadata.items():
+                            entity.setdefault(key, value)
+                    else:
+                        entity.setdefault(key, value)
 
                 count += 1
             
