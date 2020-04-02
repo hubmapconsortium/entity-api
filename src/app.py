@@ -153,8 +153,13 @@ def get_entity_by_uuid(uuid):
                 for key, value in record.get('m')._properties.items():
                     if key == 'ingest_metadata':
                         ingest_metadata = ast.literal_eval(value)
-                        for key, value in ingest_metadata.items():
-                            entity.setdefault(key, value)
+                        if ingest_metadata is not None:
+                            for key, value in ingest_metadata.items():
+                                entity.setdefault(key, value)
+                                if key == "metadata":
+                                    entity.setdefault(key, str(value))
+                                else:
+                                    entity.setdefault(key, value)
                     else:
                         entity.setdefault(key, value)
 
