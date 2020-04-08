@@ -176,6 +176,30 @@ def get_entity_by_uuid(uuid):
             pprint(be)
             raise be
 
+@app.route('/entities', methods=['GET'])
+# @cross_origin(origins=[app.config['UUID_UI_URL']], methods=['GET'])
+def get_entities():
+    try:
+        types = request.args.get('entitytypes').split(',') or ["Donor", "Sample", "Dataset"]
+        conn = Neo4jConnection(app.config['NEO4J_SERVER'], app.config['NEO4J_USERNAME'], app.config['NEO4J_PASSWORD'])
+        driver = conn.get_driver()
+        entities = Entity.get_entities_by_types(driver, types)
+        return jsonify(entities), 200
+    except AuthError as e:
+        print(e)
+        return Response('token is invalid', 401)
+    except LookupError as le:
+        print(le)
+        return Response(str(le), 404)
+    except CypherError as ce:
+        print(ce)
+        return Response('Unable to perform query to find identifier: ' + identifier, 500)            
+    except:
+        msg = 'An error occurred: '
+        for x in sys.exc_info():
+            msg += str(x)
+        abort(400, msg)
+
 @app.route('/entities/ancestors/<uuid>', methods = ['GET'])
 def get_ancestors(uuid):
     try:
