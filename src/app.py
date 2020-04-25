@@ -150,18 +150,9 @@ def get_entity_by_uuid(uuid):
             count = 0
             for record in session.run(stmt, uuid=uuid):
                 entity.update(record.get('e')._properties)
+                entity['metadata'] = {}
                 for key, value in record.get('m')._properties.items():
-                    # if key == 'ingest_metadata':
-                    #     ingest_metadata = ast.literal_eval(value)
-                    #     if ingest_metadata is not None:
-                    #         for key, value in ingest_metadata.items():
-                    #             entity.setdefault(key, value)
-                    #             if key == "metadata":
-                    #                 entity.setdefault(key, str(value))
-                    #             else:
-                    #                 entity.setdefault(key, value)
-                    # else:
-                    entity.setdefault(key, value)
+                    entity['metadata'].setdefault(key, value)
 
                 count += 1
             
@@ -226,6 +217,31 @@ def get_descendants(uuid):
             msg += str(x)
         abort(400, msg)
 
+@app.route('/entities/parents/<uuid>', methods = ['GET'])
+def get_parents(uuid):
+    try:
+        conn = Neo4jConnection(app.config['NEO4J_SERVER'], app.config['NEO4J_USERNAME'], app.config['NEO4J_PASSWORD'])
+        driver = conn.get_driver()
+        parents = Entity.get_parents(driver, uuid)
+        return jsonify(parents), 200
+    except:
+        msg = 'An error occurred: '
+        for x in sys.exc_info():
+            msg += str(x)
+        abort(400, msg)
+
+@app.route('/entities/children/<uuid>', methods = ['GET'])
+def get_children(uuid):
+    try:
+        conn = Neo4jConnection(app.config['NEO4J_SERVER'], app.config['NEO4J_USERNAME'], app.config['NEO4J_PASSWORD'])
+        driver = conn.get_driver()
+        children = Entity.get_children(driver, uuid)
+        return jsonify(children), 200
+    except:
+        msg = 'An error occurred: '
+        for x in sys.exc_info():
+            msg += str(x)
+        abort(400, msg)
         
 # This is for development only
 if __name__ == '__main__':
