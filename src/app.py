@@ -315,7 +315,7 @@ def update_sample(uuid):
         conn = Neo4jConnection(app.config['NEO4J_SERVER'], app.config['NEO4J_USERNAME'], app.config['NEO4J_PASSWORD'])
 
         if not isAuthorized(conn, token, entity_helper, uuid):
-            return "User has no permission to edit the Donor", 403
+            return "User has no permission to edit the Sample", 403
         else:
             driver = conn.get_driver()
             specimen = Specimen(app.config)
@@ -342,7 +342,7 @@ def update_dataset(uuid):
         conn = Neo4jConnection(app.config['NEO4J_SERVER'], app.config['NEO4J_USERNAME'], app.config['NEO4J_PASSWORD'])
 
         if not isAuthorized(conn, token, entity_helper, uuid):
-            return "User has no permission to edit the Donor", 403
+            return "User has no permission to edit the Dataset", 403
         else:
             driver = conn.get_driver()
             dataset = Dataset(app.config)
