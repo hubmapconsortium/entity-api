@@ -14,12 +14,14 @@ from neo4j import TransactionError, CypherError
 from flask_cors import CORS, cross_origin
 import argparse
 import ast
+from specimen import Specimen
+from dataset import Dataset
 
 # HuBMAP commons
 from hubmap_commons.hubmap_const import HubmapConst 
 from hubmap_commons.neo4j_connection import Neo4jConnection
 from hubmap_commons.uuid_generator import UUID_Generator
-from hubmap_commons.hm_auth import AuthHelper, secured
+from hubmap_commons.hm_auth import AuthHelper, secured, isAuthorized
 from hubmap_commons.entity import Entity
 from hubmap_commons.autherror import AuthError
 from hubmap_commons.provenance import Provenance
@@ -32,6 +34,12 @@ from pprint import pprint
 # Specify the absolute path of the instance folder and use the config file relative to the instance path
 app = Flask(__name__, instance_path=os.path.join(os.path.abspath(os.path.dirname(__file__)), 'instance'), instance_relative_config=True)
 app.config.from_pyfile('app.cfg')
+
+if AuthHelper.isInitialized() == False:
+    authcache = AuthHelper.create(
+        app.config['APP_CLIENT_ID'], app.config['APP_CLIENT_SECRET'])
+else:
+    authcache = AuthHelper.instance()
 
 @app.route('/', methods = ['GET'])
 def index():
@@ -242,7 +250,85 @@ def get_children(uuid):
         for x in sys.exc_info():
             msg += str(x)
         abort(400, msg)
+
+@app.route('/entities/donor/<uuid>', methods = ['PUT'])
+@secured(groups="HuBMAP-read")
+def update_donor(uuid):
+    try:
+        token = AuthHelper.parseAuthorizationTokens(request.headers)
+        entity_helper = Entity(app.config['APP_CLIENT_ID'], app.config['APP_CLIENT_SECRET'], app.config['UUID_WEBSERVICE_URL'])
+        conn = Neo4jConnection(app.config['NEO4J_SERVER'], app.config['NEO4J_USERNAME'], app.config['NEO4J_PASSWORD'])
+
+        if not isAuthorized(conn, token, entity_helper, uuid):
+            return "User has no permission to edit the Donor", 403
+        else:
+            driver = conn.get_driver()
+            specimen = Specimen(app.config)
+            entity = Entity.get_entity(driver, uuid)
+            if entity.get('entitytype', None) != 'Donor':
+                abort(400, "The UUID is not a Donor.")
+            new_uuid_record = specimen.update_specimen(driver, uuid, request, request.get_json(), request.files, token)
+        conn.close()
+
+        return "OK", 200
+    except:
+        msg = 'An error occurred: '
+        for x in sys.exc_info():
+            msg += str(x)
+        abort(400, msg)
+
+@app.route('/entities/sample/<uuid>', methods = ['PUT'])
+@secured(groups="HuBMAP-read")
+def update_sample(uuid):
+    try:
+        token = AuthHelper.parseAuthorizationTokens(request.headers)
+        entity_helper = Entity(app.config['APP_CLIENT_ID'], app.config['APP_CLIENT_SECRET'], app.config['UUID_WEBSERVICE_URL'])
+        conn = Neo4jConnection(app.config['NEO4J_SERVER'], app.config['NEO4J_USERNAME'], app.config['NEO4J_PASSWORD'])
+
+        if not isAuthorized(conn, token, entity_helper, uuid):
+            return "User has no permission to edit the Donor", 403
+        else:
+            driver = conn.get_driver()
+            specimen = Specimen(app.config)
+            entity = Entity.get_entity(driver, uuid)
+            if entity.get('entitytype', None) != 'Sample':
+                abort(400, "The UUID is not a Sample.")
+            new_uuid_record = specimen.update_specimen(driver, uuid, request, request.get_json(), request.files, token)
+        conn.close()
+
+        return "OK", 200
+    except:
+        msg = 'An error occurred: '
+        for x in sys.exc_info():
+            msg += str(x)
+        abort(400, msg)
         
+@app.route('/entities/dataset/<uuid>', methods = ['PUT'])
+@secured(groups="HuBMAP-read")
+def update_dataset(uuid):
+    try:
+        token = AuthHelper.parseAuthorizationTokens(request.headers)
+        entity_helper = Entity(app.config['APP_CLIENT_ID'], app.config['APP_CLIENT_SECRET'], app.config['UUID_WEBSERVICE_URL'])
+        conn = Neo4jConnection(app.config['NEO4J_SERVER'], app.config['NEO4J_USERNAME'], app.config['NEO4J_PASSWORD'])
+
+        if not isAuthorized(conn, token, entity_helper, uuid):
+            return "User has no permission to edit the Donor", 403
+        else:
+            driver = conn.get_driver()
+            dataset = Dataset(app.config)
+            entity = Entity.get_entity(driver, uuid)
+            if entity.get('entitytype', None) != 'Dataset':
+                abort(400, "The UUID is not a Dataset.")
+            new_uuid = dataset.modify_dataset(driver, token, uuid, request.get_json())
+        conn.close()
+
+        return "OK", 200
+    except:
+        msg = 'An error occurred: '
+        for x in sys.exc_info():
+            msg += str(x)
+        abort(400, msg)
+
 # This is for development only
 if __name__ == '__main__':
     try:
