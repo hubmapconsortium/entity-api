@@ -1171,7 +1171,6 @@ class Dataset(object):
             try:
                 tx = session.begin_transaction()
                 update_record = formdata
-                import pdb; pdb.set_trace()
                 # # get current userinfo
                 try:
                     current_token = token

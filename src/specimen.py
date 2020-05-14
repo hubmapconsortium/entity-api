@@ -86,12 +86,12 @@ class Specimen:
             metadata_userinfo[HubmapConst.PROVENANCE_LAST_UPDATED_USER_DISPLAYNAME_ATTRIBUTE] = userinfo['name']
         #get a link to the data directory using the group uuid
         # ex: <data_parent_directory>/<group UUID>
-        data_directory = get_data_directory(self.confdata['LOCAL_STORAGE_DIRECTORY'], provenance_group[HubmapConst.PROVENANCE_GROUP_UUID_ATTRIBUTE])
+        # data_directory = get_data_directory(self.confdata['LOCAL_STORAGE_DIRECTORY'], provenance_group[HubmapConst.PROVENANCE_GROUP_UUID_ATTRIBUTE])
         #get a link to the subdirectory within data directory using the current uuid
         # ex: <data_parent_directory>/<group UUID>/<specimen uuid>
         # We need to allow this method to create a new directory.  It is possible that an earlier
         # specimen didn't have any files when it was initially created
-        data_directory = get_data_directory(data_directory, uuid, True)
+        # data_directory = get_data_directory(data_directory, uuid, True)
 
         with driver.session() as session:
             tx = None
@@ -115,34 +115,34 @@ class Specimen:
                 if 'images' in incoming_record:
                     current_imagefiles = incoming_record['images']
                 all_files = Specimen.build_complete_file_list(current_metadatafiles, current_protocolfile, current_imagefiles)
-                Specimen.cleanup_files(data_directory, all_files)
+                # Specimen.cleanup_files(data_directory, all_files)
                 # append the current UUID to the data_directory to avoid filename collisions.
-                if 'metadata_file' in file_list:
-                    metadata_file_path = Specimen.upload_file_data(request, 'metadata_file', data_directory)
-                    incoming_record[HubmapConst.METADATA_FILE_ATTRIBUTE] = metadata_file_path
-                if 'metadatas' in incoming_record:
-                    current_metadata_file_list = None
-                    if 'metadata_file' in metadata_obj:
-                        current_metadata_file_list = metadata_obj['metadatas']
-                    metadata_file_path = Specimen.upload_multiple_file_data(request, incoming_record['metadatas'], file_list, data_directory, current_metadata_file_list)
-                    incoming_record[HubmapConst.METADATA_FILE_ATTRIBUTE] = metadata_file_path
-                    incoming_record[HubmapConst.METADATAS_ATTRIBUTE] = metadata_file_path
-                if 'protocol_file' in file_list:
-                    protocol_file_path = Specimen.upload_file_data(request, 'protocol_file', data_directory)
-                    incoming_record[HubmapConst.PROTOCOL_FILE_ATTRIBUTE] = protocol_file_path
-                if 'images' in incoming_record:
-                    # handle the case where the current record has no images
-                    current_image_file_metadata = None
-                    if 'image_file_metadata' in metadata_obj:
-                        current_image_file_metadata = metadata_obj['image_file_metadata']
-                    image_file_data_list = Specimen.upload_multiple_file_data(request, incoming_record['images'], file_list, data_directory, current_image_file_metadata)
-                    incoming_record[HubmapConst.IMAGE_FILE_METADATA_ATTRIBUTE] = image_file_data_list
+                # if 'metadata_file' in file_list:
+                #     metadata_file_path = Specimen.upload_file_data(request, 'metadata_file', data_directory)
+                #     incoming_record[HubmapConst.METADATA_FILE_ATTRIBUTE] = metadata_file_path
+                # if 'metadatas' in incoming_record:
+                #     current_metadata_file_list = None
+                #     if 'metadata_file' in metadata_obj:
+                #         current_metadata_file_list = metadata_obj['metadatas']
+                #     metadata_file_path = Specimen.upload_multiple_file_data(request, incoming_record['metadatas'], file_list, data_directory, current_metadata_file_list)
+                #     incoming_record[HubmapConst.METADATA_FILE_ATTRIBUTE] = metadata_file_path
+                #     incoming_record[HubmapConst.METADATAS_ATTRIBUTE] = metadata_file_path
+                # if 'protocol_file' in file_list:
+                #     protocol_file_path = Specimen.upload_file_data(request, 'protocol_file', data_directory)
+                #     incoming_record[HubmapConst.PROTOCOL_FILE_ATTRIBUTE] = protocol_file_path
+                # if 'images' in incoming_record:
+                #     # handle the case where the current record has no images
+                #     current_image_file_metadata = None
+                #     if 'image_file_metadata' in metadata_obj:
+                #         current_image_file_metadata = metadata_obj['image_file_metadata']
+                #     image_file_data_list = Specimen.upload_multiple_file_data(request, incoming_record['images'], file_list, data_directory, current_image_file_metadata)
+                #     incoming_record[HubmapConst.IMAGE_FILE_METADATA_ATTRIBUTE] = image_file_data_list
                 if 'protocols' in incoming_record:
                     # handle the case where the current record has no images
                     current_image_file_metadata = None
                     if 'protocols' in metadata_obj:
                         current_protocol_file_metadata = metadata_obj['protocols']
-                    protocol_file_data_list = Specimen.upload_multiple_protocol_file_data(request, incoming_record['protocols'], file_list, data_directory, current_protocol_file_metadata)
+                    # protocol_file_data_list = Specimen.upload_multiple_protocol_file_data(request, incoming_record['protocols'], file_list, data_directory, current_protocol_file_metadata)
                     incoming_record[HubmapConst.PROTOCOL_FILE_METADATA_ATTRIBUTE] = protocol_file_data_list
                 
                 metadata_record = incoming_record
