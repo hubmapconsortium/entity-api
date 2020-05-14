@@ -251,6 +251,32 @@ def get_children(uuid):
             msg += str(x)
         abort(400, msg)
 
+
+@app.route('/collections/<identifier>', methods = ['GET'])
+def get_collection_children(identifier):
+    try:
+        token = str(request.headers["AUTHORIZATION"])[7:]
+        conn = Neo4jConnection(app.config['NEO4J_SERVER'], app.config['NEO4J_USERNAME'], app.config['NEO4J_PASSWORD'])
+        driver = conn.get_driver()
+        ug = UUID_Generator(app.config['UUID_WEBSERVICE_URL'])
+        identifier_list = ug.getUUID(token, identifier)
+        if len(identifier_list) == 0:
+            raise LookupError('unable to find information on identifier: ' + str(identifier))
+        if len(identifier_list) > 1:
+            raise LookupError('found multiple records for identifier: ' + str(identifier))
+
+        collection_data = Entity.get_entities_and_children_by_relationship(driver, identifier_list[0]['hmuuid'], HubmapConst.IN_COLLECTION_REL) 
+        return jsonify( collection_data), 200
+    except AuthError as e:
+        print(e)
+        return Response('token is invalid', 401)
+    except LookupError as le:
+        print(le)
+        return Response(str(le), 404)
+    except CypherError as ce:
+        print(ce)
+        return Response('Unable to perform query to find identifier: ' + identifier, 500)            
+
 @app.route('/entities/donor/<uuid>', methods = ['PUT'])
 @secured(groups="HuBMAP-read")
 def update_donor(uuid):
@@ -277,6 +303,7 @@ def update_donor(uuid):
         for x in sys.exc_info():
             msg += str(x)
         abort(400, msg)
+
 
 @app.route('/entities/sample/<uuid>', methods = ['PUT'])
 @secured(groups="HuBMAP-read")
