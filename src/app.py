@@ -256,6 +256,7 @@ def get_children(uuid):
 def update_donor(uuid):
     try:
         token = AuthHelper.parseAuthorizationTokens(request.headers)
+        token = token['nexus_token'] if type(token) == dict else token
         entity_helper = Entity(app.config['APP_CLIENT_ID'], app.config['APP_CLIENT_SECRET'], app.config['UUID_WEBSERVICE_URL'])
         conn = Neo4jConnection(app.config['NEO4J_SERVER'], app.config['NEO4J_USERNAME'], app.config['NEO4J_PASSWORD'])
 
@@ -282,6 +283,7 @@ def update_donor(uuid):
 def update_sample(uuid):
     try:
         token = AuthHelper.parseAuthorizationTokens(request.headers)
+        token = token['nexus_token'] if type(token) == dict else token
         entity_helper = Entity(app.config['APP_CLIENT_ID'], app.config['APP_CLIENT_SECRET'], app.config['UUID_WEBSERVICE_URL'])
         conn = Neo4jConnection(app.config['NEO4J_SERVER'], app.config['NEO4J_USERNAME'], app.config['NEO4J_PASSWORD'])
 
@@ -308,6 +310,7 @@ def update_sample(uuid):
 def update_dataset(uuid):
     try:
         token = AuthHelper.parseAuthorizationTokens(request.headers)
+        token = token['nexus_token'] if type(token) == dict else token
         entity_helper = Entity(app.config['APP_CLIENT_ID'], app.config['APP_CLIENT_SECRET'], app.config['UUID_WEBSERVICE_URL'])
         conn = Neo4jConnection(app.config['NEO4J_SERVER'], app.config['NEO4J_USERNAME'], app.config['NEO4J_PASSWORD'])
 
