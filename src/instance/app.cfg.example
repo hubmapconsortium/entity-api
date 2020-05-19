@@ -12,6 +12,7 @@ NEO4J_PASSWORD = '123'
 # Don't use localhost since uuid-api running on a different container
 # Point to remote URL for testing and production deployment
 UUID_WEBSERVICE_URL = 'http://hubmap-auth:9999/hmuuid'
+SEARCH_WEBSERVICE_URL = 'http://search-api:9999'
 
 # URL of UUID UI for Cross-Origin Resource Sharing (CORS)
 # This has no effect with Gateway (enabled CORS in nginx conf)

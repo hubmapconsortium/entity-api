@@ -1198,7 +1198,8 @@ class Dataset(object):
                     if HubmapConst.HAS_PHI_ATTRIBUTE != 'phi':
                         update_record.pop('phi', None)
                 
-                update_record['status'] = convert_dataset_status(str(update_record['status']))
+                if 'status' in update_record:
+                    update_record['status'] = convert_dataset_status(str(update_record['status']))
                 
                 #update the dataset source uuid's (if necessary)
                 
@@ -1225,86 +1226,88 @@ class Dataset(object):
                 
                 # check to see if any updates were made to the source uuids
                 dataset_source_id_list.sort()
-                form_source_uuid_list = eval(str(formdata['source_uuid']))
-                form_source_uuid_list.sort()
+                if 'source_uuid' in formdata:
+                    form_source_uuid_list = eval(str(formdata['source_uuid']))
+                    form_source_uuid_list.sort()
                 
-                # need to make updates
-                if dataset_source_id_list != form_source_uuid_list:
-                     # first remove the existing relations
-                    stmt = """MATCH (e)-[r:{activity_input_rel}]->(a) WHERE e.{source_id_attr} IN {id_list} AND a.{uuid_attr} = '{activity_uuid}'
-                    DELETE r""".format(activity_input_rel=HubmapConst.ACTIVITY_INPUT_REL,
-                                        uuid_attr=HubmapConst.UUID_ATTRIBUTE,
-                                        source_id_attr=HubmapConst.LAB_IDENTIFIER_ATTRIBUTE,
-                                        activity_uuid=dataset_create_activity_uuid,
-                                        id_list=dataset_source_id_list)
+                    # need to make updates
+                    if dataset_source_id_list != form_source_uuid_list:
+                        # first remove the existing relations
+                        stmt = """MATCH (e)-[r:{activity_input_rel}]->(a) WHERE e.{source_id_attr} IN {id_list} AND a.{uuid_attr} = '{activity_uuid}'
+                        DELETE r""".format(activity_input_rel=HubmapConst.ACTIVITY_INPUT_REL,
+                                            uuid_attr=HubmapConst.UUID_ATTRIBUTE,
+                                            source_id_attr=HubmapConst.LAB_IDENTIFIER_ATTRIBUTE,
+                                            activity_uuid=dataset_create_activity_uuid,
+                                            id_list=dataset_source_id_list)
+                        
+                        print("Delete statement: " + stmt)
+                        tx.run(stmt)
                     
-                    print("Delete statement: " + stmt)
-                    tx.run(stmt)
-                
-                    # next create the new relations
-                    stmt = """MATCH (e),(a)
-                    WHERE e.{source_id_attr} IN {id_list} AND a.{uuid_attr} = '{activity_uuid}'
-                    CREATE (e)-[r:{activity_input_rel}]->(a)""".format(activity_input_rel=HubmapConst.ACTIVITY_INPUT_REL,
-                                        uuid_attr=HubmapConst.UUID_ATTRIBUTE,
-                                        source_id_attr=HubmapConst.LAB_IDENTIFIER_ATTRIBUTE,
-                                        activity_uuid=dataset_create_activity_uuid,
-                                        id_list=str(form_source_uuid_list))
-                    
-                    print("Create statement: " + stmt)
-                    tx.run(stmt)
+                        # next create the new relations
+                        stmt = """MATCH (e),(a)
+                        WHERE e.{source_id_attr} IN {id_list} AND a.{uuid_attr} = '{activity_uuid}'
+                        CREATE (e)-[r:{activity_input_rel}]->(a)""".format(activity_input_rel=HubmapConst.ACTIVITY_INPUT_REL,
+                                            uuid_attr=HubmapConst.UUID_ATTRIBUTE,
+                                            source_id_attr=HubmapConst.LAB_IDENTIFIER_ATTRIBUTE,
+                                            activity_uuid=dataset_create_activity_uuid,
+                                            id_list=str(form_source_uuid_list))
+                        
+                        print("Create statement: " + stmt)
+                        tx.run(stmt)
 
-                if update_record['status'] == str(HubmapConst.DATASET_STATUS_PROCESSING):
-                    #the status is set...so no problem
-                    # I need to retrieve the ingest_id from the call and store it in neo4j
-                    # /datasets/submissions/request_ingest 
-                    try:
-                        current_token = None
+                if 'status' in update_record:
+                    if update_record['status'] == str(HubmapConst.DATASET_STATUS_PROCESSING):
+                        #the status is set...so no problem
+                        # I need to retrieve the ingest_id from the call and store it in neo4j
+                        # /datasets/submissions/request_ingest 
                         try:
-                            current_token = token
-                        except:
-                            raise ValueError("Unable to parse token")
-                        prov = Provenance(self.confdata['APP_CLIENT_ID'],self.confdata['APP_CLIENT_SECRET'], None)
-                        group_info = prov.get_group_by_identifier(group_uuid)
-                        # take the incoming uuid_type and uppercase it
-                        url = self.confdata['INGEST_PIPELINE_URL'] + '/request_ingest'
-                        print('sending request_ingest to: ' + url)
-                        r = requests.post(url, json={"submission_id" : "{uuid}".format(uuid=uuid),
-                                                     "process" : self.confdata['INGEST_PIPELINE_DEFAULT_PROCESS'],
-                                                     "provider": "{group_name}".format(group_name=group_info['displayname'])}, 
-                                          #headers={'Content-Type':'application/json', 'Authorization': 'Bearer {token}'.format(token=current_token )})
-                                          headers={'Content-Type':'application/json', 'Authorization': 'Bearer {token}'.format(token=AuthHelper.instance().getProcessSecret() )})
-                        if r.ok == True:
-                            """expect data like this:
-                            {"ingest_id": "abc123", "run_id": "run_657-xyz", "overall_file_count": "99", "top_folder_contents": "["IMS", "processed_microscopy","raw_microscopy","VAN0001-RK-1-spatial_meta.txt"]"}
-                            """
-                            data = json.loads(r.content.decode())
-                            submission_data = data['response']
-#                            if 'overall_file_count' in submission_data:
-#                                if int(submission_data['overall_file_count']) <= 0:
-#                                    raise ValueError("Error: overall_file_count equals zero: {group_name}/{uuid}".format(uuid=uuid, group_name=group_info['displayname']))
-#                            else:
-#                                raise ValueError("Error: missing 'overall_file_count' from request ingest call")
-#                            if 'top_folder_contents' in submission_data:
-#                                top_folder_contents = submission_data['top_folder_contents']
-#                                if len(top_folder_contents) == 0:
-#                                    raise ValueError("Error: did not find any files for: {group_name}/{uuid}".format(uuid=uuid, group_name=group_info['displayname']))
-#                            else:
-#                                raise ValueError("Error: missing 'top_folder_contents' from request ingest call")
-                                    
-                            update_record[HubmapConst.DATASET_INGEST_ID_ATTRIBUTE] = submission_data['ingest_id']
-                            update_record[HubmapConst.DATASET_RUN_ID] = submission_data['run_id']
-                        else:
-                            msg = 'HTTP Response: ' + str(r.status_code) + ' msg: ' + str(r.text) 
-                            raise Exception(msg)
-                    except ConnectionError as connerr:
-                        pprint(connerr)
-                        raise connerr
-                    except TimeoutError as toerr:
-                        pprint(toerr)
-                        raise toerr
-                    except Exception as e:
-                        pprint(e)
-                        raise e
+                            current_token = None
+                            try:
+                                current_token = token
+                            except:
+                                raise ValueError("Unable to parse token")
+                            prov = Provenance(self.confdata['APP_CLIENT_ID'],self.confdata['APP_CLIENT_SECRET'], None)
+                            group_info = prov.get_group_by_identifier(group_uuid)
+                            # take the incoming uuid_type and uppercase it
+                            url = self.confdata['INGEST_PIPELINE_URL'] + '/request_ingest'
+                            print('sending request_ingest to: ' + url)
+                            r = requests.post(url, json={"submission_id" : "{uuid}".format(uuid=uuid),
+                                                        "process" : self.confdata['INGEST_PIPELINE_DEFAULT_PROCESS'],
+                                                        "provider": "{group_name}".format(group_name=group_info['displayname'])}, 
+                                            #headers={'Content-Type':'application/json', 'Authorization': 'Bearer {token}'.format(token=current_token )})
+                                            headers={'Content-Type':'application/json', 'Authorization': 'Bearer {token}'.format(token=AuthHelper.instance().getProcessSecret() )})
+                            if r.ok == True:
+                                """expect data like this:
+                                {"ingest_id": "abc123", "run_id": "run_657-xyz", "overall_file_count": "99", "top_folder_contents": "["IMS", "processed_microscopy","raw_microscopy","VAN0001-RK-1-spatial_meta.txt"]"}
+                                """
+                                data = json.loads(r.content.decode())
+                                submission_data = data['response']
+    #                            if 'overall_file_count' in submission_data:
+    #                                if int(submission_data['overall_file_count']) <= 0:
+    #                                    raise ValueError("Error: overall_file_count equals zero: {group_name}/{uuid}".format(uuid=uuid, group_name=group_info['displayname']))
+    #                            else:
+    #                                raise ValueError("Error: missing 'overall_file_count' from request ingest call")
+    #                            if 'top_folder_contents' in submission_data:
+    #                                top_folder_contents = submission_data['top_folder_contents']
+    #                                if len(top_folder_contents) == 0:
+    #                                    raise ValueError("Error: did not find any files for: {group_name}/{uuid}".format(uuid=uuid, group_name=group_info['displayname']))
+    #                            else:
+    #                                raise ValueError("Error: missing 'top_folder_contents' from request ingest call")
+                                        
+                                update_record[HubmapConst.DATASET_INGEST_ID_ATTRIBUTE] = submission_data['ingest_id']
+                                update_record[HubmapConst.DATASET_RUN_ID] = submission_data['run_id']
+                            else:
+                                msg = 'HTTP Response: ' + str(r.status_code) + ' msg: ' + str(r.text) 
+                                raise Exception(msg)
+                        except ConnectionError as connerr:
+                            pprint(connerr)
+                            raise connerr
+                        except TimeoutError as toerr:
+                            pprint(toerr)
+                            raise toerr
+                        except Exception as e:
+                            pprint(e)
+                            raise e
                 
                 # set last updated user info
                 update_record[HubmapConst.PROVENANCE_LAST_UPDATED_SUB_ATTRIBUTE] = userinfo['sub']

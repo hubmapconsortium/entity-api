@@ -16,6 +16,7 @@ import argparse
 import ast
 from specimen import Specimen
 from dataset import Dataset
+import requests
 
 # HuBMAP commons
 from hubmap_commons.hubmap_const import HubmapConst 
@@ -296,6 +297,11 @@ def update_donor(uuid):
                 abort(400, "The UUID is not a Donor.")
             new_uuid_record = specimen.update_specimen(driver, uuid, request, request.get_json(), request.files, token)
         conn.close()
+        try:
+            #reindex this node in elasticsearch
+            rspn = requests.put(app.config['SEARCH_WEBSERVICE_URL'] + "/reindex/" + new_uuid_record, headers={'Authorization': 'Bearer '+token})
+        except:
+            print("Error happened when calling reindex web service")
 
         return "OK", 200
     except:
@@ -324,7 +330,11 @@ def update_sample(uuid):
                 abort(400, "The UUID is not a Sample.")
             new_uuid_record = specimen.update_specimen(driver, uuid, request, request.get_json(), request.files, token)
         conn.close()
-
+        try:
+            #reindex this node in elasticsearch
+            rspn = requests.put(app.config['SEARCH_WEBSERVICE_URL'] + "/reindex/" + new_uuid_record, headers={'Authorization': 'Bearer '+token})
+        except:
+            print("Error happened when calling reindex web service")
         return "OK", 200
     except:
         msg = 'An error occurred: '
@@ -349,8 +359,14 @@ def update_dataset(uuid):
             entity = Entity.get_entity(driver, uuid)
             if entity.get('entitytype', None) != 'Dataset':
                 abort(400, "The UUID is not a Dataset.")
-            new_uuid = dataset.modify_dataset(driver, token, uuid, request.get_json())
+            new_uuid_record = dataset.modify_dataset(driver, token, uuid, request.get_json())
         conn.close()
+
+        try:
+            #reindex this node in elasticsearch
+            rspn = requests.put(app.config['SEARCH_WEBSERVICE_URL'] + "/reindex/" + new_uuid_record, headers={'Authorization': 'Bearer '+token})
+        except:
+            print("Error happened when calling reindex web service")
 
         return "OK", 200
     except:

@@ -147,7 +147,7 @@ class Specimen:
                 
                 metadata_record = incoming_record
                 # don't change the type of this node
-                metadata_record.pop(HubmapConst.ENTITY_TYPE_ATTRIBUTE)
+                metadata_record.pop(HubmapConst.ENTITY_TYPE_ATTRIBUTE, None)
                 # metadata_record[HubmapConst.PROVENANCE_SUB_ATTRIBUTE] = metadata_userinfo[HubmapConst.PROVENANCE_SUB_ATTRIBUTE]
                 # metadata_record[HubmapConst.PROVENANCE_USER_EMAIL_ATTRIBUTE] = metadata_userinfo[HubmapConst.PROVENANCE_USER_EMAIL_ATTRIBUTE]
                 # metadata_record[HubmapConst.PROVENANCE_USER_DISPLAYNAME_ATTRIBUTE] = metadata_userinfo[HubmapConst.PROVENANCE_USER_DISPLAYNAME_ATTRIBUTE]
