@@ -8,6 +8,5 @@ services:
       - HOST_UID=${HOST_UID:-1000}
     init: true
     restart: always
-    volumes:
-      # Mount the source code to container
-      - "../src:/usr/src/app/src"
+
+
