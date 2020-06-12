@@ -3,20 +3,18 @@ Created on May 15, 2019
 
 @author: chb69
 '''
-from flask import Flask, jsonify, abort, request, make_response, url_for, session, redirect, json, Response
-import globus_sdk
-from globus_sdk import AccessTokenAuthorizer, TransferClient, AuthClient 
-import base64
-from globus_sdk.exc import TransferAPIError
+from flask import Flask, jsonify, abort, request, session, Response
 import sys
 import os
-from neo4j import TransactionError, CypherError
-from flask_cors import CORS, cross_origin
+from neo4j import CypherError
 import argparse
-import ast
 from specimen import Specimen
 from dataset import Dataset
 import requests
+import logging
+import time
+import traceback
+import json
 
 # HuBMAP commons
 from hubmap_commons.hubmap_const import HubmapConst 
@@ -42,6 +40,27 @@ if AuthHelper.isInitialized() == False:
 else:
     authcache = AuthHelper.instance()
 
+logger = ''
+prov_helper = None
+
+LOG_FILE_NAME = "../log/entity-api-" + time.strftime("%d-%m-%Y-%H-%M-%S") + ".log"
+
+@app.before_first_request
+def init():
+    global logger
+    global prov_helper
+    try:
+        logger = logging.getLogger('entity.service')
+        logger.setLevel(logging.INFO)
+        logFH = logging.FileHandler(LOG_FILE_NAME)
+        logger.addHandler(logFH)
+        prov_helper = Provenance(app.config['APP_CLIENT_ID'], app.config['APP_CLIENT_SECRET'], app.config['UUID_WEBSERVICE_URL'])
+        logger.info("started")
+    except Exception as e:
+        print("Error initializing service")
+        print(str(e))
+        traceback.print_exc()
+        
 @app.route('/', methods = ['GET'])
 def index():
     return "Hello! This is HuBMAP Entity API service :)"
@@ -315,6 +334,81 @@ def get_collection_children(identifier):
         print(ce)
         return Response('Unable to perform query to find identifier: ' + identifier, 500)            
 
+@app.route('/collections', methods = ['GET'])
+def get_collections():
+    global prov_helper
+    global logger
+    try:
+        component = request.args.get('component', default = 'all', type = str)
+        if component == 'all':
+            stmt = "MATCH (collection:Collection)<-[:IN_COLLECTION]-(dataset) RETURN collection.uuid, collection.label, collection.description, collection.creators, collection.doi_registered, collection.display_doi, apoc.coll.toSet(COLLECT(dataset.uuid)) AS dataset_uuid_list"
+        else:
+            grp_info = prov_helper.get_groups_by_tmc_prefix()
+            comp = component.strip().upper()
+            if not comp in grp_info:
+                valid_comps = ""
+                comma = ""
+                first = True
+                for key in grp_info.keys():
+                    valid_comps = valid_comps + comma + grp_info[key]['tmc_prefix'] + " (" + grp_info[key]['displayname'] + ")"
+                    if first:
+                        comma = ", "
+                        first = False
+                return Response("Invalid component code: " + component + " Valid values: " + valid_comps, 400)
+            stmt = "MATCH (collection:Collection)<-[:IN_COLLECTION]-(dataset:Entity)-[:HAS_METADATA]-(metadata:Metadata {{provenance_group_uuid: '{guuid}'}}) RETURN collection.uuid, collection.label, collection.description, collection.creators, collection.doi_registered, collection.display_doi, apoc.coll.toSet(COLLECT(dataset.uuid)) AS dataset_uuid_list".format(guuid=grp_info[comp]['uuid'])
+
+        conn = Neo4jConnection(app.config['NEO4J_SERVER'], app.config['NEO4J_USERNAME'], app.config['NEO4J_PASSWORD'])
+        driver = conn.get_driver()
+        return_list = []
+        with driver.session() as session:
+                for record in session.run(stmt):
+                    #return_list.append(record)
+                    return_list.append(_coll_record_to_json(record))
+
+        return json.dumps(return_list), 200
+
+    except AuthError as e:                                                                                                                        
+        print(e)
+        return Response('invalid token access', 401)
+    except LookupError as le:
+        print(le)
+        logger.error(le, exc_info=True)
+        return Response(str(le), 404)
+    except CypherError as ce:
+        print(ce)
+        logger.error(ce, exc_info=True)
+        return Response('Unable to perform query to find collections', 500)
+    except Exception as e:
+        print ('A general error occurred. Check log file.')
+        logger.error(e, exc_info=True)
+        return Response('Unhandled exception occured', 500)
+
+def _coll_record_to_json(record):
+                        #collection.uuid
+                    #collection.label
+                    #collection.description
+                    #dataset_uuid_list
+    rval = {}                    
+    _set_from(record, rval, 'collection.uuid', 'uuid')
+    _set_from(record, rval, 'collection.label', 'name')
+    _set_from(record, rval, 'dataset_uuid_list', 'dataset_uuids')
+    _set_from(record, rval, 'collection.doi_registered', 'doi_registered')
+    _set_from(record, rval, 'collection.creators', 'creators')
+    _set_from(record, rval, 'collection.display_doi', 'doi_id')
+    _set_from(record, rval, 'collection.description', 'description')
+    return(rval)
+
+def _set_from(src, dest, src_attrib_name, dest_attrib_name = None, default_val = None):
+    if dest_attrib_name is None:
+        dest_attrib_name = src_attrib_name
+    if src[src_attrib_name] is None:
+        if not default_val is None:
+            dest[dest_attrib_name] = default_val
+            return dest
+    else:
+        dest[dest_attrib_name] = src[src_attrib_name]
+        return dest
+        
 @app.route('/entities/donor/<uuid>', methods = ['PUT'])
 @secured(groups="HuBMAP-read")
 def update_donor(uuid):
