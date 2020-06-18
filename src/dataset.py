@@ -7,7 +7,6 @@ import requests
 from neo4j import TransactionError, CypherError
 import sys
 import os
-import configparser
 import globus_sdk
 from globus_sdk import AccessTokenAuthorizer, TransferClient, AuthClient 
 import base64
@@ -28,6 +27,7 @@ from hubmap_commons.autherror import AuthError
 from hubmap_commons.metadata import Metadata
 from hubmap_commons.activity import Activity
 from hubmap_commons.provenance import Provenance
+from hubmap_commons.exceptions import HTTPException
 
 class Dataset(object):
     '''
@@ -201,7 +201,7 @@ class Dataset(object):
                 for x in sys.exc_info():
                     print (x)
                 raise
-
+        
     @staticmethod
     def get_create_metadata_statement(metadata_record, current_token, dataset_uuid, metadata_userinfo, provenance_group):
         metadata_record[HubmapConst.ENTITY_TYPE_ATTRIBUTE] = HubmapConst.METADATA_TYPE_CODE
@@ -253,7 +253,73 @@ class Dataset(object):
                     print (x)
                 raise
 
+    @classmethod
+    def get_dataset_access_level(self, uuid):
+        driver = None
+        try:
+            query = "match (e:Entity {entitytype: 'Dataset'})-[:HAS_METADATA]-(m:Metadata) where e.uuid = '" + uuid + "' return m.data_access_level as acc_level"
+            conn = Neo4jConnection(self.confdata['NEO4J_SERVER'], self.confdata['NEO4J_USERNAME'], self.confdata['NEO4J_PASSWORD'])
+            driver = conn.get_driver()
+            return_list = []
+            with driver.session() as session:
+                    for record in session.run(query):
+                        #return_list.append(record)
+                        return_list.append(record['acc_level'])
+            
+            if len(return_list) == 0:
+                raise HTTPException("Dataset uuid:" + uuid + " not found.", 404)
+            if len(return_list) > 1:
+                raise HTTPException("Multiple datasets found for uuid:" + uuid, 500)
+            return return_list[0]
+                        
+        except Exception as e:
+            raise HTTPException("Unhandled Exception occurred", 500)
+        finally:
+            if driver is not None:
+                driver.close()
 
+    #get specified attribute values from Neo4j for the Metadata node attached to a specific Dataset node
+    #the dataset UUID (not any other identifier) and a list of attributes to return are required inputs
+    #the list of attributes are the name of the attribute as it exists on the Metadata node
+    #a dictionary keyed by the attribute names from attribute_list is returned with the values of the
+    #attributes.  If an attribute value isn't found a None is returned for its value
+    @classmethod
+    def get_dataset_metadata_attributes(self, uuid, attribute_list):
+        driver = None
+        try:
+            return_vals = {}
+            if attribute_list is None or len(attribute_list) == 0:
+                return return_vals
+            
+            return_attribs = ""
+            comma = ""
+            first = True
+            for attrib in attribute_list:
+                return_attribs = return_attribs + comma + "m." + attrib + " as " + attrib
+                if first:
+                    first = False
+                    comma = ", "
+            query = "match (e:Entity {entitytype: 'Dataset'})-[:HAS_METADATA]-(m:Metadata) where e.uuid = '" + uuid + "' return " + return_attribs
+            conn = Neo4jConnection(self.confdata['NEO4J_SERVER'], self.confdata['NEO4J_USERNAME'], self.confdata['NEO4J_PASSWORD'])
+            driver = conn.get_driver()
+            count = 0
+            return_vals = {}
+            with driver.session() as session:
+                for record in session.run(query):
+                    count = count + 1
+                    if count > 1:
+                        raise HTTPException("Multipe datasets found for uuid:" + uuid, 500)
+                    for attrib in attribute_list:
+                        return_vals[attrib] = record[attrib]
+            if count == 0:
+                raise HTTPException("Dataset with uuid:" + uuid + " not found.", 404)
+            return return_vals
+        except Exception as e:
+            raise e
+        finally:
+            if driver is not None:
+                driver.close()
+                
     # Create derived dataset
     @classmethod
     def create_derived_datastage(self, driver, nexus_token, json_data):

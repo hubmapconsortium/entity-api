@@ -15,6 +15,7 @@ import logging
 import time
 import traceback
 import json
+import urllib
 
 # HuBMAP commons
 from hubmap_commons.hubmap_const import HubmapConst 
@@ -24,6 +25,9 @@ from hubmap_commons.hm_auth import AuthHelper, secured, isAuthorized
 from hubmap_commons.entity import Entity
 from hubmap_commons.autherror import AuthError
 from hubmap_commons.provenance import Provenance
+from hubmap_commons.exceptions import HTTPException
+from hubmap_commons import string_helper
+from hubmap_commons import file_helper
 
 # For debugging
 from pprint import pprint
@@ -212,7 +216,7 @@ def get_entities():
         return Response(str(le), 404)
     except CypherError as ce:
         print(ce)
-        return Response('Unable to perform query to find identifier: ' + identifier, 500)            
+        return Response('Unable to perform query to find entities', 500)            
     except:
         msg = 'An error occurred: '
         for x in sys.exc_info():
@@ -301,6 +305,7 @@ def get_collection_children(identifier):
 def get_collections():
     global prov_helper
     global logger
+    driver = None
     try:
         component = request.args.get('component', default = 'all', type = str)
         if component == 'all':
@@ -345,7 +350,10 @@ def get_collections():
         print ('A general error occurred. Check log file.')
         logger.error(e, exc_info=True)
         return Response('Unhandled exception occured', 500)
-
+    finally:
+        if not driver is None:
+            driver.close()
+            
 def _coll_record_to_json(record):
                         #collection.uuid
                     #collection.label
@@ -468,6 +476,108 @@ def update_dataset(uuid):
         for x in sys.exc_info():
             msg += str(x)
         abort(400, msg)
+
+
+#get the Globus URL to the dataset given a dataset ID
+#
+# It will provide a Globus URL to the dataset directory in of three Globus endpoints based on the access
+# level of the user (public, consortium or protected), public only, of course, if no token is provided.
+# If a dataset isn't found a 404 will be returned. There is a chance that a 500 can be returned, but not
+# likely under normal circumstances, only for a misconfigured or failing in some way endpoint.  If the 
+# Auth token is provided but is expired or invalid a 401 is returned.  If access to the dataset is not
+# allowed for the user (or lack of user) a 403 is returned.
+
+# Inputs via HTTP GET at /entities/dataset/globus-url/<identifier>
+#   identifier: The HuBMAP ID (e.g. HBM123.ABCD.456) or UUID via a url path parameter 
+#   auth token: (optional) A Globus Nexus token specified in a standard Authorization: Bearer header
+#
+# Outputs
+#   200 with the Globus Application URL to the datasets's directory
+#   404 Dataset not found
+#   403 Access Forbidden
+#   401 Unauthorized (bad or expired token)
+#   500 Unexpected server or other error
+
+@app.route('/entities/dataset/globus-url/<identifier>', methods = ['GET'])
+def get_globus_url(identifier):
+    global prov_helper
+    try:
+        #get the id from the UUID service to resolve to a UUID and check to make sure that it exists
+        ug = UUID_Generator(app.config['UUID_WEBSERVICE_URL'])
+        hmuuid_data = ug.getUUID(AuthHelper.instance().getProcessSecret(), identifier)
+        if hmuuid_data is None or len(hmuuid_data) == 0:
+            return Response("Dataset id:" + identifier + " not found.", 404)
+        uuid = hmuuid_data[0]['hmuuid']
+        
+        #look up the dataset in Neo4j and retrieve the allowable data access level (public, protected or consortium)
+        #for the dataset and HuBMAP Component ID that the dataset belongs to
+        dset = Dataset(app.config)
+        ds_attribs = dset.get_dataset_metadata_attributes(uuid, ['data_access_level', 'provenance_group_uuid'])
+        if not 'provenance_group_uuid' in ds_attribs or string_helper.isBlank(ds_attribs['provenance_group_uuid']):
+            return Response("Group id not set for dataset with uuid:" + uuid, 500)
+    
+        #if no access level is present on the dataset default to protected
+        if not 'data_access_level' in ds_attribs or string_helper.isBlank(ds_attribs['data_access_level']):
+            data_access_level = HubmapConst.ACCESS_LEVEL_PROTECTED
+        else:
+            data_access_level = ds_attribs['data_access_level']
+        
+        #look up the Component's group ID, return an error if not found
+        data_group_id = ds_attribs['provenance_group_uuid']
+        group_ids = prov_helper.get_group_info_by_id()
+        if not data_group_id in group_ids:
+            return Response("Dataset group: " + data_group_id + " for uuid:" + uuid + " not found.", 500)
+
+        #get the user information (if available) for the caller
+        #getUserDataAccessLevel will return just a "data_access_level" of public
+        #if no auth token is found
+        ahelper = AuthHelper.instance()
+        user_info = ahelper.getUserDataAccessLevel(request)        
+        
+        #construct the Globus URL based on the highest level of access that the user has
+        #and the level of access allowed for the dataset
+        #the first "if" checks to see if the user is a member of the Consortium group
+        #that allows all access to this dataset, if so send them to the "protected"
+        #endpoint even if the user doesn't have full access to all protected data
+        globus_server_uuid = None        
+        dir_path = "/"
+        if 'hmgroupids' in user_info and data_group_id in user_info['hmgroupids']:  #user in access group for group:
+            globus_server_uuid = app.config['GLOBUS_PROTECTED_ENDPOINT_UUID']
+            dir_path = dir_path + group_ids[data_group_id]['displayname'] + "/"
+        else:        
+            if not 'data_access_level' in user_info:
+                return Response("Unexpected error, data access level could not be found for user trying to access dataset uuid:" + uuid)        
+            user_access_level = user_info['data_access_level']
+            
+            if user_access_level == HubmapConst.ACCESS_LEVEL_PUBLIC and data_access_level == HubmapConst.ACCESS_LEVEL_PUBLIC:
+                globus_server_uuid = app.config['GLOBUS_PUBLIC_ENDPOINT_UUID']
+            elif (user_access_level == HubmapConst.ACCESS_LEVEL_CONSORTIUM and 
+                  (data_access_level == HubmapConst.ACCESS_LEVEL_CONSORTIUM or data_access_level == HubmapConst.ACCESS_LEVEL_PUBLIC)):
+                globus_server_uuid = app.config['GLOBUS_CONSORTIUM_ENDPOINT_UUID']
+            elif user_access_level == HubmapConst.ACCESS_LEVEL_PROTECTED:
+                globus_server_uuid = app.config['GLOBUS_PROTECTED_ENDPOINT_UUID']
+                dir_path = dir_path + group_ids[data_group_id]['displayname'] + "/"
+            
+        if globus_server_uuid is None:
+            return Response("Access not granted", 403)   
+    
+        dir_path = dir_path + uuid + "/"
+        dir_path = urllib.parse.quote(dir_path, safe='')
+        #https://app.globus.org/file-manager?origin_id=28bbb03c-a87d-4dd7-a661-7ea2fb6ea631&origin_path=%2FIEC%20Testing%20Group%2F03584b3d0f8b46de1b629f04be156879%2F
+        url = file_helper.ensureTrailingSlashURL(app.config['GLOBUS_APP_BASE_URL']) + "file-manager?origin_id=" + globus_server_uuid + "&origin_path=" + dir_path  
+                
+        return Response(url, 200)
+    
+    except HTTPException as hte:
+        msg = "HTTPException during get_globus_url HTTP code: " + str(hte.get_status_code()) + " " + hte.get_description() 
+        print(msg)
+        logger.warn(msg, exc_info=True)
+        return Response(hte.get_description(), hte.get_status_code())
+    except Exception as e:
+        print ('An unexpected error occurred. Check log file.')
+        logger.error(e, exc_info=True)
+        return Response('Unhandled exception occured', 500)
+    
 
 # This is for development only
 if __name__ == '__main__':
