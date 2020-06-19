@@ -3,7 +3,7 @@ Created on May 15, 2019
 
 @author: chb69
 '''
-from flask import Flask, jsonify, abort, request, session, Response
+from flask import Flask, jsonify, abort, request, session, Response, redirect
 import sys
 import os
 from neo4j import CypherError
@@ -16,6 +16,7 @@ import time
 import traceback
 import json
 import urllib
+import re
 
 # HuBMAP commons
 from hubmap_commons.hubmap_const import HubmapConst 
@@ -477,6 +478,59 @@ def update_dataset(uuid):
             msg += str(x)
         abort(400, msg)
 
+#redirect a request from a doi service for a collection of data
+@app.route('/collection/redirect/<identifier>', methods = ['GET'])
+def collection_redirect(identifier):
+    try:
+        if string_helper.isBlank(identifier):
+            return _redirect_error_response('ERROR: No Data Collection identifier found.')
+        
+        #look up the id, if it doesn't exist return an error
+        ug = UUID_Generator(app.config['UUID_WEBSERVICE_URL'])
+        hmuuid_data = ug.getUUID(AuthHelper.instance().getProcessSecret(), identifier)    
+        if hmuuid_data is None or len(hmuuid_data) == 0:
+            return _redirect_error_response("The Data Collection was not found.", "A collection with an id matching " + identifier + " was not found.")
+        
+        if len(hmuuid_data) > 1:
+            return _redirect_error_response("The Data Collection is multiply defined.", "The provided collection id has multiple entries id: " + identifier)
+        
+        uuid_data = hmuuid_data[0]
+
+        if not 'hmuuid' in uuid_data or string_helper.isBlank(uuid_data['hmuuid']) or not 'type' in uuid_data or string_helper.isBlank(uuid_data['type']) or uuid_data['type'].strip().lower() != 'collection':
+            return _redirect_error_response("A Data Collection was not found.", "A collection entry with an id matching " + identifier + " was not found.")
+        
+        if 'COLLECTION_REDIRECT_URL' not in app.config or string_helper.isBlank(app.config['COLLECTION_REDIRECT_URL']):
+            return _redirect_error_response("Cannot complete due to a configuration error.", "The COLLECTION_REDIRECT_URL parameter is not found in the application configuration file.")
+            
+        redir_url = app.config['COLLECTION_REDIRECT_URL']
+        if redir_url.lower().find('<identifier>') == -1:
+            return _redirect_error_response("Cannot complete due to a configuration error.", "The COLLECTION_REDIRECT_URL parameter in the application configuration file does not contain the identifier pattern")
+    
+        rep_pattern = re.compile(re.escape('<identifier>'), re.RegexFlag.IGNORECASE)
+        redir_url = rep_pattern.sub(uuid_data['hmuuid'], redir_url)
+        
+        return redirect(redir_url, code = 307)
+    except Exception:
+        logger.error("Unexpected error while redirecting for Collection with id: " + identifier, exc_info=True)
+        return _redirect_error_response("An unexpected error occurred." "An unexpected error occurred while redirecting for Data Collection with id: " + identifier + " Check the Enitity API log file for more information.")
+
+
+#helper method to show an error message through the ingest
+#portal's error display page a brief description of the error
+#is a required parameter a more detailed description is an optional parameter 
+def _redirect_error_response(description, detail=None):
+    if not 'ERROR_PAGE_URL' in  app.config or string_helper.isBlank(app.config['ERROR_PAGE_URL']):
+        return Response("Config ERROR.  ERROR_PAGE_URL not in application configuration.")
+    
+    redir_url = file_helper.removeTrailingSlashURL(app.config['ERROR_PAGE_URL'])
+    desc = urllib.parse.quote(description, safe='')
+    description_and_details = "?description=" + desc
+    if not string_helper.isBlank(detail):
+        det = urllib.parse.quote(detail, save='')
+        description_and_details = "&details=" + det
+    description_and_details = urllib.parse.quote(description_and_details, safe='')
+    redir_url = redir_url + description_and_details
+    return redirect(redir_url, code = 307)    
 
 #get the Globus URL to the dataset given a dataset ID
 #
@@ -486,7 +540,6 @@ def update_dataset(uuid):
 # likely under normal circumstances, only for a misconfigured or failing in some way endpoint.  If the 
 # Auth token is provided but is expired or invalid a 401 is returned.  If access to the dataset is not
 # allowed for the user (or lack of user) a 403 is returned.
-
 # Inputs via HTTP GET at /entities/dataset/globus-url/<identifier>
 #   identifier: The HuBMAP ID (e.g. HBM123.ABCD.456) or UUID via a url path parameter 
 #   auth token: (optional) A Globus Nexus token specified in a standard Authorization: Bearer header

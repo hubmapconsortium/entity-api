@@ -28,3 +28,12 @@ GLOBUS_PROTECTED_ENDPOINT_UUID = 'bdaf8547-aab3-4142-97bd-0a16d5cd9f58'
 
 #The Base URL to the Globus transfer application site
 GLOBUS_APP_BASE_URL = 'https://app.globus.org'
+
+#url where DOIs are redirected to
+#the <identifier> tag is required in the url and will be replaced by the incoming identifier
+COLLECTION_REDIRECT_URL = 'https://ingest.dev.hubmapconsortium.org/redirect-test/<identifier>'
+
+#page where errors are reported back to a user
+#takes arguments ?description=xxxx&details=yyyyy where
+#description is required and details is optional
+ERROR_PAGE_URL = 'https://ingest.dev.hubmapconsortium.org/err-response'
