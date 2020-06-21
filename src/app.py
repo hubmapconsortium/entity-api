@@ -29,6 +29,7 @@ from hubmap_commons.provenance import Provenance
 from hubmap_commons.exceptions import HTTPException
 from hubmap_commons import string_helper
 from hubmap_commons import file_helper
+from py2neo import Graph
 
 # For debugging
 from pprint import pprint
@@ -49,6 +50,8 @@ logger = ''
 prov_helper = None
 
 LOG_FILE_NAME = "../log/entity-api-" + time.strftime("%d-%m-%Y-%H-%M-%S") + ".log"
+
+ALLOWED_SAMPLE_UPDATE_ATTRIBUTES = [HubmapConst.METADATA_ATTRIBUTE]
 
 @app.before_first_request
 def init():
@@ -412,6 +415,72 @@ def update_donor(uuid):
         for x in sys.exc_info():
             msg += str(x)
         abort(400, msg)
+
+#update a Sample entity, currently only the Sample.Metadata.metadata attribute
+#can be updated.  Input json with top level attribute names matching the attribute
+#names as stored in the Sample.Metadata node.
+@app.route('/samples/<uuid>', methods = ['PUT'])
+@secured(groups="HuBMAP-read")
+def update_sample_by_attrib(uuid):
+    try:
+        token = AuthHelper.parseAuthorizationTokens(request.headers)
+        token = token['nexus_token'] if type(token) == dict else token
+        entity_helper = Entity(app.config['APP_CLIENT_ID'], app.config['APP_CLIENT_SECRET'], app.config['UUID_WEBSERVICE_URL'])
+        conn = Neo4jConnection(app.config['NEO4J_SERVER'], app.config['NEO4J_USERNAME'], app.config['NEO4J_PASSWORD'])
+        if not isAuthorized(conn, token, entity_helper, uuid):
+            return "User has no permission to edit the Sample", 403
+
+        response = _update_sample(uuid, request.get_json()) 
+        
+        if response.status_code == 200:
+            try:
+                #reindex this node in elasticsearch
+                rspn = file_helper.removeTrailingSlashURL(requests.put(app.config['SEARCH_WEBSERVICE_URL']) + "/reindex/" + uuid, headers={'Authorization': 'Bearer '+token})
+            except:
+                print("Error happened when calling reindex web service")
+        
+        return(response)
+
+
+    
+    except Exception as e:
+        logger.error("Unhandled error while updateing sample uuid:" + uuid, exc_info=True)
+
+
+#helper method to update the Metadata node attached to a 
+#sample record.  Currently only the Metadata.metadata attribute
+#can be updated
+def _update_sample(uuid, record):
+    if (HubmapConst.UUID_ATTRIBUTE in record or
+        HubmapConst.DOI_ATTRIBUTE in record or
+        HubmapConst.DISPLAY_DOI_ATTRIBUTE in record or
+        HubmapConst.ENTITY_TYPE_ATTRIBUTE in record):
+        raise HTTPException("ID attributes cannot be changed", 400)
+    
+    not_allowed = []
+    for attrib in record.keys():
+        if not attrib in ALLOWED_SAMPLE_UPDATE_ATTRIBUTES:
+            not_allowed.append(attrib)
+            
+    if len(not_allowed) > 0:
+        return Response("Attribute(s) not allowed: " + string_helper.listToDelimited(not_allowed, " "), 400)
+    
+        
+    save_record = {}
+    for attrib in record.keys():
+        if attrib == HubmapConst.METADATA_ATTRIBUTE:
+            save_record[attrib] = json.dumps(record[attrib])
+
+    graph = Graph(app.config['NEO4J_SERVER'], auth=(app.config['NEO4J_USERNAME'], app.config['NEO4J_PASSWORD']))
+    
+    rval = graph.run("match(e:Entity {uuid: {uuid}})-[:HAS_METADATA]-(m:Metadata) set m += {params} return e.uuid", uuid=uuid, params=save_record).data()
+    if len(rval) == 0:
+        return Response("Update failed for Sample with uuid " + uuid + ".  UUID possibly not found.", 400)
+    else:
+        if rval[0]['e.uuid'] != uuid:
+            return Response("Update failed, wrong uuid returned while trying to update Sample with uuid:" + uuid + " returned: " + rval[0]['e.uuid'])  
+
+    return Response("Update Finished", 200)
 
 
 @app.route('/entities/sample/<uuid>', methods = ['PUT'])
