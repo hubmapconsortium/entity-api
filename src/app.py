@@ -170,6 +170,25 @@ def get_entity(identifier):
             msg += str(x)
         abort(400, msg)
 
+
+# Get data_access_level for a given entity uuid (Donor/Sample/Dataset)
+@app.route('/entity-access-level/<uuid>', methods = ['GET'])
+@secured(groups="HuBMAP-read")
+def get_entity_access_level(uuid):
+    try:
+        dataset = Dataset(app.config)
+        return dataset.get_entity_access_level(uuid)
+    except HTTPException as hte:
+        msg = "HTTPException during get_entity_access_level HTTP code: " + str(hte.get_status_code()) + " " + hte.get_description() 
+        print(msg)
+        logger.warn(msg, exc_info=True)
+        return Response(hte.get_description(), hte.get_status_code())
+    except Exception as e:
+        print ('An unexpected error occurred. Check log file.')
+        logger.error(e, exc_info=True)
+        return Response('Unhandled exception occured', 500)
+
+
 @app.route('/entities/uuid/<uuid>', methods = ['GET'])
 # @cross_origin(origins=[app.config['UUID_UI_URL']], methods=['GET'])
 def get_entity_by_uuid(uuid):

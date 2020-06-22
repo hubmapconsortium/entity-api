@@ -254,10 +254,10 @@ class Dataset(object):
                 raise
 
     @classmethod
-    def get_dataset_access_level(self, uuid):
+    def get_entity_access_level(self, uuid):
         driver = None
         try:
-            query = "match (e:Entity {entitytype: 'Dataset'})-[:HAS_METADATA]-(m:Metadata) where e.uuid = '" + uuid + "' return m.data_access_level as acc_level"
+            query = "match (e:Entity)-[:HAS_METADATA]-(m:Metadata) where e.uuid = '" + uuid + "' return m.data_access_level as acc_level"
             conn = Neo4jConnection(self.confdata['NEO4J_SERVER'], self.confdata['NEO4J_USERNAME'], self.confdata['NEO4J_PASSWORD'])
             driver = conn.get_driver()
             return_list = []
@@ -267,9 +267,9 @@ class Dataset(object):
                         return_list.append(record['acc_level'])
             
             if len(return_list) == 0:
-                raise HTTPException("Dataset uuid:" + uuid + " not found.", 404)
+                raise HTTPException("Entity uuid:" + uuid + " not found.", 404)
             if len(return_list) > 1:
-                raise HTTPException("Multiple datasets found for uuid:" + uuid, 500)
+                raise HTTPException("Multiple entities found for uuid:" + uuid, 500)
             return return_list[0]
                         
         except Exception as e:
