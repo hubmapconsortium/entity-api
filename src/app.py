@@ -435,10 +435,10 @@ def update_sample_by_attrib(uuid):
         if response.status_code == 200:
             try:
                 #reindex this node in elasticsearch
-                rspn = file_helper.removeTrailingSlashURL(requests.put(app.config['SEARCH_WEBSERVICE_URL']) + "/reindex/" + uuid, headers={'Authorization': 'Bearer '+token})
-            except:
-                print("Error happened when calling reindex web service")
-        
+                rspn = requests.put(file_helper.removeTrailingSlashURL(app.config['SEARCH_WEBSERVICE_URL']) + "/reindex/" + uuid, headers={'Authorization': 'Bearer '+token})
+            except Exception as se:
+                print("Error happened when calling reindex web service for Sample with uuid: " + uuid)
+                logger.error("Error while reindexing for Sample with uuid:" + uuid, exc_info=True)
         return(response)
 
 
