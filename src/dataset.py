@@ -262,9 +262,9 @@ class Dataset(object):
             driver = conn.get_driver()
             return_list = []
             with driver.session() as session:
-                    for record in session.run(query):
-                        #return_list.append(record)
-                        return_list.append(record['acc_level'])
+                for record in session.run(query):
+                    #return_list.append(record)
+                    return_list.append(record['acc_level'])
             
             if len(return_list) == 0:
                 raise HTTPException("Entity uuid:" + uuid + " not found.", 404)
