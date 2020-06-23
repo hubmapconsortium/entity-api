@@ -274,9 +274,8 @@ class Dataset(object):
                 raise HTTPException("Multiple entities found for uuid: " + uuid, 500)
             return return_list[0]
                         
-        except CypherError as e:
-            print ('A Cypher error was encountered: ' + e.message)
-            raise CypherError('A Cypher error was encountered: ' + e.message)
+        except CypherError as ce:
+            raise CypherError('A Cypher error was encountered: ' + ce.message)
         finally:
             if driver is not None:
                 driver.close()
