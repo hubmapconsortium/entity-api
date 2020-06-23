@@ -180,13 +180,12 @@ def get_entity_access_level(uuid):
         return dataset.get_entity_access_level(uuid)
     except HTTPException as hte:
         msg = "HTTPException during get_entity_access_level HTTP code: " + str(hte.get_status_code()) + " " + hte.get_description() 
-        print(msg)
         logger.warn(msg, exc_info=True)
         return Response(hte.get_description(), hte.get_status_code())
     except CypherError as ce:
-        print ('A Cypher error was encountered when calling dataset.get_entity_access_level(): ' + ce.message)
-        logger.error(ce, exc_info=True)
-        return Response('A Cypher error was encountered when calling dataset.get_entity_access_level(), check log file for detail', 500)
+        msg = 'A Cypher error was encountered when calling dataset.get_entity_access_level(), check log file for detail'
+        logger.error(msg, exc_info=True)
+        return Response(msg, 500)
 
 
 @app.route('/entities/uuid/<uuid>', methods = ['GET'])
