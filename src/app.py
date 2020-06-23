@@ -183,10 +183,10 @@ def get_entity_access_level(uuid):
         print(msg)
         logger.warn(msg, exc_info=True)
         return Response(hte.get_description(), hte.get_status_code())
-    except Exception as e:
-        print ('An unexpected error occurred. Check log file.')
+    except CypherError as ce:
+        print ('A Cypher error was encountered when calling dataset.get_entity_access_level(): ' + e.message)
         logger.error(e, exc_info=True)
-        return Response('Unhandled exception occured', 500)
+        return Response('A Cypher error was encountered when calling dataset.get_entity_access_level(), check log file for detail', 500)
 
 
 @app.route('/entities/uuid/<uuid>', methods = ['GET'])

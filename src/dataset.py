@@ -257,23 +257,26 @@ class Dataset(object):
     def get_entity_access_level(self, uuid):
         driver = None
         try:
-            query = "match (e:Entity)-[:HAS_METADATA]-(m:Metadata) where e.uuid = '" + uuid + "' return m.data_access_level as acc_level"
+            query = "match (e:Entity)-[:HAS_METADATA]->(m:Metadata) where e.uuid = '" + uuid + "' return m.data_access_level as acc_level"
             conn = Neo4jConnection(self.confdata['NEO4J_SERVER'], self.confdata['NEO4J_USERNAME'], self.confdata['NEO4J_PASSWORD'])
             driver = conn.get_driver()
             return_list = []
             with driver.session() as session:
                 for record in session.run(query):
-                    #return_list.append(record)
-                    return_list.append(record['acc_level'])
+                    if record['acc_level'] is not None:
+                        print(record['acc_level'])
+                        return_list.append(record['acc_level'])
             
+            print(return_list)
             if len(return_list) == 0:
                 raise HTTPException("Entity uuid:" + uuid + " not found.", 404)
             if len(return_list) > 1:
-                raise HTTPException("Multiple entities found for uuid:" + uuid, 500)
+                raise HTTPException("Multiple entities found for uuid: " + uuid, 500)
             return return_list[0]
                         
-        except Exception as e:
-            raise HTTPException("Unhandled Exception occurred", 500)
+        except CypherError as e:
+            print ('A Cypher error was encountered: ' + e.message)
+            raise CypherError('A Cypher error was encountered: ' + e.message)
         finally:
             if driver is not None:
                 driver.close()
