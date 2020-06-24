@@ -257,7 +257,8 @@ class Dataset(object):
     def get_entity_access_level(self, uuid):
         driver = None
         try:
-            query = "match (e:Entity)-[:HAS_METADATA]->(m:Metadata) where e.uuid = '" + uuid + "' return m.data_access_level as acc_level"
+            query = "match (e:Entity)-[:HAS_METADATA]->(m:Metadata) where e.{uuid_attr} = '{uuid}' return m.{data_access_attr} as acc_level".format(
+                data_access_attr=HubmapConst.DATA_ACCESS_LEVEL,uuid_attr=HubmapConst.UUID_ATTRIBUTE,uuid=uuid)
             conn = Neo4jConnection(self.confdata['NEO4J_SERVER'], self.confdata['NEO4J_USERNAME'], self.confdata['NEO4J_PASSWORD'])
             driver = conn.get_driver()
             return_list = []
@@ -1707,3 +1708,14 @@ def convert_dataset_status(raw_status):
         new_status = HubmapConst.DATASET_STATUS_HOLD
     return new_status
 
+if __name__ == "__main__":
+    NEO4J_SERVER = 'bolt://localhost:7687'
+    NEO4J_USERNAME = 'neo4j'
+    NEO4J_PASSWORD = '123'
+
+    conf_data = {'NEO4J_SERVER' : NEO4J_SERVER, 'NEO4J_USERNAME': NEO4J_USERNAME, 
+                 'NEO4J_PASSWORD': NEO4J_PASSWORD}
+    dataset = Dataset(conf_data)
+    uuid = 'd4a9d88b24f460f30a50475b63d66cd5'
+    access_level = dataset.get_entity_access_level(uuid)
+    print('access_level: ' + access_level)
