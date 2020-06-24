@@ -254,26 +254,30 @@ class Dataset(object):
                 raise
 
     @classmethod
-    def get_dataset_access_level(self, uuid):
+    def get_entity_access_level(self, uuid):
         driver = None
         try:
-            query = "match (e:Entity {entitytype: 'Dataset'})-[:HAS_METADATA]-(m:Metadata) where e.uuid = '" + uuid + "' return m.data_access_level as acc_level"
+            query = "match (e:Entity)-[:HAS_METADATA]->(m:Metadata) where e.{uuid_attr} = '{uuid}' return m.{data_access_attr} as acc_level".format(
+                data_access_attr=HubmapConst.DATA_ACCESS_LEVEL,uuid_attr=HubmapConst.UUID_ATTRIBUTE,uuid=uuid)
             conn = Neo4jConnection(self.confdata['NEO4J_SERVER'], self.confdata['NEO4J_USERNAME'], self.confdata['NEO4J_PASSWORD'])
             driver = conn.get_driver()
             return_list = []
             with driver.session() as session:
-                    for record in session.run(query):
-                        #return_list.append(record)
+                for record in session.run(query):
+                    if record['acc_level'] is not None:
+                        print(record['acc_level'])
                         return_list.append(record['acc_level'])
             
+            print(return_list)
             if len(return_list) == 0:
-                raise HTTPException("Dataset uuid:" + uuid + " not found.", 404)
+                raise HTTPException("Entity uuid:" + uuid + " not found.", 404)
             if len(return_list) > 1:
-                raise HTTPException("Multiple datasets found for uuid:" + uuid, 500)
-            return return_list[0]
-                        
+                raise HTTPException("Multiple entities found for uuid: " + uuid, 500)
+            return return_list[0]           
+        except CypherError as ce:
+            raise CypherError('A Cypher error was encountered: ' + ce.message)
         except Exception as e:
-            raise HTTPException("Unhandled Exception occurred", 500)
+            raise Exception('Unhandled Exception occurred: ' + e.message)
         finally:
             if driver is not None:
                 driver.close()
@@ -1705,3 +1709,14 @@ def convert_dataset_status(raw_status):
         new_status = HubmapConst.DATASET_STATUS_HOLD
     return new_status
 
+if __name__ == "__main__":
+    NEO4J_SERVER = 'bolt://localhost:7687'
+    NEO4J_USERNAME = 'neo4j'
+    NEO4J_PASSWORD = '123'
+
+    conf_data = {'NEO4J_SERVER' : NEO4J_SERVER, 'NEO4J_USERNAME': NEO4J_USERNAME, 
+                 'NEO4J_PASSWORD': NEO4J_PASSWORD}
+    dataset = Dataset(conf_data)
+    uuid = 'd4a9d88b24f460f30a50475b63d66cd5'
+    access_level = dataset.get_entity_access_level(uuid)
+    print('access_level: ' + access_level)

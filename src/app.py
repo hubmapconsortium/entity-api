@@ -170,6 +170,31 @@ def get_entity(identifier):
             msg += str(x)
         abort(400, msg)
 
+
+# Get data_access_level for a given entity uuid (Donor/Sample/Dataset)
+@app.route('/entity-access-level/<uuid>', methods = ['GET'])
+@secured(groups="HuBMAP-read")
+def get_entity_access_level(uuid):
+    try:
+        dataset = Dataset(app.config)
+        return dataset.get_entity_access_level(uuid)
+    except HTTPException as hte:
+        msg = "HTTPException during get_entity_access_level HTTP code: " + str(hte.get_status_code()) + " " + hte.get_description() 
+        logger.warn(msg, exc_info=True)
+        print(msg)
+        return Response(hte.get_description(), hte.get_status_code())
+    except CypherError as ce:
+        msg = 'A Cypher error was encountered when calling dataset.get_entity_access_level(), check log file for detail'
+        logger.error(msg, exc_info=True)
+        print(msg)
+        return Response(msg, 500)
+    except Exception as e:
+        msg = 'Unhandled exception occured, check log file for detail'
+        print (msg)
+        logger.error(msg, exc_info=True)
+        return Response(msg, 500)
+
+
 @app.route('/entities/uuid/<uuid>', methods = ['GET'])
 # @cross_origin(origins=[app.config['UUID_UI_URL']], methods=['GET'])
 def get_entity_by_uuid(uuid):
