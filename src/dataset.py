@@ -265,10 +265,10 @@ class Dataset(object):
             with driver.session() as session:
                 for record in session.run(query):
                     if record['acc_level'] is not None:
+                        print("Access level of uuid: " + uuid)
                         print(record['acc_level'])
                         return_list.append(record['acc_level'])
             
-            print(return_list)
             if len(return_list) == 0:
                 raise HTTPException("Entity uuid:" + uuid + " not found.", 404)
             if len(return_list) > 1:
@@ -276,6 +276,8 @@ class Dataset(object):
             return return_list[0]           
         except CypherError as ce:
             raise CypherError('A Cypher error was encountered: ' + ce.message)
+        except HTTPException as hte:
+            raise HTTPException(hte.get_description(), str(hte.get_status_code()))
         except:
             print ('Unhandled Exception occurred: ')
             for x in sys.exc_info():
