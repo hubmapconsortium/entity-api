@@ -10,3 +10,7 @@ docker/entity-api/src
 
 # Ignore log but keep the log directory
 **/*.log
+
+#ignore eclipse files
+.project
+.pydevproject
