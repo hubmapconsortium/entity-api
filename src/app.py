@@ -188,11 +188,11 @@ def get_entity_access_level(uuid):
         logger.error(msg, exc_info=True)
         print(msg)
         return Response(msg, 500)
-    except Exception as e:
-        msg = 'Unhandled exception occured, check log file for detail'
-        print (msg)
-        logger.error(msg, exc_info=True)
-        return Response(msg, 500)
+    except:
+        msg = 'Unhandled exception occured: '
+        for x in sys.exc_info():
+            msg += str(x)
+        abort(400, msg)
 
 
 @app.route('/entities/uuid/<uuid>', methods = ['GET'])

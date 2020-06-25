@@ -276,8 +276,11 @@ class Dataset(object):
             return return_list[0]           
         except CypherError as ce:
             raise CypherError('A Cypher error was encountered: ' + ce.message)
-        except Exception as e:
-            raise Exception('Unhandled Exception occurred: ' + e.message)
+        except:
+            print ('Unhandled Exception occurred: ')
+            for x in sys.exc_info():
+                print (x)
+            raise
         finally:
             if driver is not None:
                 driver.close()
