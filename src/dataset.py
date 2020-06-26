@@ -270,7 +270,9 @@ class Dataset(object):
                         return_list.append(record['acc_level'])
             
             if len(return_list) == 0:
-                raise HTTPException("Entity uuid:" + uuid + " not found.", 404)
+                # Handle this as the metadata node doesn't have `data_access_level` attribute 
+                # Return the access level as "protected" by default
+                return HubmapConst.ACCESS_LEVEL_PROTECTED 
             if len(return_list) > 1:
                 raise HTTPException("Multiple entities found for uuid: " + uuid, 500)
             return return_list[0]           
