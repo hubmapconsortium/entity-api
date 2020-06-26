@@ -178,9 +178,9 @@ def get_entity_access_level(uuid):
     try:
         #get the id from the UUID service to resolve to a UUID and check to make sure that it exists
         ug = UUID_Generator(app.config['UUID_WEBSERVICE_URL'])
-        hmuuid_data = ug.getUUID(AuthHelper.instance().getProcessSecret(), identifier)
+        hmuuid_data = ug.getUUID(AuthHelper.instance().getProcessSecret(), uuid)
         if hmuuid_data is None or len(hmuuid_data) == 0:
-            return Response("UUID: " + identifier + " not found.", 404)
+            return Response("UUID: " + uuid + " not found.", 404)
         
         # If the UUID exists, we go get the data_access_level
         dataset = Dataset(app.config)
