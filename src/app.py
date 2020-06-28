@@ -311,25 +311,25 @@ def get_children(uuid):
             msg += str(x)
         abort(400, msg)
 
-@app.route('/datasets', methods = ['GET'])
-def get_datasets():
-    if 'collection' in request.args:
-        collection_uuid = request.args.get('collection')
-    try:
-        conn = Neo4jConnection(app.config['NEO4J_SERVER'], app.config['NEO4J_USERNAME'], app.config['NEO4J_PASSWORD'])
-        driver = conn.get_driver()
-
-        collections = Entity.get_collections(driver) 
-        return jsonify(collections), 200
-    except AuthError as e:
-        print(e)
-        return Response('token is invalid', 401)
-    except LookupError as le:
-        print(le)
-        return Response(str(le), 404)
-    except CypherError as ce:
-        print(ce)
-        return Response('Unable to perform query to find identifier: ' + identifier, 500)
+#@app.route('/datasets', methods = ['GET'])
+#def get_datasets():
+#    if 'collection' in request.args:
+#        collection_uuid = request.args.get('collection')
+#    try:
+#        conn = Neo4jConnection(app.config['NEO4J_SERVER'], app.config['NEO4J_USERNAME'], app.config['NEO4J_PASSWORD'])
+#        driver = conn.get_driver()
+#
+#        collections = Entity.get_collections(driver) 
+#        return jsonify(collections), 200
+#    except AuthError as e:
+#        print(e)
+#        return Response('token is invalid', 401)
+#    except LookupError as le:
+#        print(le)
+#        return Response(str(le), 404)
+#    except CypherError as ce:
+#        print(ce)
+#        return Response('Unable to perform query to find identifier: ' + identifier, 500)
 
 @app.route('/collections/<identifier>', methods = ['GET'])
 def get_collection_children(identifier):
