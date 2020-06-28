@@ -724,9 +724,16 @@ def get_globus_url(identifier):
             
             if user_access_level == HubmapConst.ACCESS_LEVEL_PUBLIC and data_access_level == HubmapConst.ACCESS_LEVEL_PUBLIC:
                 globus_server_uuid = app.config['GLOBUS_PUBLIC_ENDPOINT_UUID']
+
+                #next line added only until directory linking in place, then should be removed
+                dir_path = dir_path + group_ids[data_group_id]['displayname'] + "/"
+                
             elif (user_access_level == HubmapConst.ACCESS_LEVEL_CONSORTIUM and 
                   (data_access_level == HubmapConst.ACCESS_LEVEL_CONSORTIUM or data_access_level == HubmapConst.ACCESS_LEVEL_PUBLIC)):
                 globus_server_uuid = app.config['GLOBUS_CONSORTIUM_ENDPOINT_UUID']
+                
+                #next line added only until directory linking in place, then should be removed
+                dir_path = dir_path + group_ids[data_group_id]['displayname'] + "/"
             elif user_access_level == HubmapConst.ACCESS_LEVEL_PROTECTED:
                 globus_server_uuid = app.config['GLOBUS_PROTECTED_ENDPOINT_UUID']
                 dir_path = dir_path + group_ids[data_group_id]['displayname'] + "/"
