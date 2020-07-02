@@ -6,7 +6,7 @@ services:
   entity-api:
     build: ./entity-api
     # Build the image with name and tag
-    image: entity-api:1.3
+    image: entity-api:1.4
     hostname: entity-api
     container_name: entity-api
     volumes:
