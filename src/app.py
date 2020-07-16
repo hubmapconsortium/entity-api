@@ -109,8 +109,8 @@ def get_entity_provenance(identifier):
         public_access_only = True
         token = None
         
-        if 'AUTHORIZATION' in request:
-            token = request['AUTHORIZATION']
+        if 'AUTHORIZATION' in request.headers:
+            token = request.headers['AUTHORIZATION']
         
         ahelper = AuthHelper.instance()
         user_info = ahelper.getUserDataAccessLevel(request)        
@@ -131,7 +131,7 @@ def get_entity_provenance(identifier):
             entity_access_level =  current_metadata[HubmapConst.DATA_ACCESS_LEVEL]
         
         # return a 403 if the user has no token or they are trying to access a non-public object without the necessary access
-        if token == None or (public_access_only == True and entity_access_level != HubmapConst.ACCESS_LEVEL_PUBLIC):
+        if (token == None or public_access_only == True) and entity_access_level != HubmapConst.ACCESS_LEVEL_PUBLIC:
             return Response('The current user does not have the credentials required to retrieve provenance data for: ' + str(identifier), 403)
         depth = None
         if 'depth' in request.args:
