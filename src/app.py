@@ -713,36 +713,33 @@ def get_globus_url(identifier):
         #that allows all access to this dataset, if so send them to the "protected"
         #endpoint even if the user doesn't have full access to all protected data
         globus_server_uuid = None        
-        dir_path = "/"
-        if 'hmgroupids' in user_info and data_group_id in user_info['hmgroupids']:  #user in access group for group:
+        dir_path = ""
+        if not 'data_access_level' in user_info:
+            return Response("Unexpected error, data access level could not be found for user trying to access dataset uuid:" + uuid)        
+        user_access_level = user_info['data_access_level']
+        
+        #public access
+        if data_access_level == HubmapConst.ACCESS_LEVEL_PUBLIC:
+            globus_server_uuid = app.config['GLOBUS_PUBLIC_ENDPOINT_UUID']
+            access_dir = _access_level_prefix_dir(app.config['PUBLIC_DATA_SUBDIR'])
+            dir_path = dir_path +  access_dir + "/"
+        #consortium access
+        elif data_access_level == HubmapConst.ACCESS_LEVEL_CONSORTIUM and not user_access_level == HubmapConst.ACCESS_LEVEL_PUBLIC:
+            globus_server_uuid = app.config['GLOBUS_CONSORTIUM_ENDPOINT_UUID']
+            access_dir = _access_level_prefix_dir(app.config['CONSORTIUM_DATA_SUBDIR'])
+            dir_path = dir_path + access_dir + group_ids[data_group_id]['displayname'] + "/"
+        #protected access
+        elif user_access_level == HubmapConst.ACCESS_LEVEL_PROTECTED and data_access_level == HubmapConst.ACCESS_LEVEL_PROTECTED:
             globus_server_uuid = app.config['GLOBUS_PROTECTED_ENDPOINT_UUID']
-            dir_path = dir_path + group_ids[data_group_id]['displayname'] + "/"
-        else:        
-            if not 'data_access_level' in user_info:
-                return Response("Unexpected error, data access level could not be found for user trying to access dataset uuid:" + uuid)        
-            user_access_level = user_info['data_access_level']
-            
-            if user_access_level == HubmapConst.ACCESS_LEVEL_PUBLIC and data_access_level == HubmapConst.ACCESS_LEVEL_PUBLIC:
-                globus_server_uuid = app.config['GLOBUS_PUBLIC_ENDPOINT_UUID']
-
-                #next line added only until directory linking in place, then should be removed
-                dir_path = dir_path + group_ids[data_group_id]['displayname'] + "/"
-                
-            elif (user_access_level == HubmapConst.ACCESS_LEVEL_CONSORTIUM and 
-                  (data_access_level == HubmapConst.ACCESS_LEVEL_CONSORTIUM or data_access_level == HubmapConst.ACCESS_LEVEL_PUBLIC)):
-                globus_server_uuid = app.config['GLOBUS_CONSORTIUM_ENDPOINT_UUID']
-                
-                #next line added only until directory linking in place, then should be removed
-                dir_path = dir_path + group_ids[data_group_id]['displayname'] + "/"
-            elif user_access_level == HubmapConst.ACCESS_LEVEL_PROTECTED:
-                globus_server_uuid = app.config['GLOBUS_PROTECTED_ENDPOINT_UUID']
-                dir_path = dir_path + group_ids[data_group_id]['displayname'] + "/"
+            access_dir = _access_level_prefix_dir(app.config['PROTECTED_DATA_SUBDIR'])
+            dir_path = dir_path + access_dir + group_ids[data_group_id]['displayname'] + "/"
             
         if globus_server_uuid is None:
             return Response("Access not granted", 403)   
     
         dir_path = dir_path + uuid + "/"
         dir_path = urllib.parse.quote(dir_path, safe='')
+        
         #https://app.globus.org/file-manager?origin_id=28bbb03c-a87d-4dd7-a661-7ea2fb6ea631&origin_path=%2FIEC%20Testing%20Group%2F03584b3d0f8b46de1b629f04be156879%2F
         url = file_helper.ensureTrailingSlashURL(app.config['GLOBUS_APP_BASE_URL']) + "file-manager?origin_id=" + globus_server_uuid + "&origin_path=" + dir_path  
                 
@@ -758,6 +755,12 @@ def get_globus_url(identifier):
         logger.error(e, exc_info=True)
         return Response('Unhandled exception occured', 500)
     
+def _access_level_prefix_dir(pth):
+    if string_helper.isBlank(pth):
+        return('')
+    else:
+        return(file_helper.ensureTrailingSlashURL(file_helper.ensureBeginningSlashURL(pth)))
+
 
 # This is for development only
 if __name__ == '__main__':
