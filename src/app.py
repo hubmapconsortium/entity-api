@@ -74,7 +74,7 @@ def index():
     return "Hello! This is HuBMAP Entity API service :)"
 
 # Show status of neo4j connection
-@app.route('/neo4j_connection_status', methods = ['GET'])
+@app.route('/status', methods = ['GET'])
 def neo4j_connection_status():
     response_data = {
         'neo4j_connection': False
