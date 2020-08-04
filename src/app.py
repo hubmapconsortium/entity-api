@@ -75,7 +75,7 @@ def index():
 
 # Show status of neo4j connection
 @app.route('/status', methods = ['GET'])
-def neo4j_connection_status():
+def status():
     response_data = {
         'neo4j_connection': False
     }
