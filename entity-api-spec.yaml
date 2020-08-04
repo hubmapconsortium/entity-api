@@ -23,11 +23,115 @@ tags:
       description: Find out more about our entity
       url: "http://hubmap.org"
 paths:
+  "/entities":
+    get:
+      tags:
+        - entity
+      summary: Gets an array of uuids by type code.  These uuids can be used in other calls requiring valid entity identifiers.
+      operationId: getAllEntities
+      parameters:
+        - name: entitytypes
+          in: query
+          description: a comma separated list of entity types
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: successful operation
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/EntityNode"
+        "400":
+          description: Invalid type code or a system error
+        "401":
+          description: The user's token has expired or the user did not supply a token
+        "404":
+          description: The entitytype parameter could not be found.
+      security:
+      - JWTBearerAuth: []
+  "/entities/{identifier}":
+    get:
+      tags:
+        - entity
+      summary: Get the information for an Entity using an identifier.
+      operationId: getEntity
+      parameters:
+        - name: identifier
+          in: path
+          description: The unique identifier of entity.  This identifier can be a UUID, Display DOI (HBM365.KSBD.575) or DOI (365KSBD575).  This can also be the HuBMAP identifier (TEST0004, TEST0004-LK) for donors or samples.
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: successful operation
+          content:
+            application/json:
+              schema:
+                properties:
+                  entity_node:
+                    example:  {
+    "data_access_level": "consortium",
+    "description": "Age 66, White Female",
+    "display_doi": "HBM758.JRSC.348",
+    "doi": "758JRSC348", "<other params>": "<other values>" } 
+                    type: object
+                    items:
+                      $ref: "#/components/schemas/EntityNode"
+        "400":
+          description: Invalid entity identifier or a system error
+        "401":
+          description: The user's token has expired
+        "404":
+          description: The identifier could not be found.
+      security:
+      - JWTBearerAuth: []
+  "/entities/uuid/{uuid}":
+    get:
+      tags:
+        - entity
+      summary: Get an Entity by its uuid
+      operationId: getEntityByUUID
+      parameters:
+        - name: uuid
+          in: path
+          description: The uuid identifier of an entity.  For this call you can only use the uuid- no other identifier works.
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: successful operation
+          content:
+            application/json:
+              schema:
+                properties:
+                  entity:
+                    example:  {
+    "data_access_level": "consortium",
+    "description": "Age 66, White Female",
+    "display_doi": "HBM758.JRSC.348",
+    "doi": "758JRSC348", "<other params>": "<other values>" } 
+                    type: object
+                    items:
+                      $ref: "#/components/schemas/EntityNode"
+        "400":
+          description: Invalid entity identifier or a system error
+        "401":
+          description: The user's token has expired
+        "404":
+          description: The identifier could not be found.
+      security:
+      - JWTBearerAuth: []
   /entities/types:
     get:
       tags:
         - entity
-      summary: Get a list of the valid entity types
+      summary: Get a list of the valid entity types.  This query is useful when used to supply a parameter to /entities/types/{type_code}. 
       operationId: getEntityTypes
       responses:
         "200":
@@ -44,12 +148,14 @@ paths:
         "400":
           description: A system error occurred
         "401":
-          description: The user's token has expired
+          description: The user's token has expired or the user did not supply a token
+      security:
+      - JWTBearerAuth: []
   "/entities/types/{type_code}":
     get:
       tags:
         - entity
-      summary: Get uuids by type code
+      summary: Gets an array of uuids by type code.  These uuids can be used in other calls requiring valid entity identifiers.
       operationId: getEntityByType
       parameters:
         - name: type_code
@@ -67,20 +173,22 @@ paths:
                 type: object
                 properties:
                   uuids:
-                    example: [13ceb39891c4d06fc8fb5dbb5b0c16a0, 51318fa4fff79c82d4de7b2d70e630cb]
+                    example: [13ceb39891c4d06fc8fb5dbb5b0c16a0, 51318fa4fff79c82d4de7b2d70e630cb] 
                     type: array
                     items:
                       type: string
-        "401":
-          description: The user's token has expired
         "400":
           description: Invalid type code or a system error
-  "/entities/{identifier}":
+        "401":
+          description: The user's token has expired or the user did not supply a token
+      security:
+      - JWTBearerAuth: []
+  "/entity-access-level/{identifier}":
     get:
       tags:
         - entity
-      summary: Get Entity
-      operationId: getEntity
+      summary: Get the data access level for an Entity
+      operationId: getEntityAccessLevel
       parameters:
         - name: identifier
           in: path
@@ -94,15 +202,139 @@ paths:
           content:
             application/json:
               schema:
-                properties:
-                  entity_node:
-                    type: object
-                    items:
-                      $ref: "#/components/schemas/EntityNode"
+                type: object
+                items:
+                  $ref: "#/components/schemas/AccessLevel"
         "400":
           description: Invalid entity identifier or a system error
         "401":
           description: The user's token has expired
+        "404":
+          description: The identifier could not be found.
+        "500":
+          description: An unexpected error occurred.
+      security:
+      - JWTBearerAuth: []
+  "/entities/ancestors/{identifier}":
+    get:
+      tags:
+        - entity
+      summary: Get the ancestor list for an Entity.  The ancestors are the nodes connected "upstream" from the current node.  This list traverses all the levels in the graph.
+      operationId: getEntityAncestors
+      parameters:
+        - name: identifier
+          in: path
+          description: The unique identifier of entity.  This identifier can be a UUID, Display DOI (HBM365.KSBD.575) or DOI (365KSBD575).  This can also be the HuBMAP identifier (TEST0004, TEST0004-LK) for donors or samples.
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: successful operation
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/EntityNode"
+        "400":
+          description: Invalid entity identifier or a system error
+        "401":
+          description: The user's token has expired
+        "404":
+          description: The identifier could not be found.
+      security:
+      - JWTBearerAuth: []
+  "/entities/descendants/{identifier}":
+    get:
+      tags:
+        - entity
+      summary: Get the descendant list for an Entity.  The descendants are the nodes "downstream" from the current node.  This list traverses all the levels in the graph.
+      operationId: getEntityDescendants
+      parameters:
+        - name: identifier
+          in: path
+          description: The unique identifier of entity.  This identifier can be a UUID, Display DOI (HBM365.KSBD.575) or DOI (365KSBD575).  This can also be the HuBMAP identifier (TEST0004, TEST0004-LK) for donors or samples.
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: successful operation
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/EntityNode"
+        "400":
+          description: Invalid entity identifier or a system error
+        "401":
+          description: The user's token has expired
+        "404":
+          description: The identifier could not be found.
+      security:
+      - JWTBearerAuth: []
+  "/entities/parents/{identifier}":
+    get:
+      tags:
+        - entity
+      summary: Get the immediate parent list for an Entity.  The parents are the nodes connected one level "upstream" from the current node.  This list only goes to the next higher level in the graph.
+      operationId: getEntityParents
+      parameters:
+        - name: identifier
+          in: path
+          description: The unique identifier of entity.  This identifier can be a UUID, Display DOI (HBM365.KSBD.575) or DOI (365KSBD575).  This can also be the HuBMAP identifier (TEST0004, TEST0004-LK) for donors or samples.
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: successful operation
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/EntityNode"
+        "400":
+          description: Invalid entity identifier or a system error
+        "401":
+          description: The user's token has expired
+        "404":
+          description: The identifier could not be found.
+      security:
+      - JWTBearerAuth: []
+  "/entities/children/{identifier}":
+    get:
+      tags:
+        - entity
+      summary: Get the list of children directly connected to an Entity.  The children are the nodes one level below the current node.  This list only returns the items one level below in the graph.
+      operationId: getEntityChildren
+      parameters:
+        - name: identifier
+          in: path
+          description: The unique identifier of entity.  This identifier can be a UUID, Display DOI (HBM365.KSBD.575) or DOI (365KSBD575).  This can also be the HuBMAP identifier (TEST0004, TEST0004-LK) for donors or samples.
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: successful operation
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/EntityNode"
+        "400":
+          description: Invalid entity identifier or a system error
+        "401":
+          description: The user's token has expired
+        "404":
+          description: The identifier could not be found.
+      security:
+      - JWTBearerAuth: []
   "/entities/{identifier}/provenance":
     get:
       tags:
@@ -128,9 +360,10 @@ paths:
           description: Invalid entity identifier or a system error
         "401":
           description: The user's token has expired
+      security:
+      - JWTBearerAuth: []
 servers:
-  - url: "https://uuid.hubmapconsortium.org/entity"
-  - url: "http://uuid.hubmapconsortium.org/entity"
+  - url: "https://entity.api.hubmapconsortium.org"
 components:
   securitySchemes:
     globus_auth:
@@ -141,11 +374,15 @@ components:
           scopes:
             "write:entities": modify entities
             "read:entities": read entities
-    api_key:
-      type: apiKey
-      name: api_key
-      in: header
+    JWTBearerAuth:
+      bearerFormat: JWT
+      scheme: bearer
+      type: http
   schemas:
+    AccessLevel:
+      description: 'The valid data access levels for an entity.'
+      example: consortium, protected, public
+      type: string
     EntityType:
       description: 'A list of the types of entities.'
       example: Lab, Sample, Donor, Dataset
