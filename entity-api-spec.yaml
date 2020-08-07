@@ -3,7 +3,7 @@ info:
   description: |
     This is the HuBMAP Entity APIs specification
     [http://www.hubmapconsortium.org](http://www.hubmapconsortium.org)
-  version: "1.0.0-oas3-test"
+  version: "1.5"
   title: HuBMAP Entity APIs
   termsOfService: "http://www.hubmapconsortium.org"
   contact:
