@@ -73,6 +73,22 @@ def init():
 def index():
     return "Hello! This is HuBMAP Entity API service :)"
 
+# Show status of neo4j connection
+@app.route('/status', methods = ['GET'])
+def status():
+    response_data = {
+        'neo4j_connection': False
+    }
+
+    conn = Neo4jConnection(app.config['NEO4J_SERVER'], app.config['NEO4J_USERNAME'], app.config['NEO4J_PASSWORD'])
+    driver = conn.get_driver()
+    is_connected = conn.check_connection(driver)
+    
+    if is_connected:
+        response_data['neo4j_connection'] = True
+
+    return jsonify(response_data)
+
 @app.route('/entities/types/<type_code>', methods = ['GET'])
 # @cross_origin(origins=[app.config['UUID_UI_URL']], methods=['GET'])
 def get_entity_by_type(type_code):
