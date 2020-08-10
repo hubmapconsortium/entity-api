@@ -105,16 +105,34 @@ def get_entity_types():
 # @cross_origin(origins=[app.config['UUID_UI_URL']], methods=['GET'])
 def get_entity_provenance(identifier):
     try:
-        token = str(request.headers["AUTHORIZATION"])[7:]
+        # default to PUBLIC access only
+        public_access_only = True
+        token = None
+        
+        if 'AUTHORIZATION' in request.headers:
+            token = request.headers['AUTHORIZATION']
+        
+        ahelper = AuthHelper.instance()
+        user_info = ahelper.getUserDataAccessLevel(request)        
+
+        if user_info[HubmapConst.DATA_ACCESS_LEVEL] != HubmapConst.ACCESS_LEVEL_PUBLIC:
+            public_access_only = False
         conn = Neo4jConnection(app.config['NEO4J_SERVER'], app.config['NEO4J_USERNAME'], app.config['NEO4J_PASSWORD'])
         driver = conn.get_driver()
         ug = UUID_Generator(app.config['UUID_WEBSERVICE_URL'])
-        identifier_list = ug.getUUID(token, identifier)
+        identifier_list = ug.getUUID(AuthHelper.instance().getProcessSecret(), identifier)
         if len(identifier_list) == 0:
             raise LookupError('unable to find information on identifier: ' + str(identifier))
         if len(identifier_list) > 1:
             raise LookupError('found multiple records for identifier: ' + str(identifier))
+        current_metadata = Entity.get_entity_metadata(driver, identifier_list[0]['hmuuid'])        
+        entity_access_level = HubmapConst.ACCESS_LEVEL_PROTECTED
+        if HubmapConst.DATA_ACCESS_LEVEL in current_metadata:
+            entity_access_level =  current_metadata[HubmapConst.DATA_ACCESS_LEVEL]
         
+        # return a 403 if the user has no token or they are trying to access a non-public object without the necessary access
+        if (token == None or public_access_only == True) and entity_access_level != HubmapConst.ACCESS_LEVEL_PUBLIC:
+            return Response('The current user does not have the credentials required to retrieve provenance data for: ' + str(identifier), 403)
         depth = None
         if 'depth' in request.args:
             depth = int(request.args.get('depth'))
