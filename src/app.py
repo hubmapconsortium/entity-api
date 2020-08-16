@@ -365,10 +365,134 @@ def get_children(uuid):
 #        print(ce)
 #        return Response('Unable to perform query to find identifier: ' + identifier, 500)
 
+
+#GET /collections/<uuid> where <uuid> is the id of a collection, either a UUID or HuBMAP ID (like HBM123.ABCD.456)
+#is accepted.
+#
+#An optional Globus nexus can be provided in a standard Authentication Bearer header.  If a valid token
+#is provided with group membership in the HuBMAP-Read group any collection matching the id will be returned.
+#otherwise if no token is provided or a valid token with no HuBMAP-Read group membership then
+#only a public collection will be returned.  Public collections are defined as being published via a DOI 
+#(collection.doi_registered == true) and at least one of the connected datasets is public
+#(dataset.metadata.data_access_level == 'public'). For public collections only connected datasets that are
+#public are returned with it.
+#
+#Returns the information of the Collection specified by the uuid with all connected datasets or 404
+#if the Collection is not found.  Returns 401 if a supplied token is invalid. Sample return json here:
+#
+#
+# {
+#   "child_metadata_properties": null,
+#   "display_doi": "HBM836.XJWD.376",
+#   "doi": "836XJWD376",
+#   "doi_registered": false,
+#   "entitytype": "Collection",
+#   "hubmap_identifier": null,
+#   "items": [
+#     {
+#       "display_doi": "HBM298.GNPK.468",
+#       "doi": "298GNPK468",
+#       "entitytype": "Dataset",
+#       "properties": {
+#         "collection_uuid": "90d56f91cd1478101d273bbfdb8792cf",
+#         "creator_email": "joe.smith@testing.edu",
+#         "creator_name": "Joe Smith",
+#         "data_types": [
+#           "AF"
+#         ],
+#         "dataset_collection_uuid": "90d56f91cd1478101d273bbfdb8792cf",
+#         "description": "Autofluorescence Microscopy collected from the Left Kidney of a 53 year old Black or African American Male donor by the Biomolecular Multimodal Imaging Center (BIOMC) at Testing University. BIOMIC is a Tissue Mapping Center that is part of the NIH funded Human Biomolecular Atlas Program (HuBMAP). Microscopy images were collected with a Zeiss Axio Scan.Z1 using 3 channels  DAPI (excitation: 335-383 nm/emission: 420-470 nm), eGFP (excitation: 450-490 nm/emission: 500-550 nm), and dsRed (excitation: 538-562 nm/emission: 570-640 nm). Support was provided by the NIH Common Fund and National Institute of Diabetes and Digestive and Kidney Diseases (U54 DK120058). Tissue was collected through the Cooperative Human Tissue Network with support provided by the NIH National Cancer Institute (5 UM1 CA183727-08).",
+#         "entitytype": "Metadata",
+#         "globus_directory_url_path": "https://app.globus.org/file-manager?origin_id=0ecd3ce8-bf32-4d64-9405-4ebbcbfff116&origin_path=/Testing%20TMC/8bb9a69f2f2a23841ab207951a2c9803",
+#         "group_name": "Testing TMC",
+#         "group_uuid": "73bb26e4-ed43-11e8-8f19-0a7c1eab007a",
+#         "local_directory_url_path": "/Testing TMC/8bb9a69f2f2a23841ab207951a2c9803",
+#         "name": "Autofluorescence Microscopy of Human Kidney Tissue",
+#         "phi": "no",
+#         "provenance_create_timestamp": 1589336113928,
+#         "provenance_group_name": "hubmap-testing-tmc",
+#         "provenance_group_uuid": "73bb26e4-ed43-11e8-8f19-0a7c1eab007a",
+#         "provenance_modified_timestamp": 1589336113928,
+#         "provenance_user_displayname": "Joe Smith",
+#         "provenance_user_email": "joe.smith@testing.edu",
+#         "reference_uuid": "8bb9a69f2f22342b207951a2c9803",
+#         "source_uuid": [
+#           "VAN0009-LK-102-7"
+#         ],
+#         "source_uuids": [
+#           "6c84417088840d5fbc0c582b6c86503b"
+#         ],
+#         "status": "New",
+#         "uuid": "16a223f35e1905b972a28d0325b03ede"
+#       },
+#       "uuid": "8bb9a69f2f2a23841ab207951a2c9803"
+#     },
+#     {
+#       "display_doi": "HBM428.LSVG.824",
+#       "doi": "428LSVG824",
+#       "entitytype": "Dataset",
+#       "properties": {
+#         "collection_uuid": "90d56f91cd1478101d273bbfdb8792cf",
+#         "creator_email": "joe.smith@testing.edu",
+#         "creator_name": "Joe Smith",
+#         "data_types": [
+#           "PAS"
+#         ],
+#         "dataset_collection_uuid": "90d56f91cd1478101d273bbfdb8792cf",
+#         "description": "Periodic acid-Schiff  Stained Microscopy collected from the Left Kidney of a 53 year old Black or African American Male donor by the Biomolecular Multimodal Imaging Center (BIOMC) at Testing University. BIOMIC is a Tissue Mapping Center that is part of the NIH funded Human Biomolecular Atlas Program (HuBMAP). Brightfield microscopy images of fresh-frozen tissue sections were collected with a Leica Biosystems SCN400. Support was provided by the NIH Common Fund and National Institute of Diabetes and Digestive and Kidney Diseases (U54 DK120058). Tissue was collected through the Cooperative Human Tissue Network with support provided by the NIH National Cancer Institute (5 UM1 CA183727-08).",
+#         "entitytype": "Metadata",
+#         "globus_directory_url_path": "https://app.globus.org/file-manager?origin_id=0ecd3ce8-bf32-4d64-9405-4ebbcbfff116&origin_path=/Testing%20TMC/f1ede6f2c0f3ec8c347f30a1e9488a91",
+#         "group_name": "Testing TMC",
+#         "group_uuid": "73bb26e4-ed43-11e8-8f19-0a7c1eab007a",
+#         "local_directory_url_path": "/Testing TMC/f1ede6f2c0f3ec8c347f30a1e9488a91",
+#         "name": "Periodic acid-Schiff Stained Microscopy of Human Kidney Tissue",
+#         "phi": "no",
+#         "provenance_create_timestamp": 1589335618254,
+#         "provenance_group_name": "hubmap-testing-tmc",
+#         "provenance_group_uuid": "73bb26e4-ed43-11e8-8f19-0a7c1eab007a",
+#         "provenance_modified_timestamp": 1589335618254,
+#         "provenance_user_displayname": "Joe Smith",
+#         "provenance_user_email": "jeff.spraggins@testing.edu",
+#         "reference_uuid": "f1ede6f2c0f3ec8c347f30a1e9488a91",
+#         "source_uuid": [
+#           "VAN0009-LK-102-7"
+#         ],
+#         "source_uuids": [
+#           "6c84417088840d5fbc0c582b6c86503b"
+#         ],
+#         "status": "New",
+#         "uuid": "57dbee9728a12cd240ba44216fcf2c75"
+#       },
+#       "uuid": "f1ede6f2c0f3ec8c347f30a1e9488a91"
+#     }
+#   ],
+#   "properties": null,
+#   "uuid": "90d56f91cd1478101d273bbfdb8792cf",
+#   "creators": [
+#     {
+#       "affiliation": "Testing University",
+#       "first_name": "Test",
+#       "last_name": "User",
+#       "middle_name_or_initial": "F",
+#       "name": "Test F. User",
+#       "orcid_id": "0000-0007-8374-2923"
+#     },
+#     {
+#       "affiliation": "Testing University",
+#       "first_name": "Joe",
+#       "last_name": "Smith",
+#       "middle_name_or_initial": "E",
+#       "name": "Joe E Smith",
+#       "orcid_id": "0000-0007-3023-2323"
+#     },
+#     ...
+#   ]
+# }
 @app.route('/collections/<identifier>', methods = ['GET'])
 def get_collection_children(identifier):
     try:
-        token = str(request.headers["AUTHORIZATION"])[7:]
+        access_level = AuthHelper.instance().getUserDataAccessLevel(request)
+        token = AuthHelper.instance().getProcessSecret()
         conn = Neo4jConnection(app.config['NEO4J_SERVER'], app.config['NEO4J_USERNAME'], app.config['NEO4J_PASSWORD'])
         driver = conn.get_driver()
         ug = UUID_Generator(app.config['UUID_WEBSERVICE_URL'])
@@ -377,9 +501,28 @@ def get_collection_children(identifier):
             raise LookupError('unable to find information on identifier: ' + str(identifier))
         if len(identifier_list) > 1:
             raise LookupError('found multiple records for identifier: ' + str(identifier))
+        
+        collection_data = Entity.get_entities_and_children_by_relationship(driver, identifier_list[0]['hmuuid'], HubmapConst.IN_COLLECTION_REL)
+        if access_level['data_access_level'] == 'public':
+            public_datasets = []            
+            if (collection_data is None or
+                'doi_registered' not in collection_data or
+                not collection_data['doi_registered']):
+                return Response("Not found", 404) 
+            for item in collection_data['items']:
+                if 'data_access_level' in item['properties'] and item['properties']['data_access_level'] == 'public':
+                    public_datasets.append(item)
+            if len(public_datasets) > 0:
+                collection_data['items'] = public_datasets
+            else:
+                return Response("not found", 404)
 
-        collection_data = Entity.get_entities_and_children_by_relationship(driver, identifier_list[0]['hmuuid'], HubmapConst.IN_COLLECTION_REL) 
         return jsonify( collection_data), 200
+    except HTTPException as hte:
+        msg = "HTTPException during get_collection_children: " + str(hte.get_status_code()) + " " + hte.get_description() 
+        logger.warn(msg, exc_info=True)
+        print(msg)
+        return Response(hte.get_description(), hte.get_status_code())
     except AuthError as e:
         print(e)
         return Response('token is invalid', 401)
@@ -390,15 +533,84 @@ def get_collection_children(identifier):
         print(ce)
         return Response('Unable to perform query to find identifier: ' + identifier, 500)            
 
+
+
+
+#GET /collections with optional argument ?component=<COMP CODE>, where <COMP CODE> is from the table below.
+#Returns a list of Collections which include the basic Collection information and the uuids of all connected
+#datasets.  If the component argument is omitted all Collections are returned.
+#
+#An optional Globus nexus can be provided in a standard Authentication Bearer header.  If a valid token
+#is provided with group membership in the HuBMAP-Read group all collections matching the input will be
+#returned otherwise if no token is provided or a valid token with no HuBMAP-Read group membership then
+#only public collections will be returned.  Public collections are defined as being published via a DOI 
+#(collection.doi_registered == true) and at least one of the connected datasets is public
+#(dataset.metadata.data_access_level == 'public'). For public collections only connected datasets that are
+#public are returned with it.
+#
+# 200 Returned with json list of collections (see below), empty list is returned if there are no matches
+# 401 Returned if an invalid token is supplied
+#
+#Sample return json like:
+#
+# [
+#   {
+#     "uuid": "90d56f91cd1478101d273bbfdb8792cf",
+#     "name": "Multimodal Molecular Imaging of Human Kidney Tissue",
+#     "dataset_uuids": [
+#       "8bb9a69f2f2a23841ab207951a2c9803",
+#       "f1ede6f2c0f3ec8c347f30a1e9488a91"
+#     ],
+#     "doi_registered": true,
+#     "creators": "[{\"name\": \"Test User\", \"first_name\": \"Test\", \"last_name\": \"User\", \"middle_name_or_initial\": \"L\", \"orcid_id\": \"0000-0007-9585-9585\", \"affiliation\": \"University of Testing\"}, {\"name\": \"Joe Smith\", \"first_name\": \"Joe\", \"last_name\": \"Smith\", \"middle_name_or_initial\": \"E\", \"orcid_id\": \"0000-0007-2283-8374\", \"affiliation\": \"University of Testing\"}]",
+#    "doi_id": "HBM836.XJWD.376",
+#     "description": "Mulltimodal molecular imaging data collected from the Left Kidney of a 53 year old Black or African American Male donor by the Biomolecular Multimodal Imaging Center (BIOMC) at Testing University. BIOMIC is a Tissue Mapping Center that is part of the NIH funded Human Biomolecular Atlas Program (HuBMAP). Datasets generated by BIOMIC combine MALDI imaging mass spectrometry with various microscopy modalities including multiplexed immunofluorescence, autofluorescence, and stained microscopy. Support was provided by the NIH Common Fund and National Institute of Diabetes and Digestive and Kidney Diseases (U54 DK120058). Tissue was collected through the Cooperative Human Tissue Network with support provided by the NIH National Cancer Institute (5 UM1 CA183727-08)."
+#   },
+#   {
+#     "uuid": "1ff9aa1193ac810eb84234d9943114dc",
+#     "name": "Multimodal Molecular Imaging of Human Kidney Tissue",
+#     "dataset_uuids": [
+#       "37365995f648d5b20a3fe40d8ea75107",
+#       "499aa4b8e249100ccfdec79ed1417440"
+#     ],
+#     "doi_registered": false,
+#     "creators": "[{\"name\": \"Test User\", \"first_name\": \"Test\", \"last_name\": \"User\", \"middle_name_or_initial\": \"L\", \"orcid_id\": \"0000-0007-9585-9585\", \"affiliation\": \"University of Testing\"}, {\"name\": \"Joe Smith\", \"first_name\": \"Joe\", \"last_name\": \"Smith\", \"middle_name_or_initial\": \"E\", \"orcid_id\": \"0000-0007-2283-8374\", \"affiliation\": \"University of Testing\"}]",
+#     "doi_id": "HBM757.HKPZ.868",
+#     "description": "Mulltimodal molecular imaging data collected from the Left Kidney of a 53 year old Black or African American Male donor by the Biomolecular Multimodal Imaging Center (BIOMC) at Testing University. BIOMIC is a Tissue Mapping Center that is part of the NIH funded Human Biomolecular Atlas Program (HuBMAP). Datasets generated by BIOMIC combine MALDI imaging mass spectrometry with various microscopy modalities including multiplexed immunofluorescence, autofluorescence, and stained microscopy. Support was provided by the NIH Common Fund and National Institute of Diabetes and Digestive and Kidney Diseases (U54 DK120058). Tissue was collected through the Cooperative Human Tissue Network with support provided by the NIH National Cancer Institute (5 UM1 CA183727-08)."
+#   }
+#   ...
+#  
+# ]
+#
+# COMP CODES     Component Name
+# --------------------------------------------------------
+# UFL            University of Florida TMC
+# CALT           California Institute of Technology TMC
+# VAN            Vanderbilt TMC
+# STAN           Stanford TMC
+# UCSD           University of California San Diego TMC
+# RTIBD          Broad Institute RTI
+# RTIGE          General Electric RTI
+# RTINW          Northwestern RTI
+# RTIST          Stanford RTI
+# TTDCT          Cal Tech TTD
+# TTDHV          Harvard TTD
+# TTDPD          Purdue TT
+# TTDST          Stanford TTD
+# TEST           IEC Testing Group
 @app.route('/collections', methods = ['GET'])
 def get_collections():
     global prov_helper
     global logger
     driver = None
     try:
+        access_level = AuthHelper.instance().getUserDataAccessLevel(request)        
         component = request.args.get('component', default = 'all', type = str)
+        where_clause = ""
+        if access_level['data_access_level'] == 'public':
+            where_clause = "where collection.doi_registered = True and metadata.data_access_level = 'public' "
         if component == 'all':
-            stmt = "MATCH (collection:Collection)<-[:IN_COLLECTION]-(dataset) RETURN collection.uuid, collection.label, collection.description, collection.creators, collection.doi_registered, collection.display_doi, apoc.coll.toSet(COLLECT(dataset.uuid)) AS dataset_uuid_list"
+            stmt = "MATCH (collection:Collection)<-[:IN_COLLECTION]-(dataset:Entity)-[:HAS_METADATA]->(metadata:Metadata) " + where_clause + "RETURN collection.uuid, collection.label, collection.description, collection.creators, collection.doi_registered, collection.display_doi, apoc.coll.toSet(COLLECT(dataset.uuid)) AS dataset_uuid_list"
         else:
             grp_info = prov_helper.get_groups_by_tmc_prefix()
             comp = component.strip().upper()
@@ -412,18 +624,24 @@ def get_collections():
                         comma = ", "
                         first = False
                 return Response("Invalid component code: " + component + " Valid values: " + valid_comps, 400)
-            stmt = "MATCH (collection:Collection)<-[:IN_COLLECTION]-(dataset:Entity)-[:HAS_METADATA]-(metadata:Metadata {{provenance_group_uuid: '{guuid}'}}) RETURN collection.uuid, collection.label, collection.description, collection.creators, collection.doi_registered, collection.display_doi, apoc.coll.toSet(COLLECT(dataset.uuid)) AS dataset_uuid_list".format(guuid=grp_info[comp]['uuid'])
+            query = "MATCH (collection:Collection)<-[:IN_COLLECTION]-(dataset:Entity)-[:HAS_METADATA]->(metadata:Metadata {{provenance_group_uuid: '{guuid}'}}) " + where_clause + "RETURN collection.uuid, collection.label, collection.description, collection.creators, collection.doi_registered, collection.display_doi, apoc.coll.toSet(COLLECT(dataset.uuid)) AS dataset_uuid_list"
+            stmt = query.format(guuid=grp_info[comp]['uuid'])
 
         conn = Neo4jConnection(app.config['NEO4J_SERVER'], app.config['NEO4J_USERNAME'], app.config['NEO4J_PASSWORD'])
         driver = conn.get_driver()
         return_list = []
         with driver.session() as session:
-                for record in session.run(stmt):
-                    #return_list.append(record)
-                    return_list.append(_coll_record_to_json(record))
+            for record in session.run(stmt):
+                #return_list.append(record)
+                return_list.append(_coll_record_to_json(record))
 
         return json.dumps(return_list), 200
 
+    except HTTPException as hte:
+        msg = "HTTPException during get_collections: " + str(hte.get_status_code()) + " " + hte.get_description() 
+        logger.warn(msg, exc_info=True)
+        print(msg)
+        return Response(hte.get_description(), hte.get_status_code())
     except AuthError as e:                                                                                                                        
         print(e)
         return Response('invalid token access', 401)
@@ -747,36 +965,33 @@ def get_globus_url(identifier):
         #that allows all access to this dataset, if so send them to the "protected"
         #endpoint even if the user doesn't have full access to all protected data
         globus_server_uuid = None        
-        dir_path = "/"
-        if 'hmgroupids' in user_info and data_group_id in user_info['hmgroupids']:  #user in access group for group:
+        dir_path = ""
+        if not 'data_access_level' in user_info:
+            return Response("Unexpected error, data access level could not be found for user trying to access dataset uuid:" + uuid)        
+        user_access_level = user_info['data_access_level']
+        
+        #public access
+        if data_access_level == HubmapConst.ACCESS_LEVEL_PUBLIC:
+            globus_server_uuid = app.config['GLOBUS_PUBLIC_ENDPOINT_UUID']
+            access_dir = _access_level_prefix_dir(app.config['PUBLIC_DATA_SUBDIR'])
+            dir_path = dir_path +  access_dir + "/"
+        #consortium access
+        elif data_access_level == HubmapConst.ACCESS_LEVEL_CONSORTIUM and not user_access_level == HubmapConst.ACCESS_LEVEL_PUBLIC:
+            globus_server_uuid = app.config['GLOBUS_CONSORTIUM_ENDPOINT_UUID']
+            access_dir = _access_level_prefix_dir(app.config['CONSORTIUM_DATA_SUBDIR'])
+            dir_path = dir_path + access_dir + group_ids[data_group_id]['displayname'] + "/"
+        #protected access
+        elif user_access_level == HubmapConst.ACCESS_LEVEL_PROTECTED and data_access_level == HubmapConst.ACCESS_LEVEL_PROTECTED:
             globus_server_uuid = app.config['GLOBUS_PROTECTED_ENDPOINT_UUID']
-            dir_path = dir_path + group_ids[data_group_id]['displayname'] + "/"
-        else:        
-            if not 'data_access_level' in user_info:
-                return Response("Unexpected error, data access level could not be found for user trying to access dataset uuid:" + uuid)        
-            user_access_level = user_info['data_access_level']
-            
-            if user_access_level == HubmapConst.ACCESS_LEVEL_PUBLIC and data_access_level == HubmapConst.ACCESS_LEVEL_PUBLIC:
-                globus_server_uuid = app.config['GLOBUS_PUBLIC_ENDPOINT_UUID']
-
-                #next line added only until directory linking in place, then should be removed
-                dir_path = dir_path + group_ids[data_group_id]['displayname'] + "/"
-                
-            elif (user_access_level == HubmapConst.ACCESS_LEVEL_CONSORTIUM and 
-                  (data_access_level == HubmapConst.ACCESS_LEVEL_CONSORTIUM or data_access_level == HubmapConst.ACCESS_LEVEL_PUBLIC)):
-                globus_server_uuid = app.config['GLOBUS_CONSORTIUM_ENDPOINT_UUID']
-                
-                #next line added only until directory linking in place, then should be removed
-                dir_path = dir_path + group_ids[data_group_id]['displayname'] + "/"
-            elif user_access_level == HubmapConst.ACCESS_LEVEL_PROTECTED:
-                globus_server_uuid = app.config['GLOBUS_PROTECTED_ENDPOINT_UUID']
-                dir_path = dir_path + group_ids[data_group_id]['displayname'] + "/"
+            access_dir = _access_level_prefix_dir(app.config['PROTECTED_DATA_SUBDIR'])
+            dir_path = dir_path + access_dir + group_ids[data_group_id]['displayname'] + "/"
             
         if globus_server_uuid is None:
             return Response("Access not granted", 403)   
     
         dir_path = dir_path + uuid + "/"
         dir_path = urllib.parse.quote(dir_path, safe='')
+        
         #https://app.globus.org/file-manager?origin_id=28bbb03c-a87d-4dd7-a661-7ea2fb6ea631&origin_path=%2FIEC%20Testing%20Group%2F03584b3d0f8b46de1b629f04be156879%2F
         url = file_helper.ensureTrailingSlashURL(app.config['GLOBUS_APP_BASE_URL']) + "file-manager?origin_id=" + globus_server_uuid + "&origin_path=" + dir_path  
                 
@@ -792,6 +1007,12 @@ def get_globus_url(identifier):
         logger.error(e, exc_info=True)
         return Response('Unhandled exception occured', 500)
     
+def _access_level_prefix_dir(pth):
+    if string_helper.isBlank(pth):
+        return('')
+    else:
+        return(file_helper.ensureTrailingSlashURL(file_helper.ensureBeginningSlashURL(pth)))
+
 
 # This is for development only
 if __name__ == '__main__':
