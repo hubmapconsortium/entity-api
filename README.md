@@ -65,7 +65,7 @@ To build the docker image of entity-api:
 source ./entity-api-docker.sh dev build
 ````
 
-To start up the entity-api container (including nginx on the same container):
+To start up the entity-api container:
 
 ````
 source ./entity-api-docker.sh dev start
