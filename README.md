@@ -77,6 +77,12 @@ And stop the running container by:
 source ./entity-api-docker.sh dev stop
 ````
 
+You can also stop the running container and remove it by:
+
+````
+source ./entity-api-docker.sh dev down
+````
+
 ### Updating API Documentation
 
 The documentation for the API calls is hosted on SmartAPI.  Modifying the `entity-api-spec.yaml` file and commititng the changes to github should update the API shown on SmartAPI.  SmartAPI allows users to register API documents.  The documentation is associated with this github account: api-developers@hubmapconsortium.org. Please contact Chuck Borromeo (chb69@pitt.edu) if you want to register a new API on SmartAPI.
