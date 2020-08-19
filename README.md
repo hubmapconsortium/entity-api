@@ -62,19 +62,19 @@ Then log out and log back in so that your group membership is re-evaluated. If t
 To build the docker image of entity-api:
 
 ````
-source ./entity-api-docker.sh dev build
+./entity-api-docker.sh dev build
 ````
 
 To start up the entity-api container (including nginx on the same container):
 
 ````
-source ./entity-api-docker.sh dev start
+./entity-api-docker.sh dev start
 ````
 
 And stop the running container by:
 
 ````
-source ./entity-api-docker.sh dev stop
+./entity-api-docker.sh dev stop
 ````
 
 ### Updating API Documentation
