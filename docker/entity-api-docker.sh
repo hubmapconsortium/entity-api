@@ -58,7 +58,7 @@ else
             echo 'Checks complete, all good :)'
         elif [ "$2" = "config" ]; then
             export_version
-            docker-compose -p entity-api -f docker-compose.yml -f docker-compose.$1.yml config
+            docker-compose -f docker-compose.yml -f docker-compose.$1.yml -p entity-api --verbose config
         elif [ "$2" = "build" ]; then
             # Copy over the source code to docker directory
             cp -r ../src entity-api/
