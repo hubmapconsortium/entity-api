@@ -966,10 +966,16 @@ def get_globus_url(identifier):
         #endpoint even if the user doesn't have full access to all protected data
         globus_server_uuid = None        
         dir_path = ""
-        if not 'data_access_level' in user_info:
-            return Response("Unexpected error, data access level could not be found for user trying to access dataset uuid:" + uuid)        
-        user_access_level = user_info['data_access_level']
         
+        #the user is in the Globus group with full access to thie dataset,
+        #so they have protected level access to it
+        if 'hmgroupids' in user_info and data_group_id in user_info['hmgroupids']:
+            user_access_level = 'protected'
+        else:
+            if not 'data_access_level' in user_info:
+                return Response("Unexpected error, data access level could not be found for user trying to access dataset uuid:" + uuid)        
+            user_access_level = user_info['data_access_level']
+
         #public access
         if data_access_level == HubmapConst.ACCESS_LEVEL_PUBLIC:
             globus_server_uuid = app.config['GLOBUS_PUBLIC_ENDPOINT_UUID']
