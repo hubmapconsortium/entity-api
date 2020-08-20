@@ -64,16 +64,16 @@ else
             cp -r ../src entity-api/
 
             export_version
-            docker-compose -f docker-compose.yml -f docker-compose.$1.yml build
+            docker-compose -f docker-compose.yml -f docker-compose.$1.yml -p entity-api --verbose build
         elif [ "$2" = "start" ]; then
             export_version
-            docker-compose -p entity-api -f docker-compose.yml -f docker-compose.$1.yml up -d
+            docker-compose -f docker-compose.yml -f docker-compose.$1.yml -p entity-api --verbose up -d
         elif [ "$2" = "stop" ]; then
             export_version
-            docker-compose -p entity-api -f docker-compose.yml -f docker-compose.$1.yml stop
+            docker-compose -f docker-compose.yml -f docker-compose.$1.yml -p entity-api --verbose stop
         elif [ "$2" = "down" ]; then
             export_version
-            docker-compose -p entity-api -f docker-compose.yml -f docker-compose.$1.yml down
+            docker-compose -f docker-compose.yml -f docker-compose.$1.yml -p entity-api --verbose down
         fi
     fi
 fi
