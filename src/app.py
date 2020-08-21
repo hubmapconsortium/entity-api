@@ -77,6 +77,7 @@ def index():
 @app.route('/status', methods = ['GET'])
 def status():
     response_data = {
+        'version': (Path(__file__).parent / 'VERSION').read_text(),
         'neo4j_connection': False
     }
 
