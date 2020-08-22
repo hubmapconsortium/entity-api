@@ -22,6 +22,9 @@ services:
       - "7474:7474"
       - "7687:7687"
     volumes:
+      # Mount the VERSION file and BUILD file
+      - "../VERSION:/usr/src/app/src/VERSION"
+      - "../BUILD:/usr/src/app/src/BUILD"
       # Mount the neo4j configuration file to container
       - "./hubmap-neo4j/neo4j.conf:/usr/src/app/neo4j/conf/neo4j.conf"
     networks:

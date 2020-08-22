@@ -6,6 +6,7 @@ Created on May 15, 2019
 from flask import Flask, jsonify, abort, request, session, Response, redirect
 import sys
 import os
+from pathlib import Path
 from neo4j import CypherError
 import argparse
 from specimen import Specimen
@@ -78,6 +79,7 @@ def index():
 def status():
     response_data = {
         'version': (Path(__file__).parent / 'VERSION').read_text(),
+        'build': (Path(__file__).parent / 'BUILD').read_text(),
         'neo4j_connection': False
     }
 
