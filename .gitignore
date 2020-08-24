@@ -7,6 +7,10 @@ docker/entity-api/src
 
 BUILD
 
+# Ignore the docker mounted BUILD and VERSION
+src/BUILD
+src/VERSION
+
 # Ignore __pycache__ directories in any path
 **/__pycache__
 

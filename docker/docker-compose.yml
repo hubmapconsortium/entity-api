@@ -14,6 +14,12 @@ services:
     image: entity-api:${ENTITY_API_VERSION:?err}
     hostname: entity-api
     container_name: entity-api
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "http://hubmap-auth:3333"]
+      interval: 1m30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
     volumes:
       # Mount the app config to container in order to keep it outside of the image
       - "../src/instance:/usr/src/app/src/instance"
