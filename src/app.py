@@ -33,7 +33,6 @@ from py2neo import Graph
 
 # For debugging
 from pprint import pprint
-from builtins import None
 
 #from hubmap_commons import HubmapConst, Neo4jConnection, uuid_generator, AuthHelper, secured, Entity, AuthError
 
