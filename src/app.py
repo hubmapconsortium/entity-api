@@ -150,9 +150,22 @@ def get_entity_provenance(identifier):
         if HubmapConst.DATA_ACCESS_LEVEL in current_metadata:
             entity_access_level =  current_metadata[HubmapConst.DATA_ACCESS_LEVEL]
         
-        # return a 403 if the user has no token or they are trying to access a non-public object without the necessary access
-        if (token == None or public_access_only == True) and entity_access_level != HubmapConst.ACCESS_LEVEL_PUBLIC:
-            return Response('The current user does not have the credentials required to retrieve provenance data for: ' + str(identifier), 403)
+        entity_type = None
+        if HubmapConst.ENTITY_TYPE_ATTRIBUTE in current_metadata:
+            entity_type =  current_metadata[HubmapConst.ENTITY_TYPE_ATTRIBUTE]
+        else:
+            return Response('Cannot determine entity type for identifier: ' + identifier, 500)
+        
+        if entity_type == 'Dataset':
+            dataset_status = False
+            if HubmapConst.DATASET_STATUS_ATTRIBUTE in current_metadata:
+                dataset_status =  current_metadata[HubmapConst.DATASET_STATUS_ATTRIBUTE]            
+            if (token == None or public_access_only == True) and dataset_status != HubmapConst.DATASET_STATUS_PUBLISHED:
+                return Response('The current user does not have the credentials required to retrieve provenance data for: ' + str(identifier), 403)
+        else:
+            # return a 403 if the user has no token or they are trying to access a non-public object without the necessary access
+            if (token == None or public_access_only == True) and entity_access_level != HubmapConst.ACCESS_LEVEL_PUBLIC:
+                return Response('The current user does not have the credentials required to retrieve provenance data for: ' + str(identifier), 403)
         depth = None
         if 'depth' in request.args:
             depth = int(request.args.get('depth'))
@@ -970,10 +983,16 @@ def get_globus_url(identifier):
         #endpoint even if the user doesn't have full access to all protected data
         globus_server_uuid = None        
         dir_path = ""
-        if not 'data_access_level' in user_info:
-            return Response("Unexpected error, data access level could not be found for user trying to access dataset uuid:" + uuid)        
-        user_access_level = user_info['data_access_level']
         
+        #the user is in the Globus group with full access to thie dataset,
+        #so they have protected level access to it
+        if 'hmgroupids' in user_info and data_group_id in user_info['hmgroupids']:
+            user_access_level = 'protected'
+        else:
+            if not 'data_access_level' in user_info:
+                return Response("Unexpected error, data access level could not be found for user trying to access dataset uuid:" + uuid)        
+            user_access_level = user_info['data_access_level']
+
         #public access
         if data_access_level == HubmapConst.ACCESS_LEVEL_PUBLIC:
             globus_server_uuid = app.config['GLOBUS_PUBLIC_ENDPOINT_UUID']
