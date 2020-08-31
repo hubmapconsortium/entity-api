@@ -146,9 +146,22 @@ def get_entity_provenance(identifier):
         if HubmapConst.DATA_ACCESS_LEVEL in current_metadata:
             entity_access_level =  current_metadata[HubmapConst.DATA_ACCESS_LEVEL]
         
-        # return a 403 if the user has no token or they are trying to access a non-public object without the necessary access
-        if (token == None or public_access_only == True) and entity_access_level != HubmapConst.ACCESS_LEVEL_PUBLIC:
-            return Response('The current user does not have the credentials required to retrieve provenance data for: ' + str(identifier), 403)
+        entity_type = None
+        if HubmapConst.ENTITY_TYPE_ATTRIBUTE in current_metadata:
+            entity_type =  current_metadata[HubmapConst.ENTITY_TYPE_ATTRIBUTE]
+        else:
+            return Response('Cannot determine entity type for identifier: ' + identifier, 500)
+        
+        if entity_type == 'Dataset':
+            dataset_status = False
+            if HubmapConst.DATASET_STATUS_ATTRIBUTE in current_metadata:
+                dataset_status =  current_metadata[HubmapConst.DATASET_STATUS_ATTRIBUTE]            
+            if (token == None or public_access_only == True) and dataset_status != HubmapConst.DATASET_STATUS_PUBLISHED:
+                return Response('The current user does not have the credentials required to retrieve provenance data for: ' + str(identifier), 403)
+        else:
+            # return a 403 if the user has no token or they are trying to access a non-public object without the necessary access
+            if (token == None or public_access_only == True) and entity_access_level != HubmapConst.ACCESS_LEVEL_PUBLIC:
+                return Response('The current user does not have the credentials required to retrieve provenance data for: ' + str(identifier), 403)
         depth = None
         if 'depth' in request.args:
             depth = int(request.args.get('depth'))
