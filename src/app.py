@@ -874,28 +874,34 @@ def doi_redirect(identifier):
 def collection_redirect(identifier):
     try:
         if string_helper.isBlank(identifier):
-            return _redirect_error_response('ERROR: No Data Collection identifier found.')
+            return Response("No identifier", 400)
+            #return _redirect_error_response('ERROR: No Data Collection identifier found.')
         
         #look up the id, if it doesn't exist return an error
         ug = UUID_Generator(app.config['UUID_WEBSERVICE_URL'])
         hmuuid_data = ug.getUUID(AuthHelper.instance().getProcessSecret(), identifier)    
         if hmuuid_data is None or len(hmuuid_data) == 0:
-            return _redirect_error_response("The Data Collection was not found.", "A collection with an id matching " + identifier + " was not found.")
+            return Response("Not found", 404)
+            #return _redirect_error_response("The Data Collection was not found.", "A collection with an id matching " + identifier + " was not found.")
         
         if len(hmuuid_data) > 1:
-            return _redirect_error_response("The Data Collection is multiply defined.", "The provided collection id has multiple entries id: " + identifier)
+            return Response("Data Collection is defined multiple times", 400)
+            #return _redirect_error_response("The Data Collection is multiply defined.", "The provided collection id has multiple entries id: " + identifier)
         
         uuid_data = hmuuid_data[0]
 
         if not 'hmuuid' in uuid_data or string_helper.isBlank(uuid_data['hmuuid']) or not 'type' in uuid_data or string_helper.isBlank(uuid_data['type']) or uuid_data['type'].strip().lower() != 'collection':
-            return _redirect_error_response("A Data Collection was not found.", "A collection entry with an id matching " + identifier + " was not found.")
+            return Response("Data collection not found", 404)
+            #return _redirect_error_response("A Data Collection was not found.", "A collection entry with an id matching " + identifier + " was not found.")
         
         if 'COLLECTION_REDIRECT_URL' not in app.config or string_helper.isBlank(app.config['COLLECTION_REDIRECT_URL']):
-            return _redirect_error_response("Cannot complete due to a configuration error.", "The COLLECTION_REDIRECT_URL parameter is not found in the application configuration file.")
+            return Response("Configuration error", 500)
+            #return _redirect_error_response("Cannot complete due to a configuration error.", "The COLLECTION_REDIRECT_URL parameter is not found in the application configuration file.")
             
         redir_url = app.config['COLLECTION_REDIRECT_URL']
         if redir_url.lower().find('<identifier>') == -1:
-            return _redirect_error_response("Cannot complete due to a configuration error.", "The COLLECTION_REDIRECT_URL parameter in the application configuration file does not contain the identifier pattern")
+            return Response("Configuration error", 500)
+            #return _redirect_error_response("Cannot complete due to a configuration error.", "The COLLECTION_REDIRECT_URL parameter in the application configuration file does not contain the identifier pattern")
     
         rep_pattern = re.compile(re.escape('<identifier>'), re.RegexFlag.IGNORECASE)
         redir_url = rep_pattern.sub(uuid_data['hmuuid'], redir_url)
@@ -903,7 +909,8 @@ def collection_redirect(identifier):
         return redirect(redir_url, code = 307)
     except Exception:
         logger.error("Unexpected error while redirecting for Collection with id: " + identifier, exc_info=True)
-        return _redirect_error_response("An unexpected error occurred." "An unexpected error occurred while redirecting for Data Collection with id: " + identifier + " Check the Enitity API log file for more information.")
+        return Response("Unexpected error", 500)
+        #return _redirect_error_response("An unexpected error occurred." "An unexpected error occurred while redirecting for Data Collection with id: " + identifier + " Check the Enitity API log file for more information.")
 
 
 #helper method to show an error message through the ingest
@@ -918,8 +925,7 @@ def _redirect_error_response(description, detail=None):
     description_and_details = "?description=" + desc
     if not string_helper.isBlank(detail):
         det = urllib.parse.quote(detail, save='')
-        description_and_details = "&details=" + det
-    description_and_details = urllib.parse.quote(description_and_details, safe='')
+        description_and_details = description_and_details + "&details=" + det
     redir_url = redir_url + description_and_details
     return redirect(redir_url, code = 307)    
 
