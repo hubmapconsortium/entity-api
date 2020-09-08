@@ -619,7 +619,7 @@ def get_collections():
     try:
         access_level = AuthHelper.instance().getUserDataAccessLevel(request)        
         component = request.args.get('component', default = 'all', type = str)
-        where_clause = ""
+        where_clause = "where not collection.doi_registered is null "
         if access_level['data_access_level'] == 'public':
             where_clause = "where collection.doi_registered = True and metadata.data_access_level = 'public' "
         if component == 'all':
