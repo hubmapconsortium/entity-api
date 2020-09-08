@@ -623,7 +623,7 @@ def get_collections():
         if access_level['data_access_level'] == 'public':
             where_clause = "where collection.doi_registered = True and metadata.data_access_level = 'public' "
         if component == 'all':
-            stmt = "MATCH (collection:Collection)<-[:IN_COLLECTION]-(dataset:Entity)-[:HAS_METADATA]->(metadata:Metadata) " + where_clause + "RETURN collection.uuid, collection.label, collection.description, collection.creators, collection.doi_registered, collection.display_doi, apoc.coll.toSet(COLLECT(dataset.uuid)) AS dataset_uuid_list"
+            stmt = "MATCH (collection:Collection)<-[:IN_COLLECTION]-(dataset:Entity)-[:HAS_METADATA]->(metadata:Metadata) " + where_clause + "RETURN collection.uuid, collection.label, collection.description, collection.creators, collection.doi_registered, collection.display_doi, collection.doi_url, collection.registered_doi, apoc.coll.toSet(COLLECT(dataset.uuid)) AS dataset_uuid_list"
         else:
             grp_info = prov_helper.get_groups_by_tmc_prefix()
             comp = component.strip().upper()
@@ -637,7 +637,7 @@ def get_collections():
                         comma = ", "
                         first = False
                 return Response("Invalid component code: " + component + " Valid values: " + valid_comps, 400)
-            query = "MATCH (collection:Collection)<-[:IN_COLLECTION]-(dataset:Entity)-[:HAS_METADATA]->(metadata:Metadata {{provenance_group_uuid: '{guuid}'}}) " + where_clause + "RETURN collection.uuid, collection.label, collection.description, collection.creators, collection.doi_registered, collection.display_doi, apoc.coll.toSet(COLLECT(dataset.uuid)) AS dataset_uuid_list"
+            query = "MATCH (collection:Collection)<-[:IN_COLLECTION]-(dataset:Entity)-[:HAS_METADATA]->(metadata:Metadata {{provenance_group_uuid: '{guuid}'}}) " + where_clause + "RETURN collection.uuid, collection.label, collection.description, collection.creators, collection.doi_registered, collection.display_doi, collection.registered_doi, collection.doi_url, apoc.coll.toSet(COLLECT(dataset.uuid)) AS dataset_uuid_list"
             stmt = query.format(guuid=grp_info[comp]['uuid'])
 
         conn = Neo4jConnection(app.config['NEO4J_SERVER'], app.config['NEO4J_USERNAME'], app.config['NEO4J_PASSWORD'])
@@ -687,6 +687,8 @@ def _coll_record_to_json(record):
     _set_from(record, rval, 'collection.creators', 'creators')
     _set_from(record, rval, 'collection.display_doi', 'doi_id')
     _set_from(record, rval, 'collection.description', 'description')
+    _set_from(record, rval, 'collection.doi_url', 'doi_url')
+    _set_from(record, rval, 'collection.registered_doi', 'registered_doi')
     return(rval)
 
 def _set_from(src, dest, src_attrib_name, dest_attrib_name = None, default_val = None):
