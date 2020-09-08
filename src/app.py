@@ -865,6 +865,10 @@ def update_dataset(uuid):
             msg += str(x)
         abort(400, msg)
 
+@app.route('/doi/redirect/<identifier>', methods = ['GET'])
+def doi_redirect(identifier):
+    return collection_redirect(identifier)
+
 #redirect a request from a doi service for a collection of data
 @app.route('/collection/redirect/<identifier>', methods = ['GET'])
 def collection_redirect(identifier):
