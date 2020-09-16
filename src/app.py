@@ -534,7 +534,7 @@ def get_collection_children(identifier):
             else:
                 return Response("not found", 404)
 
-        return Response(jsonify( collection_data), 200, mimetype='application/json')
+        return Response(json.dumps(collection_data), 200, mimetype='application/json')
     except HTTPException as hte:
         msg = "HTTPException during get_collection_children: " + str(hte.get_status_code()) + " " + hte.get_description() 
         logger.warn(msg, exc_info=True)
