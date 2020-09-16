@@ -108,8 +108,8 @@ else
                 fi
                 
                 # Copy over the one files
-                cp VERSION entity-api/src
-                cp BUILD entity-api/src
+                cp ../VERSION entity-api/src
+                cp ../BUILD entity-api/src
             fi
 
             docker-compose -f docker-compose.yml -f docker-compose.$1.yml -p entity-api build
