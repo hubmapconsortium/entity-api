@@ -98,6 +98,16 @@ else
             # Only mount the VERSION file and BUILD file for localhost and dev
             # On test/stage/prod, copy the VERSION file and BUILD file to image
             if [[ "$1" != "localhost" && "$1" != "dev" ]]; then
+                # Delete old VERSION and BUILD files if found
+                if [ -f "entity-api/src/VERSION" ]; then
+                    rm -rf entity-api/src/VERSION
+                fi
+                
+                if [ -f "entity-api/src/BUILD" ]; then
+                    rm -rf entity-api/src/BUILD
+                fi
+                
+                # Copy over the one files
                 cp VERSION entity-api/src
                 cp BUILD entity-api/src
             fi
