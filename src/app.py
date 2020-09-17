@@ -6,6 +6,7 @@ Created on May 15, 2019
 from flask import Flask, jsonify, abort, request, session, Response, redirect
 import sys
 import os
+from pathlib import Path
 from neo4j import CypherError
 import argparse
 from specimen import Specimen
@@ -77,6 +78,9 @@ def index():
 @app.route('/status', methods = ['GET'])
 def status():
     response_data = {
+        # Use strip() to remove leading and trailing spaces, newlines, and tabs
+        'version': (Path(__file__).parent / 'VERSION').read_text().strip(),
+        'build': (Path(__file__).parent / 'BUILD').read_text().strip(),
         'neo4j_connection': False
     }
 
@@ -530,7 +534,7 @@ def get_collection_children(identifier):
             else:
                 return Response("not found", 404)
 
-        return jsonify( collection_data), 200
+        return Response(json.dumps(collection_data), 200, mimetype='application/json')
     except HTTPException as hte:
         msg = "HTTPException during get_collection_children: " + str(hte.get_status_code()) + " " + hte.get_description() 
         logger.warn(msg, exc_info=True)
@@ -648,7 +652,7 @@ def get_collections():
                 #return_list.append(record)
                 return_list.append(_coll_record_to_json(record))
 
-        return json.dumps(return_list), 200
+        return Response(json.dumps(return_list), 200, mimetype='application/json')
 
     except HTTPException as hte:
         msg = "HTTPException during get_collections: " + str(hte.get_status_code()) + " " + hte.get_description() 
@@ -691,6 +695,7 @@ def _coll_record_to_json(record):
     _set_from(record, rval, 'collection.provenance_create_timestamp', 'provenance_create_timestamp')
     _set_from(record, rval, 'collection.provenance_modified_timestamp', 'provenance_modified_timestamp')
     _set_from(record, rval, 'collection.provenance_user_displayname', 'provenance_user_displayname')
+    _set_from(record, rval, 'collection.registered_doi', 'registered_doi')
     return(rval)
 
 def _set_from(src, dest, src_attrib_name, dest_attrib_name = None, default_val = None):
