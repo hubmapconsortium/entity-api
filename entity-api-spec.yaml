@@ -476,8 +476,30 @@ components:
         entitytype:
           type: string
           example: Donor, Sample, Dataset
+    Person:
+      description: 'A person'
+      properties:
+        name:
+          type: string
+          description: 'The full name of the person'
+        first_name:
+          type: string
+          description: 'The first name of the person'
+        last_name:
+          type: string
+          description: 'The last name of the person'
+        middle_name_or_initial:
+          type: string
+          description: 'The full middle name or the middle name initial of the person'
+        orcid_id:
+          type: string
+          description: 'The unique researcher id of the persion issued by orcid.org'
+        affiliation:
+          type: string
+          description: 'The institution which the person is a member of'
+          example: 'University of Pittsburgh'
     Collection:
-      description: 'A group of datasets connected by some common data (i.e. the same samples, the same donor, etc.).'
+      description: 'A collection of datasets.'
       type: object
       required:
         - uuid
@@ -488,12 +510,6 @@ components:
         uuid:
           type: string
           example: b2a0b756658d295bb6b2500db707ae85
-        doi:
-          type: string
-          example: 434SQQX764
-        display_doi:
-          type: string
-          example: HBM434.SQQX.764
         entitytype:
           type: string
           example: Collection
@@ -502,3 +518,33 @@ components:
           description: 'An array of dataset objects'
           items:
             $ref: "#/components/schemas/Entity"
+        description:
+          type: string
+          description: A description of the collection
+        has_doi:
+          type: boolean
+          description: 'A true/false boolean.  If true this collection is registered with a doi registrar.'
+        provenance_create_timestamp:
+          type: integer
+          description: 'Timestamp of when the collection was created. In milliseconds since midnight 1/1/1970'
+        provenance_modified_timestamp:
+          type: integer
+          description: 'Timestamp of when the collection was last modified. In milliseconds since midnight 1/1/1970'
+        registered_doi:
+          type: string
+          description: 'The doi value from the registrar.'
+          example: '10.35079/hbm289.pcbm.487'
+        doi_url:
+          type: string
+          description: 'The url, as a string, at the doi registrar that points to the collection.'
+          example: 'https://doi.org/10.35079/hbm289.pcbm.487'
+        creators:
+          type: array
+          description: 'An array of the people who created the data that the collection points to.'
+          items:
+            $ref: "#/components/schemas/Person"
+        contacts:
+          type: array
+          description: 'An array of the people who are the main contacts for the data which the collection points to.'
+          items:
+            $ref: "#/components/schemas/Person"          
