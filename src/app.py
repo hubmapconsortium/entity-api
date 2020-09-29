@@ -6,6 +6,7 @@ Created on May 15, 2019
 from flask import Flask, jsonify, abort, request, session, Response, redirect
 import sys
 import os
+from pathlib import Path
 from neo4j import CypherError
 import argparse
 from specimen import Specimen
@@ -73,6 +74,25 @@ def init():
 def index():
     return "Hello! This is HuBMAP Entity API service :)"
 
+# Show status of neo4j connection
+@app.route('/status', methods = ['GET'])
+def status():
+    response_data = {
+        # Use strip() to remove leading and trailing spaces, newlines, and tabs
+        'version': (Path(__file__).parent / 'VERSION').read_text().strip(),
+        'build': (Path(__file__).parent / 'BUILD').read_text().strip(),
+        'neo4j_connection': False
+    }
+
+    conn = Neo4jConnection(app.config['NEO4J_SERVER'], app.config['NEO4J_USERNAME'], app.config['NEO4J_PASSWORD'])
+    driver = conn.get_driver()
+    is_connected = conn.check_connection(driver)
+    
+    if is_connected:
+        response_data['neo4j_connection'] = True
+
+    return jsonify(response_data)
+
 @app.route('/entities/types/<type_code>', methods = ['GET'])
 # @cross_origin(origins=[app.config['UUID_UI_URL']], methods=['GET'])
 def get_entity_by_type(type_code):
@@ -105,16 +125,47 @@ def get_entity_types():
 # @cross_origin(origins=[app.config['UUID_UI_URL']], methods=['GET'])
 def get_entity_provenance(identifier):
     try:
-        token = str(request.headers["AUTHORIZATION"])[7:]
+        # default to PUBLIC access only
+        public_access_only = True
+        token = None
+        
+        if 'AUTHORIZATION' in request.headers:
+            token = request.headers['AUTHORIZATION']
+        
+        ahelper = AuthHelper.instance()
+        user_info = ahelper.getUserDataAccessLevel(request)        
+
+        if user_info[HubmapConst.DATA_ACCESS_LEVEL] != HubmapConst.ACCESS_LEVEL_PUBLIC:
+            public_access_only = False
         conn = Neo4jConnection(app.config['NEO4J_SERVER'], app.config['NEO4J_USERNAME'], app.config['NEO4J_PASSWORD'])
         driver = conn.get_driver()
         ug = UUID_Generator(app.config['UUID_WEBSERVICE_URL'])
-        identifier_list = ug.getUUID(token, identifier)
+        identifier_list = ug.getUUID(AuthHelper.instance().getProcessSecret(), identifier)
         if len(identifier_list) == 0:
             raise LookupError('unable to find information on identifier: ' + str(identifier))
         if len(identifier_list) > 1:
             raise LookupError('found multiple records for identifier: ' + str(identifier))
+        current_metadata = Entity.get_entity_metadata(driver, identifier_list[0]['hmuuid'])        
+        entity_access_level = HubmapConst.ACCESS_LEVEL_PROTECTED
+        if HubmapConst.DATA_ACCESS_LEVEL in current_metadata:
+            entity_access_level =  current_metadata[HubmapConst.DATA_ACCESS_LEVEL]
         
+        entity_type = None
+        if HubmapConst.ENTITY_TYPE_ATTRIBUTE in current_metadata:
+            entity_type =  current_metadata[HubmapConst.ENTITY_TYPE_ATTRIBUTE]
+        else:
+            return Response('Cannot determine entity type for identifier: ' + identifier, 500)
+        
+        if entity_type == 'Dataset':
+            dataset_status = False
+            if HubmapConst.DATASET_STATUS_ATTRIBUTE in current_metadata:
+                dataset_status =  current_metadata[HubmapConst.DATASET_STATUS_ATTRIBUTE]            
+            if (token == None or public_access_only == True) and dataset_status != HubmapConst.DATASET_STATUS_PUBLISHED:
+                return Response('The current user does not have the credentials required to retrieve provenance data for: ' + str(identifier), 403)
+        else:
+            # return a 403 if the user has no token or they are trying to access a non-public object without the necessary access
+            if (token == None or public_access_only == True) and entity_access_level != HubmapConst.ACCESS_LEVEL_PUBLIC:
+                return Response('The current user does not have the credentials required to retrieve provenance data for: ' + str(identifier), 403)
         depth = None
         if 'depth' in request.args:
             depth = int(request.args.get('depth'))
@@ -339,7 +390,7 @@ def get_children(uuid):
 #is provided with group membership in the HuBMAP-Read group any collection matching the id will be returned.
 #otherwise if no token is provided or a valid token with no HuBMAP-Read group membership then
 #only a public collection will be returned.  Public collections are defined as being published via a DOI 
-#(collection.doi_registered == true) and at least one of the connected datasets is public
+#(collection.has_doi == true) and at least one of the connected datasets is public
 #(dataset.metadata.data_access_level == 'public'). For public collections only connected datasets that are
 #public are returned with it.
 #
@@ -351,7 +402,7 @@ def get_children(uuid):
 #   "child_metadata_properties": null,
 #   "display_doi": "HBM836.XJWD.376",
 #   "doi": "836XJWD376",
-#   "doi_registered": false,
+#   "has_doi": false,
 #   "entitytype": "Collection",
 #   "hubmap_identifier": null,
 #   "items": [
@@ -472,8 +523,8 @@ def get_collection_children(identifier):
         if access_level['data_access_level'] == 'public':
             public_datasets = []            
             if (collection_data is None or
-                'doi_registered' not in collection_data or
-                not collection_data['doi_registered']):
+                'has_doi' not in collection_data or
+                not collection_data['has_doi']):
                 return Response("Not found", 404) 
             for item in collection_data['items']:
                 if 'data_access_level' in item['properties'] and item['properties']['data_access_level'] == 'public':
@@ -483,7 +534,7 @@ def get_collection_children(identifier):
             else:
                 return Response("not found", 404)
 
-        return jsonify( collection_data), 200
+        return Response(json.dumps(collection_data), 200, mimetype='application/json')
     except HTTPException as hte:
         msg = "HTTPException during get_collection_children: " + str(hte.get_status_code()) + " " + hte.get_description() 
         logger.warn(msg, exc_info=True)
@@ -510,7 +561,7 @@ def get_collection_children(identifier):
 #is provided with group membership in the HuBMAP-Read group all collections matching the input will be
 #returned otherwise if no token is provided or a valid token with no HuBMAP-Read group membership then
 #only public collections will be returned.  Public collections are defined as being published via a DOI 
-#(collection.doi_registered == true) and at least one of the connected datasets is public
+#(collection.has_doi == true) and at least one of the connected datasets is public
 #(dataset.metadata.data_access_level == 'public'). For public collections only connected datasets that are
 #public are returned with it.
 #
@@ -527,7 +578,7 @@ def get_collection_children(identifier):
 #       "8bb9a69f2f2a23841ab207951a2c9803",
 #       "f1ede6f2c0f3ec8c347f30a1e9488a91"
 #     ],
-#     "doi_registered": true,
+#     "has_doi": true,
 #     "creators": "[{\"name\": \"Test User\", \"first_name\": \"Test\", \"last_name\": \"User\", \"middle_name_or_initial\": \"L\", \"orcid_id\": \"0000-0007-9585-9585\", \"affiliation\": \"University of Testing\"}, {\"name\": \"Joe Smith\", \"first_name\": \"Joe\", \"last_name\": \"Smith\", \"middle_name_or_initial\": \"E\", \"orcid_id\": \"0000-0007-2283-8374\", \"affiliation\": \"University of Testing\"}]",
 #    "doi_id": "HBM836.XJWD.376",
 #     "description": "Mulltimodal molecular imaging data collected from the Left Kidney of a 53 year old Black or African American Male donor by the Biomolecular Multimodal Imaging Center (BIOMC) at Testing University. BIOMIC is a Tissue Mapping Center that is part of the NIH funded Human Biomolecular Atlas Program (HuBMAP). Datasets generated by BIOMIC combine MALDI imaging mass spectrometry with various microscopy modalities including multiplexed immunofluorescence, autofluorescence, and stained microscopy. Support was provided by the NIH Common Fund and National Institute of Diabetes and Digestive and Kidney Diseases (U54 DK120058). Tissue was collected through the Cooperative Human Tissue Network with support provided by the NIH National Cancer Institute (5 UM1 CA183727-08)."
@@ -539,7 +590,7 @@ def get_collection_children(identifier):
 #       "37365995f648d5b20a3fe40d8ea75107",
 #       "499aa4b8e249100ccfdec79ed1417440"
 #     ],
-#     "doi_registered": false,
+#     "has_doi": false,
 #     "creators": "[{\"name\": \"Test User\", \"first_name\": \"Test\", \"last_name\": \"User\", \"middle_name_or_initial\": \"L\", \"orcid_id\": \"0000-0007-9585-9585\", \"affiliation\": \"University of Testing\"}, {\"name\": \"Joe Smith\", \"first_name\": \"Joe\", \"last_name\": \"Smith\", \"middle_name_or_initial\": \"E\", \"orcid_id\": \"0000-0007-2283-8374\", \"affiliation\": \"University of Testing\"}]",
 #     "doi_id": "HBM757.HKPZ.868",
 #     "description": "Mulltimodal molecular imaging data collected from the Left Kidney of a 53 year old Black or African American Male donor by the Biomolecular Multimodal Imaging Center (BIOMC) at Testing University. BIOMIC is a Tissue Mapping Center that is part of the NIH funded Human Biomolecular Atlas Program (HuBMAP). Datasets generated by BIOMIC combine MALDI imaging mass spectrometry with various microscopy modalities including multiplexed immunofluorescence, autofluorescence, and stained microscopy. Support was provided by the NIH Common Fund and National Institute of Diabetes and Digestive and Kidney Diseases (U54 DK120058). Tissue was collected through the Cooperative Human Tissue Network with support provided by the NIH National Cancer Institute (5 UM1 CA183727-08)."
@@ -572,11 +623,11 @@ def get_collections():
     try:
         access_level = AuthHelper.instance().getUserDataAccessLevel(request)        
         component = request.args.get('component', default = 'all', type = str)
-        where_clause = ""
+        where_clause = "where not collection.has_doi is null "
         if access_level['data_access_level'] == 'public':
-            where_clause = "where collection.doi_registered = True and metadata.data_access_level = 'public' "
+            where_clause = "where collection.has_doi = True and metadata.data_access_level = 'public' "
         if component == 'all':
-            stmt = "MATCH (collection:Collection)<-[:IN_COLLECTION]-(dataset:Entity)-[:HAS_METADATA]->(metadata:Metadata) " + where_clause + "RETURN collection.uuid, collection.label, collection.description, collection.creators, collection.doi_registered, collection.display_doi, apoc.coll.toSet(COLLECT(dataset.uuid)) AS dataset_uuid_list"
+            stmt = "MATCH (collection:Collection)<-[:IN_COLLECTION]-(dataset:Entity)-[:HAS_METADATA]->(metadata:Metadata) " + where_clause + "RETURN collection.uuid, collection.label, collection.description, collection.creators, collection.has_doi, collection.display_doi, collection.doi_url, collection.registered_doi, collection.provenance_create_timestamp, collection.provenance_modified_timestamp, collection.provenance_user_displayname, apoc.coll.toSet(COLLECT(dataset.uuid)) AS dataset_uuid_list"
         else:
             grp_info = prov_helper.get_groups_by_tmc_prefix()
             comp = component.strip().upper()
@@ -590,7 +641,7 @@ def get_collections():
                         comma = ", "
                         first = False
                 return Response("Invalid component code: " + component + " Valid values: " + valid_comps, 400)
-            query = "MATCH (collection:Collection)<-[:IN_COLLECTION]-(dataset:Entity)-[:HAS_METADATA]->(metadata:Metadata {{provenance_group_uuid: '{guuid}'}}) " + where_clause + "RETURN collection.uuid, collection.label, collection.description, collection.creators, collection.doi_registered, collection.display_doi, apoc.coll.toSet(COLLECT(dataset.uuid)) AS dataset_uuid_list"
+            query = "MATCH (collection:Collection)<-[:IN_COLLECTION]-(dataset:Entity)-[:HAS_METADATA]->(metadata:Metadata {{provenance_group_uuid: '{guuid}'}}) " + where_clause + "RETURN collection.uuid, collection.label, collection.description, collection.creators, collection.has_doi, collection.display_doi, collection.registered_doi, collection.doi_url, collection.provenance_create_timestamp, collection.provenance_modified_timestamp, collection.provenance_user_displayname, apoc.coll.toSet(COLLECT(dataset.uuid)) AS dataset_uuid_list"
             stmt = query.format(guuid=grp_info[comp]['uuid'])
 
         conn = Neo4jConnection(app.config['NEO4J_SERVER'], app.config['NEO4J_USERNAME'], app.config['NEO4J_PASSWORD'])
@@ -601,7 +652,7 @@ def get_collections():
                 #return_list.append(record)
                 return_list.append(_coll_record_to_json(record))
 
-        return json.dumps(return_list), 200
+        return Response(json.dumps(return_list), 200, mimetype='application/json')
 
     except HTTPException as hte:
         msg = "HTTPException during get_collections: " + str(hte.get_status_code()) + " " + hte.get_description() 
@@ -636,10 +687,15 @@ def _coll_record_to_json(record):
     _set_from(record, rval, 'collection.uuid', 'uuid')
     _set_from(record, rval, 'collection.label', 'name')
     _set_from(record, rval, 'dataset_uuid_list', 'dataset_uuids')
-    _set_from(record, rval, 'collection.doi_registered', 'doi_registered')
+    _set_from(record, rval, 'collection.has_doi', 'has_doi')
     _set_from(record, rval, 'collection.creators', 'creators')
     _set_from(record, rval, 'collection.display_doi', 'doi_id')
     _set_from(record, rval, 'collection.description', 'description')
+    _set_from(record, rval, 'collection.doi_url', 'doi_url')
+    _set_from(record, rval, 'collection.provenance_create_timestamp', 'provenance_create_timestamp')
+    _set_from(record, rval, 'collection.provenance_modified_timestamp', 'provenance_modified_timestamp')
+    _set_from(record, rval, 'collection.provenance_user_displayname', 'provenance_user_displayname')
+    _set_from(record, rval, 'collection.registered_doi', 'registered_doi')
     return(rval)
 
 def _set_from(src, dest, src_attrib_name, dest_attrib_name = None, default_val = None):
@@ -816,33 +872,43 @@ def update_dataset(uuid):
             msg += str(x)
         abort(400, msg)
 
+@app.route('/doi/redirect/<identifier>', methods = ['GET'])
+def doi_redirect(identifier):
+    return collection_redirect(identifier)
+
 #redirect a request from a doi service for a collection of data
 @app.route('/collection/redirect/<identifier>', methods = ['GET'])
 def collection_redirect(identifier):
     try:
         if string_helper.isBlank(identifier):
-            return _redirect_error_response('ERROR: No Data Collection identifier found.')
+            return Response("No identifier", 400)
+            #return _redirect_error_response('ERROR: No Data Collection identifier found.')
         
         #look up the id, if it doesn't exist return an error
         ug = UUID_Generator(app.config['UUID_WEBSERVICE_URL'])
         hmuuid_data = ug.getUUID(AuthHelper.instance().getProcessSecret(), identifier)    
         if hmuuid_data is None or len(hmuuid_data) == 0:
-            return _redirect_error_response("The Data Collection was not found.", "A collection with an id matching " + identifier + " was not found.")
+            return Response("Not found", 404)
+            #return _redirect_error_response("The Data Collection was not found.", "A collection with an id matching " + identifier + " was not found.")
         
         if len(hmuuid_data) > 1:
-            return _redirect_error_response("The Data Collection is multiply defined.", "The provided collection id has multiple entries id: " + identifier)
+            return Response("Data Collection is defined multiple times", 400)
+            #return _redirect_error_response("The Data Collection is multiply defined.", "The provided collection id has multiple entries id: " + identifier)
         
         uuid_data = hmuuid_data[0]
 
         if not 'hmuuid' in uuid_data or string_helper.isBlank(uuid_data['hmuuid']) or not 'type' in uuid_data or string_helper.isBlank(uuid_data['type']) or uuid_data['type'].strip().lower() != 'collection':
-            return _redirect_error_response("A Data Collection was not found.", "A collection entry with an id matching " + identifier + " was not found.")
+            return Response("Data collection not found", 404)
+            #return _redirect_error_response("A Data Collection was not found.", "A collection entry with an id matching " + identifier + " was not found.")
         
         if 'COLLECTION_REDIRECT_URL' not in app.config or string_helper.isBlank(app.config['COLLECTION_REDIRECT_URL']):
-            return _redirect_error_response("Cannot complete due to a configuration error.", "The COLLECTION_REDIRECT_URL parameter is not found in the application configuration file.")
+            return Response("Configuration error", 500)
+            #return _redirect_error_response("Cannot complete due to a configuration error.", "The COLLECTION_REDIRECT_URL parameter is not found in the application configuration file.")
             
         redir_url = app.config['COLLECTION_REDIRECT_URL']
         if redir_url.lower().find('<identifier>') == -1:
-            return _redirect_error_response("Cannot complete due to a configuration error.", "The COLLECTION_REDIRECT_URL parameter in the application configuration file does not contain the identifier pattern")
+            return Response("Configuration error", 500)
+            #return _redirect_error_response("Cannot complete due to a configuration error.", "The COLLECTION_REDIRECT_URL parameter in the application configuration file does not contain the identifier pattern")
     
         rep_pattern = re.compile(re.escape('<identifier>'), re.RegexFlag.IGNORECASE)
         redir_url = rep_pattern.sub(uuid_data['hmuuid'], redir_url)
@@ -850,7 +916,8 @@ def collection_redirect(identifier):
         return redirect(redir_url, code = 307)
     except Exception:
         logger.error("Unexpected error while redirecting for Collection with id: " + identifier, exc_info=True)
-        return _redirect_error_response("An unexpected error occurred." "An unexpected error occurred while redirecting for Data Collection with id: " + identifier + " Check the Enitity API log file for more information.")
+        return Response("Unexpected error", 500)
+        #return _redirect_error_response("An unexpected error occurred." "An unexpected error occurred while redirecting for Data Collection with id: " + identifier + " Check the Enitity API log file for more information.")
 
 
 #helper method to show an error message through the ingest
@@ -865,8 +932,7 @@ def _redirect_error_response(description, detail=None):
     description_and_details = "?description=" + desc
     if not string_helper.isBlank(detail):
         det = urllib.parse.quote(detail, save='')
-        description_and_details = "&details=" + det
-    description_and_details = urllib.parse.quote(description_and_details, safe='')
+        description_and_details = description_and_details + "&details=" + det
     redir_url = redir_url + description_and_details
     return redirect(redir_url, code = 307)    
 
@@ -931,36 +997,39 @@ def get_globus_url(identifier):
         #that allows all access to this dataset, if so send them to the "protected"
         #endpoint even if the user doesn't have full access to all protected data
         globus_server_uuid = None        
-        dir_path = "/"
-        if 'hmgroupids' in user_info and data_group_id in user_info['hmgroupids']:  #user in access group for group:
-            globus_server_uuid = app.config['GLOBUS_PROTECTED_ENDPOINT_UUID']
-            dir_path = dir_path + group_ids[data_group_id]['displayname'] + "/"
-        else:        
+        dir_path = ""
+        
+        #the user is in the Globus group with full access to thie dataset,
+        #so they have protected level access to it
+        if 'hmgroupids' in user_info and data_group_id in user_info['hmgroupids']:
+            user_access_level = 'protected'
+        else:
             if not 'data_access_level' in user_info:
                 return Response("Unexpected error, data access level could not be found for user trying to access dataset uuid:" + uuid)        
             user_access_level = user_info['data_access_level']
-            
-            if user_access_level == HubmapConst.ACCESS_LEVEL_PUBLIC and data_access_level == HubmapConst.ACCESS_LEVEL_PUBLIC:
-                globus_server_uuid = app.config['GLOBUS_PUBLIC_ENDPOINT_UUID']
 
-                #next line added only until directory linking in place, then should be removed
-                dir_path = dir_path + group_ids[data_group_id]['displayname'] + "/"
-                
-            elif (user_access_level == HubmapConst.ACCESS_LEVEL_CONSORTIUM and 
-                  (data_access_level == HubmapConst.ACCESS_LEVEL_CONSORTIUM or data_access_level == HubmapConst.ACCESS_LEVEL_PUBLIC)):
-                globus_server_uuid = app.config['GLOBUS_CONSORTIUM_ENDPOINT_UUID']
-                
-                #next line added only until directory linking in place, then should be removed
-                dir_path = dir_path + group_ids[data_group_id]['displayname'] + "/"
-            elif user_access_level == HubmapConst.ACCESS_LEVEL_PROTECTED:
-                globus_server_uuid = app.config['GLOBUS_PROTECTED_ENDPOINT_UUID']
-                dir_path = dir_path + group_ids[data_group_id]['displayname'] + "/"
+        #public access
+        if data_access_level == HubmapConst.ACCESS_LEVEL_PUBLIC:
+            globus_server_uuid = app.config['GLOBUS_PUBLIC_ENDPOINT_UUID']
+            access_dir = _access_level_prefix_dir(app.config['PUBLIC_DATA_SUBDIR'])
+            dir_path = dir_path +  access_dir + "/"
+        #consortium access
+        elif data_access_level == HubmapConst.ACCESS_LEVEL_CONSORTIUM and not user_access_level == HubmapConst.ACCESS_LEVEL_PUBLIC:
+            globus_server_uuid = app.config['GLOBUS_CONSORTIUM_ENDPOINT_UUID']
+            access_dir = _access_level_prefix_dir(app.config['CONSORTIUM_DATA_SUBDIR'])
+            dir_path = dir_path + access_dir + group_ids[data_group_id]['displayname'] + "/"
+        #protected access
+        elif user_access_level == HubmapConst.ACCESS_LEVEL_PROTECTED and data_access_level == HubmapConst.ACCESS_LEVEL_PROTECTED:
+            globus_server_uuid = app.config['GLOBUS_PROTECTED_ENDPOINT_UUID']
+            access_dir = _access_level_prefix_dir(app.config['PROTECTED_DATA_SUBDIR'])
+            dir_path = dir_path + access_dir + group_ids[data_group_id]['displayname'] + "/"
             
         if globus_server_uuid is None:
             return Response("Access not granted", 403)   
     
         dir_path = dir_path + uuid + "/"
         dir_path = urllib.parse.quote(dir_path, safe='')
+        
         #https://app.globus.org/file-manager?origin_id=28bbb03c-a87d-4dd7-a661-7ea2fb6ea631&origin_path=%2FIEC%20Testing%20Group%2F03584b3d0f8b46de1b629f04be156879%2F
         url = file_helper.ensureTrailingSlashURL(app.config['GLOBUS_APP_BASE_URL']) + "file-manager?origin_id=" + globus_server_uuid + "&origin_path=" + dir_path  
                 
@@ -976,6 +1045,12 @@ def get_globus_url(identifier):
         logger.error(e, exc_info=True)
         return Response('Unhandled exception occured', 500)
     
+def _access_level_prefix_dir(pth):
+    if string_helper.isBlank(pth):
+        return('')
+    else:
+        return(file_helper.ensureTrailingSlashURL(file_helper.ensureBeginningSlashURL(pth)))
+
 
 # This is for development only
 if __name__ == '__main__':

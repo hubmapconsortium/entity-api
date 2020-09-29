@@ -238,6 +238,8 @@ paths:
           description: The user's token has expired
         "404":
           description: The identifier could not be found.
+        "500":
+          description: An unexpected error occurred.
       security:
       - JWTBearerAuth: []
   "/entities/descendants/{identifier}":
