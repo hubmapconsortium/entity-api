@@ -696,6 +696,7 @@ def _coll_record_to_json(record):
     _set_from(record, rval, 'collection.provenance_modified_timestamp', 'provenance_modified_timestamp')
     _set_from(record, rval, 'collection.provenance_user_displayname', 'provenance_user_displayname')
     _set_from(record, rval, 'collection.registered_doi', 'registered_doi')
+    _set_from(record, rval, 'collection.contacts', 'contacts')
     return(rval)
 
 def _set_from(src, dest, src_attrib_name, dest_attrib_name = None, default_val = None):
