@@ -1,0 +1,146 @@
+doi_attribs: &doi_attribs 
+   has_doi:
+      required: false
+      type: bool
+      default_value: false
+      description: "True if the entity has a doi registered for it, false otherwise"
+   creators:
+      required: false
+      transient: true
+      type: application/json
+      description: "An ordered array of the people who created the entity.  This is analogus to the author list on a publication."
+      trigger-event:  #this will add all of the creator information when returned by looping through creator_ids list and calling Person ws
+         event: on_response
+	 method: Person.fill_creators
+      description: "The list of creators for this entity with full name, email, ORCID iD, institution, etc.."
+   creator_ids:
+      required: false
+      type: hubmap_uuid
+      cardinality: ordered-list  #thinking this just gets stored as json encoded text
+      description: "An ordered list of uuids referencing the people who created the entity."
+   doi_url:
+      required: false
+      type: string
+      description: "The url from the doi registry for this entity"
+   registered_doi:
+      required: false
+      type: string
+      description: "The doi of the registered entity"
+   contacts:
+      required: false
+      transient: true
+      type: application/json
+      description: "An ordered array of the people who created the entity.  This is analogus to the author list on a publication."
+      trigger-event:  #this will add all of the contact information when returned by looping through contact_ids list and calling Person ws
+         event: on_response
+	 method: Person.fill_contacts
+      description: "An ordered array of the people who are the main contacts to get information about the entity."
+   contact_ids:
+      required: false
+      type: hubmap_uuid
+      cardinality: ordered-list #same as above for creator_ids-- how to store in Neo4j?
+      description: "An ordered list of the HuBMAP uuids pointing to the people who are the main contacts about this entity"
+prov_attribs: &prov_attribs
+   creator_email:
+      required: true
+      type: string
+      trigger-event:
+         event: on_create
+	 method: Entity.get_user_email
+      immutable: true
+   created_timestamp:
+      required: true
+      type: timestamp
+      trigger-event:
+         event: on_create
+         method: Entity.get_current_timestamp
+      required: true
+      immutable: true
+   creator_display_name:
+      type: string
+      trigger:
+         trigger_time: on_entity_create
+         trigger_method: Entity.get_user_name_from_token
+      required: true
+      immutable: true
+   last_modified_timestamp:
+      required: true
+      type: timestamp
+      trigger:
+         trigger_time: on_entity_save
+         trigger_method: Entity.get_current_timestamp
+      immutable: true
+id_attribs: &id_attribs
+   uuid:
+      required: true
+      type: string
+      trigger:
+         event: on_save
+         method: Entity.get_new_id #id creation method will need to call uuid-api POST, get both uuid and hubmap_id and set both files at once.  It should probably just check to see if the attribute exists in the current record (dict) and return if it exists.
+      immutable: false
+   hubmap_id:
+      required: false
+      type: string
+      immutable: true
+      trigger-event:
+         event: on__save
+         method: Entity.get_new_id
+
+ENTITIES:
+   Collection:
+      attributes:
+         <<: *id_attribs
+         <<: *prov_attribs
+         <<: *doi_attribs
+         entity_type:
+            required: true
+            type: string
+            immutable: true
+	    trigger-event:
+            event: on_create
+            method: Collection.get_entity_type #method that always returns "Collection".  Should we have a different property to set things like this like: default-value: Collection?
+         title:
+            required: true
+            type: string
+         description:
+            required: false
+            type: string
+	 datasets:
+	    required: false
+	    type: Dataset
+	    cardinality: 1<-*  #linked via a Neo4j relationship to
+	    relationship-name: IN-COLLECTION
+	    description: "A list of datasets that are members of this collection"
+	    trigger-event:  #any time a POST or PUT happens, recreate the links to Datasets using the dataset_ids array
+	       event: on_save 
+	       method: Collection.connect_datasets
+	    description: "An ordered array of the people who are the main contacts to get information about the entity."
+	 dataset_ids:   #used only to pass the reference to linked datasets in on a PUT/POST
+	    required: false
+	    type: hubmap_uuid
+	    cardinality: list
+	    transient: true
+	    trigger-event:  #when responding to a GET, include the list of dataset ids
+	       event: on_response
+	       method: Collection.get_dataset_ids #retrieves the list of dataset ids from the datasets attribute
+	    description: "list of dataset uuids that the collection is connected to.  This list is not stored in the database, but used at PUT or POST time to link the Collection to associated Datasets"
+   Dataset:
+      attributes:
+         <<: *id_attribs
+         <<: *prov_attribs
+         <<: *doi_attribs
+         entity_type:
+            required: true
+            type: string
+            immutable: true
+	 trigger-event:
+            event: on_create
+            method: Dataset.get_entity_type #method that always returns "Dataset".  Should we have a different property to set things like this like: default-value: Dataset?
+         title:
+            required: true
+            type: string
+         description:
+            required: false
+            type: string
+	 #need to add many more attributes for Dataset
+    
