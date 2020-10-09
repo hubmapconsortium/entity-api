@@ -83,6 +83,7 @@ id_attribs: &id_attribs
       event: on__save
       method: Entity.get_new_id
 
+
 ENTITIES:
   Collection:
     attributes:
@@ -120,6 +121,35 @@ ENTITIES:
         trigger-event:  #when responding to a GET, include the list of dataset ids
           event: on_response
           method: Collection.get_dataset_ids #retrieves the list of dataset ids from the datasets attribute
+      hubmap_id:
+        required: false
+        type: string
+      data_access_level:
+        required: false
+        type: string
+      doi_suffix_id:
+        required: false
+        type: string
+      uuid:
+        required: false
+        type: string
+      created_by_user_email:
+        required: false
+        type: string
+      has_doi:
+        required: false
+        type: boolean
+      created_by_user_displayname:
+        required: false
+        type: string
+      create_timestamp:
+        required: false
+        type: integer
+      creators:
+        required: false
+        type: string
+
+
    Dataset:
     attributes:
       <<: *id_attribs
