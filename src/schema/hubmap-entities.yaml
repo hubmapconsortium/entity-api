@@ -136,7 +136,7 @@ ENTITIES:
       created_by_user_displayname:
         required: false
         type: string
-      create_timestamp:
+      created_timestamp:
         required: false
         type: integer
       creators:
@@ -195,7 +195,7 @@ ENTITIES:
       last_modified_timestamp:
         required: false
         type: integer
-      create_timestamp:
+      created_timestamp:
         required: false
         type: integer
       last_modified_user_displayname:
@@ -271,7 +271,7 @@ Donor:
       protocol_url:
         required: false
         type: string
-      create_timestamp:
+      created_timestamp:
         required: false
         type: integer
       data_access_level:
@@ -341,7 +341,7 @@ Sample:
       specimen_type:
         required: false
         type: string
-      create_timestamp:
+      created_timestamp:
         required: false
         type: integer
       last_modified_timestamp:
