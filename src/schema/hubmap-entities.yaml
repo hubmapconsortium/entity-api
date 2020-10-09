@@ -8,11 +8,10 @@ doi_attribs: &doi_attribs
       required: false
       transient: true
       type: application/json
-      description: "An ordered array of the people who created the entity.  This is analogus to the author list on a publication."
+      description: "An ordered list of the people who created the entity with full name, email, ORCID iD, institution, etc.. This is analogus to the author list on a publication."
       trigger-event:  #this will add all of the creator information when returned by looping through creator_ids list and calling Person ws
          event: on_response
          method: Person.fill_creators
-      description: "The list of creators for this entity with full name, email, ORCID iD, institution, etc.."
    creator_ids:
       required: false
       type: hubmap_uuid
@@ -30,11 +29,10 @@ doi_attribs: &doi_attribs
       required: false
       transient: true
       type: application/json
-      description: "An ordered array of the people who created the entity.  This is analogus to the author list on a publication."
+      description: "An ordered array of the people who are the main contacts to get information about the entity."
       trigger-event:  #this will add all of the contact information when returned by looping through contact_ids list and calling Person ws
          event: on_response
          method: Person.fill_contacts
-      description: "An ordered array of the people who are the main contacts to get information about the entity."
    contact_ids:
       required: false
       type: hubmap_uuid
@@ -51,11 +49,10 @@ prov_attribs: &prov_attribs
    created_timestamp:
       required: true
       type: timestamp
+      immutable: true
       trigger-event:
          event: on_create
          method: Entity.get_current_timestamp
-      required: true
-      immutable: true
    creator_display_name:
       type: string
       trigger:
@@ -109,21 +106,20 @@ ENTITIES:
             required: false
             type: Dataset
             cardinality: 1<-*  #linked via a Neo4j relationship to
-            relationship-name: IN-COLLECTION
+            relationship-name: IN_COLLECTION
             description: "A list of datasets that are members of this collection"
             trigger-event:  #any time a POST or PUT happens, recreate the links to Datasets using the dataset_ids array
                event: on_save 
                method: Collection.connect_datasets
-            description: "An ordered array of the people who are the main contacts to get information about the entity."
          dataset_ids:   #used only to pass the reference to linked datasets in on a PUT/POST
             required: false
             type: hubmap_uuid
+            description: "list of dataset uuids that the collection is connected to.  This list is not stored in the database, but used at PUT or POST time to link the Collection to associated Datasets"
             cardinality: list
             transient: true
             trigger-event:  #when responding to a GET, include the list of dataset ids
                event: on_response
                method: Collection.get_dataset_ids #retrieves the list of dataset ids from the datasets attribute
-            description: "list of dataset uuids that the collection is connected to.  This list is not stored in the database, but used at PUT or POST time to link the Collection to associated Datasets"
    Dataset:
       attributes:
          <<: *id_attribs
