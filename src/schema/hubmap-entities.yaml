@@ -1,3 +1,4 @@
+############################################# Shared #############################################
 doi_attribs: &doi_attribs 
   has_doi:
     required: false
@@ -85,6 +86,7 @@ id_attribs: &id_attribs
 
 
 ENTITIES:
+  ############################################# Collection #############################################
   Collection:
     attributes:
       <<: *id_attribs
@@ -143,8 +145,8 @@ ENTITIES:
         required: false
         type: string
 
-
-   Dataset:
+  ############################################# Dataset #############################################
+  Dataset:
     attributes:
       <<: *id_attribs
       <<: *prov_attribs
@@ -235,7 +237,8 @@ ENTITIES:
         required: false
         type: string
 
-Donor:
+  ############################################# Donor #############################################
+  Donor:
     attributes:
       <<: *id_attribs
       <<: *prov_attribs
@@ -311,7 +314,8 @@ Donor:
         required: false
         type: string
 
-Sample:
+  ############################################# Sample #############################################
+  Sample:
     attributes:
       <<: *id_attribs
       <<: *prov_attribs
