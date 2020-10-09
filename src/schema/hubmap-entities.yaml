@@ -217,3 +217,85 @@ ENTITIES:
         required: false
         type: string
 
+Donor:
+    attributes:
+      <<: *id_attribs
+      <<: *prov_attribs
+      <<: *doi_attribs
+      entity_type:
+        required: true
+        type: string
+        immutable: true
+      trigger-event:
+        event: on_create
+        method: Dataset.get_entity_type #method that always returns "Donor".  Should we have a different property to set things like this like: default-value: Dataset?
+      description:
+        required: false
+        type: string
+      created_by_user_sub:
+        required: false
+        type: string
+      created_by_user_email:
+        required: false
+        type: string
+      image_file_metadata:
+        required: false
+        type: string
+      last_modified_timestamp:
+        required: false
+        type: integer
+      created_by_user_displayname:
+        required: false
+        type: string
+      metadata:
+        required: false
+        type: string
+      protocol_url:
+        required: false
+        type: string
+      create_timestamp:
+        required: false
+        type: integer
+      data_access_level:
+        required: false
+        type: string
+      lab_donor_id:
+        required: false
+        type: string
+      submission_id:
+        required: false
+        type: string
+      hubmap_id:
+        required: false
+        type: string
+      portal_metadata_upload_files:
+        required: false
+        type: string
+      next_identifier:
+        required: false
+        type: string
+      doi_suffix_id:
+        required: false
+        type: string
+      label:
+        required: false
+        type: string
+      uuid:
+        required: false
+        type: string
+      protocol_file:
+        required: false
+        type: string
+      last_modified_user_sub:
+        required: false
+        type: string
+      last_modified_user_email:
+        required: false
+        type: string
+      last_modified_user_displayname:
+        required: false
+        type: string
+      open_consent:
+        required: false
+        type: string
+
