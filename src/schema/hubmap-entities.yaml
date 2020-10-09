@@ -120,7 +120,7 @@ ENTITIES:
         trigger-event:  #when responding to a GET, include the list of dataset ids
           event: on_response
           method: Collection.get_dataset_ids #retrieves the list of dataset ids from the datasets attribute
-  Dataset:
+   Dataset:
     attributes:
       <<: *id_attribs
       <<: *prov_attribs
@@ -138,5 +138,82 @@ ENTITIES:
       description:
         required: false
         type: string
-      #need to add many more attributes for Dataset
-   
+      data_types:
+        required: false
+        type: string
+      published_timestamp:
+        required: false
+        type: integer
+      published_user_displayname:
+        required: false
+        type: string
+      published_user_sub:
+        required: false
+        type: string
+      created_by_user_sub:
+        required: false
+        type: string
+      created_by_user_email:
+        required: false
+        type: string
+      created_by_user_displayname:
+        required: false
+        type: string
+      published_user_email:
+        required: false
+        type: string
+      last_modified_user_sub:
+        required: false
+        type: string
+      last_modified_user_email:
+        required: false
+        type: string
+      last_modified_timestamp:
+        required: false
+        type: integer
+      create_timestamp:
+        required: false
+        type: integer
+      last_modified_user_displayname:
+        required: false
+        type: string
+      pipeline_message:
+        required: false
+        type: string
+      dataset_name:
+        required: false
+        type: string
+      contains_human_genetic_sequences:
+        required: false
+        type: string
+      data_access_level:
+        required: false
+        type: string
+      ingest_metadata:
+        required: false
+        type: string
+      local_directory_rel_path:
+        required: false
+        type: string
+      hubmap_id:
+        required: false
+        type: string
+      status:
+        required: false
+        type: string
+      doi_suffix_id:
+        required: false
+        type: string
+      uuid:
+        required: false
+        type: string
+      run_id:
+        required: false
+        type: string
+      ingest_id:
+        required: false
+        type: string
+      local_directory_url_path:
+        required: false
+        type: string
+
