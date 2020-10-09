@@ -121,16 +121,10 @@ ENTITIES:
         trigger-event:  #when responding to a GET, include the list of dataset ids
           event: on_response
           method: Collection.get_dataset_ids #retrieves the list of dataset ids from the datasets attribute
-      hubmap_id:
-        required: false
-        type: string
       data_access_level:
         required: false
         type: string
       doi_suffix_id:
-        required: false
-        type: string
-      uuid:
         required: false
         type: string
       created_by_user_email:
@@ -225,16 +219,10 @@ ENTITIES:
       local_directory_rel_path:
         required: false
         type: string
-      hubmap_id:
-        required: false
-        type: string
       status:
         required: false
         type: string
       doi_suffix_id:
-        required: false
-        type: string
-      uuid:
         required: false
         type: string
       run_id:
@@ -295,9 +283,6 @@ Donor:
       submission_id:
         required: false
         type: string
-      hubmap_id:
-        required: false
-        type: string
       portal_metadata_upload_files:
         required: false
         type: string
@@ -308,9 +293,6 @@ Donor:
         required: false
         type: string
       label:
-        required: false
-        type: string
-      uuid:
         required: false
         type: string
       protocol_file:
@@ -389,9 +371,6 @@ Sample:
       submission_id:
         required: false
         type: string
-      hubmap_id:
-        required: false
-        type: string
       organ:
         required: false
         type: string
@@ -402,9 +381,6 @@ Sample:
         required: false
         type: string
       doi_suffix_id:
-        required: false
-        type: string
-      uuid:
         required: false
         type: string
       metadata:
