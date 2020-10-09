@@ -55,23 +55,23 @@ prov_attribs: &prov_attribs
       method: Entity.get_current_timestamp
   creator_display_name:
     type: string
-    trigger:
-      trigger_time: on_entity_create
-      trigger_method: Entity.get_user_name_from_token
+    trigger-event:
+      event: on_entity_create
+      method: Entity.get_user_name_from_token
     required: true
     immutable: true
   last_modified_timestamp:
     required: true
     type: timestamp
-    trigger:
-      trigger_time: on_entity_save
-      trigger_method: Entity.get_current_timestamp
+    trigger-event:
+      event: on_entity_save
+      method: Entity.get_current_timestamp
     immutable: true
 id_attribs: &id_attribs
   uuid:
     required: true
     type: string
-    trigger:
+    trigger-event:
       event: on_save
       method: Entity.get_new_id #id creation method will need to call uuid-api POST, get both uuid and hubmap_id and set both files at once.  It should probably just check to see if the attribute exists in the current record (dict) and return if it exists.
     immutable: false
@@ -94,8 +94,8 @@ ENTITIES:
         type: string
         immutable: true
         trigger-event:
-        event: on_create
-        method: Collection.get_entity_type #method that always returns "Collection".  Should we have a different property to set things like this like: default-value: Collection?
+          event: on_create
+          method: Collection.get_entity_type #method that always returns "Collection".  Should we have a different property to set things like this like: default-value: Collection?
       title:
         required: true
         type: string
@@ -129,9 +129,9 @@ ENTITIES:
         required: true
         type: string
         immutable: true
-      trigger-event:
-        event: on_create
-        method: Dataset.get_entity_type #method that always returns "Dataset".  Should we have a different property to set things like this like: default-value: Dataset?
+        trigger-event:
+          event: on_create
+          method: Dataset.get_entity_type #method that always returns "Dataset".  Should we have a different property to set things like this like: default-value: Dataset?
       title:
         required: true
         type: string
