@@ -25,7 +25,7 @@ logging.basicConfig(level=logging.DEBUG)
 cache = TTLCache(maxsize=app.config['CACHE_MAXSIZE'], ttl=app.config['CACHE_TTL'])
 
 ####################################################################################################
-## Default route, status, cache clear
+## Yaml schema loading
 ####################################################################################################
 @cached(cache)
 def load_schema_yaml_file(file):
@@ -41,11 +41,8 @@ def load_schema_yaml_file(file):
 
         return schema
         
-# Have the schema informaiton ready before any requests
-@app.before_first_request
-def before_first_request():
-    schema = load_schema_yaml_file(app.config['SCHEMA_YAML_FILE'])
-    pprint(schema)
+# Have the schema informaiton available for any requests
+schema = load_schema_yaml_file(app.config['SCHEMA_YAML_FILE'])
 
 ####################################################################################################
 ## Default route, status, cache clear
@@ -85,15 +82,13 @@ def cache_clear():
 
 @app.route('/collection/<id>', methods = ['GET'])
 def get_collection(id):
+    print(schema['ENTITIES']['Collection']['Collection']['attributes'])
     return "dsds"
 
 
 ####################################################################################################
 ## Internal Functions
 ####################################################################################################
-
-
-
 
 # Initialize AuthHelper (AuthHelper from HuBMAP commons package)
 # HuBMAP commons AuthHelper handles "MAuthorization" or "Authorization"
