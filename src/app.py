@@ -7,6 +7,8 @@ import functools
 from pathlib import Path
 import logging
 
+import neo4j_queries
+
 # HuBMAP commons
 from hubmap_commons.hm_auth import AuthHelper
 from hubmap_commons.neo4j_connection import Neo4jConnection
@@ -45,6 +47,17 @@ def load_schema_yaml_file(file):
 schema = load_schema_yaml_file(app.config['SCHEMA_YAML_FILE'])
 
 ####################################################################################################
+## Neo4j connection
+####################################################################################################
+neo4j_connection = Neo4jConnection(app.config['NEO4J_SERVER'], app.config['NEO4J_USERNAME'], app.config['NEO4J_PASSWORD'])
+neo4j_driver = neo4j_connection.get_driver()
+
+# Error handler for 400 Bad Request with custom error message
+@app.errorhandler(400)
+def http_bad_request(e):
+    return jsonify(error=str(e)), 400
+
+####################################################################################################
 ## Default route, status, cache clear
 ####################################################################################################
 @app.route('/', methods = ['GET'])
@@ -61,15 +74,14 @@ def status():
         'neo4j_connection': False
     }
 
-    conn = Neo4jConnection(app.config['NEO4J_SERVER'], app.config['NEO4J_USERNAME'], app.config['NEO4J_PASSWORD'])
-    driver = conn.get_driver()
-    is_connected = conn.check_connection(driver)
+    is_connected = neo4j_connection.check_connection(driver)
     
     if is_connected:
         response_data['neo4j_connection'] = True
 
     return jsonify(response_data)
 
+# Force cache clear even before it expires
 @app.route('/cache_clear', methods = ['GET'])
 def cache_clear():
     cache.clear()
@@ -77,14 +89,70 @@ def cache_clear():
     return "All function cache cleared."
 
 ####################################################################################################
-## API
+## API 
 ####################################################################################################
 
-@app.route('/collection/<id>', methods = ['GET'])
-def get_collection(id):
-    print(schema['ENTITIES']['Collection']['Collection']['attributes'])
-    return "dsds"
+@app.route('/donor/<id>', methods = ['GET'])
+def get_donor(id):
+    # Resulting dict
+    entity = neo4j_queries.get_entity_by_uuid(neo4j_driver, "Donor", id)
 
+    result = {
+        'dataset': entity
+    }
+
+    return jsonify(result)
+
+
+@app.route('/sample/<id>', methods = ['GET'])
+def get_sample(id):
+    # Resulting dict
+    entity = neo4j_queries.get_entity_by_uuid(neo4j_driver, "Sample", id)
+
+    result = {
+        'sample': entity
+    }
+
+    return jsonify(result)
+
+@app.route('/dataset/<id>', methods = ['GET'])
+def get_dataset(id):
+    print(schema['ENTITIES']['Dataset']['attributes'])
+
+    # Resulting dict
+    entity = neo4j_queries.get_entity_by_uuid(neo4j_driver, "Dataset", id)
+
+    result = {
+        'dataset': entity
+    }
+
+    return jsonify(result)
+
+@app.route('/dataset', methods = ['PUT'])
+def create_dataset():
+    # Always expect a json body
+    request_json_required(request)
+
+    # Parse incoming json string into json data(python dict object)
+    json_data = request.get_json()
+
+    schema_keys = (schema['ENTITIES']['Dataset']['attributes']).keys() 
+    print(schema_keys)
+
+    json_data_keys = json_data.keys()
+
+    for key in json_data_keys:
+        if key not in schema_keys:
+            bad_request_error("Key '" + key + "' in request body json is invalid")
+
+    # Resulting dict
+    entity = neo4j_queries.create_entity(neo4j_driver, "Dataset", json_data)
+
+    result = {
+        'dataset': entity
+    }
+
+    return jsonify(result)
 
 ####################################################################################################
 ## Internal Functions
@@ -99,3 +167,12 @@ def init_auth_helper():
         auth_helper = AuthHelper.instance()
     
     return auth_helper
+
+# Throws error for 400 Bad Reqeust with message
+def bad_request_error(err_msg):
+    abort(400, description = err_msg)
+
+# Always expect a json body
+def request_json_required(request):
+    if not request.is_json:
+        bad_request_error("A JSON body and appropriate Content-Type header are required")
