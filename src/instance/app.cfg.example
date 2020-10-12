@@ -1,3 +1,11 @@
+# File path of schema yaml file, DO NOT MODIFY
+SCHEMA_YAML_FILE = '/usr/src/app/src/schema/hubmap-entities.yaml'
+
+# The maximum integer number of entries in the cache queue
+CACHE_MAXSIZE = 128
+# Expire the cache after the time-to-live (seconds)
+CACHE_TTL = 7200
+
 # Globus App ID and secret
 APP_CLIENT_ID = ''
 APP_CLIENT_SECRET = ''
@@ -43,3 +51,4 @@ COLLECTION_REDIRECT_URL = 'https://ingest.dev.hubmapconsortium.org/redirect-test
 #takes arguments ?description=xxxx&details=yyyyy where
 #description is required and details is optional
 ERROR_PAGE_URL = 'https://ingest.dev.hubmapconsortium.org/err-response'
+

@@ -8,5 +8,11 @@ services:
       - HOST_UID=${HOST_UID:-1000}
     init: true
     restart: always
+    volumes:
+      # Mount the VERSION file and BUILD file
+      - "../VERSION:/usr/src/app/src/VERSION"
+      - "../BUILD:/usr/src/app/src/BUILD"
+      # Mount the source code to container
+      - "../src/schema/hubmap-entities.yaml:/usr/src/app/src/schema/hubmap-entities.yaml"
 
 
