@@ -132,7 +132,7 @@ def create_entity(entity_type):
     validate_json_data_against_schema(json_data, normalized_entity_type)
 
     # Construct the final data to include generated triggered data
-    triggered_data = generate_triggered_data_on_create(normalized_entity_type)
+    triggered_data = generate_triggered_data_on_create(normalized_entity_type, request)
 
     # Merge two dictionaries
     merged_dict = {**json_data, **triggered_data}
@@ -209,16 +209,24 @@ def validate_json_data_against_schema(json_data, entity_type):
     if len(invalid_data_type_keys) > 0:
         bad_request_error("Keys in request json with invalid data types: " + separator.join(invalid_data_type_keys))
 
-def generate_triggered_data_on_create(entity_type):
+def generate_triggered_data_on_create(normalized_entity_type, request):
     attributes = schema['ENTITIES'][entity_type]['attributes']
     schema_keys = attributes.keys() 
+
+    user_info = get_user_info(request)
+
 
     triggered_data = {}
     for key in schema_keys:
         if 'trigger-event' in attributes[key]:
             if attributes[key]['trigger-event']['event'] == "on_create":
-                method_to_call = getattr(trigger_events, 'get_current_timestamp')
-                triggered_data[key] = method_to_call()
+                method_to_call = getattr(trigger_events, attributes[key]['trigger-event']['method'])
+                if method_to_call == "get_entity_type":
+                    triggered_data[key] = method_to_call(normalized_entity_type)
+                elif method_to_call.startswith("get_user_"):
+                    triggered_data[key] = method_to_call(user_info)
+                else:
+                    triggered_data[key] = method_to_call()
 
     return triggered_data
 
@@ -231,6 +239,12 @@ def init_auth_helper():
         auth_helper = AuthHelper.instance()
     
     return auth_helper
+
+# Get user infomation dict based on the http request(headers)
+def get_user_info(request):
+    auth_helper = init_auth_helper()
+    # `group_required` is a boolean, when True, 'hmgroupids' is in the output
+    return auth_helper.getUserInfoUsingRequest(request, False)
 
 # Throws error for 400 Bad Reqeust with message
 def bad_request_error(err_msg):

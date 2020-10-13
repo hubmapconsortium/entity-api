@@ -17,7 +17,7 @@ doi_attribs: &doi_attribs
     description: "An ordered list of the people who created the entity with full name, email, ORCID iD, institution, etc.. This is analogus to the author list on a publication."
     trigger-event:  #this will add all of the creator information when returned by looping through creator_ids list and calling Person ws
       event: on_response
-      method: Person.fill_creators
+      method: fill_creators
   creator_ids:
     required: false
     type: hubmap_uuid
@@ -38,7 +38,7 @@ doi_attribs: &doi_attribs
     description: "An ordered array of the people who are the main contacts to get information about the entity."
     trigger-event:  #this will add all of the contact information when returned by looping through contact_ids list and calling Person ws
       event: on_response
-      method: Person.fill_contacts
+      method: fill_contacts
   contact_ids:
     required: false
     type: hubmap_uuid
@@ -53,27 +53,27 @@ prov_attribs: &prov_attribs
     immutable: true
     trigger-event:
       event: on_create
-      method: Entity.get_current_timestamp
+      method: get_current_timestamp
   created_by_user_displayname:
     required: true
     type: string
     trigger-event:
       event: on_entity_create
-      method: Entity.get_user_name_from_token
+      method: get_user_name
     immutable: true
   created_by_user_email:
     required: true
     type: string
     trigger-event:
       event: on_create
-      method: Entity.get_user_email
+      method: get_user_email
     immutable: true
   created_by_user_sub: # I don't fine this in Collection in the current neo4j
     required: true 
     type: string
     trigger-event:
       event: on_create
-      method: Entity.get_user_sub
+      method: get_user_sub
     immutable: true
   
   last_modified_timestamp:
@@ -81,7 +81,7 @@ prov_attribs: &prov_attribs
     type: integer
     trigger-event:
       event: on_entity_save
-      method: Entity.get_current_timestamp
+      method: get_current_timestamp
     immutable: false
   
   # Supposedly we should have the following too (I found them in Dataset/Donor/Sample, not in COllection in the current neo4j):
@@ -90,21 +90,21 @@ prov_attribs: &prov_attribs
     type: string
     trigger-event:
       event: on_save
-      method: Entity.get_user_sub
+      method: get_user_sub
     immutable: false
   last_modified_user_email:
     required: true
     type: string
     trigger-event:
       event: on_save
-      method: Entity.get_user_email
+      method: get_user_email
     immutable: false
   last_modified_user_displayname:
     required: true
     type: string
     trigger-event:
       event: on_entity_save
-      method: Entity.get_user_name_from_token
+      method: get_user_name
     immutable: false
 
 
@@ -115,15 +115,15 @@ id_attribs: &id_attribs
     type: string
     trigger-event:
       event: on_save
-      method: Entity.get_new_id #id creation method will need to call uuid-api POST, get both uuid and hubmap_id and set both files at once.  It should probably just check to see if the attribute exists in the current record (dict) and return if it exists.
+      method: get_new_id #id creation method will need to call uuid-api POST, get both uuid and hubmap_id and set both files at once.  It should probably just check to see if the attribute exists in the current record (dict) and return if it exists.
     immutable: false
   hubmap_id:
     required: false
     type: string
     immutable: true
     trigger-event:
-      event: on__save
-      method: Entity.get_new_id
+      event: on_save
+      method: get_new_id
 
 
 # All entities in neo4j have these properties
@@ -134,7 +134,7 @@ other_shared_attribs: &other_shared_attribs
     immutable: true
     trigger-event:
       event: on_create
-      method: Entity.get_entity_type
+      method: get_entity_type
   description:
     required: true
     type: string
@@ -164,7 +164,7 @@ ENTITIES:
         description: "A list of datasets that are members of this collection"
         trigger-event:  #any time a POST or PUT happens, recreate the links to Datasets using the dataset_ids array
           event: on_save 
-          method: Collection.connect_datasets
+          method: connect_datasets
       dataset_ids:  #used only to pass the reference to linked datasets in on a PUT/POST
         required: false
         type: hubmap_uuid
@@ -173,7 +173,7 @@ ENTITIES:
         transient: true
         trigger-event:  #when responding to a GET, include the list of dataset ids
           event: on_response
-          method: Collection.get_dataset_ids #retrieves the list of dataset ids from the datasets attribute
+          method: get_dataset_ids #retrieves the list of dataset ids from the datasets attribute
       has_doi:
         required: false
         type: boolean
@@ -186,7 +186,7 @@ ENTITIES:
         description: "An ordered list of the people who created the entity with full name, email, ORCID iD, institution, etc.. This is analogus to the author list on a publication."
         trigger-event:  #this will add all of the creator information when returned by looping through creator_ids list and calling Person ws
           event: on_response
-          method: Person.fill_creators
+          method: fill_creators
 
   ############################################# Dataset #############################################
   Dataset:
