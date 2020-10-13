@@ -1,13 +1,16 @@
-from flask import Flask, jsonify, abort, request, session, Response, redirect
+from flask import Flask, jsonify, abort, request, Response
 import sys
 import os
 import yaml
+import json
 from cachetools import cached, TTLCache
 import functools
 from pathlib import Path
 import logging
 
+# Local modules
 import neo4j_queries
+import trigger_events
 
 # HuBMAP commons
 from hubmap_commons.hm_auth import AuthHelper
@@ -88,68 +91,69 @@ def cache_clear():
     app.logger.info("All gatewat API Auth function cache cleared.")
     return "All function cache cleared."
 
+
 ####################################################################################################
-## API 
+## API
 ####################################################################################################
 
-@app.route('/donor/<id>', methods = ['GET'])
-def get_donor(id):
+# id is either a `uuid` or `hubmap_id` (like HBM123.ABCD.987)
+@app.route('/<entity_type>/<id>', methods = ['GET'])
+def get_dataset(entity_type, id):
+    # Validate user provied entity_type from URL
+    validate_entity_type(entity_type)
+
+    # Normalize user provided entity_type
+    normalized_entity_type = normalize_entity_type(entity_type)
+
     # Resulting dict
-    entity = neo4j_queries.get_entity_by_uuid(neo4j_driver, "Donor", id)
+    entity = neo4j_queries.get_entity(neo4j_driver, normalized_entity_type, id)
 
     result = {
-        'dataset': entity
+        normalized_entity_type.lower(): entity
     }
 
     return jsonify(result)
 
+@app.route('/<entity_type>', methods = ['PUT'])
+def create_entity(entity_type):
+    # Validate user provied entity_type from URL
+    validate_entity_type(entity_type)
 
-@app.route('/sample/<id>', methods = ['GET'])
-def get_sample(id):
-    # Resulting dict
-    entity = neo4j_queries.get_entity_by_uuid(neo4j_driver, "Sample", id)
+    # Normalize user provided entity_type
+    normalized_entity_type = normalize_entity_type(entity_type)
 
-    result = {
-        'sample': entity
-    }
-
-    return jsonify(result)
-
-@app.route('/dataset/<id>', methods = ['GET'])
-def get_dataset(id):
-    print(schema['ENTITIES']['Dataset']['attributes'])
-
-    # Resulting dict
-    entity = neo4j_queries.get_entity_by_uuid(neo4j_driver, "Dataset", id)
-
-    result = {
-        'dataset': entity
-    }
-
-    return jsonify(result)
-
-@app.route('/dataset', methods = ['PUT'])
-def create_dataset():
     # Always expect a json body
     request_json_required(request)
 
     # Parse incoming json string into json data(python dict object)
     json_data = request.get_json()
 
-    schema_keys = (schema['ENTITIES']['Dataset']['attributes']).keys() 
-    print(schema_keys)
+    # Validate request json against the yaml schema
+    validate_json_data_against_schema(json_data, normalized_entity_type)
 
-    json_data_keys = json_data.keys()
+    # Construct the final data to include generated triggered data
+    triggered_data = generate_triggered_data_on_create(normalized_entity_type)
 
-    for key in json_data_keys:
-        if key not in schema_keys:
-            bad_request_error("Key '" + key + "' in request body json is invalid")
+    # Merge two dictionaries
+    merged_dict = {**json_data, **triggered_data}
 
-    # Resulting dict
-    entity = neo4j_queries.create_entity(neo4j_driver, "Dataset", json_data)
+    # `UNWIND` in Cypher expects List<T>
+    data_list = [merged_dict]
+    
+    # Convert the list (only contains one entity) to json list string
+    json_list_str = json.dumps(data_list)
+
+    # Must also escape single quotes in the json string to build a valid Cypher query later
+    escaped_json_list_str = json_list_str.replace("'", r"\'")
+
+    app.logger.info("======create entity node with json_list_str======")
+    app.logger.info(json_list_str)
+
+    # Create entity
+    entity = neo4j_queries.create_entity(neo4j_driver, normalized_entity_type, escaped_json_list_str)
 
     result = {
-        'dataset': entity
+        normalized_entity_type.lower(): entity
     }
 
     return jsonify(result)
@@ -157,6 +161,66 @@ def create_dataset():
 ####################################################################################################
 ## Internal Functions
 ####################################################################################################
+
+def normalize_entity_type(entity_type):
+    normalized_entity_type = entity_type.lower().capitalize()
+    return normalized_entity_type
+
+def validate_entity_type(entity_type):
+    separator = ", "
+    accepted_entity_types = ["Dataset", "Donor", "Sample", "Collection"]
+
+    # Validate provided entity_type
+    if normalize_entity_type(entity_type) not in accepted_entity_types:
+        bad_request_error("The specified entity type in URL must be one of the following: " + separator.join(accepted_entity_types))
+
+def validate_json_data_against_schema(json_data, entity_type):
+    attributes = schema['ENTITIES'][entity_type]['attributes']
+    schema_keys = attributes.keys() 
+    json_data_keys = json_data.keys()
+    separator = ", "
+
+    # Check if keys in request are supported
+    unsupported_keys = []
+    for key in json_data_keys:
+        if key not in schema_keys:
+            unsupported_keys.append(key)
+
+    if len(unsupported_keys) > 0:
+        bad_request_error("Unsupported keys in request json: " + separator.join(unsupported_keys))
+
+    # Check if any required keys (except the triggered ones) are missing from request
+    missing_keys = []
+    for key in schema_keys:
+        if attributes[key]['required'] and ('trigger-event' not in attributes[key]) and (key not in json_data_keys):
+            missing_keys.append(key)
+
+    if len(missing_keys) > 0:
+        bad_request_error("Missing required keys in request json: " + separator.join(missing_keys))
+
+    # By now all the keys in request json have passed the above two checks: existence cehck in schema and required check in schema
+    # Verify data types of keys
+    invalid_data_type_keys = []
+    for key in json_data_keys:
+        # boolean starts with bool, string starts with str, integer starts with int
+        if not attributes[key]['type'].startswith(type(json_data[key]).__name__):
+            invalid_data_type_keys.append(key)
+    
+    if len(invalid_data_type_keys) > 0:
+        bad_request_error("Keys in request json with invalid data types: " + separator.join(invalid_data_type_keys))
+
+def generate_triggered_data_on_create(entity_type):
+    attributes = schema['ENTITIES'][entity_type]['attributes']
+    schema_keys = attributes.keys() 
+
+    triggered_data = {}
+    for key in schema_keys:
+        if 'trigger-event' in attributes[key]:
+            if attributes[key]['trigger-event']['event'] == "on_create":
+                method_to_call = getattr(trigger_events, 'get_current_timestamp')
+                triggered_data[key] = method_to_call()
+
+    return triggered_data
 
 # Initialize AuthHelper (AuthHelper from HuBMAP commons package)
 # HuBMAP commons AuthHelper handles "MAuthorization" or "Authorization"
