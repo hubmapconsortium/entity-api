@@ -7,10 +7,10 @@ from cachetools import cached, TTLCache
 import functools
 from pathlib import Path
 import logging
+import datetime
 
 # Local modules
 import neo4j_queries
-import trigger_events
 
 # HuBMAP commons
 from hubmap_commons.hm_auth import AuthHelper
@@ -60,6 +60,11 @@ neo4j_driver = neo4j_connection.get_driver()
 def http_bad_request(e):
     return jsonify(error=str(e)), 400
 
+# Error handler for 404 Not Found with custom error message
+@app.errorhandler(404)
+def http_not_found(e):
+    return jsonify(error=str(e)), 404
+
 ####################################################################################################
 ## Default route, status, cache clear
 ####################################################################################################
@@ -98,23 +103,19 @@ def cache_clear():
 
 # id is either a `uuid` or `hubmap_id` (like HBM123.ABCD.987)
 @app.route('/<entity_type>/<id>', methods = ['GET'])
-def get_dataset(entity_type, id):
+def get_entity(entity_type, id):
     # Validate user provied entity_type from URL
     validate_entity_type(entity_type)
 
     # Normalize user provided entity_type
     normalized_entity_type = normalize_entity_type(entity_type)
 
-    # Resulting dict
-    entity = neo4j_queries.get_entity(neo4j_driver, normalized_entity_type, id)
+    # Query target entity against neo4j and return as a dict if exists
+    entity = query_target_entity(normalized_entity_type, id)
 
-    result = {
-        normalized_entity_type.lower(): entity
-    }
+    return get_resulting_entity(normalized_entity_type, entity)
 
-    return jsonify(result)
-
-@app.route('/<entity_type>', methods = ['PUT'])
+@app.route('/<entity_type>', methods = ['POST'])
 def create_entity(entity_type):
     # Validate user provied entity_type from URL
     validate_entity_type(entity_type)
@@ -132,10 +133,10 @@ def create_entity(entity_type):
     validate_json_data_against_schema(json_data, normalized_entity_type)
 
     # Construct the final data to include generated triggered data
-    triggered_data = generate_triggered_data_on_create(normalized_entity_type, request)
+    triggered_data_on_create = generate_triggered_data_on_create(normalized_entity_type, request)
 
-    # Merge two dictionaries
-    merged_dict = {**json_data, **triggered_data}
+    # Merge two dictionaries (without the same keys in this case)
+    merged_dict = {**json_data, **triggered_data_on_create}
 
     # `UNWIND` in Cypher expects List<T>
     data_list = [merged_dict]
@@ -152,11 +153,61 @@ def create_entity(entity_type):
     # Create entity
     entity = neo4j_queries.create_entity(neo4j_driver, normalized_entity_type, escaped_json_list_str)
 
-    result = {
-        normalized_entity_type.lower(): entity
-    }
+    return get_resulting_entity(normalized_entity_type, entity)
 
-    return jsonify(result)
+
+@app.route('/<entity_type>/<id>', methods = ['PUT'])
+def update_entity(entity_type):
+    # Validate user provied entity_type from URL
+    validate_entity_type(entity_type)
+
+    # Normalize user provided entity_type
+    normalized_entity_type = normalize_entity_type(entity_type)
+
+    # Always expect a json body
+    request_json_required(request)
+
+    # Parse incoming json string into json data(python dict object)
+    json_data = request.get_json()
+
+    # Get target entity and return as a dict if exists
+    entity = query_target_entity(normalized_entity_type, id)
+
+    # Validate request json against the yaml schema
+    validate_json_data_against_schema(json_data, normalized_entity_type)
+
+    # Construct the final data to include generated triggered data
+    triggered_data_on_save = generate_triggered_data_on_save(request)
+
+    # Add new properties if updating for the first time
+    # Otherwise just overwrite existing values (E.g., last_modified_timestamp)
+    triggered_data_keys = triggered_data_on_save.keys()
+    for key in triggered_data_keys:
+        entity[key] = triggered_data_on_save[key]
+ 
+    # Overwrite old property values with updated values
+    json_data_keys = json_data.keys()
+    for key in json_data_keys:
+        entity[key] = json_data_keys[key]
+
+    # By now the entity dict contains all user updates and all triggered data
+    # `UNWIND` in Cypher expects List<T>
+    data_list = [entity]
+    
+    # Convert the list (only contains one entity) to json list string
+    json_list_str = json.dumps(data_list)
+
+    # Must also escape single quotes in the json string to build a valid Cypher query later
+    escaped_json_list_str = json_list_str.replace("'", r"\'")
+
+    app.logger.info("======update entity node with json_list_str======")
+    app.logger.info(json_list_str)
+
+    # Update the exisiting entity
+    entity = neo4j_queries.update_entity(neo4j_driver, normalized_entity_type, escaped_json_list_str, id)
+
+    return get_resulting_entity(normalized_entity_type, entity)
+
 
 ####################################################################################################
 ## Internal Functions
@@ -173,6 +224,16 @@ def validate_entity_type(entity_type):
     # Validate provided entity_type
     if normalize_entity_type(entity_type) not in accepted_entity_types:
         bad_request_error("The specified entity type in URL must be one of the following: " + separator.join(accepted_entity_types))
+
+def query_target_entity(normalized_entity_type, id):
+    # Get target entity and return as a dict
+    entity = neo4j_queries.get_entity(neo4j_driver, normalized_entity_type, id)
+
+    # If entity is empty {}, it means this id does not exist
+    if bool(entity):
+        not_found_error("Could not find the target " + normalized_entity_type + " of " + id)
+
+    return entity
 
 def validate_json_data_against_schema(json_data, entity_type):
     attributes = schema['ENTITIES'][entity_type]['attributes']
@@ -209,18 +270,20 @@ def validate_json_data_against_schema(json_data, entity_type):
     if len(invalid_data_type_keys) > 0:
         bad_request_error("Keys in request json with invalid data types: " + separator.join(invalid_data_type_keys))
 
+# Handling "on_create" trigger events
 def generate_triggered_data_on_create(normalized_entity_type, request):
     attributes = schema['ENTITIES'][entity_type]['attributes']
     schema_keys = attributes.keys() 
 
     user_info = get_user_info(request)
 
-
     triggered_data = {}
     for key in schema_keys:
         if 'trigger-event' in attributes[key]:
             if attributes[key]['trigger-event']['event'] == "on_create":
-                method_to_call = getattr(trigger_events, attributes[key]['trigger-event']['method'])
+                method_to_call = attributes[key]['trigger-event']['method']
+
+                # Some trigger methods require input argument
                 if method_to_call == "get_entity_type":
                     triggered_data[key] = method_to_call(normalized_entity_type)
                 elif method_to_call.startswith("get_user_"):
@@ -229,6 +292,63 @@ def generate_triggered_data_on_create(normalized_entity_type, request):
                     triggered_data[key] = method_to_call()
 
     return triggered_data
+
+# TO-DO
+# Handling "on_save" trigger events
+def generate_triggered_data_on_save(request):
+    attributes = schema['ENTITIES'][entity_type]['attributes']
+    schema_keys = attributes.keys() 
+
+    user_info = get_user_info(request)
+
+    triggered_data = {}
+    for key in schema_keys:
+        if 'trigger-event' in attributes[key]:
+            if attributes[key]['trigger-event']['event'] == "on_save":
+                method_to_call = attributes[key]['trigger-event']['method']
+
+                # Some trigger methods require input argument
+                if method_to_call == "get_new_id":
+                    triggered_data[key] = method_to_call()
+                elif method_to_call == "connect_datasets":
+                    triggered_data[key] = method_to_call()
+                elif method_to_call.startswith("get_user_"):
+                    triggered_data[key] = method_to_call(user_info)
+                else:
+                    triggered_data[key] = method_to_call()
+
+    return triggered_data
+
+# TO-DO
+# Handling "on_response" trigger events
+def generate_triggered_data_on_response():
+    attributes = schema['ENTITIES'][entity_type]['attributes']
+    schema_keys = attributes.keys() 
+
+    triggered_data = {}
+    for key in schema_keys:
+        if 'trigger-event' in attributes[key]:
+            if attributes[key]['trigger-event']['event'] == "on_response":
+                method_to_call = attributes[key]['trigger-event']['method']
+
+                # Some trigger methods require input argument
+                if method_to_call == "fill_contacts":
+                    triggered_data[key] = method_to_call()
+                elif method_to_call == "get_dataset_ids":
+                    triggered_data[key] = method_to_call()
+                elif method_to_call == "fill_creators":
+                    triggered_data[key] = method_to_call()
+                else:
+                    triggered_data[key] = method_to_call()
+
+    return triggered_data
+
+def get_resulting_entity(normalized_entity_type, entity):
+    result = {
+        normalized_entity_type.lower(): entity
+    }
+
+    return jsonify(result)
 
 # Initialize AuthHelper (AuthHelper from HuBMAP commons package)
 # HuBMAP commons AuthHelper handles "MAuthorization" or "Authorization"
@@ -250,7 +370,53 @@ def get_user_info(request):
 def bad_request_error(err_msg):
     abort(400, description = err_msg)
 
+# Throws error for 404 Not Found with message
+def not_found_error(err_msg):
+    abort(404, description = err_msg)
+
 # Always expect a json body
 def request_json_required(request):
     if not request.is_json:
         bad_request_error("A JSON body and appropriate Content-Type header are required")
+
+
+####################################################################################################
+## Schema trigger methods - DO NOT RENAME
+####################################################################################################
+
+def get_current_timestamp():
+    current_time = datetime.datetime.now() 
+    return current_time.timestamp() 
+
+def get_entity_type(normalized_entity_type):
+    return normalized_entity_type
+
+def get_user_sub(user_info):
+    return user_info['sub']
+
+def get_user_email(user_info):
+    return user_info['email']
+
+def get_user_name(user_info):
+    return user_info['name']
+
+
+# To-DO
+def get_new_id():
+    return "dummy"
+
+# To-DO
+def connect_datasets():
+    return "dummy"
+
+# To-DO
+def get_dataset_ids():
+    return "dummy"
+
+# To-DO
+def fill_creators():
+    return "dummy"
+
+# To-DO
+def fill_contacts():
+    return "dummy"

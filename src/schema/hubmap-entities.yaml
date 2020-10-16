@@ -58,7 +58,7 @@ prov_attribs: &prov_attribs
     required: true
     type: string
     trigger-event:
-      event: on_entity_create
+      event: on_create
       method: get_user_name
     immutable: true
   created_by_user_email:
@@ -80,7 +80,7 @@ prov_attribs: &prov_attribs
     required: true
     type: integer
     trigger-event:
-      event: on_entity_save
+      event: on_save
       method: get_current_timestamp
     immutable: false
   
@@ -103,7 +103,7 @@ prov_attribs: &prov_attribs
     required: true
     type: string
     trigger-event:
-      event: on_entity_save
+      event: on_save
       method: get_user_name
     immutable: false
 
