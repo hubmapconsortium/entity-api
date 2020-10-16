@@ -138,6 +138,12 @@ def create_entity(entity_type):
     # Validate request json against the yaml schema
     validate_json_data_against_schema(json_data, normalized_entity_type)
 
+    # Make sure there's no entity node with the same uuid/hubmap-id already exists
+    entity = query_target_entity(normalized_entity_type, json_data['uuid'])
+
+    if entity is not None:
+        bad_request_error("Entity with the same uuid " + json_data['uuid'] + " already exists in the neo4j database.")
+
     # Construct the final data to include generated triggered data
     triggered_data_on_create = generate_triggered_data_on_create(normalized_entity_type, request)
 
@@ -179,11 +185,15 @@ def update_entity(entity_type):
     # Get target entity and return as a dict if exists
     entity = query_target_entity(normalized_entity_type, id)
 
+    # Existence check
+    if entity is not None:
+        not_found_error("Could not find the target " + normalized_entity_type + " of " + id)
+
     # Validate request json against the yaml schema
     validate_json_data_against_schema(json_data, normalized_entity_type)
 
     # Construct the final data to include generated triggered data
-    triggered_data_on_save = generate_triggered_data_on_save(request)
+    triggered_data_on_save = generate_triggered_data_on_save(normalized_entity_type, request)
 
     # Add new properties if updating for the first time
     # Otherwise just overwrite existing values (E.g., last_modified_timestamp)
@@ -246,10 +256,6 @@ def query_target_entity(normalized_entity_type, id):
         
         internal_server_error(ce)
 
-    # If entity is empty {}, it means this id does not exist
-    if bool(entity):
-        not_found_error("Could not find the target " + normalized_entity_type + " of " + id)
-
     return entity
 
 def validate_json_data_against_schema(json_data, entity_type):
@@ -289,7 +295,7 @@ def validate_json_data_against_schema(json_data, entity_type):
 
 # Handling "on_create" trigger events
 def generate_triggered_data_on_create(normalized_entity_type, request):
-    attributes = schema['ENTITIES'][entity_type]['attributes']
+    attributes = schema['ENTITIES'][normalized_entity_type]['attributes']
     schema_keys = attributes.keys() 
 
     user_info = get_user_info(request)
@@ -312,8 +318,8 @@ def generate_triggered_data_on_create(normalized_entity_type, request):
 
 # TO-DO
 # Handling "on_save" trigger events
-def generate_triggered_data_on_save(request):
-    attributes = schema['ENTITIES'][entity_type]['attributes']
+def generate_triggered_data_on_save(normalized_entity_type, request):
+    attributes = schema['ENTITIES'][normalized_entity_type]['attributes']
     schema_keys = attributes.keys() 
 
     user_info = get_user_info(request)
@@ -338,8 +344,8 @@ def generate_triggered_data_on_save(request):
 
 # TO-DO
 # Handling "on_response" trigger events
-def generate_triggered_data_on_response():
-    attributes = schema['ENTITIES'][entity_type]['attributes']
+def generate_triggered_data_on_response(normalized_entity_type):
+    attributes = schema['ENTITIES'][normalized_entity_type]['attributes']
     schema_keys = attributes.keys() 
 
     triggered_data = {}
@@ -371,7 +377,7 @@ def get_resulting_entity(normalized_entity_type, entity):
 # HuBMAP commons AuthHelper handles "MAuthorization" or "Authorization"
 def init_auth_helper():
     if AuthHelper.isInitialized() == False:
-        auth_helper = AuthHelper.create(app.config['GLOBUS_APP_ID'], app.config['GLOBUS_APP_SECRET'])
+        auth_helper = AuthHelper.create(app.config['APP_CLIENT_ID'], app.config['APP_CLIENT_SECRET'])
     else:
         auth_helper = AuthHelper.instance()
     
