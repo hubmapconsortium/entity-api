@@ -304,12 +304,13 @@ def generate_triggered_data_on_create(normalized_entity_type, request):
     for key in schema_keys:
         if 'trigger-event' in attributes[key]:
             if attributes[key]['trigger-event']['event'] == "on_create":
-                method_to_call = attributes[key]['trigger-event']['method']
+                method_name = attributes[key]['trigger-event']['method']
+                method_to_call = getattr(sys.modules[__name__], method_name)
 
                 # Some trigger methods require input argument
-                if method_to_call == "get_entity_type":
+                if method_name == "get_entity_type":
                     triggered_data[key] = method_to_call(normalized_entity_type)
-                elif method_to_call.startswith("get_user_"):
+                elif method_name.startswith("get_user_"):
                     triggered_data[key] = method_to_call(user_info)
                 else:
                     triggered_data[key] = method_to_call()
@@ -328,14 +329,15 @@ def generate_triggered_data_on_save(normalized_entity_type, request):
     for key in schema_keys:
         if 'trigger-event' in attributes[key]:
             if attributes[key]['trigger-event']['event'] == "on_save":
-                method_to_call = attributes[key]['trigger-event']['method']
+                method_name = attributes[key]['trigger-event']['method']
+                method_to_call = getattr(sys.modules[__name__], method_name)
 
                 # Some trigger methods require input argument
-                if method_to_call == "get_new_id":
+                if method_name == "get_new_id":
                     triggered_data[key] = method_to_call()
-                elif method_to_call == "connect_datasets":
+                elif method_name == "connect_datasets":
                     triggered_data[key] = method_to_call()
-                elif method_to_call.startswith("get_user_"):
+                elif method_name.startswith("get_user_"):
                     triggered_data[key] = method_to_call(user_info)
                 else:
                     triggered_data[key] = method_to_call()
@@ -352,14 +354,15 @@ def generate_triggered_data_on_response(normalized_entity_type):
     for key in schema_keys:
         if 'trigger-event' in attributes[key]:
             if attributes[key]['trigger-event']['event'] == "on_response":
-                method_to_call = attributes[key]['trigger-event']['method']
+                method_name = attributes[key]['trigger-event']['method']
+                method_to_call = getattr(sys.modules[__name__], method_name)
 
                 # Some trigger methods require input argument
-                if method_to_call == "fill_contacts":
+                if method_name == "fill_contacts":
                     triggered_data[key] = method_to_call()
-                elif method_to_call == "get_dataset_ids":
+                elif method_name == "get_dataset_ids":
                     triggered_data[key] = method_to_call()
-                elif method_to_call == "fill_creators":
+                elif method_name == "fill_creators":
                     triggered_data[key] = method_to_call()
                 else:
                     triggered_data[key] = method_to_call()
