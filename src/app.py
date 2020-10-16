@@ -8,6 +8,7 @@ import functools
 from pathlib import Path
 import logging
 import datetime
+from neo4j import CypherError
 
 # Local modules
 import neo4j_queries
@@ -64,6 +65,11 @@ def http_bad_request(e):
 @app.errorhandler(404)
 def http_not_found(e):
     return jsonify(error=str(e)), 404
+
+# Error handler for 404 Not Found with custom error message
+@app.errorhandler(500)
+def http_internal_server_error(e):
+    return jsonify(error=str(e)), 500
 
 ####################################################################################################
 ## Default route, status, cache clear
@@ -227,7 +233,18 @@ def validate_entity_type(entity_type):
 
 def query_target_entity(normalized_entity_type, id):
     # Get target entity and return as a dict
-    entity = neo4j_queries.get_entity(neo4j_driver, normalized_entity_type, id)
+    try:
+        entity = neo4j_queries.get_entity(neo4j_driver, normalized_entity_type, id)
+    except Exception as e:
+        app.logger.info("======Exception from calling neo4j_queries.get_entity()======")
+        app.logger.info(e)
+
+        internal_server_error(e)
+    except CypherError as ce:
+        app.logger.info("======CypherError from calling neo4j_queries.get_entity()======")
+        app.logger.info(ce)
+        
+        internal_server_error(ce)
 
     # If entity is empty {}, it means this id does not exist
     if bool(entity):
@@ -373,6 +390,10 @@ def bad_request_error(err_msg):
 # Throws error for 404 Not Found with message
 def not_found_error(err_msg):
     abort(404, description = err_msg)
+
+# Throws error for 500 Internal Server Error with message
+def internal_server_error(err_msg):
+    abort(500, description = err_msg)
 
 # Always expect a json body
 def request_json_required(request):
