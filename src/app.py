@@ -141,7 +141,10 @@ def create_entity(entity_type):
     # Make sure there's no entity node with the same uuid/hubmap-id already exists
     entity = query_target_entity(normalized_entity_type, json_data['uuid'])
 
-    if entity is not None:
+    print(entity)
+    print(type(entity))
+
+    if bool(entity):
         bad_request_error("Entity with the same uuid " + json_data['uuid'] + " already exists in the neo4j database.")
 
     # Construct the final data to include generated triggered data
@@ -163,13 +166,13 @@ def create_entity(entity_type):
     app.logger.info(json_list_str)
 
     # Create entity
-    entity = neo4j_queries.create_entity(neo4j_driver, normalized_entity_type, escaped_json_list_str)
+    new_entity = neo4j_queries.create_entity(neo4j_driver, normalized_entity_type, escaped_json_list_str)
 
-    return get_resulting_entity(normalized_entity_type, entity)
+    return get_resulting_entity(normalized_entity_type, new_entity)
 
 
 @app.route('/<entity_type>/<id>', methods = ['PUT'])
-def update_entity(entity_type):
+def update_entity(entity_type, id):
     # Validate user provied entity_type from URL
     validate_entity_type(entity_type)
 
@@ -185,8 +188,11 @@ def update_entity(entity_type):
     # Get target entity and return as a dict if exists
     entity = query_target_entity(normalized_entity_type, id)
 
+    print(entity)
+    print(type(entity))
+
     # Existence check
-    if entity is not None:
+    if bool(entity):
         not_found_error("Could not find the target " + normalized_entity_type + " of " + id)
 
     # Validate request json against the yaml schema
@@ -220,9 +226,9 @@ def update_entity(entity_type):
     app.logger.info(json_list_str)
 
     # Update the exisiting entity
-    entity = neo4j_queries.update_entity(neo4j_driver, normalized_entity_type, escaped_json_list_str, id)
+    updated_entity = neo4j_queries.update_entity(neo4j_driver, normalized_entity_type, escaped_json_list_str, id)
 
-    return get_resulting_entity(normalized_entity_type, entity)
+    return get_resulting_entity(normalized_entity_type, updated_entity)
 
 
 ####################################################################################################
