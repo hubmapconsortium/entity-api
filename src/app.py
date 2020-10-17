@@ -181,6 +181,10 @@ def update_entity(entity_type, id):
     # Parse incoming json string into json data(python dict object)
     json_data_dict = request.get_json()
 
+    # A bit more validation to make sure the target id in URL matches the one in json
+    if json_data_dict['uuid'] != id:
+        bad_request_error("The target id specified in URL does not match the uuid in JSON.")
+
     # Get target entity and return as a dict if exists
     entity_dict = query_target_entity(normalized_entity_type, id)
 
@@ -257,10 +261,10 @@ def query_target_entity(normalized_entity_type, id):
 
     return entity_dict
 
-def validate_json_data_against_schema(json_data, entity_type):
+def validate_json_data_against_schema(json_data_dict, entity_type):
     attributes = schema['ENTITIES'][entity_type]['attributes']
     schema_keys = attributes.keys() 
-    json_data_keys = json_data.keys()
+    json_data_keys = json_data_dict.keys()
     separator = ", "
 
     # Check if keys in request are supported
@@ -286,7 +290,7 @@ def validate_json_data_against_schema(json_data, entity_type):
     invalid_data_type_keys = []
     for key in json_data_keys:
         # boolean starts with bool, string starts with str, integer starts with int
-        if not attributes[key]['type'].startswith(type(json_data[key]).__name__):
+        if not attributes[key]['type'].startswith(type(json_data_dict[key]).__name__):
             invalid_data_type_keys.append(key)
     
     if len(invalid_data_type_keys) > 0:
