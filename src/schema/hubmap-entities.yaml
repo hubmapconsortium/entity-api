@@ -1,6 +1,8 @@
 ############################################# Shared #############################################
-# Are these doi_attribs only applying to Collection? 
-# I found some of the items (creators, has_doi) in Collectuon nodes, but not in Dataset/Donor/Sample nodes in the current neo4j
+# Are these doi_attribs only applying to Collection?
+# I found some of the items (creators, has_doi) in Collectuon nodes, 
+# but not in Dataset/Donor/Sample nodes in the current neo4j - Joe
+# Also need to add "immutable" field for each attribute - Joe
 doi_attribs: &doi_attribs 
   doi_suffix_id:
     required: true
@@ -20,7 +22,7 @@ doi_attribs: &doi_attribs
       method: fill_creators
   creator_ids:
     required: false
-    type: hubmap_uuid
+    type: hubmap_uuid # uuid or hubmap_id? Should probably use a string list - Joe
     cardinality: ordered-list  #thinking this just gets stored as json encoded text
     description: "An ordered list of uuids referencing the people who created the entity."
   doi_url:
@@ -34,7 +36,7 @@ doi_attribs: &doi_attribs
   contacts:
     required: false
     transient: true
-    type: application/json
+    type: application/json # Will probably just go with "json" - Joe
     description: "An ordered array of the people who are the main contacts to get information about the entity."
     trigger-event:  #this will add all of the contact information when returned by looping through contact_ids list and calling Person ws
       event: on_response
@@ -109,12 +111,14 @@ prov_attribs: &prov_attribs
 
 
 # All entities in neo4j have these properties
+# Need to decide on using only one id (either uuid or hubmap_id) for query and update exisiting entity
+# Otherwise, we'll need to create two API endpoints - Joe
 id_attribs: &id_attribs
   uuid:
     required: true
     type: string
     trigger-event:
-      event: on_save
+      event: on_save # We are not regenerating uuid when updating an existing entity, how to handle such cases? - Joe
       method: get_new_id #id creation method will need to call uuid-api POST, get both uuid and hubmap_id and set both files at once.  It should probably just check to see if the attribute exists in the current record (dict) and return if it exists.
     immutable: false
   hubmap_id:
