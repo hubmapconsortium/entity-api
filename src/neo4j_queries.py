@@ -44,10 +44,8 @@ def get_entity(neo4j_driver, entity_type, id):
                 raise Exception(message.format(num_nodes = str(len(nodes)), id = id))
             
             # Convert the neo4j node into Python dict
-            for key, value in nodes[0]._properties.items():
-                entity_dict.setdefault(key, value)
+            entity_dict = node_to_dict(nodes[0])
 
-            # Return the entity_dict
             logger.info("======get_entity() resulting entity_dict:======")
             logger.info(entity_dict)
 
@@ -90,10 +88,7 @@ def create_entity(neo4j_driver, entity_type, json_list_str):
     with neo4j_driver.session() as session:
         try:
             entity_node = session.write_transaction(create_entity_tx, entity_type, json_list_str)
-
-            # Convert the neo4j node into Python dict
-            for key, value in entity_node._properties.items():
-                entity_dict.setdefault(key, value)
+            entity_dict = node_to_dict(entity_node)
 
             logger.info("======create_entity() resulting entity_dict:======")
             logger.info(entity_dict)
@@ -139,10 +134,7 @@ def update_entity(neo4j_driver, entity_type, json_list_str, id):
     with neo4j_driver.session() as session:
         try:
             entity_node = session.write_transaction(update_entity_tx, entity_type, json_list_str, id)
-
-            # Convert the neo4j node into Python dict
-            for key, value in entity_node._properties.items():
-                entity_dict.setdefault(key, value)
+            entity_dict = node_to_dict(entity_node)
 
             logger.info("======update_entity() resulting entity_dict:======")
             logger.info(entity_dict)
@@ -153,3 +145,15 @@ def update_entity(neo4j_driver, entity_type, json_list_str, id):
         except Exception as e:
             raise e
 
+####################################################################################################
+## Internal Functions
+####################################################################################################
+
+# Convert the neo4j node into Python dict
+def node_to_dict(entity_node):
+    entity_dict = {}
+
+    for key, value in entity_node._properties.items():
+        entity_dict.setdefault(key, value)
+
+    return entity_dict
