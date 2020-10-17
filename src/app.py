@@ -102,7 +102,6 @@ def cache_clear():
     app.logger.info("All gatewat API Auth function cache cleared.")
     return "All function cache cleared."
 
-
 ####################################################################################################
 ## API
 ####################################################################################################
@@ -117,9 +116,9 @@ def get_entity(entity_type, id):
     normalized_entity_type = normalize_entity_type(entity_type)
 
     # Query target entity against neo4j and return as a dict if exists
-    entity = query_target_entity(normalized_entity_type, id)
+    entity_dict = query_target_entity(normalized_entity_type, id)
 
-    return get_resulting_entity(normalized_entity_type, entity)
+    return get_resulting_entity(normalized_entity_type, entity_dict)
 
 @app.route('/<entity_type>', methods = ['POST'])
 def create_entity(entity_type):
@@ -133,25 +132,22 @@ def create_entity(entity_type):
     request_json_required(request)
 
     # Parse incoming json string into json data(python dict object)
-    json_data = request.get_json()
+    json_data_dict = request.get_json()
 
     # Validate request json against the yaml schema
-    validate_json_data_against_schema(json_data, normalized_entity_type)
+    validate_json_data_against_schema(json_data_dict, normalized_entity_type)
 
     # Make sure there's no entity node with the same uuid/hubmap-id already exists
-    entity = query_target_entity(normalized_entity_type, json_data['uuid'])
+    entity_dict = query_target_entity(normalized_entity_type, json_data_dict['uuid'])
 
-    print(entity)
-    print(type(entity))
-
-    if bool(entity):
-        bad_request_error("Entity with the same uuid " + json_data['uuid'] + " already exists in the neo4j database.")
+    if bool(entity_dict):
+        bad_request_error("Entity with the same uuid " + json_data_dict['uuid'] + " already exists in the neo4j database.")
 
     # Construct the final data to include generated triggered data
     triggered_data_on_create = generate_triggered_data_on_create(normalized_entity_type, request)
 
     # Merge two dictionaries (without the same keys in this case)
-    merged_dict = {**json_data, **triggered_data_on_create}
+    merged_dict = {**json_data_dict, **triggered_data_on_create}
 
     # `UNWIND` in Cypher expects List<T>
     data_list = [merged_dict]
@@ -165,10 +161,10 @@ def create_entity(entity_type):
     app.logger.info("======create entity node with json_list_str======")
     app.logger.info(json_list_str)
 
-    # Create entity
-    new_entity = neo4j_queries.create_entity(neo4j_driver, normalized_entity_type, escaped_json_list_str)
+    # Create new entity
+    new_entity_dict = neo4j_queries.create_entity(neo4j_driver, normalized_entity_type, escaped_json_list_str)
 
-    return get_resulting_entity(normalized_entity_type, new_entity)
+    return get_resulting_entity(normalized_entity_type, new_entity_dict)
 
 
 @app.route('/<entity_type>/<id>', methods = ['PUT'])
@@ -183,20 +179,17 @@ def update_entity(entity_type, id):
     request_json_required(request)
 
     # Parse incoming json string into json data(python dict object)
-    json_data = request.get_json()
+    json_data_dict = request.get_json()
 
     # Get target entity and return as a dict if exists
-    entity = query_target_entity(normalized_entity_type, id)
-
-    print(entity)
-    print(type(entity))
+    entity_dict = query_target_entity(normalized_entity_type, id)
 
     # Existence check
-    if bool(entity):
-        not_found_error("Could not find the target " + normalized_entity_type + " of " + id)
+    if not bool(entity_dict):
+        not_found_error("Could not find the target " + normalized_entity_type + " with id of " + id)
 
     # Validate request json against the yaml schema
-    validate_json_data_against_schema(json_data, normalized_entity_type)
+    validate_json_data_against_schema(json_data_dict, normalized_entity_type)
 
     # Construct the final data to include generated triggered data
     triggered_data_on_save = generate_triggered_data_on_save(normalized_entity_type, request)
@@ -205,16 +198,16 @@ def update_entity(entity_type, id):
     # Otherwise just overwrite existing values (E.g., last_modified_timestamp)
     triggered_data_keys = triggered_data_on_save.keys()
     for key in triggered_data_keys:
-        entity[key] = triggered_data_on_save[key]
+        entity_dict[key] = triggered_data_on_save[key]
  
     # Overwrite old property values with updated values
-    json_data_keys = json_data.keys()
+    json_data_keys = json_data_dict.keys()
     for key in json_data_keys:
-        entity[key] = json_data_keys[key]
+        entity_dict[key] = json_data_dict[key]
 
     # By now the entity dict contains all user updates and all triggered data
     # `UNWIND` in Cypher expects List<T>
-    data_list = [entity]
+    data_list = [entity_dict]
     
     # Convert the list (only contains one entity) to json list string
     json_list_str = json.dumps(data_list)
@@ -226,9 +219,9 @@ def update_entity(entity_type, id):
     app.logger.info(json_list_str)
 
     # Update the exisiting entity
-    updated_entity = neo4j_queries.update_entity(neo4j_driver, normalized_entity_type, escaped_json_list_str, id)
+    updated_entity_dict = neo4j_queries.update_entity(neo4j_driver, normalized_entity_type, escaped_json_list_str, id)
 
-    return get_resulting_entity(normalized_entity_type, updated_entity)
+    return get_resulting_entity(normalized_entity_type, updated_entity_dict)
 
 
 ####################################################################################################
@@ -247,10 +240,10 @@ def validate_entity_type(entity_type):
     if normalize_entity_type(entity_type) not in accepted_entity_types:
         bad_request_error("The specified entity type in URL must be one of the following: " + separator.join(accepted_entity_types))
 
+# Get target entity dict
 def query_target_entity(normalized_entity_type, id):
-    # Get target entity and return as a dict
     try:
-        entity = neo4j_queries.get_entity(neo4j_driver, normalized_entity_type, id)
+        entity_dict = neo4j_queries.get_entity(neo4j_driver, normalized_entity_type, id)
     except Exception as e:
         app.logger.info("======Exception from calling neo4j_queries.get_entity()======")
         app.logger.info(e)
@@ -262,7 +255,7 @@ def query_target_entity(normalized_entity_type, id):
         
         internal_server_error(ce)
 
-    return entity
+    return entity_dict
 
 def validate_json_data_against_schema(json_data, entity_type):
     attributes = schema['ENTITIES'][entity_type]['attributes']
@@ -306,22 +299,23 @@ def generate_triggered_data_on_create(normalized_entity_type, request):
 
     user_info = get_user_info(request)
 
-    triggered_data = {}
+    triggered_data_dict = {}
     for key in schema_keys:
         if 'trigger-event' in attributes[key]:
             if attributes[key]['trigger-event']['event'] == "on_create":
                 method_name = attributes[key]['trigger-event']['method']
+                # The target method of this same module
                 method_to_call = getattr(sys.modules[__name__], method_name)
 
                 # Some trigger methods require input argument
                 if method_name == "get_entity_type":
-                    triggered_data[key] = method_to_call(normalized_entity_type)
+                    triggered_data_dict[key] = method_to_call(normalized_entity_type)
                 elif method_name.startswith("get_user_"):
-                    triggered_data[key] = method_to_call(user_info)
+                    triggered_data_dict[key] = method_to_call(user_info)
                 else:
-                    triggered_data[key] = method_to_call()
+                    triggered_data_dict[key] = method_to_call()
 
-    return triggered_data
+    return triggered_data_dict
 
 # TO-DO
 # Handling "on_save" trigger events
@@ -331,24 +325,25 @@ def generate_triggered_data_on_save(normalized_entity_type, request):
 
     user_info = get_user_info(request)
 
-    triggered_data = {}
+    triggered_data_dict = {}
     for key in schema_keys:
         if 'trigger-event' in attributes[key]:
             if attributes[key]['trigger-event']['event'] == "on_save":
                 method_name = attributes[key]['trigger-event']['method']
+                # The target method of this same module
                 method_to_call = getattr(sys.modules[__name__], method_name)
 
                 # Some trigger methods require input argument
                 if method_name == "get_new_id":
-                    triggered_data[key] = method_to_call()
+                    triggered_data_dict[key] = method_to_call()
                 elif method_name == "connect_datasets":
-                    triggered_data[key] = method_to_call()
+                    triggered_data_dict[key] = method_to_call()
                 elif method_name.startswith("get_user_"):
-                    triggered_data[key] = method_to_call(user_info)
+                    triggered_data_dict[key] = method_to_call(user_info)
                 else:
-                    triggered_data[key] = method_to_call()
+                    triggered_data_dict[key] = method_to_call()
 
-    return triggered_data
+    return triggered_data_dict
 
 # TO-DO
 # Handling "on_response" trigger events
@@ -356,28 +351,29 @@ def generate_triggered_data_on_response(normalized_entity_type):
     attributes = schema['ENTITIES'][normalized_entity_type]['attributes']
     schema_keys = attributes.keys() 
 
-    triggered_data = {}
+    triggered_data_dict = {}
     for key in schema_keys:
         if 'trigger-event' in attributes[key]:
             if attributes[key]['trigger-event']['event'] == "on_response":
                 method_name = attributes[key]['trigger-event']['method']
+                # The target method of this same module
                 method_to_call = getattr(sys.modules[__name__], method_name)
 
                 # Some trigger methods require input argument
                 if method_name == "fill_contacts":
-                    triggered_data[key] = method_to_call()
+                    triggered_data_dict[key] = method_to_call()
                 elif method_name == "get_dataset_ids":
-                    triggered_data[key] = method_to_call()
+                    triggered_data_dict[key] = method_to_call()
                 elif method_name == "fill_creators":
-                    triggered_data[key] = method_to_call()
+                    triggered_data_dict[key] = method_to_call()
                 else:
-                    triggered_data[key] = method_to_call()
+                    triggered_data_dict[key] = method_to_call()
 
-    return triggered_data
+    return triggered_data_dict
 
-def get_resulting_entity(normalized_entity_type, entity):
+def get_resulting_entity(normalized_entity_type, entity_dict):
     result = {
-        normalized_entity_type.lower(): entity
+        normalized_entity_type.lower(): entity_dict
     }
 
     return jsonify(result)
