@@ -303,9 +303,7 @@ def generate_triggered_data_on_create(normalized_entity_type, request):
     for key in schema_keys:
         if 'trigger-event' in attributes[key]:
             if attributes[key]['trigger-event']['event'] == "on_create":
-                method_name = attributes[key]['trigger-event']['method']
-                # The target method of this same module
-                method_to_call = getattr(sys.modules[__name__], method_name)
+                method_name, method_to_call = get_trigger_event_method(attributes[key])
 
                 # Some trigger methods require input argument
                 if method_name == "get_entity_type":
@@ -329,9 +327,7 @@ def generate_triggered_data_on_save(normalized_entity_type, request):
     for key in schema_keys:
         if 'trigger-event' in attributes[key]:
             if attributes[key]['trigger-event']['event'] == "on_save":
-                method_name = attributes[key]['trigger-event']['method']
-                # The target method of this same module
-                method_to_call = getattr(sys.modules[__name__], method_name)
+                method_name, method_to_call = get_trigger_event_method(attributes[key])
 
                 # Some trigger methods require input argument
                 if method_name == "get_new_id":
@@ -355,9 +351,7 @@ def generate_triggered_data_on_response(normalized_entity_type):
     for key in schema_keys:
         if 'trigger-event' in attributes[key]:
             if attributes[key]['trigger-event']['event'] == "on_response":
-                method_name = attributes[key]['trigger-event']['method']
-                # The target method of this same module
-                method_to_call = getattr(sys.modules[__name__], method_name)
+                method_name, method_to_call = get_trigger_event_method(attributes[key])
 
                 # Some trigger methods require input argument
                 if method_name == "fill_contacts":
@@ -410,6 +404,13 @@ def internal_server_error(err_msg):
 def request_json_required(request):
     if not request.is_json:
         bad_request_error("A JSON body and appropriate Content-Type header are required")
+
+def get_trigger_event_method(attribute):
+    method_name = attribute['trigger-event']['method']
+    # The target method of this same module
+    method_to_call = getattr(sys.modules[__name__], method_name)
+
+    return method_name, method_to_call
 
 
 ####################################################################################################
