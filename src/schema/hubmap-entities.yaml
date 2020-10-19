@@ -160,6 +160,8 @@ ENTITIES:
       title:
         required: true
         type: string
+      # Why not add a property to Dataset and indicate the collections that Dataset belongs to?
+      # Then we don't have to maintain the associated Dataset nodes in Collection - Joe
       datasets:
         required: false
         type: Dataset
@@ -199,6 +201,8 @@ ENTITIES:
       <<: *prov_attribs
       <<: *doi_attribs
       <<: *other_shared_attribs
+      # Why not add a property to Dataset and indicate the collections that Dataset belongs to?
+      # Then we don't have to maintain the associated Dataset nodes in Collection - Joe
       title:
         required: true
         type: string
