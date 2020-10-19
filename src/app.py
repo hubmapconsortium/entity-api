@@ -261,6 +261,16 @@ def query_target_entity(normalized_entity_type, id):
 
     return entity_dict
 
+"""
+Validate JSON from user request against the schema
+
+Parameters
+----------
+json_data_dict : dict
+    The JSON data dict from user request
+entity_type : str
+    One of the normalized entity type: Dataset, Collection, Sample, Donor
+"""
 def validate_json_data_against_schema(json_data_dict, entity_type):
     attributes = schema['ENTITIES'][entity_type]['attributes']
     schema_keys = attributes.keys() 
