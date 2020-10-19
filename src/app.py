@@ -74,11 +74,27 @@ def http_internal_server_error(e):
 ####################################################################################################
 ## Default route, status, cache clear
 ####################################################################################################
+
+"""
+The default route
+
+Returns
+-------
+string
+    A welcome message
+"""
 @app.route('/', methods = ['GET'])
 def index():
     return "Hello! This is HuBMAP Entity API service :)"
 
-# Show status of neo4j connection
+"""
+Show status of neo4j connection with the current VERSION and BUILD
+
+Returns
+-------
+json
+    A json containing the status details
+"""
 @app.route('/status', methods = ['GET'])
 def status():
     response_data = {
@@ -95,7 +111,14 @@ def status():
 
     return jsonify(response_data)
 
-# Force cache clear even before it expires
+"""
+Force cache clear even before it expires
+
+Returns
+-------
+string
+    A confirmation message
+"""
 @app.route('/cache_clear', methods = ['GET'])
 def cache_clear():
     cache.clear()
@@ -106,7 +129,22 @@ def cache_clear():
 ## API
 ####################################################################################################
 
-# id is either a `uuid` or `hubmap_id` (like HBM123.ABCD.987)
+
+"""
+Retrive the properties of a given entity by uuid
+
+Parameters
+----------
+entity_type : str
+    One of the normalized entity type: Dataset, Collection, Sample, Donor
+id : string
+    The uuid of target entity 
+
+Returns
+-------
+json
+    All the properties of the target entity
+"""
 @app.route('/<entity_type>/<id>', methods = ['GET'])
 def get_entity(entity_type, id):
     # Validate user provied entity_type from URL
@@ -120,6 +158,19 @@ def get_entity(entity_type, id):
 
     return get_resulting_entity(normalized_entity_type, entity_dict)
 
+"""
+Create a new entity node in neo4j
+
+Parameters
+----------
+entity_type : str
+    One of the normalized entity type: Dataset, Collection, Sample, Donor
+
+Returns
+-------
+json
+    All the properties of the newly created entity
+"""
 @app.route('/<entity_type>', methods = ['POST'])
 def create_entity(entity_type):
     # Validate user provied entity_type from URL
@@ -166,7 +217,21 @@ def create_entity(entity_type):
 
     return get_resulting_entity(normalized_entity_type, new_entity_dict)
 
+"""
+Update the properties of a given entity in neo4j by uuid
 
+Parameters
+----------
+entity_type : str
+    One of the normalized entity type: Dataset, Collection, Sample, Donor
+id : string
+    The uuid of target entity 
+
+Returns
+-------
+json
+    All the updated properties of the target entity
+"""
 @app.route('/<entity_type>/<id>', methods = ['PUT'])
 def update_entity(entity_type, id):
     # Validate user provied entity_type from URL
@@ -232,10 +297,66 @@ def update_entity(entity_type, id):
 ## Internal Functions
 ####################################################################################################
 
+"""
+Throws error for 400 Bad Reqeust with message
+
+Parameters
+----------
+err_msg : str
+    The custom error message to return to end users
+"""
+def bad_request_error(err_msg):
+    abort(400, description = err_msg)
+
+"""
+Throws error for 404 Not Found with message
+
+Parameters
+----------
+err_msg : str
+    The custom error message to return to end users
+"""
+def not_found_error(err_msg):
+    abort(404, description = err_msg)
+
+"""
+Throws error for 500 Internal Server Error with message
+
+Parameters
+----------
+err_msg : str
+    The custom error message to return to end users
+"""
+def internal_server_error(err_msg):
+    abort(500, description = err_msg)
+
+"""
+Lowercase and captalize the entity type string
+
+Parameters
+----------
+normalized_entity_type : str
+    One of the normalized entity type: Dataset, Collection, Sample, Donor
+id : string
+    The uuid of target entity 
+
+Returns
+-------
+string
+    One of the normalized entity type: Dataset, Collection, Sample, Donor
+"""
 def normalize_entity_type(entity_type):
     normalized_entity_type = entity_type.lower().capitalize()
     return normalized_entity_type
 
+"""
+Validate the user specifed entity type in URL
+
+Parameters
+----------
+entity_type : str
+    The user specifed entity type in URL
+"""
 def validate_entity_type(entity_type):
     separator = ", "
     accepted_entity_types = ["Dataset", "Donor", "Sample", "Collection"]
@@ -244,7 +365,21 @@ def validate_entity_type(entity_type):
     if normalize_entity_type(entity_type) not in accepted_entity_types:
         bad_request_error("The specified entity type in URL must be one of the following: " + separator.join(accepted_entity_types))
 
-# Get target entity dict
+"""
+Get target entity dict
+
+Parameters
+----------
+normalized_entity_type : str
+    One of the normalized entity type: Dataset, Collection, Sample, Donor
+id : string
+    The uuid of target entity 
+
+Returns
+-------
+dict
+    A dictionary of entity details returned from neo4j
+"""
 def query_target_entity(normalized_entity_type, id):
     try:
         entity_dict = neo4j_queries.get_entity(neo4j_driver, normalized_entity_type, id)
@@ -262,17 +397,17 @@ def query_target_entity(normalized_entity_type, id):
     return entity_dict
 
 """
-Validate JSON from user request against the schema
+Validate JSON data from user request against the schema
 
 Parameters
 ----------
 json_data_dict : dict
     The JSON data dict from user request
-entity_type : str
+normalized_entity_type : str
     One of the normalized entity type: Dataset, Collection, Sample, Donor
 """
-def validate_json_data_against_schema(json_data_dict, entity_type):
-    attributes = schema['ENTITIES'][entity_type]['attributes']
+def validate_json_data_against_schema(json_data_dict, normalized_entity_type):
+    attributes = schema['ENTITIES'][normalized_entity_type]['attributes']
     schema_keys = attributes.keys() 
     json_data_keys = json_data_dict.keys()
     separator = ", "
@@ -306,7 +441,21 @@ def validate_json_data_against_schema(json_data_dict, entity_type):
     if len(invalid_data_type_keys) > 0:
         bad_request_error("Keys in request json with invalid data types: " + separator.join(invalid_data_type_keys))
 
-# Handling "on_create" trigger events
+"""
+Handling "on_create" trigger events
+
+Parameters
+----------
+normalized_entity_type : str
+    One of the normalized entity type: Dataset, Collection, Sample, Donor
+request : Flask request object
+    The Flask request passed from the API endpoint 
+
+Returns
+-------
+dict
+    A dictionary of trigger event generated data
+"""
 def generate_triggered_data_on_create(normalized_entity_type, request):
     attributes = schema['ENTITIES'][normalized_entity_type]['attributes']
     schema_keys = attributes.keys() 
@@ -330,7 +479,21 @@ def generate_triggered_data_on_create(normalized_entity_type, request):
     return triggered_data_dict
 
 # TO-DO
-# Handling "on_save" trigger events
+"""
+Handling "on_save" trigger events
+
+Parameters
+----------
+normalized_entity_type : str
+    One of the normalized entity type: Dataset, Collection, Sample, Donor
+request : Flask request object
+    The Flask request passed from the API endpoint 
+
+Returns
+-------
+dict
+    A dictionary of trigger event generated data
+"""
 def generate_triggered_data_on_save(normalized_entity_type, request):
     attributes = schema['ENTITIES'][normalized_entity_type]['attributes']
     schema_keys = attributes.keys() 
@@ -356,7 +519,19 @@ def generate_triggered_data_on_save(normalized_entity_type, request):
     return triggered_data_dict
 
 # TO-DO
-# Handling "on_response" trigger events
+"""
+Handling "on_response" trigger events
+
+Parameters
+----------
+normalized_entity_type : str
+    One of the normalized entity type: Dataset, Collection, Sample, Donor
+
+Returns
+-------
+dict
+    A dictionary of trigger event generated data
+"""
 def generate_triggered_data_on_response(normalized_entity_type):
     attributes = schema['ENTITIES'][normalized_entity_type]['attributes']
     schema_keys = attributes.keys() 
@@ -379,6 +554,21 @@ def generate_triggered_data_on_response(normalized_entity_type):
 
     return triggered_data_dict
 
+"""
+Handling "on_response" trigger events
+
+Parameters
+----------
+normalized_entity_type : str
+    One of the normalized entity type: Dataset, Collection, Sample, Donor
+entity_dict : dict
+    The target entity dict
+    
+Returns
+-------
+str
+    A response string
+"""
 def get_resulting_entity(normalized_entity_type, entity_dict):
     result = {
         normalized_entity_type.lower(): entity_dict
@@ -386,8 +576,15 @@ def get_resulting_entity(normalized_entity_type, entity_dict):
 
     return jsonify(result)
 
-# Initialize AuthHelper (AuthHelper from HuBMAP commons package)
-# HuBMAP commons AuthHelper handles "MAuthorization" or "Authorization"
+"""
+Initialize AuthHelper (AuthHelper from HuBMAP commons package)
+HuBMAP commons AuthHelper handles "MAuthorization" or "Authorization"
+
+Returns
+-------
+AuthHelper
+    An instnce of AuthHelper
+"""
 def init_auth_helper():
     if AuthHelper.isInitialized() == False:
         auth_helper = AuthHelper.create(app.config['APP_CLIENT_ID'], app.config['APP_CLIENT_SECRET'])
@@ -396,29 +593,47 @@ def init_auth_helper():
     
     return auth_helper
 
-# Get user infomation dict based on the http request(headers)
+"""
+Get user infomation dict based on the http request(headers)
+
+Parameters
+----------
+request : Flask request object
+    The Flask request passed from the API endpoint 
+
+Returns
+-------
+dict
+    A dict containing all the user info
+"""
 def get_user_info(request):
     auth_helper = init_auth_helper()
     # `group_required` is a boolean, when True, 'hmgroupids' is in the output
     return auth_helper.getUserInfoUsingRequest(request, False)
 
-# Throws error for 400 Bad Reqeust with message
-def bad_request_error(err_msg):
-    abort(400, description = err_msg)
+"""
+Always expect a json body from user request
 
-# Throws error for 404 Not Found with message
-def not_found_error(err_msg):
-    abort(404, description = err_msg)
-
-# Throws error for 500 Internal Server Error with message
-def internal_server_error(err_msg):
-    abort(500, description = err_msg)
-
-# Always expect a json body
+request : Flask request object
+    The Flask request passed from the API endpoint
+"""
 def request_json_required(request):
     if not request.is_json:
         bad_request_error("A JSON body and appropriate Content-Type header are required")
 
+"""
+Get the trigger event method name and method reference
+
+attribute : str
+    Name of the target attribute
+
+Returns
+-------
+method_name : string
+    The method name string
+method_to_call : function reference
+    The method to call within this same module
+"""
 def get_trigger_event_method(attribute):
     method_name = attribute['trigger-event']['method']
     # The target method of this same module
@@ -431,19 +646,71 @@ def get_trigger_event_method(attribute):
 ## Schema trigger methods - DO NOT RENAME
 ####################################################################################################
 
+"""
+Trigger event method of generating current timestamp
+
+Returns
+-------
+string
+    A timestamp string
+"""
 def get_current_timestamp():
     current_time = datetime.datetime.now() 
     return current_time.timestamp() 
 
+"""
+Trigger event method of generating current timestamp
+
+normalized_entity_type : str
+    One of the normalized entity type: Dataset, Collection, Sample, Donor 
+
+Returns
+-------
+string
+    The original input string
+"""
 def get_entity_type(normalized_entity_type):
     return normalized_entity_type
 
+"""
+Trigger event method of getting user sub
+
+user_info : dict
+    The dictonary that contains all the user info details
+
+Returns
+-------
+string
+    The 'sub' string
+"""
 def get_user_sub(user_info):
     return user_info['sub']
 
+"""
+Trigger event method of getting user email
+
+user_info : dict
+    The dictonary that contains all the user info details
+
+Returns
+-------
+string
+    The 'email' string
+"""
 def get_user_email(user_info):
     return user_info['email']
 
+"""
+Trigger event method of getting user name
+
+user_info : dict
+    The dictonary that contains all the user info details
+
+Returns
+-------
+string
+    The 'name' string
+"""
 def get_user_name(user_info):
     return user_info['name']
 

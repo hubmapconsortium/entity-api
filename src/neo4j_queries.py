@@ -10,7 +10,23 @@ record_field_name = "entity"
 ## Entity retrival
 ####################################################################################################
 
-# id is either a `uuid` or `hubmap_id` (like HBM123.ABCD.987)
+"""
+Get target entity dict
+
+Parameters
+----------
+neo4j_driver : neo4j.driver
+    The neo4j driver instance
+entity_type : str
+    One of the normalized entity type: Dataset, Collection, Sample, Donor
+id : string
+    The uuid of target entity 
+
+Returns
+-------
+dict
+    A dictionary of entity details returned from the Cypher query
+"""
 def get_entity(neo4j_driver, entity_type, id):
     nodes = []
     entity_dict = {}
@@ -59,6 +75,23 @@ def get_entity(neo4j_driver, entity_type, id):
 ## Entity creation
 ####################################################################################################
 
+"""
+Create a new entity node in neo4j
+
+Parameters
+----------
+tx : neo4j transaction handler
+    The neo4j transaction handler instance
+entity_type : str
+    One of the normalized entity type: Dataset, Collection, Sample, Donor
+json_list_str : string
+    The string representation of a list containing only one entity to be created
+
+Returns
+-------
+neo4j.node
+    A neo4j node instance of the newly created entity node
+"""
 def create_entity_tx(tx, entity_type, json_list_str):
     # UNWIND expects json.entities to be List<T>
     parameterized_query = ("WITH apoc.convert.fromJsonList('{json_list_str}') AS entities_list " +
@@ -82,6 +115,23 @@ def create_entity_tx(tx, entity_type, json_list_str):
 
     return node
 
+"""
+Create a new entity node in neo4j
+
+Parameters
+----------
+neo4j_driver : neo4j.driver
+    The neo4j driver instance
+entity_type : str
+    One of the normalized entity type: Dataset, Collection, Sample, Donor
+json_list_str : string
+    The string representation of a list containing only one entity to be created
+
+Returns
+-------
+dict
+    A dictionary of newly created entity details returned from the Cypher query
+"""
 def create_entity(neo4j_driver, entity_type, json_list_str):
     entity_dict = {}
 
@@ -103,6 +153,25 @@ def create_entity(neo4j_driver, entity_type, json_list_str):
 ## Entity update
 ####################################################################################################
 
+"""
+Update the properties of an existing entity node in neo4j
+
+Parameters
+----------
+tx : neo4j transaction handler
+    The neo4j transaction handler instance
+entity_type : str
+    One of the normalized entity type: Dataset, Collection, Sample, Donor
+json_list_str : string
+    The string representation of a list containing only one entity to be created
+id : string
+    The uuid of target entity 
+
+Returns
+-------
+neo4j.node
+    A neo4j node instance of the updated entity node
+"""
 def update_entity_tx(tx, entity_type, json_list_str, id):
     # UNWIND expects json.entities to be List<T>
     parameterized_query = ("WITH apoc.convert.fromJsonList('{json_list_str}') AS entities_list " +
@@ -128,6 +197,25 @@ def update_entity_tx(tx, entity_type, json_list_str, id):
 
     return node
 
+"""
+Update the properties of an existing entity node in neo4j
+
+Parameters
+----------
+neo4j_driver : neo4j.driver
+    The neo4j driver instance
+entity_type : str
+    One of the normalized entity type: Dataset, Collection, Sample, Donor
+json_list_str : string
+    The string representation of a list containing only one entity to be created
+id : string
+    The uuid of target entity 
+
+Returns
+-------
+dict
+    A dictionary of updated entity details returned from the Cypher query
+"""
 def update_entity(neo4j_driver, entity_type, json_list_str, id):
     entity_dict = {}
 
@@ -149,7 +237,19 @@ def update_entity(neo4j_driver, entity_type, json_list_str, id):
 ## Internal Functions
 ####################################################################################################
 
-# Convert the neo4j node into Python dict
+"""
+Convert the neo4j node into Python dict
+
+Parameters
+----------
+entity_node : neo4j.node
+    The target neo4j node to be converted
+
+Returns
+-------
+dict
+    A dictionary of target entity containing all property key/value pairs
+"""
 def node_to_dict(entity_node):
     entity_dict = {}
 
