@@ -4,9 +4,6 @@
 # but not in Dataset/Donor/Sample nodes in the current neo4j - Joe
 # Also need to add "immutable" field for each attribute - Joe
 doi_attribs: &doi_attribs 
-  doi_suffix_id:
-    required: true
-    type: string
   has_doi:
     required: false
     type: boolean
@@ -86,7 +83,7 @@ prov_attribs: &prov_attribs
       method: get_current_timestamp
     immutable: false
   
-  # Supposedly we should have the following too (I found them in Dataset/Donor/Sample, not in COllection in the current neo4j):
+  # Supposedly we should have the following too (I found them in Dataset/Donor/Sample, not in Collection in the current neo4j):
   last_modified_user_sub:
     required: true
     type: string
@@ -120,7 +117,14 @@ id_attribs: &id_attribs
     trigger-event:
       event: on_save # We are not regenerating uuid when updating an existing entity, how to handle such cases? - Joe
       method: get_new_id #id creation method will need to call uuid-api POST, get both uuid and hubmap_id and set both files at once.  It should probably just check to see if the attribute exists in the current record (dict) and return if it exists.
-    immutable: false
+    immutable: true
+  doi_suffix_id:
+    required: true
+    type: string
+    trigger-event:
+      event: on_save # We are not regenerating uuid when updating an existing entity, how to handle such cases? - Joe
+      method: get_new_id #id creation method will need to call uuid-api POST, get both uuid and hubmap_id and set both files at once.  It should probably just check to see if the attribute exists in the current record (dict) and return if it exists.
+    immutable: true
   hubmap_id:
     required: false
     type: string
@@ -143,10 +147,14 @@ other_shared_attribs: &other_shared_attribs
     required: true
     type: string
     immutable: false
+  # Only Dataset can have "protected" value
   data_access_level:
     required: true
     type: string
     immutable: false
+    trigger-event:
+      event: on_save
+      method: get_data_access_level
 
 
 ENTITIES:
@@ -165,18 +173,20 @@ ENTITIES:
       datasets:
         required: false
         type: Dataset
-        cardinality: 1<-*  #linked via a Neo4j relationship to
+        # Think about this
+        cardinality: *<-*  #linked via a Neo4j relationship to
         relationship-name: IN_COLLECTION
         description: "A list of datasets that are members of this collection"
         trigger-event:  #any time a POST or PUT happens, recreate the links to Datasets using the dataset_ids array
           event: on_save 
           method: connect_datasets
+      # Only needed for GET
       dataset_ids:  #used only to pass the reference to linked datasets in on a PUT/POST
         required: false
         type: hubmap_uuid
         description: "list of dataset uuids that the collection is connected to.  This list is not stored in the database, but used at PUT or POST time to link the Collection to associated Datasets"
         cardinality: list
-        transient: true
+        transient: true # Never save to databse
         trigger-event:  #when responding to a GET, include the list of dataset ids
           event: on_response
           method: get_dataset_ids #retrieves the list of dataset ids from the datasets attribute
@@ -209,6 +219,14 @@ ENTITIES:
       data_types:
         required: false
         type: string
+      # TO-DO
+      collection_ids:
+        type: list
+        transient: true
+        cardinality: *->*  #linked via a Neo4j relationship to
+        relationship-name: IN_COLLECTION
+      collections:
+      
       published_timestamp:
         required: false
         type: integer

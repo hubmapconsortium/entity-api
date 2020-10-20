@@ -132,6 +132,18 @@ def cache_clear():
 
 """
 Retrive the properties of a given entity by uuid
+Make a call to uuid-api and get back the whole record
+https://github.com/hubmapconsortium/commons/blob/master/hubmap_commons/uuid_generator.py#L92
+
+ug = UUID_Generator(app.config['UUID_WEBSERVICE_URL'])
+        identifier_list = ug.getUUID(token, identifier)
+        if len(identifier_list) == 0:
+            raise LookupError('unable to find information on identifier: ' + str(identifier))
+        if len(identifier_list) > 1:
+            raise LookupError('found multiple records for identifier: ' + str(identifier))
+identifier_list[0]['hmuuid']
+
+
 
 Parameters
 ----------
