@@ -10,45 +10,14 @@ CACHE_TTL = 7200
 APP_CLIENT_ID = ''
 APP_CLIENT_SECRET = ''
 
-# Neo4j connection (default value used for docker dev environment)
-# Point to remote neo4j for testing and production deployment
+# Neo4j connection (default value used for docker localhost deployment)
+# Point to remote neo4j for dev/test/stage/prod deployment
 NEO4J_SERVER = 'bolt://hubmap-neo4j:7687'
 NEO4J_USERNAME = 'neo4j'
 NEO4J_PASSWORD = '123'
 
-# URL for talking to UUID API (default value used for docker dev environment)
+# URL for talking to UUID API (default value used for docker deployment)
 # Don't use localhost since uuid-api running on a different container
-# Point to remote URL for testing and production deployment
-UUID_WEBSERVICE_URL = 'http://hubmap-auth:9999/hmuuid'
-
-# Search-API service
-# Default value works with docker deployment on localhost, dev, test, and prod
-SEARCH_WEBSERVICE_URL = 'http://hubmap-auth:6666'
-
-# URL of UUID UI for Cross-Origin Resource Sharing (CORS)
-# This has no effect with Gateway (enabled CORS in nginx conf)
-# UUID_UI_URL = 'http://localhost:8585'
-
-#sub directories under the base data/globus directory where different
-#access levels of data sits
-PROTECTED_DATA_SUBDIR = 'private'
-CONSORTIUM_DATA_SUBDIR = 'consortium'
-PUBLIC_DATA_SUBDIR = 'public'
-
-#UUIDs of the Globus endpoints (shown are for DEV)
-GLOBUS_PUBLIC_ENDPOINT_UUID = 'a00a00b8-d1d1-4ab9-b915-0bada54c27a3'
-GLOBUS_CONSORTIUM_ENDPOINT_UUID = '3cb7d673-a3db-40e9-8376-f2ead6cb5a45'
-GLOBUS_PROTECTED_ENDPOINT_UUID = 'bdaf8547-aab3-4142-97bd-0a16d5cd9f58'
-
-#The Base URL to the Globus transfer application site
-GLOBUS_APP_BASE_URL = 'https://app.globus.org'
-
-#url where DOIs are redirected to
-#the <identifier> tag is required in the url and will be replaced by the incoming identifier
-COLLECTION_REDIRECT_URL = 'https://ingest.dev.hubmapconsortium.org/redirect-test/<identifier>'
-
-#page where errors are reported back to a user
-#takes arguments ?description=xxxx&details=yyyyy where
-#description is required and details is optional
-ERROR_PAGE_URL = 'https://ingest.dev.hubmapconsortium.org/err-response'
-
+# Point to remote URL for non-docker development
+# Works regardless of the trailing slash
+UUID_QUERY_URL = 'http://hubmap-auth:9999/hmuuid'

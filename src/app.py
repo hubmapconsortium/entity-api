@@ -2,6 +2,7 @@ from flask import Flask, jsonify, abort, request, Response
 import sys
 import os
 import yaml
+import requests
 import json
 from cachetools import cached, TTLCache
 import functools
@@ -20,6 +21,9 @@ from hubmap_commons.neo4j_connection import Neo4jConnection
 # Specify the absolute path of the instance folder and use the config file relative to the instance path
 app = Flask(__name__, instance_path=os.path.join(os.path.abspath(os.path.dirname(__file__)), 'instance'), instance_relative_config=True)
 app.config.from_pyfile('app.cfg')
+
+# Remove trailing slash / from URL base to avoid "//" caused by config with trailing slash
+app.config['UUID_QUERY_URL'] = app.config['UUID_QUERY_URL'].strip('/')
 
 # Set logging level (default is warning)
 logging.basicConfig(level=logging.DEBUG)
@@ -137,18 +141,6 @@ def cache_clear():
 
 """
 Retrive the properties of a given entity by uuid
-Make a call to uuid-api and get back the whole record
-https://github.com/hubmapconsortium/commons/blob/master/hubmap_commons/uuid_generator.py#L92
-
-ug = UUID_Generator(app.config['UUID_WEBSERVICE_URL'])
-        identifier_list = ug.getUUID(token, identifier)
-        if len(identifier_list) == 0:
-            raise LookupError('unable to find information on identifier: ' + str(identifier))
-        if len(identifier_list) > 1:
-            raise LookupError('found multiple records for identifier: ' + str(identifier))
-identifier_list[0]['hmuuid']
-
-
 
 Parameters
 ----------
@@ -378,6 +370,41 @@ def validate_entity_type(entity_type):
     if normalize_entity_type(entity_type) not in accepted_entity_types:
         bad_request_error("The specified entity type in URL must be one of the following: " + separator.join(accepted_entity_types))
 
+#TO-DO
+"""
+Get target uuid for a given id (either uuid or hubmap_id)
+
+Parameters
+----------
+id : string
+    The uuid or hubmap_id of target entity 
+
+Returns
+-------
+string
+    The uuid string
+"""
+def get_target_uuid(id):
+    target_url = app.config['UUID_QUERY_URL'] + '/' + id
+    # Suppress InsecureRequestWarning warning when requesting status on https with ssl cert verify disabled
+    requests.packages.urllib3.disable_warnings(category = InsecureRequestWarning)
+
+    # Disable ssl certificate verification
+    response = requests.get(url = target_url, verify = False) 
+    
+    if response.status_code == 200:
+        identifier_list = response.json()
+
+        if len(identifier_list) == 0:
+            internal_server_error('unable to find information on identifier: ' + id)
+        if len(identifier_list) > 1:
+            internal_server_error('found multiple records for identifier: ' + id)
+        
+        return identifier_list[0]['hmuuid']
+    else:
+        not_found_error("Could not find the target uuid with the provided id of " + id)
+
+
 """
 Get target entity dict
 
@@ -386,7 +413,7 @@ Parameters
 normalized_entity_type : str
     One of the normalized entity type: Dataset, Collection, Sample, Donor
 id : string
-    The uuid of target entity 
+    The uuid or hubmap_id of target entity 
 
 Returns
 -------
@@ -394,8 +421,11 @@ dict
     A dictionary of entity details returned from neo4j
 """
 def query_target_entity(normalized_entity_type, id):
+    # Make a call to uuid-api to get back the uuid
+    uuid = get_target_uuid(id)
+
     try:
-        entity_dict = neo4j_queries.get_entity(neo4j_driver, normalized_entity_type, id)
+        entity_dict = neo4j_queries.get_entity(neo4j_driver, normalized_entity_type, uuid)
     except Exception as e:
         app.logger.info("======Exception from calling neo4j_queries.get_entity()======")
         app.logger.info(e)
@@ -433,6 +463,26 @@ def validate_json_data_against_schema(json_data_dict, normalized_entity_type):
 
     if len(unsupported_keys) > 0:
         bad_request_error("Unsupported keys in request json: " + separator.join(unsupported_keys))
+
+    # Check if keys in request JSON are immutable
+    immutable_keys = []
+    for key in json_data_keys:
+        if 'immutable' in attributes[key]:
+            if attributes[key]:
+                immutable_keys.append(key)
+
+    if len(immutable_keys) > 0:
+        bad_request_error("Immutable keys are not allowed in request json: " + separator.join(immutable_keys))
+    
+    # Check if keys in request JSON are generated transient keys
+    transient_keys = []
+    for key in json_data_keys:
+        if 'transient' in attributes[key]:
+            if attributes[key]:
+                transient_keys.append(key)
+
+    if len(transient_keys) > 0:
+        bad_request_error("Transient keys are not allowed in request json: " + separator.join(transient_keys))
 
     # Check if any schema required keys are missing from request
     missing_keys = []
