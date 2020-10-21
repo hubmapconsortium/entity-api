@@ -1,110 +1,122 @@
+############################################# Rules #############################################
+# If an attribute has `trigger` metadata, it can't be used in client request JSON
+# By default, the schema treats all entity attributes as optional. Use `required: true` to mark an attribute as required
+# If an attribute is marked as `required: true`, it can't have `trigger` at the same time
+# By default, the schema treats all entity attributes as mutable. Use `immutable: true` to mark an attribute as immutable
+# By default, the schema treats all entity attributes as persistent. Use `transient: true` to mark an attribute as transient
+# If an attribute has `on_read` trigger event, it must be transient, meaning it's only available during response
+
+
 ############################################# Shared #############################################
 # Are these doi_attribs only applying to Collection?
 # I found some of the items (creators, has_doi) in Collectuon nodes, 
 # but not in Dataset/Donor/Sample nodes in the current neo4j - Joe
-# Also need to add "immutable" field for each attribute - Joe
+# Need to add "immutable" field for each attribute - Joe
 doi_attribs: &doi_attribs 
-  has_doi:
-    required: false
-    type: boolean
-    default_value: false
-    description: "True if the entity has a doi registered for it, false otherwise"
+  registered_doi:
+    type: string
+    description: "The doi of the registered entity"
+  doi_url:
+    type: string
+    description: "The url from the doi registry for this entity"
+  creator_uuids:
+    type: list
+    cardinality: ordered-list  #thinking this just gets stored as json encoded text
+    description: "An ordered list of uuids referencing the people who created the entity"
+  contact_uuids:
+    type: list
+    cardinality: ordered-list
+    description: "An ordered list of the HuBMAP uuids pointing to the people who are the main contacts about this entity"
+    trigger:  #this will add all of the contact information when returned by looping through contact_ids list and calling Person ws
+      events:
+        - on_create
+        - on_update
+      method: fill_contacts
+  ###### Transient attributes ######
   creators:
-    required: false
     transient: true
     type: application/json
     description: "An ordered list of the people who created the entity with full name, email, ORCID iD, institution, etc.. This is analogus to the author list on a publication."
-    trigger-event:  #this will add all of the creator information when returned by looping through creator_ids list and calling Person ws
-      event: on_response
+    trigger:  #this will add all of the creator information when returned by looping through creator_ids list and calling Person ws
+      events:
+        - on_read
       method: fill_creators
-  creator_ids:
-    required: false
-    type: hubmap_uuid # uuid or hubmap_id? Should probably use a string list - Joe
-    cardinality: ordered-list  #thinking this just gets stored as json encoded text
-    description: "An ordered list of uuids referencing the people who created the entity."
-  doi_url:
-    required: false
-    type: string
-    description: "The url from the doi registry for this entity"
-  registered_doi:
-    required: false
-    type: string
-    description: "The doi of the registered entity"
   contacts:
-    required: false
     transient: true
     type: application/json # Will probably just go with "json" - Joe
     description: "An ordered array of the people who are the main contacts to get information about the entity."
-    trigger-event:  #this will add all of the contact information when returned by looping through contact_ids list and calling Person ws
-      event: on_response
+    trigger:  #this will add all of the contact information when returned by looping through contact_ids list and calling Person ws
+      events:
+        - on_read
       method: fill_contacts
-  contact_ids:
-    required: false
-    type: hubmap_uuid
-    cardinality: ordered-list #same as above for creator_ids-- how to store in Neo4j?
-    description: "An ordered list of the HuBMAP uuids pointing to the people who are the main contacts about this entity"
+
 
 # All entities in neo4j have these properties
 prov_attribs: &prov_attribs
   created_timestamp:
-    required: true
+    transient: true
     type: integer
     immutable: true
-    trigger-event:
-      event: on_create
+    trigger:
+      events:
+        - on_create
       method: get_current_timestamp
   created_by_user_displayname:
-    required: true
+    transient: true
     type: string
-    trigger-event:
-      event: on_create
+    trigger:
+      events:
+        - on_create
       method: get_user_name
     immutable: true
   created_by_user_email:
-    required: true
+    transient: true
     type: string
-    trigger-event:
-      event: on_create
+    trigger:
+      events:
+        - on_create
       method: get_user_email
     immutable: true
   created_by_user_sub: # I don't fine this in Collection in the current neo4j
-    required: true 
+    transient: true
     type: string
-    trigger-event:
-      event: on_create
+    trigger:
+      events:
+        - on_create
       method: get_user_sub
     immutable: true
-  
   last_modified_timestamp:
-    required: true
+    transient: true
     type: integer
-    trigger-event:
-      event: on_save
+    trigger:
+      events:
+        - on_create
+        - on_update
       method: get_current_timestamp
-    immutable: false
-  
-  # Supposedly we should have the following too (I found them in Dataset/Donor/Sample, not in Collection in the current neo4j):
   last_modified_user_sub:
-    required: true
+    transient: true
     type: string
-    trigger-event:
-      event: on_save
+    trigger:
+      events:
+        - on_create
+        - on_update
       method: get_user_sub
-    immutable: false
   last_modified_user_email:
-    required: true
+    transient: true
     type: string
-    trigger-event:
-      event: on_save
+    trigger:
+      events:
+        - on_create
+        - on_update
       method: get_user_email
-    immutable: false
   last_modified_user_displayname:
-    required: true
+    transient: true
     type: string
-    trigger-event:
-      event: on_save
+    trigger:
+      events:
+        - on_create
+        - on_update
       method: get_user_name
-    immutable: false
 
 
 # All entities in neo4j have these properties
@@ -112,48 +124,46 @@ prov_attribs: &prov_attribs
 # Otherwise, we'll need to create two API endpoints - Joe
 id_attribs: &id_attribs
   uuid:
-    required: true
     type: string
-    trigger-event:
-      event: on_save # We are not regenerating uuid when updating an existing entity, how to handle such cases? - Joe
-      method: get_new_id #id creation method will need to call uuid-api POST, get both uuid and hubmap_id and set both files at once.  It should probably just check to see if the attribute exists in the current record (dict) and return if it exists.
+    trigger:
+      events:
+        - on_create
+      method: get_uuid #id creation method will need to call uuid-api POST, get both uuid and hubmap_id and set both files at once.  It should probably just check to see if the attribute exists in the current record (dict) and return if it exists.
     immutable: true
   doi_suffix_id:
-    required: true
     type: string
-    trigger-event:
-      event: on_save # We are not regenerating uuid when updating an existing entity, how to handle such cases? - Joe
-      method: get_new_id #id creation method will need to call uuid-api POST, get both uuid and hubmap_id and set both files at once.  It should probably just check to see if the attribute exists in the current record (dict) and return if it exists.
+    trigger:
+      events:
+        - on_create # We are not regenerating uuid when updating an existing entity, how to handle such cases? - Joe
+      method: get_doi_suffix_id #id creation method will need to call uuid-api POST, get both uuid and hubmap_id and set both files at once.  It should probably just check to see if the attribute exists in the current record (dict) and return if it exists.
     immutable: true
   hubmap_id:
-    required: false
     type: string
     immutable: true
-    trigger-event:
-      event: on_save
-      method: get_new_id
+    trigger:
+      events:
+        - on_create
+      method: get_hubmap_id
 
 
 # All entities in neo4j have these properties
 other_shared_attribs: &other_shared_attribs
   entity_type:
-    required: true
     type: string
     immutable: true
-    trigger-event:
-      event: on_create
+    trigger:
+      events:
+        - on_create
       method: get_entity_type
   description:
     required: true
     type: string
-    immutable: false
-  # Only Dataset can have "protected" value
-  data_access_level:
-    required: true
+  data_access_level: # Only Dataset can have "protected" value
     type: string
-    immutable: false
-    trigger-event:
-      event: on_save
+    trigger:
+      events:
+        - on_create
+        - on_update
       method: get_data_access_level
 
 
@@ -168,40 +178,28 @@ ENTITIES:
       title:
         required: true
         type: string
-      # Why not add a property to Dataset and indicate the collections that Dataset belongs to?
-      # Then we don't have to maintain the associated Dataset nodes in Collection - Joe
-      datasets:
-        required: false
-        type: Dataset
-        # Think about this
-        cardinality: *<-*  #linked via a Neo4j relationship to
-        relationship-name: IN_COLLECTION
-        description: "A list of datasets that are members of this collection"
-        trigger-event:  #any time a POST or PUT happens, recreate the links to Datasets using the dataset_ids array
-          event: on_save 
-          method: connect_datasets
-      # Only needed for GET
+      has_doi:
+        type: boolean
+        default_value: false
+        description: "True if the entity has a doi registered for it, false otherwise"
+      ###### Transient attributes ######
       dataset_ids:  #used only to pass the reference to linked datasets in on a PUT/POST
-        required: false
+        transient: true
         type: hubmap_uuid
         description: "list of dataset uuids that the collection is connected to.  This list is not stored in the database, but used at PUT or POST time to link the Collection to associated Datasets"
         cardinality: list
         transient: true # Never save to databse
-        trigger-event:  #when responding to a GET, include the list of dataset ids
-          event: on_response
+        trigger:  #when responding to a GET, include the list of dataset ids
+          events:
+            - on_read
           method: get_dataset_ids #retrieves the list of dataset ids from the datasets attribute
-      has_doi:
-        required: false
-        type: boolean
-        default_value: false
-        description: "True if the entity has a doi registered for it, false otherwise"
       creators:
-        required: false
         transient: true
         type: application/json
         description: "An ordered list of the people who created the entity with full name, email, ORCID iD, institution, etc.. This is analogus to the author list on a publication."
-        trigger-event:  #this will add all of the creator information when returned by looping through creator_ids list and calling Person ws
-          event: on_response
+        trigger:  #this will add all of the creator information when returned by looping through creator_ids list and calling Person ws
+          events:
+            - on_read
           method: fill_creators
 
   ############################################# Dataset #############################################
@@ -217,7 +215,6 @@ ENTITIES:
         required: true
         type: string
       data_types:
-        required: false
         type: string
       # TO-DO
       collection_ids:
@@ -228,43 +225,30 @@ ENTITIES:
       collections:
       
       published_timestamp:
-        required: false
         type: integer
       published_user_displayname:
-        required: false
         type: string
       published_user_sub:
-        required: false
         type: string
       published_user_email:
-        required: false
         type: string
       pipeline_message:
-        required: false
         type: string
       dataset_name:
-        required: false
         type: string
       contains_human_genetic_sequences:
-        required: false
         type: string
       ingest_metadata:
-        required: false
         type: string
       local_directory_rel_path:
-        required: false
         type: string
       status:
-        required: false
         type: string
       run_id:
-        required: false
         type: string
       ingest_id:
-        required: false
         type: string
       local_directory_url_path:
-        required: false
         type: string
 
   ############################################# Donor #############################################
@@ -275,34 +259,24 @@ ENTITIES:
       <<: *doi_attribs
       <<: *other_shared_attribs
       image_file_metadata:
-        required: false
         type: string
       metadata:
-        required: false
         type: string
       protocol_url:
-        required: false
         type: string
       lab_donor_id:
-        required: false
         type: string
       submission_id:
-        required: false
         type: string
       portal_metadata_upload_files:
-        required: false
         type: string
       next_identifier:
-        required: false
         type: string
       label:
-        required: false
         type: string
       protocol_file:
-        required: false
         type: string
       open_consent:
-        required: false
         type: string
 
   ############################################# Sample #############################################
@@ -313,51 +287,35 @@ ENTITIES:
       <<: *doi_attribs
       <<: *other_shared_attribs
       protocol_file:
-        required: false
         type: string
       specimen_type:
-        required: false
         type: string
       portal_metadata_upload_files:
-        required: false
         type: string
       protocol_url:
-        required: false
         type: string
       protocol_info:
-        required: false
         type: string
       image_file_metadata:
-        required: false
         type: string
       sample_count:
-        required: false
         type: string
       organ_other:
-        required: false
         type: string
       submission_id:
-        required: false
         type: string
       organ:
-        required: false
         type: string
       lab_tissue_sample_id:
-        required: false
         type: string
       next_identifier:
-        required: false
         type: string
       metadata:
-        required: false
         type: string
       rui_location:
-        required: false
         type: string
       specimen_type_other:
-        required: false
         type: string
       visit:
-        required: false
         type: string
 
