@@ -1,10 +1,10 @@
 ############################################# Rules #############################################
-# If an attribute has `trigger` metadata, it can't be used in client request JSON
-# By default, the schema treats all entity attributes as optional. Use `required: true` to mark an attribute as required
-# If an attribute is marked as `required: true`, it can't have `trigger` at the same time
-# By default, the schema treats all entity attributes as mutable. Use `immutable: true` to mark an attribute as immutable
-# By default, the schema treats all entity attributes as persistent. Use `transient: true` to mark an attribute as transient
-# If an attribute has `on_read` trigger event, it must be transient, meaning it's only available during response
+# - If an attribute has `trigger` metadata, it can't be used in client request JSON
+# - By default, the schema treats all entity attributes as optional. Use `required: true` to mark an attribute as required
+# - If an attribute is marked as `required: true`, it can't have `trigger` at the same time
+# - By default, the schema treats all entity attributes as mutable. Use `immutable: true` to mark an attribute as immutable
+# - By default, the schema treats all entity attributes as persistent. Use `transient: true` to mark an attribute as transient
+# - If an attribute has `on_read` trigger event, it must be transient, meaning it's only available during response
 
 
 ############################################# Shared #############################################
@@ -27,7 +27,7 @@ doi_attribs: &doi_attribs
     type: list
     cardinality: ordered-list
     description: "An ordered list of the HuBMAP uuids pointing to the people who are the main contacts about this entity"
-    trigger:  #this will add all of the contact information when returned by looping through contact_ids list and calling Person ws
+    trigger:
       events:
         - on_create
         - on_update
@@ -37,7 +37,7 @@ doi_attribs: &doi_attribs
     transient: true
     type: application/json
     description: "An ordered list of the people who created the entity with full name, email, ORCID iD, institution, etc.. This is analogus to the author list on a publication."
-    trigger:  #this will add all of the creator information when returned by looping through creator_ids list and calling Person ws
+    trigger:
       events:
         - on_read
       method: fill_creators
@@ -90,7 +90,6 @@ prov_attribs: &prov_attribs
     type: integer
     trigger:
       events:
-        - on_create
         - on_update
       method: get_current_timestamp
   last_modified_user_sub:
@@ -98,7 +97,6 @@ prov_attribs: &prov_attribs
     type: string
     trigger:
       events:
-        - on_create
         - on_update
       method: get_user_sub
   last_modified_user_email:
@@ -106,7 +104,6 @@ prov_attribs: &prov_attribs
     type: string
     trigger:
       events:
-        - on_create
         - on_update
       method: get_user_email
   last_modified_user_displayname:
@@ -114,7 +111,6 @@ prov_attribs: &prov_attribs
     type: string
     trigger:
       events:
-        - on_create
         - on_update
       method: get_user_name
 
@@ -183,7 +179,7 @@ ENTITIES:
         default_value: false
         description: "True if the entity has a doi registered for it, false otherwise"
       ###### Transient attributes ######
-      dataset_ids:  #used only to pass the reference to linked datasets in on a PUT/POST
+      dataset_uuids:  #used only to pass the reference to linked datasets in on a PUT/POST
         transient: true
         type: hubmap_uuid
         description: "list of dataset uuids that the collection is connected to.  This list is not stored in the database, but used at PUT or POST time to link the Collection to associated Datasets"
@@ -192,7 +188,7 @@ ENTITIES:
         trigger:  #when responding to a GET, include the list of dataset ids
           events:
             - on_read
-          method: get_dataset_ids #retrieves the list of dataset ids from the datasets attribute
+          method: get_dataset_uuids #retrieves the list of dataset ids from the datasets attribute
       creators:
         transient: true
         type: application/json
@@ -217,13 +213,13 @@ ENTITIES:
       data_types:
         type: string
       # TO-DO
-      collection_ids:
-        type: list
+      collection_uuids:
         transient: true
-        cardinality: *->*  #linked via a Neo4j relationship to
-        relationship-name: IN_COLLECTION
-      collections:
-      
+        type: list
+        trigger:
+          events:
+            - on_read
+          method: get_collection_uuids
       published_timestamp:
         type: integer
       published_user_displayname:

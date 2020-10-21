@@ -31,7 +31,7 @@ logging.basicConfig(level=logging.DEBUG)
 cache = TTLCache(maxsize=app.config['CACHE_MAXSIZE'], ttl=app.config['CACHE_TTL'])
 
 ####################################################################################################
-## Yaml schema loading
+## Entities yaml schema loading
 ####################################################################################################
 @cached(cache)
 def load_schema_yaml_file(file):
@@ -41,12 +41,12 @@ def load_schema_yaml_file(file):
 
             app.logger.info("======schema yaml loaded successfully======")
             app.logger.info(schema)
+
+            return schema
         except yaml.YAMLError as exc:
             app.logger.info("======schema yaml failed to load======")
             app.logger.info(exc)
-
-        return schema
-        
+   
 # Have the schema informaiton available for any requests
 schema = load_schema_yaml_file(app.config['SCHEMA_YAML_FILE'])
 
@@ -104,6 +104,8 @@ def status():
         'neo4j_connection': False
     }
 
+    conn = Neo4jConnection(app.config['NEO4J_SERVER'], app.config['NEO4J_USERNAME'], app.config['NEO4J_PASSWORD'])
+    driver = conn.get_driver()
     is_connected = neo4j_connection.check_connection(driver)
     
     if is_connected:
@@ -122,8 +124,11 @@ string
 @app.route('/cache_clear', methods = ['GET'])
 def cache_clear():
     cache.clear()
-    app.logger.info("All gatewat API Auth function cache cleared.")
-    return "All function cache cleared."
+    
+    app.logger.info("======schema yaml cache cleared======")
+    app.logger.info(schema)
+
+    return "schema yaml cache cleared"
 
 ####################################################################################################
 ## API
@@ -257,10 +262,6 @@ def update_entity(entity_type, id):
 
     # Parse incoming json string into json data(python dict object)
     json_data_dict = request.get_json()
-
-    # A bit more validation to make sure the target id in URL matches the one in json
-    if json_data_dict['uuid'] != id:
-        bad_request_error("The target id specified in URL does not match the uuid in JSON.")
 
     # Get target entity and return as a dict if exists
     entity_dict = query_target_entity(normalized_entity_type, id)
@@ -424,7 +425,7 @@ def validate_json_data_against_schema(json_data_dict, normalized_entity_type):
     json_data_keys = json_data_dict.keys()
     separator = ", "
 
-    # Check if keys in request are supported
+    # Check if keys in request JSON are supported
     unsupported_keys = []
     for key in json_data_keys:
         if key not in schema_keys:
@@ -433,11 +434,16 @@ def validate_json_data_against_schema(json_data_dict, normalized_entity_type):
     if len(unsupported_keys) > 0:
         bad_request_error("Unsupported keys in request json: " + separator.join(unsupported_keys))
 
-    # Check if any required keys (except the triggered ones) are missing from request
+    # Check if any schema required keys are missing from request
     missing_keys = []
     for key in schema_keys:
-        if attributes[key]['required'] and ('trigger-event' not in attributes[key]) and (key not in json_data_keys):
-            missing_keys.append(key)
+        # Schema rules: 
+        # - By default, the schema treats all entity attributes as optional. Use `required: true` to mark an attribute as required
+        # - If an attribute is marked as `required: true`, it can't have `trigger` at the same time
+        # It's reenforced here because we can't guarantee this rule is being followed correctly in the schema yaml
+        if 'required' in attributes[key]:
+            if attributes[key]['required'] and ('trigger' not in attributes[key]) and (key not in json_data_keys):
+                missing_keys.append(key)
 
     if len(missing_keys) > 0:
         bad_request_error("Missing required keys in request json: " + separator.join(missing_keys))
@@ -476,8 +482,9 @@ def generate_triggered_data_on_create(normalized_entity_type, request):
 
     triggered_data_dict = {}
     for key in schema_keys:
-        if 'trigger-event' in attributes[key]:
-            if attributes[key]['trigger-event']['event'] == "on_create":
+        if 'trigger' in attributes[key]:
+            # attributes[key]['trigger']['events'] is a list
+            if "on_create" in attributes[key]['trigger']['events']:
                 method_name, method_to_call = get_trigger_event_method(attributes[key])
 
                 # Some trigger methods require input argument
@@ -492,7 +499,7 @@ def generate_triggered_data_on_create(normalized_entity_type, request):
 
 # TO-DO
 """
-Handling "on_save" trigger events
+Handling "on_updte" trigger event
 
 Parameters
 ----------
@@ -506,7 +513,7 @@ Returns
 dict
     A dictionary of trigger event generated data
 """
-def generate_triggered_data_on_save(normalized_entity_type, request):
+def generate_triggered_data_on_update(normalized_entity_type, request):
     attributes = schema['ENTITIES'][normalized_entity_type]['attributes']
     schema_keys = attributes.keys() 
 
@@ -514,8 +521,9 @@ def generate_triggered_data_on_save(normalized_entity_type, request):
 
     triggered_data_dict = {}
     for key in schema_keys:
-        if 'trigger-event' in attributes[key]:
-            if attributes[key]['trigger-event']['event'] == "on_save":
+        if 'trigger' in attributes[key]:
+            # attributes[key]['trigger']['events'] is a list
+            if "on_update" in attributes[key]['trigger']['events']:
                 method_name, method_to_call = get_trigger_event_method(attributes[key])
 
                 # Some trigger methods require input argument
@@ -532,7 +540,7 @@ def generate_triggered_data_on_save(normalized_entity_type, request):
 
 # TO-DO
 """
-Handling "on_response" trigger events
+Handling "on_read" trigger events
 
 Parameters
 ----------
@@ -544,14 +552,15 @@ Returns
 dict
     A dictionary of trigger event generated data
 """
-def generate_triggered_data_on_response(normalized_entity_type):
+def generate_triggered_data_on_read(normalized_entity_type):
     attributes = schema['ENTITIES'][normalized_entity_type]['attributes']
     schema_keys = attributes.keys() 
 
     triggered_data_dict = {}
     for key in schema_keys:
-        if 'trigger-event' in attributes[key]:
-            if attributes[key]['trigger-event']['event'] == "on_response":
+        if 'trigger' in attributes[key]:
+            # attributes[key]['trigger']['events'] is a list
+            if "on_read" in attributes[key]['trigger']['events']:
                 method_name, method_to_call = get_trigger_event_method(attributes[key])
 
                 # Some trigger methods require input argument
@@ -567,7 +576,7 @@ def generate_triggered_data_on_response(normalized_entity_type):
     return triggered_data_dict
 
 """
-Handling "on_response" trigger events
+Generate the response data
 
 Parameters
 ----------
@@ -647,7 +656,7 @@ method_to_call : function reference
     The method to call within this same module
 """
 def get_trigger_event_method(attribute):
-    method_name = attribute['trigger-event']['method']
+    method_name = attribute['trigger']['method']
     # The target method of this same module
     method_to_call = getattr(sys.modules[__name__], method_name)
 
@@ -726,17 +735,24 @@ string
 def get_user_name(user_info):
     return user_info['name']
 
+# To-DO
+def get_data_access_level():
+    return "public"
 
 # To-DO
-def get_new_id():
+def get_uuid():
     return "dummy"
 
 # To-DO
-def connect_datasets():
+def get_doi_suffix_id():
     return "dummy"
 
 # To-DO
-def get_dataset_ids():
+def get_hubmap_id():
+    return "dummy"
+
+# To-DO
+def get_dataset_uuids():
     return "dummy"
 
 # To-DO
