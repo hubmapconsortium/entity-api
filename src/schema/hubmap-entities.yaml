@@ -124,14 +124,14 @@ id_attribs: &id_attribs
     trigger:
       events:
         - on_create
-      method: get_uuid #id creation method will need to call uuid-api POST, get both uuid and hubmap_id and set both files at once.  It should probably just check to see if the attribute exists in the current record (dict) and return if it exists.
+      method: create_uuid #id creation method will need to call uuid-api POST, get both uuid and hubmap_id and set both files at once.  It should probably just check to see if the attribute exists in the current record (dict) and return if it exists.
     immutable: true
   doi_suffix_id:
     type: string
     trigger:
       events:
         - on_create # We are not regenerating uuid when updating an existing entity, how to handle such cases? - Joe
-      method: get_doi_suffix_id #id creation method will need to call uuid-api POST, get both uuid and hubmap_id and set both files at once.  It should probably just check to see if the attribute exists in the current record (dict) and return if it exists.
+      method: create_doi_suffix_id #id creation method will need to call uuid-api POST, get both uuid and hubmap_id and set both files at once.  It should probably just check to see if the attribute exists in the current record (dict) and return if it exists.
     immutable: true
   hubmap_id:
     type: string
@@ -139,7 +139,7 @@ id_attribs: &id_attribs
     trigger:
       events:
         - on_create
-      method: get_hubmap_id
+      method: create_hubmap_id
 
 
 # All entities in neo4j have these properties

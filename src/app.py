@@ -23,7 +23,7 @@ app = Flask(__name__, instance_path=os.path.join(os.path.abspath(os.path.dirname
 app.config.from_pyfile('app.cfg')
 
 # Remove trailing slash / from URL base to avoid "//" caused by config with trailing slash
-app.config['UUID_QUERY_URL'] = app.config['UUID_QUERY_URL'].strip('/')
+app.config['UUID_API_URL'] = app.config['UUID_API_URL'].strip('/')
 
 # Set logging level (default is warning)
 logging.basicConfig(level=logging.DEBUG)
@@ -197,14 +197,14 @@ def create_entity(entity_type):
     # Validate request json against the yaml schema
     validate_json_data_against_schema(json_data_dict, normalized_entity_type)
 
-    # Make sure there's no entity node with the same uuid/hubmap-id already exists
-    entity_dict = query_target_entity(normalized_entity_type, json_data_dict['uuid'])
-
-    if bool(entity_dict):
-        bad_request_error("Entity with the same uuid " + json_data_dict['uuid'] + " already exists in the neo4j database.")
-
     # Construct the final data to include generated triggered data
     triggered_data_on_create = generate_triggered_data_on_create(normalized_entity_type, request)
+
+    # Make sure there's no entity node with the same uuid/hubmap-id already exists
+    entity_dict = query_target_entity(normalized_entity_type, triggered_data_on_create['uuid'])
+
+    if bool(entity_dict):
+        bad_request_error("Entity with the same uuid " + triggered_data_on_create['uuid'] + " already exists in the neo4j database.")
 
     # Merge two dictionaries (without the same keys in this case)
     merged_dict = {**json_data_dict, **triggered_data_on_create}
@@ -370,22 +370,34 @@ def validate_entity_type(entity_type):
     if normalize_entity_type(entity_type) not in accepted_entity_types:
         bad_request_error("The specified entity type in URL must be one of the following: " + separator.join(accepted_entity_types))
 
-#TO-DO
+
 """
-Get target uuid for a given id (either uuid or hubmap_id)
+Retrive target uuid based on the given id
 
 Parameters
 ----------
 id : string
-    The uuid or hubmap_id of target entity 
+    Either the uuid or hubmap_id of target entity 
 
 Returns
 -------
 string
-    The uuid string
+    The uuid string from the uuid-api call
+
+    The list returned by uuid-api that contains all the associated ids, e.g.:
+    {
+        "doiSuffix": "456FDTP455",
+        "email": "xxx@pitt.edu",
+        "hmuuid": "461bbfdc353a2673e381f632510b0f17",
+        "hubmapId": "VAN0002",
+        "parentId": null,
+        "timeStamp": "2019-11-01 18:34:24",
+        "type": "{UUID_DATATYPE}",
+        "userId": "83ae233d-6d1d-40eb-baa7-b6f636ab579a"
+    }
 """
 def get_target_uuid(id):
-    target_url = app.config['UUID_QUERY_URL'] + '/' + id
+    target_url = app.config['UUID_API_URL'] + '/' + id
     # Suppress InsecureRequestWarning warning when requesting status on https with ssl cert verify disabled
     requests.packages.urllib3.disable_warnings(category = InsecureRequestWarning)
 
@@ -403,6 +415,41 @@ def get_target_uuid(id):
         return identifier_list[0]['hmuuid']
     else:
         not_found_error("Could not find the target uuid with the provided id of " + id)
+
+"""
+Create a set of new ids for the new entity to be created
+
+Returns
+-------
+dict
+    The list returned by uuid-api that contains all the associated ids, e.g.:
+    {
+        "doiSuffix": "456FDTP455",
+        "email": "xxx@pitt.edu",
+        "hmuuid": "461bbfdc353a2673e381f632510b0f17",
+        "hubmapId": "VAN0002",
+        "parentId": null,
+        "timeStamp": "2019-11-01 18:34:24",
+        "type": "{UUID_DATATYPE}",
+        "userId": "83ae233d-6d1d-40eb-baa7-b6f636ab579a"
+    }
+"""
+def create_new_ids(normalize_entity_type):
+    target_url = app.config['UUID_API_URL']
+
+    # Suppress InsecureRequestWarning warning when requesting status on https with ssl cert verify disabled
+    requests.packages.urllib3.disable_warnings(category = InsecureRequestWarning)
+
+    data_to_post = {"entityType": normalize_entity_type}
+
+    # Disable ssl certificate verification
+    response = requests.post(url = target_url, data = data_to_post, verify = False) 
+    
+    if response.status_code == 200:
+        identifier_list = response.json()
+        return identifier_list[0]
+    else:
+        internal_server_error("Failed to create new ids for during creation of this new entity")
 
 
 """
@@ -530,6 +577,8 @@ def generate_triggered_data_on_create(normalized_entity_type, request):
 
     user_info = get_user_info(request)
 
+    created_ids_dict = create_new_ids(normalized_entity_type)
+
     triggered_data_dict = {}
     for key in schema_keys:
         if 'trigger' in attributes[key]:
@@ -542,6 +591,8 @@ def generate_triggered_data_on_create(normalized_entity_type, request):
                     triggered_data_dict[key] = method_to_call(normalized_entity_type)
                 elif method_name.startswith("get_user_"):
                     triggered_data_dict[key] = method_to_call(user_info)
+                elif method_name in ["create_uuid", "create_doi_suffix_id", "create_hubmap_id"]:
+                    triggered_data_dict[key] = method_to_call(created_ids_dict)
                 else:
                     triggered_data_dict[key] = method_to_call()
 
@@ -789,17 +840,77 @@ def get_user_name(user_info):
 def get_data_access_level():
     return "public"
 
-# To-DO
-def get_uuid():
-    return "dummy"
+"""
+Trigger event method of getting uuid
 
-# To-DO
-def get_doi_suffix_id():
-    return "dummy"
+ids_dict : dict
+    The list returned by uuid-api that contains all the associated ids
+    {
+        "doiSuffix": "456FDTP455",
+        "email": "jamie.l.allen@vanderbilt.edu",
+        "hmuuid": "461bbfdc353a2673e381f632510b0f17",
+        "hubmapId": "VAN0002",
+        "parentId": null,
+        "timeStamp": "2019-11-01 18:34:24",
+        "type": "{UUID_DATATYPE}",
+        "userId": "83ae233d-6d1d-40eb-baa7-b6f636ab579a"
+    }
 
-# To-DO
-def get_hubmap_id():
-    return "dummy"
+Returns
+-------
+string
+    The uuid string
+"""
+def create_uuid():
+    return ids_dict['hmuuid']
+
+"""
+Trigger event method of getting uuid
+
+ids_dict : dict
+    The list returned by uuid-api that contains all the associated ids
+    {
+        "doiSuffix": "456FDTP455",
+        "email": "jamie.l.allen@vanderbilt.edu",
+        "hmuuid": "461bbfdc353a2673e381f632510b0f17",
+        "hubmapId": "VAN0002",
+        "parentId": null,
+        "timeStamp": "2019-11-01 18:34:24",
+        "type": "{UUID_DATATYPE}",
+        "userId": "83ae233d-6d1d-40eb-baa7-b6f636ab579a"
+    }
+
+Returns
+-------
+string
+    The doi_suffix_id string
+"""
+def create_doi_suffix_id(ids_dict):
+    return ids_dict['doiSuffix']
+
+"""
+Trigger event method of getting uuid
+
+ids_dict : dict
+    The list returned by uuid-api that contains all the associated ids
+    {
+        "doiSuffix": "456FDTP455",
+        "email": "jamie.l.allen@vanderbilt.edu",
+        "hmuuid": "461bbfdc353a2673e381f632510b0f17",
+        "hubmapId": "VAN0002",
+        "parentId": null,
+        "timeStamp": "2019-11-01 18:34:24",
+        "type": "{UUID_DATATYPE}",
+        "userId": "83ae233d-6d1d-40eb-baa7-b6f636ab579a"
+    }
+
+Returns
+-------
+string
+    The hubmap_id string
+"""
+def create_hubmap_id(ids_dict):
+    return ids_dict['hubmapId']
 
 # To-DO
 def get_dataset_uuids():
