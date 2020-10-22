@@ -446,6 +446,13 @@ Returns
 -------
 dict
     The dictionary of new ids
+
+    {
+        "uuid": "c754a4f878628f3c072d4e8024f707cd",
+        "doi_suffix_id": "479NDDG476",
+        "hubmap_id": "HBM479.NDDG.476"
+    }
+
 """
 def create_new_ids(normalize_entity_type):
     target_url = app.config['UUID_API_URL']
@@ -467,13 +474,13 @@ def create_new_ids(normalize_entity_type):
         ids_dict = ids_list[0]
 
         # Create a new dict with desired keys
-        new_ids_dict = {
+        created_ids_dict = {
             "uuid": ids_dict['uuid'],
             "doi_suffix_id": ids_dict['doi'],
             "hubmap_id": ids_dict['displayDoi']
         }
 
-        return new_ids_dict
+        return created_ids_dict
     else:
         internal_server_error("Failed to create new ids for during creation of this new entity")
 
@@ -598,33 +605,18 @@ dict
     A dictionary of trigger event generated data
 """
 def generate_triggered_data_on_create(normalized_entity_type, request):
-    attributes = schema['ENTITIES'][normalized_entity_type]['attributes']
-    schema_keys = attributes.keys() 
+    # Dictionaries to be used by trigger methods
+    normalized_entity_type_dict = {"normalized_entity_type": normalized_entity_type}
+    user_info_dict = get_user_info(request)
+    created_ids_dict = create_new_ids(normalized_entity_type)
 
-    user_info = get_user_info(request)
+    # Merge all the above dictionaries
+    # If the latter dictionary contains the same key as the previous one, it will overwrite the value for that key
+    data_dict = {**normalized_entity_type_dict, **user_info_dict, **created_ids_dict}
 
-    new_ids_dict = create_new_ids(normalized_entity_type)
+    return generate_triggered_data("on_create", data_dict)
 
-    triggered_data_dict = {}
-    for key in schema_keys:
-        if 'trigger' in attributes[key]:
-            # attributes[key]['trigger']['events'] is a list
-            if "on_create" in attributes[key]['trigger']['events']:
-                method_name, method_to_call = get_trigger_event_method(attributes[key])
 
-                # Some trigger methods require input argument
-                if method_name == "get_entity_type":
-                    triggered_data_dict[key] = method_to_call(normalized_entity_type)
-                elif method_name.startswith("get_user_"):
-                    triggered_data_dict[key] = method_to_call(user_info)
-                elif method_name in ["create_uuid", "create_doi_suffix_id", "create_hubmap_id"]:
-                    triggered_data_dict[key] = method_to_call(new_ids_dict)
-                else:
-                    triggered_data_dict[key] = method_to_call()
-
-    return triggered_data_dict
-
-# TO-DO
 """
 Handling "on_updte" trigger event
 
@@ -641,31 +633,18 @@ dict
     A dictionary of trigger event generated data
 """
 def generate_triggered_data_on_update(normalized_entity_type, request):
-    attributes = schema['ENTITIES'][normalized_entity_type]['attributes']
-    schema_keys = attributes.keys() 
+    # Dictionaries to be used by trigger methods
+    normalized_entity_type_dict = {"normalized_entity_type": normalized_entity_type}
+    user_info_dict = get_user_info(request)
+    created_ids_dict = create_new_ids(normalized_entity_type)
 
-    user_info = get_user_info(request)
+    # Merge all the above dictionaries
+    # If the latter dictionary contains the same key as the previous one, it will overwrite the value for that key
+    data_dict = {**normalized_entity_type_dict, **user_info_dict, **created_ids_dict}
 
-    triggered_data_dict = {}
-    for key in schema_keys:
-        if 'trigger' in attributes[key]:
-            # attributes[key]['trigger']['events'] is a list
-            if "on_update" in attributes[key]['trigger']['events']:
-                method_name, method_to_call = get_trigger_event_method(attributes[key])
+    return generate_triggered_data("on_update", data_dict)
 
-                # Some trigger methods require input argument
-                if method_name == "get_new_id":
-                    triggered_data_dict[key] = method_to_call()
-                elif method_name == "connect_datasets":
-                    triggered_data_dict[key] = method_to_call()
-                elif method_name.startswith("get_user_"):
-                    triggered_data_dict[key] = method_to_call(user_info)
-                else:
-                    triggered_data_dict[key] = method_to_call()
 
-    return triggered_data_dict
-
-# TO-DO
 """
 Handling "on_read" trigger events
 
@@ -680,6 +659,35 @@ dict
     A dictionary of trigger event generated data
 """
 def generate_triggered_data_on_read(normalized_entity_type):
+    # TO-DO======Begin
+    # Dictionaries to be used by trigger methods
+    normalized_entity_type_dict = {"normalized_entity_type": normalized_entity_type}
+
+    # Merge all the above dictionaries
+    # If the latter dictionary contains the same key as the previous one, it will overwrite the value for that key
+    data_dict = {**normalized_entity_type_dict}
+    # TO-DO======End
+
+    return generate_triggered_data("on_read", data_dict)
+
+"""
+Generating triggered data based on the target events and methods
+
+Parameters
+----------
+event : str
+    One of the trigger events: on_create, on_update, on_read
+
+data_dict : dict
+    A merged dictionary that contains all possible data to be used by the trigger methods
+
+Returns
+-------
+dict
+    A dictionary of trigger event methods generated data
+"""
+def generate_triggered_data(event, data_dict):
+    normalized_entity_type = data['normalized_entity_type']
     attributes = schema['ENTITIES'][normalized_entity_type]['attributes']
     schema_keys = attributes.keys() 
 
@@ -687,23 +695,14 @@ def generate_triggered_data_on_read(normalized_entity_type):
     for key in schema_keys:
         if 'trigger' in attributes[key]:
             # attributes[key]['trigger']['events'] is a list
-            if "on_read" in attributes[key]['trigger']['events']:
-                method_name, method_to_call = get_trigger_event_method(attributes[key])
-
-                # Some trigger methods require input argument
-                if method_name == "fill_contacts":
-                    triggered_data_dict[key] = method_to_call()
-                elif method_name == "get_dataset_ids":
-                    triggered_data_dict[key] = method_to_call()
-                elif method_name == "fill_creators":
-                    triggered_data_dict[key] = method_to_call()
-                else:
-                    triggered_data_dict[key] = method_to_call()
+            if event in attributes[key]['trigger']['events']:
+                method_to_call = get_trigger_event_method(attributes[key])
+                triggered_data_dict[key] = method_to_call(data_dict)
 
     return triggered_data_dict
 
 """
-Generate the response data
+Generate the final response data
 
 Parameters
 ----------
@@ -777,8 +776,6 @@ attribute : str
 
 Returns
 -------
-method_name : string
-    The method name string
 method_to_call : function reference
     The method to call within this same module
 """
@@ -787,7 +784,7 @@ def get_trigger_event_method(attribute):
     # The target method of this same module
     method_to_call = getattr(sys.modules[__name__], method_name)
 
-    return method_name, method_to_call
+    return method_to_call
 
 
 ####################################################################################################
@@ -797,155 +794,152 @@ def get_trigger_event_method(attribute):
 """
 Trigger event method of generating current timestamp
 
+Parameters
+----------
+trigger_methods_data_dict : dict
+    A merged dictionary that contains all possible input data to be used
+    It's fine if a trigger method doesn't use any input data
+
 Returns
 -------
 string
     A timestamp string
 """
-def get_current_timestamp():
+def get_current_timestamp(trigger_methods_data_dict):
     current_time = datetime.datetime.now() 
     return current_time.timestamp() 
 
 """
 Trigger event method of generating current timestamp
 
-normalized_entity_type : str
-    One of the normalized entity type: Dataset, Collection, Sample, Donor 
+Parameters
+----------
+trigger_methods_data_dict : dict
+    A merged dictionary that contains all possible input data to be used
+    It's fine if a trigger method doesn't use any input data
 
 Returns
 -------
 string
-    The original input string
+    The string of normalized entity type
 """
-def get_entity_type(normalized_entity_type):
-    return normalized_entity_type
+def get_entity_type(trigger_methods_data_dict):
+    return trigger_methods_data_dict['normalized_entity_type']
 
 """
 Trigger event method of getting user sub
 
-user_info : dict
-    The dictonary that contains all the user info details
+Parameters
+----------
+trigger_methods_data_dict : dict
+    A merged dictionary that contains all possible input data to be used
+    It's fine if a trigger method doesn't use any input data
 
 Returns
 -------
 string
     The 'sub' string
 """
-def get_user_sub(user_info):
-    return user_info['sub']
+def get_user_sub(trigger_methods_data_dict):
+    return trigger_methods_data_dict['sub']
 
 """
 Trigger event method of getting user email
 
-user_info : dict
-    The dictonary that contains all the user info details
+Parameters
+----------
+trigger_methods_data_dict : dict
+    A merged dictionary that contains all possible input data to be used
+    It's fine if a trigger method doesn't use any input data
 
 Returns
 -------
 string
     The 'email' string
 """
-def get_user_email(user_info):
-    return user_info['email']
+def get_user_email(trigger_methods_data_dict):
+    return trigger_methods_data_dict['email']
 
 """
 Trigger event method of getting user name
 
-user_info : dict
-    The dictonary that contains all the user info details
+Parameters
+----------
+trigger_methods_data_dict : dict
+    A merged dictionary that contains all possible input data to be used
+    It's fine if a trigger method doesn't use any input data
 
 Returns
 -------
 string
     The 'name' string
 """
-def get_user_name(user_info):
-    return user_info['name']
-
-# To-DO
-def get_data_access_level():
-    return "public"
+def get_user_name(trigger_methods_data_dict):
+    return trigger_methods_data_dict['name']
 
 """
 Trigger event method of getting uuid
 
-ids_dict : dict
-    The list returned by uuid-api that contains all the associated ids
-    {
-        "doiSuffix": "456FDTP455",
-        "email": "jamie.l.allen@vanderbilt.edu",
-        "hmuuid": "461bbfdc353a2673e381f632510b0f17",
-        "hubmapId": "VAN0002",
-        "parentId": null,
-        "timeStamp": "2019-11-01 18:34:24",
-        "type": "{UUID_DATATYPE}",
-        "userId": "83ae233d-6d1d-40eb-baa7-b6f636ab579a"
-    }
+Parameters
+----------
+trigger_methods_data_dict : dict
+    A merged dictionary that contains all possible input data to be used
+    It's fine if a trigger method doesn't use any input data
 
 Returns
 -------
 string
     The uuid string
 """
-def create_uuid():
-    return ids_dict['hmuuid']
+def create_uuid(trigger_methods_data_dict):
+    return trigger_methods_data_dict['hmuuid']
 
 """
 Trigger event method of getting uuid
 
-ids_dict : dict
-    The list returned by uuid-api that contains all the associated ids
-    {
-        "doiSuffix": "456FDTP455",
-        "email": "jamie.l.allen@vanderbilt.edu",
-        "hmuuid": "461bbfdc353a2673e381f632510b0f17",
-        "hubmapId": "VAN0002",
-        "parentId": null,
-        "timeStamp": "2019-11-01 18:34:24",
-        "type": "{UUID_DATATYPE}",
-        "userId": "83ae233d-6d1d-40eb-baa7-b6f636ab579a"
-    }
+Parameters
+----------
+trigger_methods_data_dict : dict
+    A merged dictionary that contains all possible input data to be used
+    It's fine if a trigger method doesn't use any input data
 
 Returns
 -------
 string
     The doi_suffix_id string
 """
-def create_doi_suffix_id(ids_dict):
-    return ids_dict['doiSuffix']
+def create_doi_suffix_id(trigger_methods_data_dict):
+    return trigger_methods_data_dict['doi_suffix_id']
 
 """
 Trigger event method of getting uuid
 
-ids_dict : dict
-    The list returned by uuid-api that contains all the associated ids
-    {
-        "doiSuffix": "456FDTP455",
-        "email": "jamie.l.allen@vanderbilt.edu",
-        "hmuuid": "461bbfdc353a2673e381f632510b0f17",
-        "hubmapId": "VAN0002",
-        "parentId": null,
-        "timeStamp": "2019-11-01 18:34:24",
-        "type": "{UUID_DATATYPE}",
-        "userId": "83ae233d-6d1d-40eb-baa7-b6f636ab579a"
-    }
+Parameters
+----------
+trigger_methods_data_dict : dict
+    A merged dictionary that contains all possible input data to be used
+    It's fine if a trigger method doesn't use any input data
 
 Returns
 -------
 string
     The hubmap_id string
 """
-def create_hubmap_id(ids_dict):
-    return ids_dict['hubmapId']
+def create_hubmap_id(trigger_methods_data_dict):
+    return trigger_methods_data_dict['hubmap_id']
 
 # To-DO
-def get_dataset_uuids():
+def get_dataset_uuids(trigger_methods_data_dict):
     return "dummy"
 
 # To-DO
-def fill_creators():
+def fill_creators(trigger_methods_data_dict):
     return "dummy"
 
 # To-DO
-def fill_contacts():
+def fill_contacts(trigger_methods_data_dict):
     return "dummy"
+
+# To-DO
+def get_data_access_level(trigger_methods_data_dict):
+    return "public"
