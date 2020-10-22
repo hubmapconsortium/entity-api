@@ -422,7 +422,7 @@ def get_target_uuid(id):
         
         return ids_list[0]['hmuuid']
     else:
-        not_found_error("Could not find the target uuid with the provided id of " + id)
+        not_found_error("Could not find the target uuid via uuid-api service associatted with the provided id of " + id)
 
 """
 Create a set of new ids for the new entity to be created
@@ -484,7 +484,7 @@ def create_new_ids(normalize_entity_type):
 
         return created_ids_dict
     else:
-        internal_server_error("Failed to create new ids for during creation of this new entity")
+        internal_server_error("Failed to create new ids via the uuid-api service for during the creation of this new entity")
 
 
 """
