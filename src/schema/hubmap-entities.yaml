@@ -1,17 +1,13 @@
 ############################################# Rules #############################################
-# - If an attribute has `trigger` metadata, it can't be used in client request JSON
 # - By default, the schema treats all entity attributes as optional. Use `required: true` to mark an attribute as required
-# - If an attribute is marked as `required: true`, it can't have `trigger` at the same time
 # - By default, the schema treats all entity attributes as mutable. Use `immutable: true` to mark an attribute as immutable
 # - By default, the schema treats all entity attributes as persistent. Use `transient: true` to mark an attribute as transient
-# - If an attribute has `on_read` trigger event, it must be transient, meaning it's only available during response
+# - If an attribute is marked as `required: true`, it can't have `trigger` at the same time
+# - If an attribute has `trigger` metadata, it can't be used in client request JSON
+# - If an attribute has `on_read` trigger event, it must be transient, meaning it's not stored in neo4j and only available during response
 
 
 ############################################# Shared #############################################
-# Are these doi_attribs only applying to Collection?
-# I found some of the items (creators, has_doi) in Collectuon nodes, 
-# but not in Dataset/Donor/Sample nodes in the current neo4j - Joe
-# Need to add "immutable" field for each attribute - Joe
 doi_attribs: &doi_attribs 
   registered_doi:
     type: string
@@ -54,7 +50,6 @@ doi_attribs: &doi_attribs
 # All entities in neo4j have these properties
 prov_attribs: &prov_attribs
   created_timestamp:
-    transient: true
     type: integer
     immutable: true
     trigger:
@@ -62,7 +57,6 @@ prov_attribs: &prov_attribs
         - on_create
       method: get_current_timestamp
   created_by_user_displayname:
-    transient: true
     type: string
     trigger:
       events:
@@ -70,7 +64,6 @@ prov_attribs: &prov_attribs
       method: get_user_name
     immutable: true
   created_by_user_email:
-    transient: true
     type: string
     trigger:
       events:
@@ -78,7 +71,6 @@ prov_attribs: &prov_attribs
       method: get_user_email
     immutable: true
   created_by_user_sub: # I don't fine this in Collection in the current neo4j
-    transient: true
     type: string
     trigger:
       events:
@@ -86,28 +78,24 @@ prov_attribs: &prov_attribs
       method: get_user_sub
     immutable: true
   last_modified_timestamp:
-    transient: true
     type: integer
     trigger:
       events:
         - on_update
       method: get_current_timestamp
   last_modified_user_sub:
-    transient: true
     type: string
     trigger:
       events:
         - on_update
       method: get_user_sub
   last_modified_user_email:
-    transient: true
     type: string
     trigger:
       events:
         - on_update
       method: get_user_email
   last_modified_user_displayname:
-    transient: true
     type: string
     trigger:
       events:
@@ -152,7 +140,6 @@ other_shared_attribs: &other_shared_attribs
         - on_create
       method: get_entity_type
   description:
-    required: true
     type: string
   data_access_level: # Only Dataset can have "protected" value
     type: string
@@ -212,7 +199,6 @@ ENTITIES:
         type: string
       data_types:
         type: string
-      # TO-DO
       collection_uuids:
         transient: true
         type: list
@@ -220,7 +206,7 @@ ENTITIES:
           events:
             - on_read
           method: get_collection_uuids
-      published_timestamp:
+      published_timestamp: # Can we unpublish a Dataset, immutable or not? - Joe
         type: integer
       published_user_displayname:
         type: string

@@ -418,21 +418,21 @@ def get_target_uuid(id):
 
 """
 Create a set of new ids for the new entity to be created
+Input:
+
+{"entityType":"Dataset",
+ "generateDOI": "true"
+}
 
 Returns
 -------
 dict
     The list returned by uuid-api that contains all the associated ids, e.g.:
-    {
-        "doiSuffix": "456FDTP455",
-        "email": "xxx@pitt.edu",
-        "hmuuid": "461bbfdc353a2673e381f632510b0f17",
-        "hubmapId": "VAN0002",
-        "parentId": null,
-        "timeStamp": "2019-11-01 18:34:24",
-        "type": "{UUID_DATATYPE}",
-        "userId": "83ae233d-6d1d-40eb-baa7-b6f636ab579a"
-    }
+{
+"uuid": "c754a4f878628f3c072d4e8024f707cd",
+"doi": "479NDDG476",
+"displayDoi": "HBM479.NDDG.476"
+}
 """
 def create_new_ids(normalize_entity_type):
     target_url = app.config['UUID_API_URL']
