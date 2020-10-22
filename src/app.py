@@ -3,6 +3,7 @@ import sys
 import os
 import yaml
 import requests
+from urllib3.exceptions import InsecureRequestWarning
 import json
 from cachetools import cached, TTLCache
 import functools
