@@ -260,19 +260,19 @@ def update_entity(entity_type, id):
 
     # Existence check
     if not bool(entity_dict):
-        not_found_error("Could not find the target " + normalized_entity_type + " with id of " + id)
+        not_found_error("Could not find the target " + normalized_entity_type + " of id " + id)
 
     # Validate request json against the yaml schema
     validate_json_data_against_schema(json_data_dict, normalized_entity_type)
 
     # Construct the final data to include generated triggered data
-    triggered_data_on_save = generate_triggered_data_on_save(normalized_entity_type, request)
+    triggered_data_on_update = generate_triggered_data_on_update(normalized_entity_type, request)
 
     # Add new properties if updating for the first time
     # Otherwise just overwrite existing values (E.g., last_modified_timestamp)
-    triggered_data_keys = triggered_data_on_save.keys()
+    triggered_data_keys = triggered_data_on_update.keys()
     for key in triggered_data_keys:
-        entity_dict[key] = triggered_data_on_save[key]
+        entity_dict[key] = triggered_data_on_update[key]
  
     # Overwrite old property values with updated values
     json_data_keys = json_data_dict.keys()
@@ -405,34 +405,41 @@ def get_target_uuid(id):
     response = requests.get(url = target_url, verify = False) 
     
     if response.status_code == 200:
-        identifier_list = response.json()
+        ids_list = response.json()
 
-        if len(identifier_list) == 0:
+        if len(ids_list) == 0:
             internal_server_error('unable to find information on identifier: ' + id)
-        if len(identifier_list) > 1:
+        if len(ids_list) > 1:
             internal_server_error('found multiple records for identifier: ' + id)
         
-        return identifier_list[0]['hmuuid']
+        return ids_list[0]['hmuuid']
     else:
         not_found_error("Could not find the target uuid with the provided id of " + id)
 
 """
 Create a set of new ids for the new entity to be created
-Input:
-
-{"entityType":"Dataset",
- "generateDOI": "true"
+Make a POST call to uuid-api with the following JSON:
+{
+    "entityType":"Dataset",
+    "generateDOI": "true"
 }
+
+The list returned by uuid-api that contains all the associated ids, e.g.:
+{
+    "uuid": "c754a4f878628f3c072d4e8024f707cd",
+    "doi": "479NDDG476",
+    "displayDoi": "HBM479.NDDG.476"
+}
+
+Then map them to the target ids:
+uuid -> uuid
+doi -> doi_suffix_id
+displayDoi -> hubmap_id
 
 Returns
 -------
 dict
-    The list returned by uuid-api that contains all the associated ids, e.g.:
-{
-"uuid": "c754a4f878628f3c072d4e8024f707cd",
-"doi": "479NDDG476",
-"displayDoi": "HBM479.NDDG.476"
-}
+    The dictionary of new ids
 """
 def create_new_ids(normalize_entity_type):
     target_url = app.config['UUID_API_URL']
@@ -440,14 +447,27 @@ def create_new_ids(normalize_entity_type):
     # Suppress InsecureRequestWarning warning when requesting status on https with ssl cert verify disabled
     requests.packages.urllib3.disable_warnings(category = InsecureRequestWarning)
 
-    data_to_post = {"entityType": normalize_entity_type}
+    # Must use "generateDOI": "true" to generate the doi (doi_suffix_id) and displayDoi (hubmap_id)
+    data_to_post = {
+        "entityType": normalize_entity_type, 
+        "generateDOI": "true"
+    }
 
     # Disable ssl certificate verification
     response = requests.post(url = target_url, data = data_to_post, verify = False) 
     
     if response.status_code == 200:
-        identifier_list = response.json()
-        return identifier_list[0]
+        ids_list = response.json()
+        ids_dict = ids_list[0]
+
+        # Create a new dict with desired keys
+        new_ids_dict = {
+            "uuid": ids_dict['uuid'],
+            "doi_suffix_id": ids_dict['doi'],
+            "hubmap_id": ids_dict['displayDoi']
+        }
+
+        return new_ids_dict
     else:
         internal_server_error("Failed to create new ids for during creation of this new entity")
 
@@ -577,7 +597,7 @@ def generate_triggered_data_on_create(normalized_entity_type, request):
 
     user_info = get_user_info(request)
 
-    created_ids_dict = create_new_ids(normalized_entity_type)
+    new_ids_dict = create_new_ids(normalized_entity_type)
 
     triggered_data_dict = {}
     for key in schema_keys:
@@ -592,7 +612,7 @@ def generate_triggered_data_on_create(normalized_entity_type, request):
                 elif method_name.startswith("get_user_"):
                     triggered_data_dict[key] = method_to_call(user_info)
                 elif method_name in ["create_uuid", "create_doi_suffix_id", "create_hubmap_id"]:
-                    triggered_data_dict[key] = method_to_call(created_ids_dict)
+                    triggered_data_dict[key] = method_to_call(new_ids_dict)
                 else:
                     triggered_data_dict[key] = method_to_call()
 
