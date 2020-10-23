@@ -166,8 +166,14 @@ def get_entity(entity_type, id):
     # Query target entity against neo4j and return as a dict if exists
     entity_dict = query_target_entity(normalized_entity_type, id)
 
-    # Construct the final data to include generated triggered data
-    triggered_data_on_read_dict = generate_triggered_data_on_read(normalized_entity_type)
+    # Dictionaries to be used by trigger methods
+    normalized_entity_type_dict = {"normalized_entity_type": normalized_entity_type}
+
+    # Merge all the above dictionaries
+    # If the latter dictionary contains the same key as the previous one, it will overwrite the value for that key
+    data_dict = {**normalized_entity_type_dict}
+
+    triggered_data_on_read_dict = generate_triggered_data("on_read_trigger", data_dict)
 
     # Merge two dictionaries (without the same keys in this case)
     merged_dict = {**entity_dict, **triggered_data_on_read_dict}
@@ -204,8 +210,16 @@ def create_entity(entity_type):
     # Validate request json against the yaml schema
     validate_json_data_against_schema(json_data_dict, normalized_entity_type)
 
-    # Construct the final data to include generated triggered data
-    triggered_data_on_create_dict = generate_triggered_data_on_create(normalized_entity_type, request)
+    # Dictionaries to be used by trigger methods
+    normalized_entity_type_dict = {"normalized_entity_type": normalized_entity_type}
+    user_info_dict = get_user_info(request)
+    created_ids_dict = create_new_ids(normalized_entity_type)
+
+    # Merge all the above dictionaries
+    # If the latter dictionary contains the same key as the previous one, it will overwrite the value for that key
+    data_dict = {**normalized_entity_type_dict, **user_info_dict, **created_ids_dict}
+
+    triggered_data_on_create_dict = generate_triggered_data("on_create_trigger", data_dict)
 
     # Make sure there's no entity node with the same uuid/hubmap-id already exists
     entity_dict = query_target_entity(normalized_entity_type, triggered_data_on_create_dict['uuid'])
@@ -272,8 +286,15 @@ def update_entity(entity_type, id):
     # Validate request json against the yaml schema
     validate_json_data_against_schema(json_data_dict, normalized_entity_type)
 
-    # Construct the final data to include generated triggered data
-    triggered_data_on_update_dict = generate_triggered_data_on_update(normalized_entity_type, request)
+    # Dictionaries to be used by trigger methods
+    normalized_entity_type_dict = {"normalized_entity_type": normalized_entity_type}
+    user_info_dict = get_user_info(request)
+
+    # Merge all the above dictionaries
+    # If the latter dictionary contains the same key as the previous one, it will overwrite the value for that key
+    data_dict = {**normalized_entity_type_dict, **user_info_dict}
+
+    triggered_data_on_update_dict = generate_triggered_data("on_update_trigger", request)
 
     # Add new properties if updating for the first time
     # Otherwise just overwrite existing values (E.g., last_modified_timestamp)
@@ -626,94 +647,14 @@ def validate_json_data_against_schema(json_data_dict, normalized_entity_type):
     if len(invalid_data_type_keys) > 0:
         bad_request_error("Keys in request json with invalid data types: " + separator.join(invalid_data_type_keys))
 
-"""
-Handling "on_create" trigger events
-
-Parameters
-----------
-normalized_entity_type : str
-    One of the normalized entity type: Dataset, Collection, Sample, Donor
-request : Flask request object
-    The Flask request passed from the API endpoint 
-
-Returns
--------
-dict
-    A dictionary of trigger event generated data
-"""
-def generate_triggered_data_on_create(normalized_entity_type, request):
-    # Dictionaries to be used by trigger methods
-    normalized_entity_type_dict = {"normalized_entity_type": normalized_entity_type}
-    user_info_dict = get_user_info(request)
-    created_ids_dict = create_new_ids(normalized_entity_type)
-
-    # Merge all the above dictionaries
-    # If the latter dictionary contains the same key as the previous one, it will overwrite the value for that key
-    data_dict = {**normalized_entity_type_dict, **user_info_dict, **created_ids_dict}
-
-    return generate_triggered_data("on_create", data_dict)
-
-
-"""
-Handling "on_updte" trigger event
-
-Parameters
-----------
-normalized_entity_type : str
-    One of the normalized entity type: Dataset, Collection, Sample, Donor
-request : Flask request object
-    The Flask request passed from the API endpoint 
-
-Returns
--------
-dict
-    A dictionary of trigger event generated data
-"""
-def generate_triggered_data_on_update(normalized_entity_type, request):
-    # Dictionaries to be used by trigger methods
-    normalized_entity_type_dict = {"normalized_entity_type": normalized_entity_type}
-    user_info_dict = get_user_info(request)
-    created_ids_dict = create_new_ids(normalized_entity_type)
-
-    # Merge all the above dictionaries
-    # If the latter dictionary contains the same key as the previous one, it will overwrite the value for that key
-    data_dict = {**normalized_entity_type_dict, **user_info_dict, **created_ids_dict}
-
-    return generate_triggered_data("on_update", data_dict)
-
-
-"""
-Handling "on_read" trigger events
-
-Parameters
-----------
-normalized_entity_type : str
-    One of the normalized entity type: Dataset, Collection, Sample, Donor
-
-Returns
--------
-dict
-    A dictionary of trigger event generated data
-"""
-def generate_triggered_data_on_read(normalized_entity_type):
-    # TO-DO======Begin
-    # Dictionaries to be used by trigger methods
-    normalized_entity_type_dict = {"normalized_entity_type": normalized_entity_type}
-
-    # Merge all the above dictionaries
-    # If the latter dictionary contains the same key as the previous one, it will overwrite the value for that key
-    data_dict = {**normalized_entity_type_dict}
-    # TO-DO======End
-
-    return generate_triggered_data("on_read", data_dict)
 
 """
 Generating triggered data based on the target events and methods
 
 Parameters
 ----------
-event : str
-    One of the trigger events: on_create, on_update, on_read
+trigger_type : str
+    One of the trigger types: on_create_trigger, on_update_trigger, on_read_trigger
 
 data_dict : dict
     A merged dictionary that contains all possible data to be used by the trigger methods
@@ -723,18 +664,18 @@ Returns
 dict
     A dictionary of trigger event methods generated data
 """
-def generate_triggered_data(event, data_dict):
+def generate_triggered_data(trigger_type, data_dict):
     normalized_entity_type = data_dict['normalized_entity_type']
     attributes = schema['ENTITIES'][normalized_entity_type]['attributes']
     schema_keys = attributes.keys() 
 
     triggered_data_dict = {}
     for key in schema_keys:
-        if 'trigger' in attributes[key]:
-            # attributes[key]['trigger']['events'] is a list
-            if event in attributes[key]['trigger']['events']:
-                method_to_call = get_trigger_event_method(attributes[key])
-                triggered_data_dict[key] = method_to_call(data_dict)
+        if trigger_type in attributes[key]:
+            trigger_method_name = attributes[key][trigger_type]
+            # Call the target trigger method of schema_triggers.py module
+            trigger_method_to_call = getattr(schema_triggers, trigger_method_name)
+            triggered_data_dict[key] = trigger_method_to_call(data_dict)
 
     return triggered_data_dict
 
@@ -804,21 +745,4 @@ request : Flask request object
 def request_json_required(request):
     if not request.is_json:
         bad_request_error("A JSON body and appropriate Content-Type header are required")
-
-"""
-Get the trigger event method name and method reference
-
-attribute : str
-    Name of the target attribute
-
-Returns
--------
-method_to_call : function reference
-    The method to call within this same module
-"""
-def get_trigger_event_method(attribute):
-    method_name = attribute['trigger']['method']
-    method_to_call = getattr(trigger_methods, method_name)
-    return method_to_call
-
 
