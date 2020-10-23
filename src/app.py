@@ -549,7 +549,7 @@ Get target entity dict
 Parameters
 ----------
 normalized_entity_type : str
-    One of the normalized entity type: Dataset, Collection, Sample, Donor
+    One of the normalized entity types: Dataset, Collection, Sample, Donor
 id : string
     The uuid or hubmap_id of target entity 
 

@@ -151,11 +151,11 @@ def get_data_access_level(data_dict):
     return "public"
 
 # To-DO
-def get_creators(data_dict):
+def get_creators_info(data_dict):
     return "dummy"
 
 # To-DO
-def get_contacts(data_dict):
+def get_contacts_info(data_dict):
     return "dummy"
 
 ####################################################################################################
@@ -167,14 +167,16 @@ def get_dataset_uuids(data_dict):
     return "dummy"
 
 
-
 ####################################################################################################
 ## Trigger methods specific to Dataset
 ####################################################################################################
 
-def create_in_collection_relationship(data_dict):
-    return "public"
 
-# To-DO
-def update_in_collection_relationship(data_dict):
-    return "public"
+####################################################################################################
+## Trigger methods specific to Donor
+####################################################################################################
+
+
+####################################################################################################
+## Trigger methods specific to Sample
+####################################################################################################
