@@ -173,10 +173,10 @@ def get_entity(entity_type, id):
     # If the latter dictionary contains the same key as the previous one, it will overwrite the value for that key
     data_dict = {**normalized_entity_type_dict}
 
-    triggered_data_on_read_dict = generate_triggered_data("on_read_trigger", data_dict)
+    on_read_trigger_data_dict = generate_triggered_data("on_read_trigger", data_dict)
 
     # Merge two dictionaries (without the same keys in this case)
-    merged_dict = {**entity_dict, **triggered_data_on_read_dict}
+    merged_dict = {**entity_dict, **on_read_trigger_data_dict}
 
     return get_resulting_entity(normalized_entity_type, merged_dict)
 
@@ -219,16 +219,16 @@ def create_entity(entity_type):
     # If the latter dictionary contains the same key as the previous one, it will overwrite the value for that key
     data_dict = {**normalized_entity_type_dict, **user_info_dict, **created_ids_dict}
 
-    triggered_data_on_create_dict = generate_triggered_data("on_create_trigger", data_dict)
+    on_create_trigger_data_dict = generate_triggered_data("on_create_trigger", data_dict)
 
     # Make sure there's no entity node with the same uuid/hubmap-id already exists
-    entity_dict = query_target_entity(normalized_entity_type, triggered_data_on_create_dict['uuid'])
+    entity_dict = query_target_entity(normalized_entity_type, on_create_trigger_data_dict['uuid'])
 
     if bool(entity_dict):
-        bad_request_error("Entity with the same uuid " + triggered_data_on_create_dict['uuid'] + " already exists in the neo4j database.")
+        bad_request_error("Entity with the same uuid " + on_create_trigger_data_dict['uuid'] + " already exists in the neo4j database.")
 
     # Merge two dictionaries (without the same keys in this case)
-    merged_dict = {**json_data_dict, **triggered_data_on_create_dict}
+    merged_dict = {**json_data_dict, **on_create_trigger_data_dict}
 
     # `UNWIND` in Cypher expects List<T>
     data_list = [merged_dict]
@@ -294,13 +294,13 @@ def update_entity(entity_type, id):
     # If the latter dictionary contains the same key as the previous one, it will overwrite the value for that key
     data_dict = {**normalized_entity_type_dict, **user_info_dict}
 
-    triggered_data_on_update_dict = generate_triggered_data("on_update_trigger", request)
+    on_update_trigger_data_dict = generate_triggered_data("on_update_trigger", request)
 
     # Add new properties if updating for the first time
     # Otherwise just overwrite existing values (E.g., last_modified_timestamp)
-    triggered_data_keys = triggered_data_on_update_dict.keys()
+    triggered_data_keys = on_update_trigger_data_dict.keys()
     for key in triggered_data_keys:
-        entity_dict[key] = triggered_data_on_update_dict[key]
+        entity_dict[key] = on_update_trigger_data_dict[key]
  
     # Overwrite old property values with updated values
     json_data_keys = json_data_dict.keys()
