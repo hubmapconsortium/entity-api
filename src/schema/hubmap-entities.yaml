@@ -5,7 +5,7 @@
 # - If an attribute is marked as `required: true`, it can't have `trigger` at the same time
 # - If an attribute has `trigger` metadata, it can't be used in client request JSON
 # - If an attribute has `on_read` trigger event, it must be transient, meaning it's not stored in neo4j and only available during response
-
+# - There are 3 types of triggers: `on_create_trigger`, `on_update_trigger`, and `on_read_trigger`
 
 ############################################# Shared #############################################
 doi_attribs: &doi_attribs 
@@ -23,28 +23,19 @@ doi_attribs: &doi_attribs
     type: list
     cardinality: ordered-list
     description: "An ordered list of the HuBMAP uuids pointing to the people who are the main contacts about this entity"
-    trigger:
-      events:
-        - on_create
-        - on_update
-      method: fill_contacts
+    on_create_trigger: fill_contacts
+    on_update_trigger: fill_contacts 
   ###### Transient attributes ######
   creators:
     transient: true
     type: application/json
     description: "An ordered list of the people who created the entity with full name, email, ORCID iD, institution, etc.. This is analogus to the author list on a publication."
-    trigger:
-      events:
-        - on_read
-      method: fill_creators
+    on_read_trigger: fill_creators
   contacts:
     transient: true
     type: application/json # Will probably just go with "json" - Joe
     description: "An ordered array of the people who are the main contacts to get information about the entity."
-    trigger:  #this will add all of the contact information when returned by looping through contact_ids list and calling Person ws
-      events:
-        - on_read
-      method: fill_contacts
+    on_read_trigger: fill_contacts #this will add all of the contact information when returned by looping through contact_ids list and calling Person ws
 
 
 # All entities in neo4j have these properties
@@ -52,56 +43,31 @@ prov_attribs: &prov_attribs
   created_timestamp:
     type: integer
     immutable: true
-    trigger:
-      events:
-        - on_create
-      method: get_current_timestamp
+    on_create_trigger: get_current_timestamp
   created_by_user_displayname:
     type: string
-    trigger:
-      events:
-        - on_create
-      method: get_user_name
+    on_create_trigger: get_user_name
     immutable: true
   created_by_user_email:
     type: string
-    trigger:
-      events:
-        - on_create
-      method: get_user_email
+    on_create_trigger: get_user_email
     immutable: true
   created_by_user_sub: # I don't fine this in Collection in the current neo4j
     type: string
-    trigger:
-      events:
-        - on_create
-      method: get_user_sub
+    on_create_trigger: get_user_sub
     immutable: true
   last_modified_timestamp:
     type: integer
-    trigger:
-      events:
-        - on_update
-      method: get_current_timestamp
+    on_update_trigger: get_current_timestamp
   last_modified_user_sub:
     type: string
-    trigger:
-      events:
-        - on_update
-      method: get_user_sub
+    on_update_trigger: get_user_sub
   last_modified_user_email:
     type: string
-    trigger:
-      events:
-        - on_update
-      method: get_user_email
+    on_update_trigger: get_user_email
   last_modified_user_displayname:
     type: string
-    trigger:
-      events:
-        - on_update
-      method: get_user_name
-
+    on_update_trigger: get_user_name
 
 # All entities in neo4j have these properties
 # Need to decide on using only one id (either uuid or hubmap_id) for query and update exisiting entity
@@ -109,45 +75,29 @@ prov_attribs: &prov_attribs
 id_attribs: &id_attribs
   uuid:
     type: string
-    trigger:
-      events:
-        - on_create
-      method: create_uuid #id creation method will need to call uuid-api POST, get both uuid and hubmap_id and set both files at once.  It should probably just check to see if the attribute exists in the current record (dict) and return if it exists.
+    on_create_trigger: create_uuid
     immutable: true
   doi_suffix_id:
     type: string
-    trigger:
-      events:
-        - on_create # We are not regenerating uuid when updating an existing entity, how to handle such cases? - Joe
-      method: create_doi_suffix_id #id creation method will need to call uuid-api POST, get both uuid and hubmap_id and set both files at once.  It should probably just check to see if the attribute exists in the current record (dict) and return if it exists.
+    on_create_trigger: create_doi_suffix_id
     immutable: true
   hubmap_id:
     type: string
     immutable: true
-    trigger:
-      events:
-        - on_create
-      method: create_hubmap_id
-
+    on_create_trigger: create_hubmap_id
 
 # All entities in neo4j have these properties
 other_shared_attribs: &other_shared_attribs
   entity_type:
     type: string
     immutable: true
-    trigger:
-      events:
-        - on_create
-      method: get_entity_type
+    on_create_trigger: get_entity_type 
   description:
     type: string
   data_access_level: # Only Dataset can have "protected" value
     type: string
-    trigger:
-      events:
-        - on_create
-        - on_update
-      method: get_data_access_level
+    on_create_trigger: get_data_access_level
+    on_update_trigger: get_data_access_level
 
 
 ENTITIES:
@@ -172,18 +122,12 @@ ENTITIES:
         description: "list of dataset uuids that the collection is connected to.  This list is not stored in the database, but used at PUT or POST time to link the Collection to associated Datasets"
         cardinality: list
         transient: true # Never save to databse
-        trigger:  #when responding to a GET, include the list of dataset ids
-          events:
-            - on_read
-          method: get_dataset_uuids #retrieves the list of dataset ids from the datasets attribute
+        on_read_trigger: get_dataset_uuids #when responding to a GET, include the list of dataset ids
       creators:
         transient: true
         type: application/json
         description: "An ordered list of the people who created the entity with full name, email, ORCID iD, institution, etc.. This is analogus to the author list on a publication."
-        trigger:  #this will add all of the creator information when returned by looping through creator_ids list and calling Person ws
-          events:
-            - on_read
-          method: fill_creators
+        on_read_trigger: fill_creators #this will add all of the creator information when returned by looping through creator_ids list and calling Person ws
 
   ############################################# Dataset #############################################
   Dataset:
@@ -202,10 +146,9 @@ ENTITIES:
       collection_uuids:
         transient: true
         type: list
-        trigger:
-          events:
-            - on_read
-          method: get_collection_uuids
+        on_create_trigger: create_in_collection_relationship
+        on_update_trigger: update_in_collection_relationship
+        on_read_trigger: get_collection_uuids
       published_timestamp: # Can we unpublish a Dataset, immutable or not? - Joe
         type: integer
       published_user_displayname:

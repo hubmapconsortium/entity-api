@@ -157,3 +157,11 @@ def fill_contacts(data_dict):
 # To-DO
 def get_data_access_level(data_dict):
     return "public"
+
+# To-DO
+def create_in_collection_relationship(data_dict):
+    return "public"
+
+# To-DO
+def update_in_collection_relationship(data_dict):
+    return "public"

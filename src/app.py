@@ -13,7 +13,7 @@ from neo4j import CypherError
 
 # Local modules
 import neo4j_queries
-import trigger_methods
+import schema_triggers
 
 # HuBMAP commons
 from hubmap_commons.hm_auth import AuthHelper
