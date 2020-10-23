@@ -9,7 +9,6 @@ from cachetools import cached, TTLCache
 import functools
 from pathlib import Path
 import logging
-import datetime
 from neo4j import CypherError
 
 # Local modules
@@ -378,6 +377,28 @@ def validate_entity_type(entity_type):
     if normalize_entity_type(entity_type) not in accepted_entity_types:
         bad_request_error("The specified entity type in URL must be one of the following: " + separator.join(accepted_entity_types))
 
+"""
+Create a dict of HTTP Authorization header with Bearer token for making calls to uuid-api
+
+Returns
+-------
+dict
+    The headers dict to be used by requests
+"""
+def create_request_headers():
+    # Will need this to call getProcessSecret()
+    auth_helper = init_auth_helper()
+
+    auth_header_name = 'Authorization'
+    auth_scheme = 'Bearer'
+
+    headers_dict = {
+        # Don't forget the space between scheme and the token value
+        auth_header_name: auth_scheme + ' ' + auth_helper.getProcessSecret()
+    }
+
+    return headers_dict
+
 
 """
 Retrive target uuid based on the given id
@@ -409,8 +430,13 @@ def get_target_uuid(id):
     # Suppress InsecureRequestWarning warning when requesting status on https with ssl cert verify disabled
     requests.packages.urllib3.disable_warnings(category = InsecureRequestWarning)
 
+    # Use modified version of globus app secrect from configuration as the internal token
+    # All API endpoints specified in gateway regardless of auth is required or not, 
+    # will consider this internal token as valid and has the access to HuBMAP-Read group
+    request_headers = create_request_headers()
+
     # Disable ssl certificate verification
-    response = requests.get(url = target_url, verify = False) 
+    response = requests.get(url = target_url, headers = request_headers, verify = False) 
     
     if response.status_code == 200:
         ids_list = response.json()
@@ -456,20 +482,25 @@ dict
     }
 
 """
-def create_new_ids(normalize_entity_type):
+def create_new_ids(normalized_entity_type):
     target_url = app.config['UUID_API_URL']
 
     # Suppress InsecureRequestWarning warning when requesting status on https with ssl cert verify disabled
     requests.packages.urllib3.disable_warnings(category = InsecureRequestWarning)
 
     # Must use "generateDOI": "true" to generate the doi (doi_suffix_id) and displayDoi (hubmap_id)
-    data_to_post = {
-        "entityType": normalize_entity_type, 
+    json_to_post = {
+        "entityType": normalized_entity_type, 
         "generateDOI": "true"
     }
 
+    # Use modified version of globus app secrect from configuration as the internal token
+    # All API endpoints specified in gateway regardless of auth is required or not, 
+    # will consider this internal token as valid and has the access to HuBMAP-Read group
+    request_headers = create_request_headers()
+
     # Disable ssl certificate verification
-    response = requests.post(url = target_url, data = data_to_post, verify = False) 
+    response = requests.post(url = target_url, headers = request_headers, json = json_to_post, verify = False) 
     
     if response.status_code == 200:
         ids_list = response.json()
@@ -484,6 +515,10 @@ def create_new_ids(normalize_entity_type):
 
         return created_ids_dict
     else:
+        app.logger.info("======Failed to create new ids via the uuid-api service for during the creation of this new entity======")
+        app.logger.info("response status code: " + str(response.status_code))
+        app.logger.info("response text: " + response.text)
+
         internal_server_error("Failed to create new ids via the uuid-api service for during the creation of this new entity")
 
 
@@ -689,7 +724,7 @@ dict
     A dictionary of trigger event methods generated data
 """
 def generate_triggered_data(event, data_dict):
-    normalized_entity_type = data['normalized_entity_type']
+    normalized_entity_type = data_dict['normalized_entity_type']
     attributes = schema['ENTITIES'][normalized_entity_type]['attributes']
     schema_keys = attributes.keys() 
 

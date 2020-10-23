@@ -1,4 +1,5 @@
 import logging
+import datetime
 
 ####################################################################################################
 ## Schema trigger methods based on the yaml file - DO NOT RENAME
@@ -105,7 +106,7 @@ string
     The uuid string
 """
 def create_uuid(data_dict):
-    return data_dict['hmuuid']
+    return data_dict['uuid']
 
 """
 Trigger event method of getting uuid
