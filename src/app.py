@@ -622,15 +622,15 @@ def validate_json_data_against_schema(json_data_dict, normalized_entity_type):
     if len(transient_keys) > 0:
         bad_request_error("Transient keys are not allowed in request json: " + separator.join(transient_keys))
 
-    # Check if any schema required keys are missing from request
+    # Check if any schema keys that are user_input_required but missing from request
     missing_keys = []
     for key in schema_keys:
         # Schema rules: 
-        # - By default, the schema treats all entity attributes as optional. Use `required: true` to mark an attribute as required
-        # - If an attribute is marked as `required: true`, it can't have `trigger` at the same time
+        # - By default, the schema treats all entity attributes as optional. Use `user_input_required: true` to mark an attribute as required
+        # - If an attribute is marked as `user_input_required: true`, it can't have `trigger` at the same time
         # It's reenforced here because we can't guarantee this rule is being followed correctly in the schema yaml
-        if 'required' in attributes[key]:
-            if attributes[key]['required'] and ('trigger' not in attributes[key]) and (key not in json_data_keys):
+        if 'user_input_required' in attributes[key]:
+            if attributes[key]['user_input_required'] and ('trigger' not in attributes[key]) and (key not in json_data_keys):
                 missing_keys.append(key)
 
     if len(missing_keys) > 0:

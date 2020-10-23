@@ -146,15 +146,15 @@ string
 def create_hubmap_id(data_dict):
     return data_dict['hubmap_id']
 
-# To-DO
+# TO-DO
 def get_data_access_level(data_dict):
     return "public"
 
-# To-DO
+# TO-DO
 def get_creators_info(data_dict):
     return "dummy"
 
-# To-DO
+# TO-DO
 def get_contacts_info(data_dict):
     return "dummy"
 
@@ -162,7 +162,7 @@ def get_contacts_info(data_dict):
 ## Trigger methods specific to Collection
 ####################################################################################################
 
-# To-DO
+# TO-DO
 def get_dataset_uuids(data_dict):
     return "dummy"
 

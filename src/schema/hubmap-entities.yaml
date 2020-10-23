@@ -1,14 +1,21 @@
 ############################################# Rules #############################################
-# - By default, the schema treats all entity attributes as optional. Use `required: true` to mark an attribute as required
+# - By default, the schema treats all entity attributes as optional. Use `user_input_required: true` to mark an attribute as user_input_required
 # - By default, the schema treats all entity attributes as mutable. Use `immutable: true` to mark an attribute as immutable
 # - By default, the schema treats all entity attributes as persistent. Use `transient: true` to mark an attribute as transient
 # - By default, the schema treats all entity attributes as they have no triggers. Specify the trigger methods if needed
-# - If an attribute is marked as `required: true`, it can't have `trigger` at the same time
+# - If an attribute is marked as `user_input_required: true`, it means this attribute is required to be provided in the client request JSON
+# - If an attribute is marked as `user_input_required: true`, it can't have `trigger` at the same time
 # - If an attribute has `trigger` metadata, it can't be used in client request JSON
 # - If an attribute has `on_read` trigger event, it must be transient, meaning it's not stored in neo4j and only available during response
 # - There are 3 types of triggers: `on_create_trigger`, `on_update_trigger`, and `on_read_trigger`
 
-############################################# Shared #############################################
+############################################# TO-DO #############################################
+# - Add a description metadata to each attribute
+# - Verify and mark all `user_input_required` attributes
+# - Clarify the use of `title` and `label` attributes across all the entities
+# - Verify and mark all `immutable` attributes
+
+############################################# Shared attributes #############################################
 shared_attributes: &shared_attributes 
   ###### DOI attributes ######
   registered_doi:
@@ -102,7 +109,7 @@ ENTITIES:
     attributes:
       <<: *shared_attribs
       title:
-        required: true
+        user_input_required: true
         type: string
       has_doi:
         type: boolean
@@ -120,9 +127,10 @@ ENTITIES:
     attributes:
       <<: *shared_attributes
       title:
-        required: true
+        user_input_required: true
         type: string
       data_types:
+        user_input_required: true
         type: string
       collection_uuids:
         type: list
@@ -140,7 +148,9 @@ ENTITIES:
       dataset_name:
         type: string
       contains_human_genetic_sequences:
-        type: string
+        user_input_required: true
+        type: boolean
+        description: "Will this data contain any human genomic sequence data?"
       ingest_metadata:
         type: string
       local_directory_rel_path:
@@ -159,11 +169,14 @@ ENTITIES:
   Donor:
     attributes:
       <<: *shared_attributes
+      # Need `title` attribute?
+      # Deidentified Name?
       image_file_metadata:
         type: string
       metadata:
         type: string
       protocol_url:
+        user_input_required: true
         type: string
       lab_donor_id:
         type: string
@@ -185,9 +198,12 @@ ENTITIES:
   Sample:
     attributes:
       <<: *shared_attributes
+      # Need `title` attribute?
+      # How to specify the source HuBMAP id of a new sample?
       protocol_file:
         type: string
       specimen_type:
+        user_input_required: true
         type: string
       portal_metadata_upload_files:
         type: string
