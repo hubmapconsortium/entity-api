@@ -1,8 +1,12 @@
+####################################################################################################
+## Schema trigger methods based on the yaml file - DO NOT RENAME
+####################################################################################################
+
 import logging
 import datetime
 
 ####################################################################################################
-## Schema trigger methods based on the yaml file - DO NOT RENAME
+## Trigger methods shared among Collection, Dataset, Donor, Sample
 ####################################################################################################
 
 """
@@ -143,22 +147,31 @@ def create_hubmap_id(data_dict):
     return data_dict['hubmap_id']
 
 # To-DO
-def get_dataset_uuids(data_dict):
-    return "dummy"
-
-# To-DO
-def fill_creators(data_dict):
-    return "dummy"
-
-# To-DO
-def fill_contacts(data_dict):
-    return "dummy"
-
-# To-DO
 def get_data_access_level(data_dict):
     return "public"
 
 # To-DO
+def get_creators(data_dict):
+    return "dummy"
+
+# To-DO
+def get_contacts(data_dict):
+    return "dummy"
+
+####################################################################################################
+## Trigger methods specific to Collection
+####################################################################################################
+
+# To-DO
+def get_dataset_uuids(data_dict):
+    return "dummy"
+
+
+
+####################################################################################################
+## Trigger methods specific to Dataset
+####################################################################################################
+
 def create_in_collection_relationship(data_dict):
     return "public"
 

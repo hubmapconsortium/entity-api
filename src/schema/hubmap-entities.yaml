@@ -17,11 +17,9 @@ doi_attribs: &doi_attribs
     description: "The url from the doi registry for this entity"
   creator_uuids:
     type: list
-    cardinality: ordered-list  #thinking this just gets stored as json encoded text
     description: "An ordered list of uuids referencing the people who created the entity"
   contact_uuids:
     type: list
-    cardinality: ordered-list
     description: "An ordered list of the HuBMAP uuids pointing to the people who are the main contacts about this entity"
     on_create_trigger: fill_contacts
     on_update_trigger: fill_contacts 
@@ -30,12 +28,12 @@ doi_attribs: &doi_attribs
     transient: true
     type: application/json
     description: "An ordered list of the people who created the entity with full name, email, ORCID iD, institution, etc.. This is analogus to the author list on a publication."
-    on_read_trigger: fill_creators
+    on_read_trigger: get_creators
   contacts:
     transient: true
     type: application/json # Will probably just go with "json" - Joe
     description: "An ordered array of the people who are the main contacts to get information about the entity."
-    on_read_trigger: fill_contacts #this will add all of the contact information when returned by looping through contact_ids list and calling Person ws
+    on_read_trigger: get_contacts #this will add all of the contact information when returned by looping through contact_ids list and calling Person ws
 
 
 # All entities in neo4j have these properties
@@ -69,9 +67,7 @@ prov_attribs: &prov_attribs
     type: string
     on_update_trigger: get_user_name
 
-# All entities in neo4j have these properties
-# Need to decide on using only one id (either uuid or hubmap_id) for query and update exisiting entity
-# Otherwise, we'll need to create two API endpoints - Joe
+
 id_attribs: &id_attribs
   uuid:
     type: string
@@ -86,7 +82,7 @@ id_attribs: &id_attribs
     immutable: true
     on_create_trigger: create_hubmap_id
 
-# All entities in neo4j have these properties
+
 other_shared_attribs: &other_shared_attribs
   entity_type:
     type: string
@@ -118,16 +114,15 @@ ENTITIES:
       ###### Transient attributes ######
       dataset_uuids:  #used only to pass the reference to linked datasets in on a PUT/POST
         transient: true
-        type: hubmap_uuid
+        type: list
         description: "list of dataset uuids that the collection is connected to.  This list is not stored in the database, but used at PUT or POST time to link the Collection to associated Datasets"
-        cardinality: list
         transient: true # Never save to databse
         on_read_trigger: get_dataset_uuids #when responding to a GET, include the list of dataset ids
       creators:
         transient: true
         type: application/json
         description: "An ordered list of the people who created the entity with full name, email, ORCID iD, institution, etc.. This is analogus to the author list on a publication."
-        on_read_trigger: fill_creators #this will add all of the creator information when returned by looping through creator_ids list and calling Person ws
+        on_read_trigger: get_creators #this will add all of the creator information when returned by looping through creator_ids list and calling Person ws
 
   ############################################# Dataset #############################################
   Dataset:
