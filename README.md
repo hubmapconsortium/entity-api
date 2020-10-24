@@ -2,8 +2,11 @@
 
 A set of web service calls to return information about HuBMAP entities.
 
-The webservices are accessible through the `/entities` restful endpoint.
 A description of the API calls is found here: [Entities API](http://smart-api.info/ui/12af775769ba65a684476960f5f87e72).
+
+## Entities schema yaml
+
+The yaml file `src/schema/hubmap-entities.yaml` contains all the attributes of each entity type and generated metadata information of attributes via trigger methods. This file is being used to validate the user input and also as a way of standarding all the details of entities.
 
 ## Development and deployment environments
 
