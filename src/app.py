@@ -230,6 +230,18 @@ def create_entity(entity_type):
     # Merge two dictionaries (without the same keys in this case)
     merged_dict = {**json_data_dict, **on_create_trigger_data_dict}
 
+    # For Dataset associated with Collections
+    collection_uuids_list = []
+    if 'collection_uuids' in merged_dict:
+        collection_uuids_list = merged_dict['collection_uuids']
+
+    # Check existence of those collections
+    for collection_uuid in collection_uuids_list:
+        collection_dict = query_target_entity('Collection', collection_uuid)
+
+        if not bool(collection_dict):
+            bad_request_error("Collection with uuid " + collection_uuid + " not found in the neo4j database.")
+
     # `UNWIND` in Cypher expects List<T>
     data_list = [merged_dict]
     
@@ -243,7 +255,9 @@ def create_entity(entity_type):
     app.logger.info(json_list_str)
 
     # Create new entity
-    new_entity_dict = neo4j_queries.create_entity(neo4j_driver, normalized_entity_type, escaped_json_list_str)
+    # If `collection_uuids_list` is not an empty list, meaning the target entity is Dataset and 
+    # we'll be also creating relationships between the new entity node to the Collection nodes
+    new_entity_dict = neo4j_queries.create_entity(neo4j_driver, normalized_entity_type, escaped_json_list_str, collection_uuids_list)
 
     return get_resulting_entity(normalized_entity_type, new_entity_dict)
 
