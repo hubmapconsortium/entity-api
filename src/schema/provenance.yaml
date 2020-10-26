@@ -15,6 +15,42 @@
 # - Clarify the use of `title` and `label` attributes across all the entities
 # - Verify and mark all `immutable` attributes
 
+# Shared attributes across ACTIVITIES and ENTITIES
+shared_attributes: &shared_attributes
+  ###### Creation info attributes ######
+  created_timestamp:
+    type: integer
+    immutable: true
+    on_create_trigger: get_current_timestamp
+  created_by_user_displayname:
+    type: string
+    on_create_trigger: get_user_name
+    immutable: true
+  created_by_user_email:
+    type: string
+    on_create_trigger: get_user_email
+    immutable: true
+  created_by_user_sub: # I don't fine this in Collection in the current neo4j
+    type: string
+    on_create_trigger: get_user_sub
+    immutable: true
+  ###### ID attributes ######
+  uuid:
+    type: string
+    description: "E.g., 461bbfdc353a2673e381f632510b0f17"
+    on_create_trigger: create_uuid
+    immutable: true
+  doi_suffix_id:
+    type: string
+    description: "E.g., 456FDTP455"
+    on_create_trigger: create_doi_suffix_id
+    immutable: true
+  hubmap_id:
+    type: string
+    description: "E.g., VAN0002"
+    immutable: true
+    on_create_trigger: create_hubmap_id
+
 ####################################################################################################
 ## Activities
 ####################################################################################################
@@ -23,11 +59,7 @@ ACTIVITIES:
   # Will we have more activity types?
   Activity:
     attributes:
-      uuid:
-        type: string
-        description: "E.g., 461bbfdc353a2673e381f632510b0f17"
-        on_create_trigger: create_uuid
-        immutable: true
+      <<: *shared_attributes
       creation_action:
         type: string
         description: "E.g., Create Dataset Activity?"
@@ -56,23 +88,6 @@ shared_entity_attributes: &shared_entity_attributes
   contact_uuids:
     type: list
     description: "A list of uuids referencing the people who are the main contacts about this entity"
-  ###### PROV attributes ######
-  created_timestamp:
-    type: integer
-    immutable: true
-    on_create_trigger: get_current_timestamp
-  created_by_user_displayname:
-    type: string
-    on_create_trigger: get_user_name
-    immutable: true
-  created_by_user_email:
-    type: string
-    on_create_trigger: get_user_email
-    immutable: true
-  created_by_user_sub: # I don't fine this in Collection in the current neo4j
-    type: string
-    on_create_trigger: get_user_sub
-    immutable: true
   # All the `last_modified_*` attributes are not immutable
   last_modified_timestamp:
     type: integer
@@ -86,22 +101,6 @@ shared_entity_attributes: &shared_entity_attributes
   last_modified_user_displayname:
     type: string
     on_update_trigger: get_user_name
-  ###### ID attributes ######
-  uuid:
-    type: string
-    description: "E.g., 461bbfdc353a2673e381f632510b0f17"
-    on_create_trigger: create_uuid
-    immutable: true
-  doi_suffix_id:
-    type: string
-    description: "E.g., 456FDTP455"
-    on_create_trigger: create_doi_suffix_id
-    immutable: true
-  hubmap_id:
-    type: string
-    description: "E.g., VAN0002"
-    immutable: true
-    on_create_trigger: create_hubmap_id
   ###### All other shared attributes ######
   entity_type:
     type: string
@@ -135,6 +134,7 @@ ENTITIES:
   ############################################# Collection #############################################
   Collection:
     attributes:
+      <<: *shared_attributes
       <<: *shared_entity_attributes
       title:
         user_input_required: true
@@ -153,6 +153,7 @@ ENTITIES:
   ############################################# Dataset #############################################
   Dataset:
     attributes:
+      <<: *shared_attributes
       <<: *shared_entity_attributes
       title:
         user_input_required: true
@@ -196,6 +197,7 @@ ENTITIES:
   ############################################# Donor #############################################
   Donor:
     attributes:
+      <<: *shared_attributes
       <<: *shared_entity_attributes
       # Need `title` attribute?
       # Deidentified Name?
@@ -225,6 +227,7 @@ ENTITIES:
   ############################################# Sample #############################################
   Sample:
     attributes:
+      <<: *shared_attributes
       <<: *shared_entity_attributes
       # Need `title` attribute?
       # How to specify the source HuBMAP id of a new sample?
