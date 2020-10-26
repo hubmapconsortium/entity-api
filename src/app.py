@@ -277,8 +277,9 @@ def create_derived_entity(entity_type, source_entity_type, source_entity_id):
     source_entity_uuid = None
 
     # Validate user provied entity_type and source_entity_type from URL
-    validate_entity_type(entity_type)
     validate_entity_type(source_entity_type)
+    # Collection can not be derived
+    validate_derived_entity_type(entity_type)
 
     # Normalize user provided entity_type and source_entity_type
     normalized_entity_type = normalize_entity_type(entity_type)
@@ -514,6 +515,24 @@ def validate_entity_type(entity_type):
     # Validate provided entity_type
     if normalize_entity_type(entity_type) not in accepted_entity_types:
         bad_request_error("The specified entity type in URL must be one of the following: " + separator.join(accepted_entity_types))
+
+"""
+Validate the user specifed entity type for derived entity
+
+Parameters
+----------
+entity_type : str
+    The user specifed entity type in URL
+"""
+def validate_derived_entity_type(entity_type):
+    separator = ", "
+    # Collection can not be derived
+    accepted_entity_types = ["Dataset", "Donor", "Sample"]
+
+    # Validate provided entity_type
+    if normalize_entity_type(entity_type) not in accepted_entity_types:
+        bad_request_error("Invalid entity type specified for the derived entity. Accepted type: " + separator.join(accepted_entity_types))
+
 
 """
 Create a dict of HTTP Authorization header with Bearer token for making calls to uuid-api
