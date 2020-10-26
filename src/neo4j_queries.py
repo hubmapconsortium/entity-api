@@ -277,19 +277,28 @@ Returns
 dict
     A dictionary of newly created entity details returned from the Cypher query
 """
-def create_entity(neo4j_driver, entity_type, json_list_str, collection_uuids_list):
+def create_entity(neo4j_driver, entity_type, entity_json_list_str, activity_json_list_str = None, source_entity_uuid = None, collection_uuids_list = None):
     entity_dict = {}
 
     with neo4j_driver.session(default_access_mode = neo4j.WRITE_ACCESS) as session:
         try:
             tx = session.begin_transaction()
 
-            entity_node = create_entity_tx(tx, entity_type, json_list_str)
+            entity_node = create_entity_tx(tx, entity_type, entity_json_list_str)
             entity_dict = node_to_dict(entity_node)
 
             logger.info("======create_entity() resulting entity_dict:======")
             logger.info(entity_dict)
  
+            # In the event of this entity is being derived from a source entity
+            if activity_json_list_str and source_entity_uuid:
+                # 1 - create the Acvitity node
+                activity_dict = create_activity_tx(tx, activity_json_list_str)
+                # 2 - create relationship from source Entity node to this Activity node
+                create_relationship_tx(tx, source_entity_uuid, activity_dict['uuid'], 'ACTIVITY_INPUT', '->')
+                # 3 - create relationship from this Activity node to the derived Enity node
+                create_relationship_tx(tx, activity_dict['uuid'], entity_dict['uuid'], 'ACTIVITY_OUTPUT', '->')
+
             # For Dataset associated with Collections
             if collection_uuids_list:
                 create_dataset_collection_relationship_tx(tx, entity_dict, collection_uuids_list)

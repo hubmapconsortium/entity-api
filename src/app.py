@@ -141,14 +141,14 @@ def cache_clear():
 
 
 """
-Retrive the properties of a given entity by uuid
+Retrive the properties of a given entity by eiter uuid or hubmap_id
 
 Parameters
 ----------
 entity_type : str
     One of the normalized entity type: Dataset, Collection, Sample, Donor
 id : string
-    The uuid of target entity 
+    Either the uuid or the hubmap_id of target entity 
 
 Returns
 -------
@@ -221,12 +221,6 @@ def create_entity(entity_type):
 
     on_create_trigger_data_dict = generate_triggered_data("on_create_trigger", data_dict)
 
-    # Make sure there's no entity node with the same uuid/hubmap-id already exists
-    entity_dict = query_target_entity(normalized_entity_type, on_create_trigger_data_dict['uuid'])
-
-    if bool(entity_dict):
-        bad_request_error("Entity with the same uuid " + on_create_trigger_data_dict['uuid'] + " already exists in the neo4j database.")
-
     # Merge two dictionaries (without the same keys in this case)
     merged_dict = {**json_data_dict, **on_create_trigger_data_dict}
 
@@ -251,15 +245,124 @@ def create_entity(entity_type):
     # Must also escape single quotes in the json string to build a valid Cypher query later
     escaped_json_list_str = json_list_str.replace("'", r"\'")
 
-    app.logger.info("======create entity node with json_list_str======")
-    app.logger.info(json_list_str)
+    app.logger.info("======create entity node with escaped_json_list_str======")
+    app.logger.info(escaped_json_list_str)
 
     # Create new entity
     # If `collection_uuids_list` is not an empty list, meaning the target entity is Dataset and 
     # we'll be also creating relationships between the new entity node to the Collection nodes
-    new_entity_dict = neo4j_queries.create_entity(neo4j_driver, normalized_entity_type, escaped_json_list_str, collection_uuids_list)
+    new_entity_dict = neo4j_queries.create_entity(neo4j_driver, normalized_entity_type, escaped_json_list_str, collection_uuids_list = collection_uuids_list)
 
     return get_resulting_entity(normalized_entity_type, new_entity_dict)
+
+"""
+Create a new entity node from the specified source node in neo4j
+
+Parameters
+----------
+entity_type : str
+    One of the normalized entity types: Dataset, Collection, Sample, Donor
+source_entity_type : str
+    One of the normalized entity types: Dataset, Sample, Donor, but NOT Collection
+source_entity_id : string
+    Either the uuid or the hubmap_id of the source entity 
+
+Returns
+-------
+json
+    All the properties of the newly created entity
+"""
+@app.route('/derived/<entity_type>/from/<source_entity_type>/<source_entity_id>', methods = ['POST'])
+def create_derived_entity(entity_type, source_entity_type, source_entity_id):
+    source_entity_uuid = None
+
+    # Validate user provied entity_type and source_entity_type from URL
+    validate_entity_type(entity_type)
+    validate_entity_type(source_entity_type)
+
+    # Normalize user provided entity_type and source_entity_type
+    normalized_entity_type = normalize_entity_type(entity_type)
+    normalized_source_entity_type = normalize_entity_type(entity_type)
+
+    # Always expect a json body
+    request_json_required(request)
+
+    # Parse incoming json string into json data(python dict object)
+    json_data_dict = request.get_json()
+
+    # Validate request json against the yaml schema
+    validate_json_data_against_schema(json_data_dict, normalized_entity_type)
+
+    # Query source entity against neo4j and return as a dict if exists
+    source_entity_dict = query_target_entity(normalized_source_entity_type, source_entity_id)
+
+    # Make sure the source entity exists
+    if not bool(source_entity_dict):
+        bad_request_error("Source entity with uuid " + source_id + " not found in the neo4j database.")
+
+    # Otherwise get the uuid of the source entity for later use
+    source_entity_uuid = source_entity_dict['uuid']
+
+    # Dictionaries to be used by trigger methods
+    normalized_entity_type_dict = {"normalized_entity_type": normalized_entity_type}
+    user_info_dict = get_user_info(request)
+    created_ids_dict = create_new_ids(normalized_entity_type)
+
+    # Merge all the above dictionaries
+    # If the latter dictionary contains the same key as the previous one, it will overwrite the value for that key
+    data_dict = {**normalized_entity_type_dict, **user_info_dict, **created_ids_dict}
+
+    on_create_trigger_data_dict = generate_triggered_data("on_create_trigger", data_dict)
+
+    # Merge two dictionaries (without the same keys in this case)
+    merged_dict = {**json_data_dict, **on_create_trigger_data_dict}
+
+    # ??? Are we assume the derived entity linked to the same collections?
+    # For Dataset associated with Collections
+    collection_uuids_list = []
+    if 'collection_uuids' in merged_dict:
+        collection_uuids_list = merged_dict['collection_uuids']
+
+    # Check existence of those collections
+    for collection_uuid in collection_uuids_list:
+        collection_dict = query_target_entity('Collection', collection_uuid)
+
+        if not bool(collection_dict):
+            bad_request_error("Collection with uuid " + collection_uuid + " not found in the neo4j database.")
+
+    # `UNWIND` in Cypher expects List<T>
+    data_list = [merged_dict]
+    
+    # Convert the list (only contains one entity) to json list string
+    json_list_str = json.dumps(data_list)
+
+    # Must also escape single quotes in the json string to build a valid Cypher query later
+    escaped_json_list_str = json_list_str.replace("'", r"\'")
+
+    app.logger.info("======create entity node with escaped_json_list_str======")
+    app.logger.info(escaped_json_list_str)
+
+    # Create a new uuid for the Activity node
+    created_ids_dict_for_activity = create_new_ids(normalized_entity_type, generate_doi = False)
+    # Build a merged dict for Activity
+    data_dict_for_activity = {**normalized_entity_type_dict, **created_ids_dict_for_activity}
+
+    # Get trigger generated data for Activity
+    on_create_trigger_data_dict_for_activity = generate_triggered_data("on_create_trigger", data_dict_for_activity)
+    
+    # `UNWIND` in Cypher expects List<T>
+    activity_data_list = [on_create_trigger_data_dict_for_activity]
+    
+    # Convert the list (only contains one entity) to json list string
+    ctivity_json_list_str = json.dumps(activity_data_list)
+
+    app.logger.info("======create activity node with json_list_str_for_activity======")
+    app.logger.info(activity_json_list_str)
+
+    new_entity_dict = neo4j_queries.create_entity(neo4j_driver, normalized_entity_type, escaped_json_list_str, activity_json_list_str = activity_json_list_str, source_entity_uuid = source_entity_uuid, collection_uuids_list = collection_uuids_list)
+
+    return get_resulting_entity(normalized_entity_type, new_entity_dict)
+
 
 """
 Update the properties of a given entity in neo4j by uuid
@@ -517,7 +620,7 @@ dict
     }
 
 """
-def create_new_ids(normalized_entity_type):
+def create_new_ids(normalized_entity_type, generate_doi = True):
     target_url = app.config['UUID_API_URL']
 
     # Suppress InsecureRequestWarning warning when requesting status on https with ssl cert verify disabled
@@ -525,8 +628,8 @@ def create_new_ids(normalized_entity_type):
 
     # Must use "generateDOI": "true" to generate the doi (doi_suffix_id) and displayDoi (hubmap_id)
     json_to_post = {
-        "entityType": normalized_entity_type, 
-        "generateDOI": "true"
+        'entityType': normalized_entity_type, 
+        'generateDOI': str(generate_doi).lower() # Convert python bool to JSON string "true" or "false"
     }
 
     # Use modified version of globus app secrect from configuration as the internal token
@@ -543,10 +646,13 @@ def create_new_ids(normalized_entity_type):
 
         # Create a new dict with desired keys
         created_ids_dict = {
-            "uuid": ids_dict['uuid'],
-            "doi_suffix_id": ids_dict['doi'],
-            "hubmap_id": ids_dict['displayDoi']
+            'uuid': ids_dict['uuid']
         }
+
+        # Add extra fields
+        if generate_doi:
+            created_ids_dict['doi_suffix_id'] = ids_dict['doi']
+            created_ids_dict['hubmap_id'] = ids_dict['displayDoi']
 
         return created_ids_dict
     else:
@@ -590,6 +696,7 @@ def query_target_entity(normalized_entity_type, id):
         internal_server_error(ce)
 
     return entity_dict
+
 
 """
 Validate JSON data from user request against the schema

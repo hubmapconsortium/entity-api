@@ -96,6 +96,23 @@ def get_user_name(data_dict):
     return data_dict['name']
 
 """
+Trigger event method of getting source uuid
+
+Parameters
+----------
+data_dict : dict
+    A merged dictionary that contains all possible input data to be used
+    It's fine if a trigger method doesn't use any input data
+
+Returns
+-------
+string
+    The uuid string
+"""
+def get_source_uuid(data_dict):
+    return data_dict['source_uuid']
+
+"""
 Trigger event method of getting uuid
 
 Parameters

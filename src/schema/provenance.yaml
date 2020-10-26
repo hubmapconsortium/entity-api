@@ -15,8 +15,31 @@
 # - Clarify the use of `title` and `label` attributes across all the entities
 # - Verify and mark all `immutable` attributes
 
-############################################# Shared attributes #############################################
-shared_attributes: &shared_attributes 
+####################################################################################################
+## Activities
+####################################################################################################
+
+ACTIVITIES:
+  # Will we have more activity types?
+  Activity:
+    attributes:
+      uuid:
+        type: string
+        description: "E.g., 461bbfdc353a2673e381f632510b0f17"
+        on_create_trigger: create_uuid
+        immutable: true
+      creation_action:
+        type: string
+        description: "E.g., Create Dataset Activity?"
+        immutable: true
+        on_create_trigger: get_creation_action
+      # Do we need doi_suffix_id and hubmap_id too?
+
+####################################################################################################
+## Entities
+####################################################################################################
+
+shared_entity_attributes: &shared_entity_attributes 
   ###### DOI attributes ######
   registered_doi:
     type: string
@@ -90,7 +113,12 @@ shared_attributes: &shared_attributes
     description: "One of the values: public, consortium, protected. Only Dataset can have protected value"
     on_create_trigger: get_data_access_level
     on_update_trigger: get_data_access_level
-  ###### Share transient attributes ######
+  ###### Shared transient attributes ######
+  source_uuid: # Added by Joe, do we want this?
+    transient: true
+    type: string
+    description: "The uuid of source entity from which this new entity is derived from"
+    on_read_trigger: get_source_uuid
   creators_info:
     transient: true
     type: list
@@ -107,7 +135,7 @@ ENTITIES:
   ############################################# Collection #############################################
   Collection:
     attributes:
-      <<: *shared_attribs
+      <<: *shared_entity_attributes
       title:
         user_input_required: true
         type: string
@@ -125,7 +153,7 @@ ENTITIES:
   ############################################# Dataset #############################################
   Dataset:
     attributes:
-      <<: *shared_attributes
+      <<: *shared_entity_attributes
       title:
         user_input_required: true
         type: string
@@ -168,7 +196,7 @@ ENTITIES:
   ############################################# Donor #############################################
   Donor:
     attributes:
-      <<: *shared_attributes
+      <<: *shared_entity_attributes
       # Need `title` attribute?
       # Deidentified Name?
       image_file_metadata:
@@ -197,7 +225,7 @@ ENTITIES:
   ############################################# Sample #############################################
   Sample:
     attributes:
-      <<: *shared_attributes
+      <<: *shared_entity_attributes
       # Need `title` attribute?
       # How to specify the source HuBMAP id of a new sample?
       protocol_file:
