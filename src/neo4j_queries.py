@@ -269,8 +269,14 @@ neo4j_driver : neo4j.driver
     The neo4j driver instance
 entity_type : str
     One of the normalized entity type: Dataset, Collection, Sample, Donor
-json_list_str : string
-    The string representation of a list containing only one entity to be created
+entity_json_list_str : string
+    The string representation of a list containing only one Entity node to be created
+source_entity_uuid : str
+    The uuid of the source entity
+activity_json_list_str : string
+    The string representation of a list containing only one Activity node to be created
+collection_uuids_list: list
+    The list of collection uuids to be linked
 
 Returns
 -------

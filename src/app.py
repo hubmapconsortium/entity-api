@@ -355,11 +355,12 @@ def create_derived_entity(entity_type, source_entity_type, source_entity_id):
     activity_data_list = [on_create_trigger_data_dict_for_activity]
     
     # Convert the list (only contains one entity) to json list string
-    ctivity_json_list_str = json.dumps(activity_data_list)
+    activity_json_list_str = json.dumps(activity_data_list)
 
-    app.logger.info("======create activity node with json_list_str_for_activity======")
+    app.logger.info("======create activity node with activity_json_list_str======")
     app.logger.info(activity_json_list_str)
 
+    # Create the derived entity alone with the Activity node and relationships
     new_entity_dict = neo4j_queries.create_entity(neo4j_driver, normalized_entity_type, escaped_json_list_str, activity_json_list_str = activity_json_list_str, source_entity_uuid = source_entity_uuid, collection_uuids_list = collection_uuids_list)
 
     return get_resulting_entity(normalized_entity_type, new_entity_dict)
