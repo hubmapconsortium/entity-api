@@ -32,7 +32,7 @@ ACTIVITIES:
         type: string
         description: "E.g., Create Dataset Activity?"
         immutable: true
-        on_create_trigger: get_creation_action
+        on_create_trigger: get_activity_creation_action
       # Do we need doi_suffix_id and hubmap_id too?
 
 ####################################################################################################

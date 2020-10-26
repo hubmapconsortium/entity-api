@@ -197,3 +197,30 @@ def get_dataset_uuids(data_dict):
 ####################################################################################################
 ## Trigger methods specific to Sample
 ####################################################################################################
+
+####################################################################################################
+## Trigger methods specific to Activity
+####################################################################################################
+
+"""
+Trigger event method of getting creation_action for Activity
+
+Donor->Activity->Sample
+Sample->Activity->Dataset
+Lab->Activity->Donor (Not needed for now)
+Dataset->Activity->Dataset
+Sample->Activity->Sample
+
+Parameters
+----------
+data_dict : dict
+    A merged dictionary that contains all possible input data to be used
+    It's fine if a trigger method doesn't use any input data
+
+Returns
+-------
+string
+    The creation_action string
+"""
+def get_activity_creation_action(data_dict):
+    return "Create {entity_type} Activity".format(entity_type = data_dict['normalized_entity_type'])
