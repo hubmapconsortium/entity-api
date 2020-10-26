@@ -7,6 +7,48 @@ logger = logging.getLogger(__name__)
 record_field_name = "result"
 
 ####################################################################################################
+## Activity creation
+####################################################################################################
+
+"""
+Create a new activity node in neo4j
+
+Parameters
+----------
+tx : neo4j transaction handler
+    The neo4j transaction handler instance
+json_list_str : string
+    The string representation of a list containing only one entity to be created
+
+Returns
+-------
+neo4j.node
+    A neo4j node instance of the newly created entity node
+"""
+def create_activity_tx(tx, json_list_str):
+    # UNWIND expects json.entities to be List<T>
+    parameterized_query = ("WITH apoc.convert.fromJsonList('{json_list_str}') AS activities_list " +
+                           "UNWIND activities_list AS data " +
+                           "CREATE (a:Activity) " +
+                           "SET a = data " +
+                           "RETURN a AS {record_field_name}")
+
+    query = parameterized_query.format(json_list_str = json_list_str,
+                                       record_field_name = record_field_name)
+
+    logger.info("======create_activity_tx() query:======")
+    logger.info(query)
+
+    result = tx.run(query)
+    record = result.single()
+    node = record[record_field_name]
+
+    logger.info("======create_activity_tx() resulting node:======")
+    logger.info(node)
+
+    return node
+
+####################################################################################################
 ## Entity retrival
 ####################################################################################################
 
@@ -117,6 +159,67 @@ def create_entity_tx(tx, entity_type, json_list_str):
     logger.info(node)
 
     return node
+
+####################################################################################################
+## Relationship creation
+####################################################################################################
+
+"""
+Create a relationship from the source node to the target node in neo4j
+
+Parameters
+----------
+tx : neo4j transaction handler
+    The neo4j transaction handler instance
+source_node_uuid : str
+    The uuid of source node
+target_node_uuid : str
+    The uuid of target node
+relationship : str
+    The relationship type to be created
+direction: str
+    The relationship direction from source node to target node: outgoing `->` or incoming `<-`
+    Neo4j CQL CREATE command supports only directional relationships
+
+
+Returns
+-------
+string
+    The relationship type name
+"""
+def create_relationship_tx(tx, source_node_uuid, target_node_uuid, relationship, direction):
+    incoming = "-"
+    outgoing = "-"
+    
+    if direction == "<-":
+        incoming = direction
+
+    if direction == "->":
+        outgoing = direction
+
+    parameterized_query = ("MATCH (s), (t)" +
+                           "WHERE s.uuid = {source_node_uuid} AND t.uuid = {target_node_uuid}" +
+                           "CREATE (s){incoming}[r:{relationship}]{outgoing}(t)" +
+                           "RETURN type(r) AS {record_field_name}") 
+
+    query = parameterized_query.format(source_node_uuid = source_node_uuid,
+                                       target_node_uuid = target_node_uuid,
+                                       relationship = relationship,
+                                       incoming = incoming,
+                                       outgoing = outgoing,
+                                       record_field_name = record_field_name)
+
+    logger.info("======create_relationship_tx() query:======")
+    logger.info(query)
+
+    result = tx.run(query)
+    record = result.single()
+    relationship = record[record_field_name]
+
+    logger.info("======create_relationship_tx() resulting relationship:======")
+    logger.info("(source node) " + incoming + " [:" + relationship + "] " + outgoing + " (target node)")
+
+    return relationship
 
 """
 Create relationships between the target Dataset node and Collection nodes in neo4j
