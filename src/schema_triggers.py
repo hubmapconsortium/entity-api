@@ -205,11 +205,14 @@ def get_dataset_uuids(data_dict):
 """
 Trigger event method of getting creation_action for Activity
 
-Donor->Activity->Sample
-Sample->Activity->Dataset
 Lab->Activity->Donor (Not needed for now)
-Dataset->Activity->Dataset
+Donor->Activity->Sample
 Sample->Activity->Sample
+Sample->Activity->Dataset
+Dataset->Activity->Dataset
+
+Register Donor Activity
+Create Sample Activity
 
 Parameters
 ----------

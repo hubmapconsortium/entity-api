@@ -1,4 +1,5 @@
-from neo4j import CypherError
+import neo4j
+from neo4j import CypherError, TransactionError
 import logging
 
 logger = logging.getLogger(__name__)
@@ -74,7 +75,7 @@ def get_entity(neo4j_driver, entity_type, uuid):
     entity_dict = {}
 
     parameterized_query = ("MATCH (e:{entity_type}) " + 
-                           "WHERE e.uuid='{uuid}' " +
+                           "WHERE e.uuid = '{uuid}' " +
                            "RETURN e AS {record_field_name}")
 
     query = parameterized_query.format(entity_type = entity_type, 
@@ -197,15 +198,15 @@ def create_relationship_tx(tx, source_node_uuid, target_node_uuid, relationship,
     if direction == "->":
         outgoing = direction
 
-    parameterized_query = ("MATCH (s), (t)" +
-                           "WHERE s.uuid = {source_node_uuid} AND t.uuid = {target_node_uuid}" +
-                           "CREATE (s){incoming}[r:{relationship}]{outgoing}(t)" +
+    parameterized_query = ("MATCH (s), (t) " +
+                           "WHERE s.uuid = '{source_node_uuid}' AND t.uuid = '{target_node_uuid}' " +
+                           "CREATE (s){incoming}[r:{relationship}]{outgoing}(t) " +
                            "RETURN type(r) AS {record_field_name}") 
 
     query = parameterized_query.format(source_node_uuid = source_node_uuid,
                                        target_node_uuid = target_node_uuid,
-                                       relationship = relationship,
                                        incoming = incoming,
+                                       relationship = relationship,
                                        outgoing = outgoing,
                                        record_field_name = record_field_name)
 
@@ -239,13 +240,14 @@ string
     The relationship type name
 """
 def create_dataset_collection_relationship_tx(tx, entity_dict, collection_uuids_list):
-    parameterized_query = ("MATCH (e1:Dataset), (e2:Collection)" +
-                           "WHERE e1.uuid = {uuid} AND e2.uuid IN {collection_uuids_list}" +
-                           "CREATE (e1)-[r:IN_COLLECTION]->(e2)" +
+    collection_uuids_list_str = '[' + ', '.join(collection_uuids_list) + ']'
+    parameterized_query = ("MATCH (e1:Dataset), (e2:Collection) " +
+                           "WHERE e1.uuid = '{uuid}' AND e2.uuid IN {collection_uuids_list_str} " +
+                           "CREATE (e1)-[r:IN_COLLECTION]->(e2) " +
                            "RETURN type(r) AS {record_field_name}") 
 
     query = parameterized_query.format(uuid = entity_dict1['uuid'],
-                                       collection_uuids_list = collection_uuids_list,
+                                       collection_uuids_list_str = collection_uuids_list_str,
                                        record_field_name = record_field_name)
 
     logger.info("======create_dataset_collection_relationship_tx() query:======")
@@ -310,11 +312,18 @@ def create_entity(neo4j_driver, entity_type, entity_json_list_str, activity_json
                 create_dataset_collection_relationship_tx(tx, entity_dict, collection_uuids_list)
             
             tx.commit()
-            tx.close()
 
             return entity_dict
         except CypherError as ce:
             raise CypherError('A Cypher error was encountered: ' + ce.message)
+        except TransactionError as te:
+            logger.info("======create_entity() transaction error:======")
+            logger.info(te.value)
+
+            if tx.closed() == False:
+                tx.rollback()
+
+            raise TransactionError('Neo4j transaction error: create_entity()' + te.value)
         except Exception as e:
             raise e
 

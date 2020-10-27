@@ -65,7 +65,7 @@ ACTIVITIES:
         description: "E.g., Create Dataset Activity?"
         immutable: true
         on_create_trigger: get_activity_creation_action
-      # Do we need doi_suffix_id and hubmap_id too?
+
 
 ####################################################################################################
 ## Entities

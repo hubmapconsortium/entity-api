@@ -173,7 +173,7 @@ def get_entity(entity_type, id):
     # If the latter dictionary contains the same key as the previous one, it will overwrite the value for that key
     data_dict = {**normalized_entity_type_dict}
 
-    on_read_trigger_data_dict = generate_triggered_data("on_read_trigger", data_dict)
+    on_read_trigger_data_dict = generate_triggered_data("on_read_trigger", "ENTITIES", data_dict)
 
     # Merge two dictionaries (without the same keys in this case)
     merged_dict = {**entity_dict, **on_read_trigger_data_dict}
@@ -208,7 +208,7 @@ def create_entity(entity_type):
     json_data_dict = request.get_json()
 
     # Validate request json against the yaml schema
-    validate_json_data_against_schema(json_data_dict, normalized_entity_type)
+    validate_json_data_against_schema(json_data_dict, "ENTITIES", normalized_entity_type)
 
     # Dictionaries to be used by trigger methods
     normalized_entity_type_dict = {"normalized_entity_type": normalized_entity_type}
@@ -219,7 +219,7 @@ def create_entity(entity_type):
     # If the latter dictionary contains the same key as the previous one, it will overwrite the value for that key
     data_dict = {**normalized_entity_type_dict, **user_info_dict, **created_ids_dict}
 
-    on_create_trigger_data_dict = generate_triggered_data("on_create_trigger", data_dict)
+    on_create_trigger_data_dict = generate_triggered_data("on_create_trigger", "ENTITIES", data_dict)
 
     # Merge two dictionaries (without the same keys in this case)
     merged_dict = {**json_data_dict, **on_create_trigger_data_dict}
@@ -276,14 +276,14 @@ json
 def create_derived_entity(entity_type, source_entity_type, source_entity_id):
     source_entity_uuid = None
 
-    # Validate user provied entity_type and source_entity_type from URL
-    validate_entity_type(source_entity_type)
+    # Validate entity_type of the derived entity and source_entity_type from URL
     # Collection can not be derived
     validate_derived_entity_type(entity_type)
+    validate_entity_type(source_entity_type)
 
     # Normalize user provided entity_type and source_entity_type
     normalized_entity_type = normalize_entity_type(entity_type)
-    normalized_source_entity_type = normalize_entity_type(entity_type)
+    normalized_source_entity_type = normalize_entity_type(source_entity_type)
 
     # Always expect a json body
     request_json_required(request)
@@ -292,14 +292,14 @@ def create_derived_entity(entity_type, source_entity_type, source_entity_id):
     json_data_dict = request.get_json()
 
     # Validate request json against the yaml schema
-    validate_json_data_against_schema(json_data_dict, normalized_entity_type)
+    validate_json_data_against_schema(json_data_dict, "ENTITIES", normalized_entity_type)
 
     # Query source entity against neo4j and return as a dict if exists
     source_entity_dict = query_target_entity(normalized_source_entity_type, source_entity_id)
 
     # Make sure the source entity exists
     if not bool(source_entity_dict):
-        bad_request_error("Source entity with uuid " + source_id + " not found in the neo4j database.")
+        bad_request_error("Source entity with uuid " + source_entity_id + " not found in the neo4j database.")
 
     # Otherwise get the uuid of the source entity for later use
     source_entity_uuid = source_entity_dict['uuid']
@@ -313,7 +313,7 @@ def create_derived_entity(entity_type, source_entity_type, source_entity_id):
     # If the latter dictionary contains the same key as the previous one, it will overwrite the value for that key
     data_dict = {**normalized_entity_type_dict, **user_info_dict, **created_ids_dict}
 
-    on_create_trigger_data_dict = generate_triggered_data("on_create_trigger", data_dict)
+    on_create_trigger_data_dict = generate_triggered_data("on_create_trigger", "ENTITIES", data_dict)
 
     # Merge two dictionaries (without the same keys in this case)
     merged_dict = {**json_data_dict, **on_create_trigger_data_dict}
@@ -343,13 +343,13 @@ def create_derived_entity(entity_type, source_entity_type, source_entity_id):
     app.logger.info("======create entity node with escaped_json_list_str======")
     app.logger.info(escaped_json_list_str)
 
-    # Create a new uuid for the Activity node
-    created_ids_dict_for_activity = create_new_ids(normalized_entity_type, generate_doi = False)
+    # Create a new ids for the Activity node
+    created_ids_dict_for_activity = create_new_ids(normalized_entity_type)
     # Build a merged dict for Activity
-    data_dict_for_activity = {**normalized_entity_type_dict, **created_ids_dict_for_activity}
+    data_dict_for_activity = {**normalized_entity_type_dict, **user_info_dict, **created_ids_dict_for_activity}
 
     # Get trigger generated data for Activity
-    on_create_trigger_data_dict_for_activity = generate_triggered_data("on_create_trigger", data_dict_for_activity)
+    on_create_trigger_data_dict_for_activity = generate_triggered_data("on_create_trigger", "ACTIVITIES", data_dict_for_activity)
     
     # `UNWIND` in Cypher expects List<T>
     activity_data_list = [on_create_trigger_data_dict_for_activity]
@@ -403,7 +403,7 @@ def update_entity(entity_type, id):
         not_found_error("Could not find the target " + normalized_entity_type + " of id " + id)
 
     # Validate request json against the yaml schema
-    validate_json_data_against_schema(json_data_dict, normalized_entity_type)
+    validate_json_data_against_schema(json_data_dict, "ENTITIES", normalized_entity_type)
 
     # Dictionaries to be used by trigger methods
     normalized_entity_type_dict = {"normalized_entity_type": normalized_entity_type}
@@ -413,7 +413,7 @@ def update_entity(entity_type, id):
     # If the latter dictionary contains the same key as the previous one, it will overwrite the value for that key
     data_dict = {**normalized_entity_type_dict, **user_info_dict}
 
-    on_update_trigger_data_dict = generate_triggered_data("on_update_trigger", request)
+    on_update_trigger_data_dict = generate_triggered_data("on_update_trigger", "ENTITIES", request)
 
     # Add new properties if updating for the first time
     # Otherwise just overwrite existing values (E.g., last_modified_timestamp)
@@ -500,6 +500,7 @@ string
 def normalize_entity_type(entity_type):
     normalized_entity_type = entity_type.lower().capitalize()
     return normalized_entity_type
+
 
 """
 Validate the user specifed entity type in URL
@@ -728,8 +729,8 @@ json_data_dict : dict
 normalized_entity_type : str
     One of the normalized entity type: Dataset, Collection, Sample, Donor
 """
-def validate_json_data_against_schema(json_data_dict, normalized_entity_type):
-    attributes = schema['ENTITIES'][normalized_entity_type]['attributes']
+def validate_json_data_against_schema(json_data_dict, normalized_schema_section_key, normalized_entity_type):
+    attributes = schema[normalized_schema_section_key][normalized_entity_type]['attributes']
     schema_keys = attributes.keys() 
     json_data_keys = json_data_dict.keys()
     separator = ", "
@@ -805,9 +806,22 @@ Returns
 dict
     A dictionary of trigger event methods generated data
 """
-def generate_triggered_data(trigger_type, data_dict):
+def generate_triggered_data(trigger_type, normalized_schema_section_key, data_dict):
+    accepted_section_keys = ['ACTIVITIES', 'ENTITIES']
+    separator = ", "
+
+    if normalized_schema_section_key not in accepted_section_keys:
+        internal_server_error('Unsupported schema section key: ' + normalized_schema_section_key + ". Must be one of the following: " + separator.join(accepted_section_keys))
+
     normalized_entity_type = data_dict['normalized_entity_type']
-    attributes = schema['ENTITIES'][normalized_entity_type]['attributes']
+
+    prov_class = normalized_entity_type
+
+    # ACTIVITIES section has only one prov class: Activity
+    if normalized_schema_section_key == "ACTIVITIES":
+        prov_class = "Activity"
+
+    attributes = schema[normalized_schema_section_key][prov_class]['attributes']
     schema_keys = attributes.keys() 
 
     triggered_data_dict = {}
@@ -871,11 +885,40 @@ Returns
 -------
 dict
     A dict containing all the user info
+
+    {
+        "scope": "urn:globus:auth:scope:nexus.api.globus.org:groups",
+        "name": "First Last",
+        "iss": "https://auth.globus.org",
+        "client_id": "21f293b0-5fa5-4ee1-9e0e-3cf88bd70114",
+        "active": True,
+        "nbf": 1603761442,
+        "token_type": "Bearer",
+        "aud": ["nexus.api.globus.org", "21f293b0-5fa5-4ee1-9e0e-3cf88bd70114"],
+        "iat": 1603761442,
+        "dependent_tokens_cache_id": "af2d5979090a97536619e8fbad1ebd0afa875c880a0d8058cddf510fc288555c",
+        "exp": 1603934242,
+        "sub": "c0f8907a-ec78-48a7-9c85-7da995b05446",
+        "email": "email@pitt.edu",
+        "username": "username@pitt.edu",
+        "hmscopes": ["urn:globus:auth:scope:nexus.api.globus.org:groups"],
+    }
+
+
 """
 def get_user_info(request):
     auth_helper = init_auth_helper()
     # `group_required` is a boolean, when True, 'hmgroupids' is in the output
-    return auth_helper.getUserInfoUsingRequest(request, False)
+    user_info = auth_helper.getUserInfoUsingRequest(request, False)
+
+    app.logger.info("======get_user_info()======")
+    app.logger.info(user_info)
+
+    # If returns error response, invalid header or token
+    if isinstance(user_info, Response):
+        bad_request_error("Failed to query the user info with the given globus token")
+
+    return user_info
 
 """
 Always expect a json body from user request
