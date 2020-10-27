@@ -163,9 +163,29 @@ string
 def create_hubmap_id(data_dict):
     return data_dict['hubmap_id']
 
-# TO-DO
+"""
+Trigger event method of getting data access level
+
+Parameters
+----------
+data_dict : dict
+    A merged dictionary that contains all possible input data to be used
+    It's fine if a trigger method doesn't use any input data
+
+Returns
+-------
+string
+    The data access level string
+"""
 def get_data_access_level(data_dict):
-    return "public"
+    data_access_level = "consortium"
+
+    normalized_entity_type = data_dict['normalized_entity_type']
+    if normalized_entity_type == "Dataset":
+        if data_dict['contains_human_genetic_sequences']:
+            data_access_level = "protected" 
+
+    return data_access_level
 
 # TO-DO
 def get_creators_info(data_dict):
