@@ -60,8 +60,8 @@ Parameters
 ----------
 neo4j_driver : neo4j.driver
     The neo4j driver instance
-entity_type : str
-    One of the normalized entity type: Dataset, Collection, Sample, Donor
+entity_class : str
+    One of the normalized entity classes: Dataset, Collection, Sample, Donor
 uuid : string
     The uuid of target entity 
 
@@ -70,15 +70,15 @@ Returns
 dict
     A dictionary of entity details returned from the Cypher query
 """
-def get_entity(neo4j_driver, entity_type, uuid):
+def get_entity(neo4j_driver, entity_class, uuid):
     nodes = []
     entity_dict = {}
 
-    parameterized_query = ("MATCH (e:{entity_type}) " + 
+    parameterized_query = ("MATCH (e:{entity_class}) " + 
                            "WHERE e.uuid = '{uuid}' " +
                            "RETURN e AS {record_field_name}")
 
-    query = parameterized_query.format(entity_type = entity_type, 
+    query = parameterized_query.format(entity_class = entity_class, 
                                        uuid = uuid, 
                                        record_field_name = record_field_name)
     
@@ -213,8 +213,8 @@ Parameters
 ----------
 tx : neo4j transaction handler
     The neo4j transaction handler instance
-entity_type : str
-    One of the normalized entity type: Dataset, Collection, Sample, Donor
+entity_class : str
+    One of the normalized entity classes: Dataset, Collection, Sample, Donor
 json_list_str : string
     The string representation of a list containing only one entity to be created
 collection_uuids_list: list
@@ -225,16 +225,16 @@ Returns
 neo4j.node
     A neo4j node instance of the newly created entity node
 """
-def create_entity_tx(tx, entity_type, json_list_str):
+def create_entity_tx(tx, entity_class, json_list_str):
     # UNWIND expects json.entities to be List<T>
     parameterized_query = ("WITH apoc.convert.fromJsonList('{json_list_str}') AS entities_list " +
                            "UNWIND entities_list AS data " +
-                           "CREATE (e:{entity_type}) " +
+                           "CREATE (e:{entity_class}) " +
                            "SET e = data " +
                            "RETURN e AS {record_field_name}")
 
     query = parameterized_query.format(json_list_str = json_list_str, 
-                                       entity_type = entity_type, 
+                                       entity_class = entity_class, 
                                        record_field_name = record_field_name)
 
     logger.info("======create_entity_tx() query:======")
@@ -357,8 +357,8 @@ Parameters
 ----------
 neo4j_driver : neo4j.driver
     The neo4j driver instance
-entity_type : str
-    One of the normalized entity type: Dataset, Collection, Sample, Donor
+entity_class : str
+    One of the normalized entity classes: Dataset, Collection, Sample, Donor
 entity_json_list_str : string
     The string representation of a list containing only one Entity node to be created
 source_entity_uuid : str
@@ -373,14 +373,14 @@ Returns
 dict
     A dictionary of newly created entity details returned from the Cypher query
 """
-def create_entity(neo4j_driver, entity_type, entity_json_list_str, activity_json_list_str = None, source_entity_uuid = None, collection_uuids_list = None):
+def create_entity(neo4j_driver, entity_class, entity_json_list_str, activity_json_list_str = None, source_entity_uuid = None, collection_uuids_list = None):
     entity_dict = {}
 
     with neo4j_driver.session(default_access_mode = neo4j.WRITE_ACCESS) as session:
         try:
             tx = session.begin_transaction()
 
-            entity_node = create_entity_tx(tx, entity_type, entity_json_list_str)
+            entity_node = create_entity_tx(tx, entity_class, entity_json_list_str)
             entity_dict = node_to_dict(entity_node)
 
             logger.info("======create_entity() resulting entity_dict:======")
@@ -426,8 +426,8 @@ Parameters
 ----------
 tx : neo4j transaction handler
     The neo4j transaction handler instance
-entity_type : str
-    One of the normalized entity type: Dataset, Collection, Sample, Donor
+entity_class : str
+    One of the normalized entity classes: Dataset, Collection, Sample, Donor
 json_list_str : string
     The string representation of a list containing only one entity to be created
 uuid : string
@@ -438,16 +438,16 @@ Returns
 neo4j.node
     A neo4j node instance of the updated entity node
 """
-def update_entity_tx(tx, entity_type, json_list_str, uuid):
+def update_entity_tx(tx, entity_class, json_list_str, uuid):
     # UNWIND expects json.entities to be List<T>
     parameterized_query = ("WITH apoc.convert.fromJsonList('{json_list_str}') AS entities_list " +
                            "UNWIND entities_list AS data " +
-                           "MATCH (e:{entity_type}) " +
+                           "MATCH (e:{entity_class}) " +
                            "WHERE e.uuid='{uuid}' " +
                            "SET e = data RETURN e AS {record_field_name}")
 
     query = parameterized_query.format(json_list_str = json_list_str, 
-                                       entity_type = entity_type, 
+                                       entity_class = entity_class, 
                                        uuid = uuid, 
                                        record_field_name = record_field_name)
     
@@ -470,8 +470,8 @@ Parameters
 ----------
 neo4j_driver : neo4j.driver
     The neo4j driver instance
-entity_type : str
-    One of the normalized entity type: Dataset, Collection, Sample, Donor
+entity_class : str
+    One of the normalized entity classes: Dataset, Collection, Sample, Donor
 json_list_str : string
     The string representation of a list containing only one entity to be created
 uuid : string
@@ -482,12 +482,12 @@ Returns
 dict
     A dictionary of updated entity details returned from the Cypher query
 """
-def update_entity(neo4j_driver, entity_type, json_list_str, uuid):
+def update_entity(neo4j_driver, entity_class, json_list_str, uuid):
     entity_dict = {}
 
     with neo4j_driver.session() as session:
         try:
-            entity_node = session.write_transaction(update_entity_tx, entity_type, json_list_str, uuid)
+            entity_node = session.write_transaction(update_entity_tx, entity_class, json_list_str, uuid)
             entity_dict = node_to_dict(entity_node)
 
             logger.info("======update_entity() resulting entity_dict:======")

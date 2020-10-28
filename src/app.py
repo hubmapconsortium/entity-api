@@ -145,8 +145,8 @@ Retrive the properties of a given entity by eiter uuid or hubmap_id
 
 Parameters
 ----------
-entity_type : str
-    One of the normalized entity type: Dataset, Collection, Sample, Donor
+entity_class : str
+    One of the normalized entity classes: Dataset, Collection, Sample, Donor
 id : string
     Either the uuid or the hubmap_id of target entity 
 
@@ -155,21 +155,21 @@ Returns
 json
     All the properties of the target entity
 """
-@app.route('/<entity_type>/<id>', methods = ['GET'])
-def get_entity(entity_type, id):
-    # Validate user provied entity_type from URL
-    validate_entity_type(entity_type)
+@app.route('/<entity_class>/<id>', methods = ['GET'])
+def get_entity(entity_class, id):
+    # Validate user provied entity_class from URL
+    validate_entity_class(entity_class)
 
-    # Normalize user provided entity_type
-    normalized_entity_type = normalize_entity_type(entity_type)
+    # Normalize user provided entity_class
+    normalized_entity_class = normalize_entity_class(entity_class)
 
     # Query target entity against neo4j and return as a dict if exists
-    entity_dict = query_target_entity(normalized_entity_type, id)
+    entity_dict = query_target_entity(normalized_entity_class, id)
 
     # Dictionaries to be used by trigger methods
     parameters_dict = {
         "neo4j_driver": neo4j_driver,
-        "normalized_entity_type": normalized_entity_type
+        "normalized_entity_class": normalized_entity_class
     }
 
     # Merge all the above dictionaries
@@ -181,28 +181,28 @@ def get_entity(entity_type, id):
     # Merge two dictionaries (unique keys in each dict)
     result_dict = {**entity_dict, **on_read_trigger_data_dict}
 
-    return get_resulting_entity(normalized_entity_type, result_dict)
+    return get_resulting_entity(normalized_entity_class, result_dict)
 
 """
 Create a new entity node in neo4j
 
 Parameters
 ----------
-entity_type : str
-    One of the normalized entity type: Dataset, Collection, Sample, Donor
+entity_class : str
+    One of the normalized entity classes: Dataset, Collection, Sample, Donor
 
 Returns
 -------
 json
     All the properties of the newly created entity
 """
-@app.route('/<entity_type>', methods = ['POST'])
-def create_entity(entity_type):
-    # Validate user provied entity_type from URL
-    validate_entity_type(entity_type)
+@app.route('/<entity_class>', methods = ['POST'])
+def create_entity(entity_class):
+    # Validate user provied entity_class from URL
+    validate_entity_class(entity_class)
 
-    # Normalize user provided entity_type
-    normalized_entity_type = normalize_entity_type(entity_type)
+    # Normalize user provided entity_class
+    normalized_entity_class = normalize_entity_class(entity_class)
 
     # Always expect a json body
     request_json_required(request)
@@ -211,15 +211,15 @@ def create_entity(entity_type):
     json_data_dict = request.get_json()
 
     # Validate request json against the yaml schema
-    validate_json_data_against_schema(json_data_dict, "ENTITIES", normalized_entity_type)
+    validate_json_data_against_schema(json_data_dict, "ENTITIES", normalized_entity_class)
 
     # Dictionaries to be used by trigger methods
     parameters_dict = {
         "neo4j_driver": neo4j_driver,
-        "normalized_entity_type": normalized_entity_type
+        "normalized_entity_class": normalized_entity_class
     }
     user_info_dict = get_user_info(request)
-    created_ids_dict = create_new_ids(normalized_entity_type)
+    created_ids_dict = create_new_ids(normalized_entity_class)
 
     # Merge all the above dictionaries
     # If the latter dictionary contains the same key as the previous one, it will overwrite the value for that key
@@ -254,19 +254,19 @@ def create_entity(entity_type):
     # Create new entity
     # If `collection_uuids_list` is not an empty list, meaning the target entity is Dataset and 
     # we'll be also creating relationships between the new entity node to the Collection nodes
-    result_dict = neo4j_queries.create_entity(neo4j_driver, normalized_entity_type, escaped_json_list_str, collection_uuids_list = collection_uuids_list)
+    result_dict = neo4j_queries.create_entity(neo4j_driver, normalized_entity_class, escaped_json_list_str, collection_uuids_list = collection_uuids_list)
 
-    return get_resulting_entity(normalized_entity_type, result_dict)
+    return get_resulting_entity(normalized_entity_class, result_dict)
 
 """
 Create a new entity node from the specified source node in neo4j
 
 Parameters
 ----------
-entity_type : str
-    One of the normalized entity types: Dataset, Collection, Sample, Donor
-source_entity_type : str
-    One of the normalized entity types: Dataset, Sample, Donor, but NOT Collection
+entity_class : str
+    One of the normalized entity classes: Dataset, Collection, Sample, Donor
+source_entity_class : str
+    One of the normalized entity classes: Dataset, Sample, Donor, but NOT Collection
 source_entity_id : string
     Either the uuid or the hubmap_id of the source entity 
 
@@ -275,18 +275,18 @@ Returns
 json
     All the properties of the newly created entity
 """
-@app.route('/derived/<entity_type>/from/<source_entity_type>/<source_entity_id>', methods = ['POST'])
-def create_derived_entity(entity_type, source_entity_type, source_entity_id):
+@app.route('/derived/<entity_class>/from/<source_entity_class>/<source_entity_id>', methods = ['POST'])
+def create_derived_entity(entity_class, source_entity_class, source_entity_id):
     source_entity_uuid = None
 
-    # Validate entity_type of the derived entity and source_entity_type from URL
+    # Validate entity_class of the derived entity and source_entity_class from URL
     # Collection can not be derived
-    validate_derived_entity_type(entity_type)
-    validate_entity_type(source_entity_type)
+    validate_derived_entity_class(entity_class)
+    validate_entity_class(source_entity_class)
 
-    # Normalize user provided entity_type and source_entity_type
-    normalized_entity_type = normalize_entity_type(entity_type)
-    normalized_source_entity_type = normalize_entity_type(source_entity_type)
+    # Normalize user provided entity_class and source_entity_class
+    normalized_entity_class = normalize_entity_class(entity_class)
+    normalized_source_entity_class = normalize_entity_class(source_entity_class)
 
     # Always expect a json body
     request_json_required(request)
@@ -295,10 +295,10 @@ def create_derived_entity(entity_type, source_entity_type, source_entity_id):
     json_data_dict = request.get_json()
 
     # Validate request json against the yaml schema
-    validate_json_data_against_schema(json_data_dict, "ENTITIES", normalized_entity_type)
+    validate_json_data_against_schema(json_data_dict, "ENTITIES", normalized_entity_class)
 
     # Query source entity against neo4j and return as a dict if exists
-    source_entity_dict = query_target_entity(normalized_source_entity_type, source_entity_id)
+    source_entity_dict = query_target_entity(normalized_source_entity_class, source_entity_id)
 
     # Otherwise get the uuid of the source entity for later use
     source_entity_uuid = source_entity_dict['uuid']
@@ -306,10 +306,10 @@ def create_derived_entity(entity_type, source_entity_type, source_entity_id):
     # Dictionaries to be used by trigger methods
     parameters_dict = {
         "neo4j_driver": neo4j_driver,
-        "normalized_entity_type": normalized_entity_type
+        "normalized_entity_class": normalized_entity_class
     }
     user_info_dict = get_user_info(request)
-    created_ids_dict = create_new_ids(normalized_entity_type)
+    created_ids_dict = create_new_ids(normalized_entity_class)
 
     # Merge all the above dictionaries
     # If the latter dictionary contains the same key as the previous one, it will overwrite the value for that key
@@ -367,9 +367,9 @@ def create_derived_entity(entity_type, source_entity_type, source_entity_id):
     app.logger.info(activity_json_list_str)
 
     # Create the derived entity alone with the Activity node and relationships
-    result_dict = neo4j_queries.create_entity(neo4j_driver, normalized_entity_type, escaped_json_list_str, activity_json_list_str = activity_json_list_str, source_entity_uuid = source_entity_uuid, collection_uuids_list = collection_uuids_list)
+    result_dict = neo4j_queries.create_entity(neo4j_driver, normalized_entity_class, escaped_json_list_str, activity_json_list_str = activity_json_list_str, source_entity_uuid = source_entity_uuid, collection_uuids_list = collection_uuids_list)
 
-    return get_resulting_entity(normalized_entity_type, result_dict)
+    return get_resulting_entity(normalized_entity_class, result_dict)
 
 
 """
@@ -377,8 +377,8 @@ Update the properties of a given entity in neo4j by uuid
 
 Parameters
 ----------
-entity_type : str
-    One of the normalized entity type: Dataset, Collection, Sample, Donor
+entity_class : str
+    One of the normalized entity classes: Dataset, Collection, Sample, Donor
 id : string
     The uuid of target entity 
 
@@ -387,13 +387,13 @@ Returns
 json
     All the updated properties of the target entity
 """
-@app.route('/<entity_type>/<id>', methods = ['PUT'])
-def update_entity(entity_type, id):
-    # Validate user provied entity_type from URL
-    validate_entity_type(entity_type)
+@app.route('/<entity_class>/<id>', methods = ['PUT'])
+def update_entity(entity_class, id):
+    # Validate user provied entity_class from URL
+    validate_entity_class(entity_class)
 
-    # Normalize user provided entity_type
-    normalized_entity_type = normalize_entity_type(entity_type)
+    # Normalize user provided entity_class
+    normalized_entity_class = normalize_entity_class(entity_class)
 
     # Always expect a json body
     request_json_required(request)
@@ -402,15 +402,15 @@ def update_entity(entity_type, id):
     json_data_dict = request.get_json()
 
     # Get target entity and return as a dict if exists
-    entity_dict = query_target_entity(normalized_entity_type, id)
+    entity_dict = query_target_entity(normalized_entity_class, id)
 
     # Validate request json against the yaml schema
-    validate_json_data_against_schema(json_data_dict, "ENTITIES", normalized_entity_type)
+    validate_json_data_against_schema(json_data_dict, "ENTITIES", normalized_entity_class)
 
     # Dictionaries to be used by trigger methods
     parameters_dict = {
         "neo4j_driver": neo4j_driver,
-        "normalized_entity_type": normalized_entity_type
+        "normalized_entity_class": normalized_entity_class
     }
     user_info_dict = get_user_info(request)
 
@@ -445,9 +445,9 @@ def update_entity(entity_type, id):
     app.logger.info(json_list_str)
 
     # Update the exisiting entity
-    updated_entity_dict = neo4j_queries.update_entity(neo4j_driver, normalized_entity_type, escaped_json_list_str, id)
+    updated_entity_dict = neo4j_queries.update_entity(neo4j_driver, normalized_entity_class, escaped_json_list_str, id)
 
-    return get_resulting_entity(normalized_entity_type, updated_entity_dict)
+    return get_resulting_entity(normalized_entity_class, updated_entity_dict)
 
 
 ####################################################################################################
@@ -492,19 +492,19 @@ Lowercase and captalize the entity type string
 
 Parameters
 ----------
-normalized_entity_type : str
-    One of the normalized entity type: Dataset, Collection, Sample, Donor
+normalized_entity_class : str
+    One of the normalized entity classes: Dataset, Collection, Sample, Donor
 id : string
     The uuid of target entity 
 
 Returns
 -------
 string
-    One of the normalized entity type: Dataset, Collection, Sample, Donor
+    One of the normalized entity classes: Dataset, Collection, Sample, Donor
 """
-def normalize_entity_type(entity_type):
-    normalized_entity_type = entity_type.lower().capitalize()
-    return normalized_entity_type
+def normalize_entity_class(entity_class):
+    normalized_entity_class = entity_class.lower().capitalize()
+    return normalized_entity_class
 
 
 """
@@ -512,33 +512,33 @@ Validate the user specifed entity type in URL
 
 Parameters
 ----------
-entity_type : str
+entity_class : str
     The user specifed entity type in URL
 """
-def validate_entity_type(entity_type):
+def validate_entity_class(entity_class):
     separator = ", "
-    accepted_entity_types = ["Dataset", "Donor", "Sample", "Collection"]
+    accepted_entity_classs = ["Dataset", "Donor", "Sample", "Collection"]
 
-    # Validate provided entity_type
-    if normalize_entity_type(entity_type) not in accepted_entity_types:
-        bad_request_error("The specified entity type in URL must be one of the following: " + separator.join(accepted_entity_types))
+    # Validate provided entity_class
+    if normalize_entity_class(entity_class) not in accepted_entity_classs:
+        bad_request_error("The specified entity type in URL must be one of the following: " + separator.join(accepted_entity_classs))
 
 """
 Validate the user specifed entity type for derived entity
 
 Parameters
 ----------
-entity_type : str
+entity_class : str
     The user specifed entity type in URL
 """
-def validate_derived_entity_type(entity_type):
+def validate_derived_entity_class(entity_class):
     separator = ", "
     # Collection can not be derived
-    accepted_entity_types = ["Dataset", "Donor", "Sample"]
+    accepted_entity_classs = ["Dataset", "Donor", "Sample"]
 
-    # Validate provided entity_type
-    if normalize_entity_type(entity_type) not in accepted_entity_types:
-        bad_request_error("Invalid entity type specified for the derived entity. Accepted type: " + separator.join(accepted_entity_types))
+    # Validate provided entity_class
+    if normalize_entity_class(entity_class) not in accepted_entity_classs:
+        bad_request_error("Invalid entity type specified for the derived entity. Accepted type: " + separator.join(accepted_entity_classs))
 
 
 """
@@ -646,7 +646,7 @@ dict
     }
 
 """
-def create_new_ids(normalized_entity_type, generate_doi = True):
+def create_new_ids(normalized_entity_class, generate_doi = True):
     target_url = app.config['UUID_API_URL']
 
     # Suppress InsecureRequestWarning warning when requesting status on https with ssl cert verify disabled
@@ -654,7 +654,7 @@ def create_new_ids(normalized_entity_type, generate_doi = True):
 
     # Must use "generateDOI": "true" to generate the doi (doi_suffix_id) and displayDoi (hubmap_id)
     json_to_post = {
-        'entityType': normalized_entity_type, 
+        'entityType': normalized_entity_class, 
         'generateDOI': str(generate_doi).lower() # Convert python bool to JSON string "true" or "false"
     }
 
@@ -694,8 +694,8 @@ Get target entity dict
 
 Parameters
 ----------
-normalized_entity_type : str
-    One of the normalized entity types: Dataset, Collection, Sample, Donor
+normalized_entity_class : str
+    One of the normalized entity classes: Dataset, Collection, Sample, Donor
 id : string
     The uuid or hubmap_id of target entity 
 
@@ -704,12 +704,12 @@ Returns
 dict
     A dictionary of entity details returned from neo4j
 """
-def query_target_entity(normalized_entity_type, id):
+def query_target_entity(normalized_entity_class, id):
     # Make a call to uuid-api to get back the uuid
     uuid = get_target_uuid(id)
 
     try:
-        entity_dict = neo4j_queries.get_entity(neo4j_driver, normalized_entity_type, uuid)
+        entity_dict = neo4j_queries.get_entity(neo4j_driver, normalized_entity_class, uuid)
     except Exception as e:
         app.logger.info("======Exception from calling neo4j_queries.get_entity()======")
         app.logger.info(e)
@@ -723,7 +723,7 @@ def query_target_entity(normalized_entity_type, id):
 
     # Existence check
     if not bool(entity_dict):
-        not_found_error("Could not find the target " + normalized_entity_type + " of id " + id)
+        not_found_error("Could not find the target " + normalized_entity_class + " of id " + id)
 
     return entity_dict
 
@@ -735,11 +735,11 @@ Parameters
 ----------
 json_data_dict : dict
     The JSON data dict from user request
-normalized_entity_type : str
-    One of the normalized entity type: Dataset, Collection, Sample, Donor
+normalized_entity_class : str
+    One of the normalized entity classes: Dataset, Collection, Sample, Donor
 """
-def validate_json_data_against_schema(json_data_dict, normalized_schema_section_key, normalized_entity_type):
-    properties = schema[normalized_schema_section_key][normalized_entity_type]['properties']
+def validate_json_data_against_schema(json_data_dict, normalized_schema_section_key, normalized_entity_class):
+    properties = schema[normalized_schema_section_key][normalized_entity_class]['properties']
     schema_keys = properties.keys() 
     json_data_keys = json_data_dict.keys()
     separator = ", "
@@ -823,9 +823,9 @@ def generate_triggered_data(trigger_type, normalized_schema_section_key, data_di
     if normalized_schema_section_key not in accepted_section_keys:
         internal_server_error('Unsupported schema section key: ' + normalized_schema_section_key + ". Must be one of the following: " + separator.join(accepted_section_keys))
 
-    # Use normalized_entity_type for all classes under the ENTITIES section
+    # Use normalized_entity_class for all classes under the ENTITIES section
     if normalized_schema_section_key == 'ENTITIES':
-        normalized_class = data_dict['normalized_entity_type']
+        normalized_class = data_dict['normalized_entity_class']
 
     # Use normalized_activity_class for all classes under the ACTIVITIES section
     # ACTIVITIES section has only one prov class: Activity
@@ -850,8 +850,8 @@ Generate the final response data
 
 Parameters
 ----------
-normalized_entity_type : str
-    One of the normalized entity type: Dataset, Collection, Sample, Donor
+normalized_entity_class : str
+    One of the normalized entity classes: Dataset, Collection, Sample, Donor
 entity_dict : dict
     The target entity dict
     
@@ -860,9 +860,9 @@ Returns
 str
     A response string
 """
-def get_resulting_entity(normalized_entity_type, entity_dict):
+def get_resulting_entity(normalized_entity_class, entity_dict):
     result = {
-        normalized_entity_type.lower(): entity_dict
+        normalized_entity_class.lower(): entity_dict
     }
 
     return jsonify(result)

@@ -45,7 +45,7 @@ string
     The string of normalized entity type
 """
 def get_entity_type(data_dict):
-    return data_dict['normalized_entity_type']
+    return data_dict['normalized_entity_class']
 
 """
 Trigger event method of getting user sub
@@ -183,8 +183,8 @@ string
 def get_data_access_level(data_dict):
     data_access_level = "consortium"
 
-    normalized_entity_type = data_dict['normalized_entity_type']
-    if normalized_entity_type == "Dataset":
+    normalized_entity_class = data_dict['normalized_entity_class']
+    if normalized_entity_class == "Dataset":
         if data_dict['contains_human_genetic_sequences']:
             data_access_level = "protected" 
 
