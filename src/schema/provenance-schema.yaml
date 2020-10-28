@@ -1,23 +1,23 @@
 ############################################# Rules #############################################
-# - By default, the schema treats all entity attributes as optional. Use `user_input_required: true` to mark an attribute as user_input_required
-# - By default, the schema treats all entity attributes as mutable. Use `immutable: true` to mark an attribute as immutable
-# - By default, the schema treats all entity attributes as persistent. Use `transient: true` to mark an attribute as transient
-# - By default, the schema treats all entity attributes as they have no triggers. Specify the trigger methods if needed
-# - If an attribute is marked as `user_input_required: true`, it means this attribute is required to be provided in the client request JSON
-# - If an attribute is marked as `user_input_required: true`, it can't have `trigger` at the same time
-# - If an attribute has `trigger` metadata, it can't be used in client request JSON
-# - If an attribute has `on_read` trigger event, it must be transient, meaning it's not stored in neo4j and only available during response
+# - By default, the schema treats all entity properties as optional. Use `user_input_required: true` to mark an property as user_input_required
+# - By default, the schema treats all entity properties as mutable. Use `immutable: true` to mark an property as immutable
+# - By default, the schema treats all entity properties as persistent. Use `transient: true` to mark an property as transient
+# - By default, the schema treats all entity properties as they have no triggers. Specify the trigger methods if needed
+# - If an property is marked as `user_input_required: true`, it means this property is required to be provided in the client request JSON
+# - If an property is marked as `user_input_required: true`, it can't have `trigger` at the same time
+# - If an property has `trigger` metadata, it can't be used in client request JSON
+# - If an property has `on_read` trigger event, it must be transient, meaning it's not stored in neo4j and only available during response
 # - There are 3 types of triggers: `on_create_trigger`, `on_update_trigger`, and `on_read_trigger`
 
 ############################################# TO-DO #############################################
-# - Add a description metadata to each attribute
-# - Verify and mark all `user_input_required` attributes
-# - Clarify the use of `title` and `label` attributes across all the entities
-# - Verify and mark all `immutable` attributes
+# - Add a description metadata to each property
+# - Verify and mark all `user_input_required` properties
+# - Clarify the use of `title` and `label` properties across all the entities
+# - Verify and mark all `immutable` properties
 
-# Shared attributes across ACTIVITIES and ENTITIES
-shared_attributes: &shared_attributes
-  ###### Creation info attributes ######
+# Shared properties across ACTIVITIES and ENTITIES
+shared_properties: &shared_properties
+  ###### Creation info properties ######
   created_timestamp:
     type: integer
     immutable: true
@@ -34,7 +34,7 @@ shared_attributes: &shared_attributes
     type: string
     on_create_trigger: get_user_sub
     immutable: true
-  ###### ID attributes ######
+  ###### ID properties ######
   uuid:
     type: string
     description: "E.g., 461bbfdc353a2673e381f632510b0f17"
@@ -58,11 +58,11 @@ shared_attributes: &shared_attributes
 ACTIVITIES:
   # Will we have more activity types?
   Activity:
-    attributes:
-      <<: *shared_attributes
+    properties:
+      <<: *shared_properties
       creation_action:
         type: string
-        description: "E.g., Create Dataset Activity?"
+        description: "E.g., Create Dataset Activity"
         immutable: true
         on_create_trigger: get_activity_creation_action
 
@@ -71,8 +71,8 @@ ACTIVITIES:
 ## Entities
 ####################################################################################################
 
-shared_entity_attributes: &shared_entity_attributes 
-  ###### DOI attributes ######
+shared_entity_properties: &shared_entity_properties 
+  ###### DOI properties ######
   registered_doi:
     type: string
     immutable: true
@@ -88,7 +88,7 @@ shared_entity_attributes: &shared_entity_attributes
   contact_uuids:
     type: list
     description: "A list of uuids referencing the people who are the main contacts about this entity"
-  # All the `last_modified_*` attributes are not immutable
+  # All the `last_modified_*` properties are not immutable
   last_modified_timestamp:
     type: integer
     on_update_trigger: get_current_timestamp
@@ -101,7 +101,7 @@ shared_entity_attributes: &shared_entity_attributes
   last_modified_user_displayname:
     type: string
     on_update_trigger: get_user_name
-  ###### All other shared attributes ######
+  ###### All other shared properties ######
   entity_type:
     type: string
     description: "One of the normalized entity types: Dataset, Collection, Sample, Donor"
@@ -112,7 +112,7 @@ shared_entity_attributes: &shared_entity_attributes
     description: "One of the values: public, consortium, protected. Only Dataset can have protected value"
     on_create_trigger: get_data_access_level
     on_update_trigger: get_data_access_level
-  ###### Shared transient attributes ######
+  ###### Shared transient properties ######
   creators_info:
     transient: true
     type: list
@@ -128,16 +128,16 @@ shared_entity_attributes: &shared_entity_attributes
 ENTITIES:
   ############################################# Collection #############################################
   Collection:
-    attributes:
-      <<: *shared_attributes
-      <<: *shared_entity_attributes
+    properties:
+      <<: *shared_properties
+      <<: *shared_entity_properties
       title:
         user_input_required: true
         type: string
       has_doi:
         type: boolean
         description: "True if the entity has a doi registered for it, false otherwise/default"
-      ###### Transient attributes ######
+      ###### Transient properties ######
       dataset_uuids:  #used only to pass the reference to linked datasets in on a PUT/POST
         transient: true
         type: list
@@ -147,9 +147,9 @@ ENTITIES:
 
   ############################################# Dataset #############################################
   Dataset:
-    attributes:
-      <<: *shared_attributes
-      <<: *shared_entity_attributes
+    properties:
+      <<: *shared_properties
+      <<: *shared_entity_properties
       title:
         user_input_required: true
         type: string
@@ -196,10 +196,10 @@ ENTITIES:
 
   ############################################# Donor #############################################
   Donor:
-    attributes:
-      <<: *shared_attributes
-      <<: *shared_entity_attributes
-      # Need `title` attribute?
+    properties:
+      <<: *shared_properties
+      <<: *shared_entity_properties
+      # Need `title` property?
       # Deidentified Name?
       image_file_metadata:
         type: string
@@ -231,10 +231,10 @@ ENTITIES:
 
   ############################################# Sample #############################################
   Sample:
-    attributes:
-      <<: *shared_attributes
-      <<: *shared_entity_attributes
-      # Need `title` attribute?
+    properties:
+      <<: *shared_properties
+      <<: *shared_entity_properties
+      # Need `title` property?
       # How to specify the source HuBMAP id of a new sample?
       protocol_file:
         type: string

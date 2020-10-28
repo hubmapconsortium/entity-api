@@ -36,10 +36,10 @@ logging.basicConfig(level=logging.DEBUG)
 cache = TTLCache(maxsize=app.config['CACHE_MAXSIZE'], ttl=app.config['CACHE_TTL'])
 
 ####################################################################################################
-## Entities yaml schema loading
+## Provenance yaml schema loading
 ####################################################################################################
 @cached(cache)
-def load_schema_yaml_file(file):
+def load_provenance_schema_yaml_file(file):
     with open(file, 'r') as stream:
         try:
             schema = yaml.safe_load(stream)
@@ -53,7 +53,7 @@ def load_schema_yaml_file(file):
             app.logger.info(exc)
    
 # Have the schema informaiton available for any requests
-schema = load_schema_yaml_file(app.config['SCHEMA_YAML_FILE'])
+schema = load_provenance_schema_yaml_file(app.config['SCHEMA_YAML_FILE'])
 
 ####################################################################################################
 ## Neo4j connection
@@ -178,10 +178,10 @@ def get_entity(entity_type, id):
 
     on_read_trigger_data_dict = generate_triggered_data("on_read_trigger", "ENTITIES", data_dict)
 
-    # Merge two dictionaries (without the same keys in this case)
-    merged_dict = {**entity_dict, **on_read_trigger_data_dict}
+    # Merge two dictionaries (unique keys in each dict)
+    result_dict = {**entity_dict, **on_read_trigger_data_dict}
 
-    return get_resulting_entity(normalized_entity_type, merged_dict)
+    return get_resulting_entity(normalized_entity_type, result_dict)
 
 """
 Create a new entity node in neo4j
@@ -227,7 +227,7 @@ def create_entity(entity_type):
 
     on_create_trigger_data_dict = generate_triggered_data("on_create_trigger", "ENTITIES", data_dict)
 
-    # Merge two dictionaries (without the same keys in this case)
+    # Merge two dictionaries
     merged_dict = {**json_data_dict, **on_create_trigger_data_dict}
 
     # For Dataset associated with Collections
@@ -254,9 +254,9 @@ def create_entity(entity_type):
     # Create new entity
     # If `collection_uuids_list` is not an empty list, meaning the target entity is Dataset and 
     # we'll be also creating relationships between the new entity node to the Collection nodes
-    new_entity_dict = neo4j_queries.create_entity(neo4j_driver, normalized_entity_type, escaped_json_list_str, collection_uuids_list = collection_uuids_list)
+    result_dict = neo4j_queries.create_entity(neo4j_driver, normalized_entity_type, escaped_json_list_str, collection_uuids_list = collection_uuids_list)
 
-    return get_resulting_entity(normalized_entity_type, new_entity_dict)
+    return get_resulting_entity(normalized_entity_type, result_dict)
 
 """
 Create a new entity node from the specified source node in neo4j
@@ -317,10 +317,9 @@ def create_derived_entity(entity_type, source_entity_type, source_entity_id):
 
     on_create_trigger_data_dict = generate_triggered_data("on_create_trigger", "ENTITIES", data_dict)
 
-    # Merge two dictionaries (without the same keys in this case)
+    # Merge two dictionaries
     merged_dict = {**json_data_dict, **on_create_trigger_data_dict}
 
-    # ??? Are we assume the derived entity linked to the same collections?
     # For Dataset associated with Collections
     collection_uuids_list = []
     if 'collection_uuids' in merged_dict:
@@ -342,10 +341,18 @@ def create_derived_entity(entity_type, source_entity_type, source_entity_id):
     app.logger.info("======create entity node with escaped_json_list_str======")
     app.logger.info(escaped_json_list_str)
 
-    # Create a new ids for the Activity node
-    created_ids_dict_for_activity = create_new_ids(normalized_entity_type)
+    # For Activity creation, since Activity is not an Entity, we use "class" for reference
+    normalized_activity_class = "Activity"
+
+    # Dictionaries to be used by trigger methods
+    normalized_activity_class_dict = {
+        "normalized_activity_class": normalized_activity_class
+    }
+    # Create new ids for the Activity node
+    created_ids_dict_for_activity = create_new_ids(normalized_activity_class)
+
     # Build a merged dict for Activity
-    data_dict_for_activity = {**parameters_dict, **user_info_dict, **created_ids_dict_for_activity}
+    data_dict_for_activity = {**parameters_dict, **normalized_activity_class_dict, **user_info_dict, **created_ids_dict_for_activity}
 
     # Get trigger generated data for Activity
     on_create_trigger_data_dict_for_activity = generate_triggered_data("on_create_trigger", "ACTIVITIES", data_dict_for_activity)
@@ -360,9 +367,9 @@ def create_derived_entity(entity_type, source_entity_type, source_entity_id):
     app.logger.info(activity_json_list_str)
 
     # Create the derived entity alone with the Activity node and relationships
-    new_entity_dict = neo4j_queries.create_entity(neo4j_driver, normalized_entity_type, escaped_json_list_str, activity_json_list_str = activity_json_list_str, source_entity_uuid = source_entity_uuid, collection_uuids_list = collection_uuids_list)
+    result_dict = neo4j_queries.create_entity(neo4j_driver, normalized_entity_type, escaped_json_list_str, activity_json_list_str = activity_json_list_str, source_entity_uuid = source_entity_uuid, collection_uuids_list = collection_uuids_list)
 
-    return get_resulting_entity(normalized_entity_type, new_entity_dict)
+    return get_resulting_entity(normalized_entity_type, result_dict)
 
 
 """
@@ -732,8 +739,8 @@ normalized_entity_type : str
     One of the normalized entity type: Dataset, Collection, Sample, Donor
 """
 def validate_json_data_against_schema(json_data_dict, normalized_schema_section_key, normalized_entity_type):
-    attributes = schema[normalized_schema_section_key][normalized_entity_type]['attributes']
-    schema_keys = attributes.keys() 
+    properties = schema[normalized_schema_section_key][normalized_entity_type]['properties']
+    schema_keys = properties.keys() 
     json_data_keys = json_data_dict.keys()
     separator = ", "
 
@@ -749,8 +756,8 @@ def validate_json_data_against_schema(json_data_dict, normalized_schema_section_
     # Check if keys in request JSON are immutable
     immutable_keys = []
     for key in json_data_keys:
-        if 'immutable' in attributes[key]:
-            if attributes[key]:
+        if 'immutable' in properties[key]:
+            if properties[key]:
                 immutable_keys.append(key)
 
     if len(immutable_keys) > 0:
@@ -759,8 +766,8 @@ def validate_json_data_against_schema(json_data_dict, normalized_schema_section_
     # Check if keys in request JSON are generated transient keys
     transient_keys = []
     for key in json_data_keys:
-        if 'transient' in attributes[key]:
-            if attributes[key]:
+        if 'transient' in properties[key]:
+            if properties[key]:
                 transient_keys.append(key)
 
     if len(transient_keys) > 0:
@@ -770,11 +777,11 @@ def validate_json_data_against_schema(json_data_dict, normalized_schema_section_
     missing_keys = []
     for key in schema_keys:
         # Schema rules: 
-        # - By default, the schema treats all entity attributes as optional. Use `user_input_required: true` to mark an attribute as required
+        # - By default, the schema treats all entity properties as optional. Use `user_input_required: true` to mark an attribute as required
         # - If an attribute is marked as `user_input_required: true`, it can't have `trigger` at the same time
         # It's reenforced here because we can't guarantee this rule is being followed correctly in the schema yaml
-        if 'user_input_required' in attributes[key]:
-            if attributes[key]['user_input_required'] and ('trigger' not in attributes[key]) and (key not in json_data_keys):
+        if 'user_input_required' in properties[key]:
+            if properties[key]['user_input_required'] and ('trigger' not in properties[key]) and (key not in json_data_keys):
                 missing_keys.append(key)
 
     if len(missing_keys) > 0:
@@ -785,7 +792,7 @@ def validate_json_data_against_schema(json_data_dict, normalized_schema_section_
     invalid_data_type_keys = []
     for key in json_data_keys:
         # boolean starts with bool, string starts with str, integer starts with int
-        if not attributes[key]['type'].startswith(type(json_data_dict[key]).__name__):
+        if not properties[key]['type'].startswith(type(json_data_dict[key]).__name__):
             invalid_data_type_keys.append(key)
     
     if len(invalid_data_type_keys) > 0:
@@ -811,25 +818,27 @@ dict
 def generate_triggered_data(trigger_type, normalized_schema_section_key, data_dict):
     accepted_section_keys = ['ACTIVITIES', 'ENTITIES']
     separator = ", "
+    normalized_class = None
 
     if normalized_schema_section_key not in accepted_section_keys:
         internal_server_error('Unsupported schema section key: ' + normalized_schema_section_key + ". Must be one of the following: " + separator.join(accepted_section_keys))
 
-    normalized_entity_type = data_dict['normalized_entity_type']
+    # Use normalized_entity_type for all classes under the ENTITIES section
+    if normalized_schema_section_key == 'ENTITIES':
+        normalized_class = data_dict['normalized_entity_type']
 
-    prov_concept = normalized_entity_type
-
+    # Use normalized_activity_class for all classes under the ACTIVITIES section
     # ACTIVITIES section has only one prov class: Activity
-    if normalized_schema_section_key == "ACTIVITIES":
-        prov_concept = "Activity"
+    if normalized_schema_section_key == 'ACTIVITIES':
+        normalized_class = data_dict['normalized_activity_class']
 
-    attributes = schema[normalized_schema_section_key][prov_concept]['attributes']
-    schema_keys = attributes.keys() 
+    properties = schema[normalized_schema_section_key][normalized_class]['properties']
+    schema_keys = properties.keys() 
 
     triggered_data_dict = {}
     for key in schema_keys:
-        if trigger_type in attributes[key]:
-            trigger_method_name = attributes[key][trigger_type]
+        if trigger_type in properties[key]:
+            trigger_method_name = properties[key][trigger_type]
             # Call the target trigger method of schema_triggers.py module
             trigger_method_to_call = getattr(schema_triggers, trigger_method_name)
             triggered_data_dict[key] = trigger_method_to_call(data_dict)

@@ -262,4 +262,4 @@ string
     The creation_action string
 """
 def get_activity_creation_action(data_dict):
-    return "Create {entity_type} Activity".format(entity_type = data_dict['normalized_entity_type'])
+    return "Create {entity_type} Activity".format(entity_type = data_dict['normalized_activity_class'])
