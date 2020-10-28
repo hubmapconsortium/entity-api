@@ -167,11 +167,14 @@ def get_entity(entity_type, id):
     entity_dict = query_target_entity(normalized_entity_type, id)
 
     # Dictionaries to be used by trigger methods
-    normalized_entity_type_dict = {"normalized_entity_type": normalized_entity_type}
+    parameters_dict = {
+        "neo4j_driver": neo4j_driver,
+        "normalized_entity_type": normalized_entity_type
+    }
 
     # Merge all the above dictionaries
     # If the latter dictionary contains the same key as the previous one, it will overwrite the value for that key
-    data_dict = {**normalized_entity_type_dict}
+    data_dict = {**parameters_dict, **entity_dict}
 
     on_read_trigger_data_dict = generate_triggered_data("on_read_trigger", "ENTITIES", data_dict)
 
@@ -211,13 +214,16 @@ def create_entity(entity_type):
     validate_json_data_against_schema(json_data_dict, "ENTITIES", normalized_entity_type)
 
     # Dictionaries to be used by trigger methods
-    normalized_entity_type_dict = {"normalized_entity_type": normalized_entity_type}
+    parameters_dict = {
+        "neo4j_driver": neo4j_driver,
+        "normalized_entity_type": normalized_entity_type
+    }
     user_info_dict = get_user_info(request)
     created_ids_dict = create_new_ids(normalized_entity_type)
 
     # Merge all the above dictionaries
     # If the latter dictionary contains the same key as the previous one, it will overwrite the value for that key
-    data_dict = {**normalized_entity_type_dict, **user_info_dict, **created_ids_dict}
+    data_dict = {**parameters_dict, **user_info_dict, **created_ids_dict}
 
     on_create_trigger_data_dict = generate_triggered_data("on_create_trigger", "ENTITIES", data_dict)
 
@@ -232,9 +238,6 @@ def create_entity(entity_type):
     # Check existence of those collections
     for collection_uuid in collection_uuids_list:
         collection_dict = query_target_entity('Collection', collection_uuid)
-
-        if not bool(collection_dict):
-            bad_request_error("Collection with uuid " + collection_uuid + " not found in the neo4j database.")
 
     # `UNWIND` in Cypher expects List<T>
     data_list = [merged_dict]
@@ -297,21 +300,20 @@ def create_derived_entity(entity_type, source_entity_type, source_entity_id):
     # Query source entity against neo4j and return as a dict if exists
     source_entity_dict = query_target_entity(normalized_source_entity_type, source_entity_id)
 
-    # Make sure the source entity exists
-    if not bool(source_entity_dict):
-        bad_request_error("Source entity with uuid " + source_entity_id + " not found in the neo4j database.")
-
     # Otherwise get the uuid of the source entity for later use
     source_entity_uuid = source_entity_dict['uuid']
 
     # Dictionaries to be used by trigger methods
-    normalized_entity_type_dict = {"normalized_entity_type": normalized_entity_type}
+    parameters_dict = {
+        "neo4j_driver": neo4j_driver,
+        "normalized_entity_type": normalized_entity_type
+    }
     user_info_dict = get_user_info(request)
     created_ids_dict = create_new_ids(normalized_entity_type)
 
     # Merge all the above dictionaries
     # If the latter dictionary contains the same key as the previous one, it will overwrite the value for that key
-    data_dict = {**normalized_entity_type_dict, **user_info_dict, **created_ids_dict}
+    data_dict = {**parameters_dict, **user_info_dict, **created_ids_dict}
 
     on_create_trigger_data_dict = generate_triggered_data("on_create_trigger", "ENTITIES", data_dict)
 
@@ -328,9 +330,6 @@ def create_derived_entity(entity_type, source_entity_type, source_entity_id):
     for collection_uuid in collection_uuids_list:
         collection_dict = query_target_entity('Collection', collection_uuid)
 
-        if not bool(collection_dict):
-            bad_request_error("Collection with uuid " + collection_uuid + " not found in the neo4j database.")
-
     # `UNWIND` in Cypher expects List<T>
     data_list = [merged_dict]
     
@@ -346,7 +345,7 @@ def create_derived_entity(entity_type, source_entity_type, source_entity_id):
     # Create a new ids for the Activity node
     created_ids_dict_for_activity = create_new_ids(normalized_entity_type)
     # Build a merged dict for Activity
-    data_dict_for_activity = {**normalized_entity_type_dict, **user_info_dict, **created_ids_dict_for_activity}
+    data_dict_for_activity = {**parameters_dict, **user_info_dict, **created_ids_dict_for_activity}
 
     # Get trigger generated data for Activity
     on_create_trigger_data_dict_for_activity = generate_triggered_data("on_create_trigger", "ACTIVITIES", data_dict_for_activity)
@@ -398,22 +397,21 @@ def update_entity(entity_type, id):
     # Get target entity and return as a dict if exists
     entity_dict = query_target_entity(normalized_entity_type, id)
 
-    # Existence check
-    if not bool(entity_dict):
-        not_found_error("Could not find the target " + normalized_entity_type + " of id " + id)
-
     # Validate request json against the yaml schema
     validate_json_data_against_schema(json_data_dict, "ENTITIES", normalized_entity_type)
 
     # Dictionaries to be used by trigger methods
-    normalized_entity_type_dict = {"normalized_entity_type": normalized_entity_type}
+    parameters_dict = {
+        "neo4j_driver": neo4j_driver,
+        "normalized_entity_type": normalized_entity_type
+    }
     user_info_dict = get_user_info(request)
 
     # Merge all the above dictionaries
     # If the latter dictionary contains the same key as the previous one, it will overwrite the value for that key
-    data_dict = {**normalized_entity_type_dict, **user_info_dict}
+    data_dict = {**parameters_dict, **user_info_dict}
 
-    on_update_trigger_data_dict = generate_triggered_data("on_update_trigger", "ENTITIES", request)
+    on_update_trigger_data_dict = generate_triggered_data("on_update_trigger", "ENTITIES", data_dict)
 
     # Add new properties if updating for the first time
     # Otherwise just overwrite existing values (E.g., last_modified_timestamp)
@@ -716,6 +714,10 @@ def query_target_entity(normalized_entity_type, id):
         
         internal_server_error(ce)
 
+    # Existence check
+    if not bool(entity_dict):
+        not_found_error("Could not find the target " + normalized_entity_type + " of id " + id)
+
     return entity_dict
 
 
@@ -815,13 +817,13 @@ def generate_triggered_data(trigger_type, normalized_schema_section_key, data_di
 
     normalized_entity_type = data_dict['normalized_entity_type']
 
-    prov_class = normalized_entity_type
+    prov_concept = normalized_entity_type
 
     # ACTIVITIES section has only one prov class: Activity
     if normalized_schema_section_key == "ACTIVITIES":
-        prov_class = "Activity"
+        prov_concept = "Activity"
 
-    attributes = schema[normalized_schema_section_key][prov_class]['attributes']
+    attributes = schema[normalized_schema_section_key][prov_concept]['attributes']
     schema_keys = attributes.keys() 
 
     triggered_data_dict = {}

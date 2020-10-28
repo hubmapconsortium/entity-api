@@ -5,6 +5,9 @@
 import logging
 import datetime
 
+# Local modules
+import neo4j_queries
+
 ####################################################################################################
 ## Trigger methods shared among Collection, Dataset, Donor, Sample
 ####################################################################################################
@@ -110,7 +113,7 @@ string
     The uuid string
 """
 def get_source_uuid(data_dict):
-    return data_dict['source_uuid']
+    return neo4j_queries.get_source_uuid(data_dict['neo4j_driver'], data_dict['uuid'])
 
 """
 Trigger event method of getting uuid
@@ -199,9 +202,22 @@ def get_contacts_info(data_dict):
 ## Trigger methods specific to Collection
 ####################################################################################################
 
-# TO-DO
-def get_dataset_uuids(data_dict):
-    return "dummy"
+"""
+Trigger event method of getting a list of associated dataset uuids for a given collection
+
+Parameters
+----------
+data_dict : dict
+    A merged dictionary that contains all possible input data to be used
+    It's fine if a trigger method doesn't use any input data
+
+Returns
+-------
+list
+    A list a associated dataset uuids
+"""
+def get_dataset_uuids_by_collection(data_dict):
+    return neo4j_queries.get_dataset_uuids_by_collection(data_dict['neo4j_driver'], data_dict['uuid'])
 
 
 ####################################################################################################

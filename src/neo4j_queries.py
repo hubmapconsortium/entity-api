@@ -115,6 +115,94 @@ def get_entity(neo4j_driver, entity_type, uuid):
             raise e
 
 ####################################################################################################
+## Called by trigger methogs
+####################################################################################################
+
+"""
+Get the source uuid of a given derived entity's uuid
+
+Parameters
+----------
+neo4j_driver : neo4j.driver
+    The neo4j driver instance
+uuid : string
+    The uuid of target entity 
+
+Returns
+-------
+string
+    The uuid of source entity
+"""
+def get_source_uuid(neo4j_driver, uuid):
+    nodes = []
+    entity_dict = {}
+
+    parameterized_query = ("MATCH (s:Entity)-[:ACTIVITY_INPUT]->(a:Activity)-[:ACTIVITY_OUTPUT]->(t:Entity) " + 
+                           "WHERE t.uuid = '{uuid}' " +
+                           "RETURN s.uuid AS {record_field_name}")
+
+    query = parameterized_query.format(uuid = uuid, 
+                                       record_field_name = record_field_name)
+    
+    with neo4j_driver.session() as session:
+        try:
+            result = session.run(query)
+
+            record = result.single()
+            source_uuid = record[record_field_name]
+
+            logger.info("======get_source_uuid() resulting source_uuid:======")
+            logger.info(source_uuid)
+
+            return source_uuid
+        except CypherError as ce:
+            raise CypherError('A Cypher error was encountered: ' + ce.message)
+        except Exception as e:
+            raise e
+
+"""
+Get a list of associated dataset uuids for a given derived entity's uuid
+
+Parameters
+----------
+neo4j_driver : neo4j.driver
+    The neo4j driver instance
+uuid : string
+    The uuid of target entity 
+
+Returns
+-------
+list
+    The list comtaining associated dataset uuids
+"""
+def get_dataset_uuids_by_collection(neo4j_driver, uuid):
+    dataset_uuids_list = []
+
+    parameterized_query = ("MATCH (e:Entity)-[:IN_COLLECTION]->(c:Collection) " + 
+                           "WHERE c.uuid = '{uuid}' " +
+                           "RETURN DISTINCT e.uuid AS {record_field_name}")
+
+    query = parameterized_query.format(uuid = uuid, 
+                                       record_field_name = record_field_name)
+    
+    with neo4j_driver.session() as session:
+        try:
+            results = session.run(query)
+
+            for record in results:
+                dataset_uuids_list.append(record.get(record_field_name))
+
+            logger.info("======get_collection_dataset_uuids() resulting list:======")
+            logger.info(dataset_uuids_list)
+
+            return dataset_uuids_list
+        except CypherError as ce:
+            raise CypherError('A Cypher error was encountered: ' + ce.message)
+        except Exception as e:
+            raise e
+
+
+####################################################################################################
 ## Entity creation
 ####################################################################################################
 
