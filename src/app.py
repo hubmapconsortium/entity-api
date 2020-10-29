@@ -167,10 +167,7 @@ def get_entity(entity_class, id):
     entity_dict = query_target_entity(normalized_entity_class, id)
 
     # Dictionaries to be used by trigger methods
-    parameters_dict = {
-        "neo4j_driver": neo4j_driver,
-        "normalized_entity_class": normalized_entity_class
-    }
+    normalized_entity_class_dict = {"normalized_entity_class": normalized_entity_class}
 
     # Merge all the above dictionaries
     # If the latter dictionary contains the same key as the previous one, it will overwrite the value for that key
@@ -181,7 +178,7 @@ def get_entity(entity_class, id):
     # Merge two dictionaries (unique keys in each dict)
     result_dict = {**entity_dict, **on_read_trigger_data_dict}
 
-    return get_resulting_entity(normalized_entity_class, result_dict)
+    return json_response(normalized_entity_class, result_dict)
 
 """
 Create a new entity node in neo4j
@@ -205,7 +202,7 @@ def create_entity(entity_class):
     normalized_entity_class = normalize_entity_class(entity_class)
 
     # Always expect a json body
-    request_json_required(request)
+    require_json(request)
 
     # Parse incoming json string into json data(python dict object)
     json_data_dict = request.get_json()
@@ -214,16 +211,13 @@ def create_entity(entity_class):
     validate_json_data_against_schema(json_data_dict, "ENTITIES", normalized_entity_class)
 
     # Dictionaries to be used by trigger methods
-    parameters_dict = {
-        "neo4j_driver": neo4j_driver,
-        "normalized_entity_class": normalized_entity_class
-    }
+    normalized_entity_class_dict = {"normalized_entity_class": normalized_entity_class}
     user_info_dict = get_user_info(request)
     created_ids_dict = create_new_ids(normalized_entity_class)
 
     # Merge all the above dictionaries
     # If the latter dictionary contains the same key as the previous one, it will overwrite the value for that key
-    data_dict = {**parameters_dict, **user_info_dict, **created_ids_dict}
+    data_dict = {**normalized_entity_class_dict, **user_info_dict, **created_ids_dict}
 
     on_create_trigger_data_dict = generate_triggered_data("on_create_trigger", "ENTITIES", data_dict)
 
@@ -256,7 +250,7 @@ def create_entity(entity_class):
     # we'll be also creating relationships between the new entity node to the Collection nodes
     result_dict = neo4j_queries.create_entity(neo4j_driver, normalized_entity_class, escaped_json_list_str, collection_uuids_list = collection_uuids_list)
 
-    return get_resulting_entity(normalized_entity_class, result_dict)
+    return json_response(normalized_entity_class, result_dict)
 
 """
 Create a new entity node from the specified source node in neo4j
@@ -289,7 +283,7 @@ def create_derived_entity(entity_class, source_entity_class, source_entity_id):
     normalized_source_entity_class = normalize_entity_class(source_entity_class)
 
     # Always expect a json body
-    request_json_required(request)
+    require_json(request)
 
     # Parse incoming json string into json data(python dict object)
     json_data_dict = request.get_json()
@@ -304,16 +298,13 @@ def create_derived_entity(entity_class, source_entity_class, source_entity_id):
     source_entity_uuid = source_entity_dict['uuid']
 
     # Dictionaries to be used by trigger methods
-    parameters_dict = {
-        "neo4j_driver": neo4j_driver,
-        "normalized_entity_class": normalized_entity_class
-    }
+    normalized_entity_class_dict = {"normalized_entity_class": normalized_entity_class}
     user_info_dict = get_user_info(request)
     created_ids_dict = create_new_ids(normalized_entity_class)
 
     # Merge all the above dictionaries
     # If the latter dictionary contains the same key as the previous one, it will overwrite the value for that key
-    data_dict = {**parameters_dict, **user_info_dict, **created_ids_dict}
+    data_dict = {**normalized_entity_class_dict, **user_info_dict, **created_ids_dict}
 
     on_create_trigger_data_dict = generate_triggered_data("on_create_trigger", "ENTITIES", data_dict)
 
@@ -369,7 +360,7 @@ def create_derived_entity(entity_class, source_entity_class, source_entity_id):
     # Create the derived entity alone with the Activity node and relationships
     result_dict = neo4j_queries.create_entity(neo4j_driver, normalized_entity_class, escaped_json_list_str, activity_json_list_str = activity_json_list_str, source_entity_uuid = source_entity_uuid, collection_uuids_list = collection_uuids_list)
 
-    return get_resulting_entity(normalized_entity_class, result_dict)
+    return json_response(normalized_entity_class, result_dict)
 
 
 """
@@ -396,7 +387,7 @@ def update_entity(entity_class, id):
     normalized_entity_class = normalize_entity_class(entity_class)
 
     # Always expect a json body
-    request_json_required(request)
+    require_json(request)
 
     # Parse incoming json string into json data(python dict object)
     json_data_dict = request.get_json()
@@ -408,15 +399,12 @@ def update_entity(entity_class, id):
     validate_json_data_against_schema(json_data_dict, "ENTITIES", normalized_entity_class)
 
     # Dictionaries to be used by trigger methods
-    parameters_dict = {
-        "neo4j_driver": neo4j_driver,
-        "normalized_entity_class": normalized_entity_class
-    }
+    normalized_entity_class_dict = {"normalized_entity_class": normalized_entity_class}
     user_info_dict = get_user_info(request)
 
     # Merge all the above dictionaries
     # If the latter dictionary contains the same key as the previous one, it will overwrite the value for that key
-    data_dict = {**parameters_dict, **user_info_dict}
+    data_dict = {**normalized_entity_class_dict, **user_info_dict}
 
     on_update_trigger_data_dict = generate_triggered_data("on_update_trigger", "ENTITIES", data_dict)
 
@@ -447,7 +435,7 @@ def update_entity(entity_class, id):
     # Update the exisiting entity
     updated_entity_dict = neo4j_queries.update_entity(neo4j_driver, normalized_entity_class, escaped_json_list_str, id)
 
-    return get_resulting_entity(normalized_entity_class, updated_entity_dict)
+    return json_response(normalized_entity_class, updated_entity_dict)
 
 
 ####################################################################################################
@@ -835,15 +823,20 @@ def generate_triggered_data(trigger_type, normalized_schema_section_key, data_di
     properties = schema[normalized_schema_section_key][normalized_class]['properties']
     schema_keys = properties.keys() 
 
-    triggered_data_dict = {}
+    # Always pass the `neo4j_driver` along with the data_dict to schema_triggers.py module
+    neo4j_driver_dict = {"neo4j_driver": neo4j_driver}
+    combined_data_dict = {**neo4j_driver_dict, **data_dict}
+
+    # Put all resulting data into a dictionary too
+    trigger_generated_data_dict = {}
     for key in schema_keys:
         if trigger_type in properties[key]:
             trigger_method_name = properties[key][trigger_type]
             # Call the target trigger method of schema_triggers.py module
             trigger_method_to_call = getattr(schema_triggers, trigger_method_name)
-            triggered_data_dict[key] = trigger_method_to_call(data_dict)
+            trigger_generated_data_dict[key] = trigger_method_to_call(combined_data_dict)
 
-    return triggered_data_dict
+    return trigger_generated_data_dict
 
 """
 Generate the final response data
@@ -860,7 +853,7 @@ Returns
 str
     A response string
 """
-def get_resulting_entity(normalized_entity_class, entity_dict):
+def json_response(normalized_entity_class, entity_dict):
     result = {
         normalized_entity_class.lower(): entity_dict
     }
@@ -937,7 +930,7 @@ Always expect a json body from user request
 request : Flask request object
     The Flask request passed from the API endpoint
 """
-def request_json_required(request):
+def require_json(request):
     if not request.is_json:
         bad_request_error("A JSON body and appropriate Content-Type header are required")
 
