@@ -690,6 +690,7 @@ def _coll_record_to_json(record):
     _set_from(record, rval, 'collection.has_doi', 'has_doi')
     _set_from(record, rval, 'collection.creators', 'creators')
     _set_from(record, rval, 'collection.display_doi', 'doi_id')
+    _set_from(record, rval, 'collection.display_doi', 'display_doi')
     _set_from(record, rval, 'collection.description', 'description')
     _set_from(record, rval, 'collection.doi_url', 'doi_url')
     _set_from(record, rval, 'collection.provenance_create_timestamp', 'provenance_create_timestamp')
