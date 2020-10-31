@@ -173,10 +173,10 @@ def get_entity(entity_class, id):
     # If the latter dictionary contains the same key as the previous one, it will overwrite the value for that key
     data_dict = {**parameters_dict, **entity_dict}
 
-    on_read_trigger_data_dict = generate_triggered_data("on_read_trigger", "ENTITIES", data_dict)
+    generated_on_read_trigger_data_dict = generate_triggered_data("on_read_trigger", "ENTITIES", data_dict)
 
-    # Merge two dictionaries (unique keys in each dict)
-    result_dict = {**entity_dict, **on_read_trigger_data_dict}
+    # Merge the entity info and the generated on read data into one dictionary
+    result_dict = {**entity_dict, **generated_on_read_trigger_data_dict}
 
     return json_response(normalized_entity_class, result_dict)
 
@@ -368,7 +368,7 @@ def create_derived_entity(target_entity_class, source_entity_class, source_entit
 
 
 """
-Update the properties of a given entity in neo4j by uuid
+Update the properties of a given entity, no Collection stuff
 
 Parameters
 ----------
@@ -399,10 +399,13 @@ def update_entity(entity_class, id):
     # Get target entity and return as a dict if exists
     entity_dict = query_target_entity(normalized_entity_class, id)
 
+    # Get the uuid of the entity for later use
+    entity_uuid = entity_dict['uuid']
+
     # Validate request json against the yaml schema
     validate_json_data_against_schema(json_data_dict, "ENTITIES", normalized_entity_class)
 
-   # Dictionaries to be merged and passed to trigger methods
+    # Dictionaries to be merged and passed to trigger methods
     normalized_entity_class_dict = {"normalized_entity_class": normalized_entity_class}
     user_info_dict = get_user_info(request)
 
@@ -410,13 +413,13 @@ def update_entity(entity_class, id):
     # If the latter dictionary contains the same key as the previous one, it will overwrite the value for that key
     data_dict = {**normalized_entity_class_dict, **user_info_dict}
 
-    on_update_trigger_data_dict = generate_triggered_data("on_update_trigger", "ENTITIES", data_dict)
+    generated_on_update_trigger_data_dict = generate_triggered_data("on_update_trigger", "ENTITIES", data_dict)
 
     # Add new properties if updating for the first time
     # Otherwise just overwrite existing values (E.g., last_modified_timestamp)
-    triggered_data_keys = on_update_trigger_data_dict.keys()
+    triggered_data_keys = generated_on_update_trigger_data_dict.keys()
     for key in triggered_data_keys:
-        entity_dict[key] = on_update_trigger_data_dict[key]
+        entity_dict[key] = generated_on_update_trigger_data_dict[key]
  
     # Overwrite old property values with updated values
     json_data_keys = json_data_dict.keys()
@@ -433,13 +436,13 @@ def update_entity(entity_class, id):
     # Must also escape single quotes in the json string to build a valid Cypher query later
     escaped_json_list_str = json_list_str.replace("'", r"\'")
 
-    app.logger.info("======update entity node with json_list_str======")
+    app.logger.info("======update entity with json_list_str======")
     app.logger.info(json_list_str)
 
     # Update the exisiting entity
-    updated_entity_dict = neo4j_queries.update_entity(neo4j_driver, normalized_entity_class, escaped_json_list_str, id)
+    result_dict = neo4j_queries.update_entity(neo4j_driver, normalized_entity_class, escaped_json_list_str, entity_uuid)
 
-    return json_response(normalized_entity_class, updated_entity_dict)
+    return json_response(normalized_entity_class, result_dict)
 
 
 ####################################################################################################
