@@ -213,11 +213,11 @@ def create_entity(entity_class):
     # Dictionaries to be used by trigger methods
     normalized_entity_class_dict = {"normalized_entity_class": normalized_entity_class}
     user_info_dict = get_user_info(request)
-    created_ids_dict = create_new_ids(normalized_entity_class)
+    new_ids_dict = create_new_ids(normalized_entity_class)
 
     # Merge all the above dictionaries
     # If the latter dictionary contains the same key as the previous one, it will overwrite the value for that key
-    data_dict = {**normalized_entity_class_dict, **user_info_dict, **created_ids_dict}
+    data_dict = {**normalized_entity_class_dict, **user_info_dict, **new_ids_dict}
 
     on_create_trigger_data_dict = generate_triggered_data("on_create_trigger", "ENTITIES", data_dict)
 
@@ -300,11 +300,11 @@ def create_derived_entity(entity_class, source_entity_class, source_entity_id):
     # Dictionaries to be used by trigger methods
     normalized_entity_class_dict = {"normalized_entity_class": normalized_entity_class}
     user_info_dict = get_user_info(request)
-    created_ids_dict = create_new_ids(normalized_entity_class)
+    new_ids_dict = create_new_ids(normalized_entity_class)
 
     # Merge all the above dictionaries
     # If the latter dictionary contains the same key as the previous one, it will overwrite the value for that key
-    data_dict = {**normalized_entity_class_dict, **user_info_dict, **created_ids_dict}
+    data_dict = {**normalized_entity_class_dict, **user_info_dict, **new_ids_dict}
 
     on_create_trigger_data_dict = generate_triggered_data("on_create_trigger", "ENTITIES", data_dict)
 
@@ -340,10 +340,10 @@ def create_derived_entity(entity_class, source_entity_class, source_entity_id):
         "normalized_activity_class": normalized_activity_class
     }
     # Create new ids for the Activity node
-    created_ids_dict_for_activity = create_new_ids(normalized_activity_class)
+    new_ids_dict_for_activity = create_new_ids(normalized_activity_class)
 
     # Build a merged dict for Activity
-    data_dict_for_activity = {**parameters_dict, **normalized_activity_class_dict, **user_info_dict, **created_ids_dict_for_activity}
+    data_dict_for_activity = {**parameters_dict, **normalized_activity_class_dict, **user_info_dict, **new_ids_dict_for_activity}
 
     # Get trigger generated data for Activity
     on_create_trigger_data_dict_for_activity = generate_triggered_data("on_create_trigger", "ACTIVITIES", data_dict_for_activity)
@@ -659,16 +659,16 @@ def create_new_ids(normalized_entity_class, generate_doi = True):
         ids_dict = ids_list[0]
 
         # Create a new dict with desired keys
-        created_ids_dict = {
+        new_ids_dict = {
             'uuid': ids_dict['uuid']
         }
 
         # Add extra fields
         if generate_doi:
-            created_ids_dict['doi_suffix_id'] = ids_dict['doi']
-            created_ids_dict['hubmap_id'] = ids_dict['displayDoi']
+            new_ids_dict['doi_suffix_id'] = ids_dict['doi']
+            new_ids_dict['hubmap_id'] = ids_dict['displayDoi']
 
-        return created_ids_dict
+        return new_ids_dict
     else:
         app.logger.info("======Failed to create new ids via the uuid-api service for during the creation of this new entity======")
         app.logger.info("response status code: " + str(response.status_code))
@@ -762,7 +762,7 @@ def validate_json_data_against_schema(json_data_dict, normalized_schema_section_
         bad_request_error("Transient keys are not allowed in request json: " + separator.join(transient_keys))
 
     # Check if any schema keys that are user_input_required but missing from request
-    missing_keys = []
+    missing_required_keys = []
     for key in schema_keys:
         # Schema rules: 
         # - By default, the schema treats all entity properties as optional. Use `user_input_required: true` to mark an attribute as required
@@ -770,16 +770,17 @@ def validate_json_data_against_schema(json_data_dict, normalized_schema_section_
         # It's reenforced here because we can't guarantee this rule is being followed correctly in the schema yaml
         if 'user_input_required' in properties[key]:
             if properties[key]['user_input_required'] and ('trigger' not in properties[key]) and (key not in json_data_keys):
-                missing_keys.append(key)
+                missing_required_keys.append(key)
 
-    if len(missing_keys) > 0:
-        bad_request_error("Missing required keys in request json: " + separator.join(missing_keys))
+    if len(missing_required_keys) > 0:
+        bad_request_error("Missing required keys in request json: " + separator.join(missing_required_keys))
 
     # By now all the keys in request json have passed the above two checks: existence cehck in schema and required check in schema
     # Verify data types of keys
     invalid_data_type_keys = []
     for key in json_data_keys:
         # boolean starts with bool, string starts with str, integer starts with int
+        # ??? How to handle other data types?
         if not properties[key]['type'].startswith(type(json_data_dict[key]).__name__):
             invalid_data_type_keys.append(key)
     
