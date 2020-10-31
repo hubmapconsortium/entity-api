@@ -327,7 +327,7 @@ Returns
 string
     The relationship type name
 """
-def create_dataset_collection_relationship_tx(tx, entity_dict, collection_uuids_list):
+def create_dataset_collection_relationships_tx(tx, entity_dict, collection_uuids_list):
     collection_uuids_list_str = '[' + ', '.join(collection_uuids_list) + ']'
     parameterized_query = ("MATCH (e1:Dataset), (e2:Collection) " +
                            "WHERE e1.uuid = '{uuid}' AND e2.uuid IN {collection_uuids_list_str} " +
@@ -338,20 +338,74 @@ def create_dataset_collection_relationship_tx(tx, entity_dict, collection_uuids_
                                        collection_uuids_list_str = collection_uuids_list_str,
                                        record_field_name = record_field_name)
 
-    logger.info("======create_dataset_collection_relationship_tx() query:======")
+    logger.info("======create_dataset_collection_relationships_tx() query:======")
     logger.info(query)
 
     result = tx.run(query)
     record = result.single()
     relationship = record[record_field_name]
 
-    logger.info("======create_dataset_collection_relationship_tx() resulting relationship:======")
+    logger.info("======create_dataset_collection_relationships_tx() resulting relationship:======")
     logger.info(relationship)
 
     return relationship
 
+
 """
-Create a new entity node in neo4j
+Create a new entity node (ans also links to existing Collection nodes if provided) in neo4j
+
+Parameters
+----------
+neo4j_driver : neo4j.driver
+    The neo4j driver instance
+entity_class : str
+    One of the normalized entity classes: Dataset, Collection, Sample, Donor
+entity_json_list_str : string
+    The string representation of a list containing only one Entity node to be created
+collection_uuids_list: list
+    The list of collection uuids to be linked
+
+Returns
+-------
+dict
+    A dictionary of newly created entity details returned from the Cypher query
+"""
+def create_entity(neo4j_driver, entity_class, entity_json_list_str, collection_uuids_list = None):
+    entity_dict = {}
+
+    with neo4j_driver.session(default_access_mode = neo4j.WRITE_ACCESS) as session:
+        try:
+            tx = session.begin_transaction()
+
+            entity_node = create_entity_tx(tx, entity_class, entity_json_list_str)
+            entity_dict = node_to_dict(entity_node)
+
+            logger.info("======create_entity() resulting entity_dict:======")
+            logger.info(entity_dict)
+ 
+            # For Dataset associated with Collections
+            if collection_uuids_list:
+                create_dataset_collection_relationships_tx(tx, entity_dict, collection_uuids_list)
+            
+            tx.commit()
+
+            return entity_dict
+        except CypherError as ce:
+            raise CypherError('A Cypher error was encountered: ' + ce.message)
+        except TransactionError as te:
+            logger.info("======create_entity() transaction error:======")
+            logger.info(te.value)
+
+            if tx.closed() == False:
+                tx.rollback()
+
+            raise TransactionError('Neo4j transaction error: create_entity()' + te.value)
+        except Exception as e:
+            raise e
+
+
+"""
+Create a derived entity node and link to source entity node via Activity node and links in neo4j
 
 Parameters
 ----------
@@ -371,9 +425,9 @@ collection_uuids_list: list
 Returns
 -------
 dict
-    A dictionary of newly created entity details returned from the Cypher query
+    A dictionary of newly created derived entity details returned from the Cypher query
 """
-def create_entity(neo4j_driver, entity_class, entity_json_list_str, activity_json_list_str = None, source_entity_uuid = None, collection_uuids_list = None):
+def create_derived_entity(neo4j_driver, entity_class, entity_json_list_str, activity_json_list_str, source_entity_uuid, collection_uuids_list = None):
     entity_dict = {}
 
     with neo4j_driver.session(default_access_mode = neo4j.WRITE_ACCESS) as session:
@@ -383,17 +437,15 @@ def create_entity(neo4j_driver, entity_class, entity_json_list_str, activity_jso
             entity_node = create_entity_tx(tx, entity_class, entity_json_list_str)
             entity_dict = node_to_dict(entity_node)
 
-            logger.info("======create_entity() resulting entity_dict:======")
+            logger.info("======create_derived_entity() resulting entity_dict:======")
             logger.info(entity_dict)
- 
-            # In the event of this entity is being derived from a source entity
-            if activity_json_list_str and source_entity_uuid:
-                # 1 - create the Acvitity node
-                activity_dict = create_activity_tx(tx, activity_json_list_str)
-                # 2 - create relationship from source Entity node to this Activity node
-                create_relationship_tx(tx, source_entity_uuid, activity_dict['uuid'], 'ACTIVITY_INPUT', '->')
-                # 3 - create relationship from this Activity node to the derived Enity node
-                create_relationship_tx(tx, activity_dict['uuid'], entity_dict['uuid'], 'ACTIVITY_OUTPUT', '->')
+
+            # 1 - create the Acvitity node
+            activity_dict = create_activity_tx(tx, activity_json_list_str)
+            # 2 - create relationship from source Entity node to this Activity node
+            create_relationship_tx(tx, source_entity_uuid, activity_dict['uuid'], 'ACTIVITY_INPUT', '->')
+            # 3 - create relationship from this Activity node to the derived Enity node
+            create_relationship_tx(tx, activity_dict['uuid'], entity_dict['uuid'], 'ACTIVITY_OUTPUT', '->')
 
             # For Dataset associated with Collections
             if collection_uuids_list:
@@ -405,15 +457,16 @@ def create_entity(neo4j_driver, entity_class, entity_json_list_str, activity_jso
         except CypherError as ce:
             raise CypherError('A Cypher error was encountered: ' + ce.message)
         except TransactionError as te:
-            logger.info("======create_entity() transaction error:======")
+            logger.info("======create_derived_entity() transaction error:======")
             logger.info(te.value)
 
             if tx.closed() == False:
                 tx.rollback()
 
-            raise TransactionError('Neo4j transaction error: create_entity()' + te.value)
+            raise TransactionError('Neo4j transaction error: create_derived_entity()' + te.value)
         except Exception as e:
             raise e
+
 
 ####################################################################################################
 ## Entity update

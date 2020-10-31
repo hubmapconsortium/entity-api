@@ -166,7 +166,7 @@ def get_entity(entity_class, id):
     # Query target entity against neo4j and return as a dict if exists
     entity_dict = query_target_entity(normalized_entity_class, id)
 
-    # Dictionaries to be used by trigger methods
+    # Dictionaries to be merged and passed to trigger methods
     normalized_entity_class_dict = {"normalized_entity_class": normalized_entity_class}
 
     # Merge all the above dictionaries
@@ -210,28 +210,29 @@ def create_entity(entity_class):
     # Validate request json against the yaml schema
     validate_json_data_against_schema(json_data_dict, "ENTITIES", normalized_entity_class)
 
-    # Dictionaries to be used by trigger methods
+    # For new dataset to be linked to existing collections
+    collection_uuids_list = []
+    if normalized_entity_class == "Dataset":
+        if 'collection_uuids' in json_data_dict:
+            collection_uuids_list = json_data_dict['collection_uuids']
+
+        # Check existence of those collections
+        for collection_uuid in collection_uuids_list:
+            collection_dict = query_target_entity('Collection', collection_uuid)
+
+    # Dictionaries to be merged and passed to trigger methods
     normalized_entity_class_dict = {"normalized_entity_class": normalized_entity_class}
     user_info_dict = get_user_info(request)
     new_ids_dict = create_new_ids(normalized_entity_class)
 
-    # Merge all the above dictionaries
+    # Merge all the above dictionaries and pass to the trigger methods
     # If the latter dictionary contains the same key as the previous one, it will overwrite the value for that key
     data_dict = {**normalized_entity_class_dict, **user_info_dict, **new_ids_dict}
 
-    on_create_trigger_data_dict = generate_triggered_data("on_create_trigger", "ENTITIES", data_dict)
+    generated_on_create_trigger_data_dict = generate_triggered_data("on_create_trigger", "ENTITIES", data_dict)
 
-    # Merge two dictionaries
-    merged_dict = {**json_data_dict, **on_create_trigger_data_dict}
-
-    # For Dataset associated with Collections
-    collection_uuids_list = []
-    if 'collection_uuids' in merged_dict:
-        collection_uuids_list = merged_dict['collection_uuids']
-
-    # Check existence of those collections
-    for collection_uuid in collection_uuids_list:
-        collection_dict = query_target_entity('Collection', collection_uuid)
+    # Merge the user json data and generated trigger data into one dictionary
+    merged_dict = {**json_data_dict, **generated_on_create_trigger_data_dict}
 
     # `UNWIND` in Cypher expects List<T>
     data_list = [merged_dict]
@@ -242,25 +243,25 @@ def create_entity(entity_class):
     # Must also escape single quotes in the json string to build a valid Cypher query later
     escaped_json_list_str = json_list_str.replace("'", r"\'")
 
-    app.logger.info("======create entity node with escaped_json_list_str======")
+    app.logger.info("======create_entity() with escaped_json_list_str======")
     app.logger.info(escaped_json_list_str)
 
     # Create new entity
     # If `collection_uuids_list` is not an empty list, meaning the target entity is Dataset and 
-    # we'll be also creating relationships between the new entity node to the Collection nodes
+    # we'll be also creating relationships between the new dataset node to the existing collection nodes
     result_dict = neo4j_queries.create_entity(neo4j_driver, normalized_entity_class, escaped_json_list_str, collection_uuids_list = collection_uuids_list)
 
     return json_response(normalized_entity_class, result_dict)
 
 """
-Create a new entity from the specified source entity in neo4j
+Create a derived entity from the given source entity in neo4j
 
 Parameters
 ----------
-entity_class : str
-    One of the normalized entity classes: Dataset, Collection, Sample, Donor
+target_entity_class : str
+    One of the target entity classes (case-insensitive since will be normalized): Dataset, Collection, Sample, but NOT Donor or Collection
 source_entity_class : str
-    One of the normalized entity classes: Dataset, Sample, Donor, but NOT Collection
+    One of the source entity classes (case-insensitive since will be normalized): Dataset, Sample, Donor, but NOT Collection
 source_entity_id : string
     Either the uuid or the hubmap_id of the source entity 
 
@@ -269,17 +270,17 @@ Returns
 json
     All the properties of the newly created entity
 """
-@app.route('/derived/<entity_class>/from/<source_entity_class>/<source_entity_id>', methods = ['POST'])
-def create_derived_entity(entity_class, source_entity_class, source_entity_id):
+@app.route('/derive/<target_entity_class>/from/<source_entity_class>/<source_entity_id>', methods = ['POST'])
+def create_derived_entity(target_entity_class, source_entity_class, source_entity_id):
     source_entity_uuid = None
 
     # Normalize user provided entity_class and source_entity_class
-    normalized_entity_class = normalize_entity_class(entity_class)
+    normalized_target_entity_class = normalize_entity_class(target_entity_class)
     normalized_source_entity_class = normalize_entity_class(source_entity_class)
 
     # Collection can not be used as either the source entity class or the target entity class
-    validate_normalized_entity_class(normalized_source_entity_class)
-    validate_derived_normalized_entity_class(normalized_entity_class)
+    # Donor can not be the target derived entity
+    validate_entity_classes_for_derivation(normalized_source_entity_class, normalized_entity_class)
 
     # Always expect a json body
     require_json(request)
@@ -288,36 +289,37 @@ def create_derived_entity(entity_class, source_entity_class, source_entity_id):
     json_data_dict = request.get_json()
 
     # Validate request json against the yaml schema
-    validate_json_data_against_schema(json_data_dict, "ENTITIES", normalized_entity_class)
+    validate_json_data_against_schema(json_data_dict, "ENTITIES", normalized_target_entity_class)
 
-    # Query source entity against neo4j and return as a dict if exists
+    # Query source entity and return as a dict if exists
     source_entity_dict = query_target_entity(normalized_source_entity_class, source_entity_id)
 
-    # Otherwise get the uuid of the source entity for later use
+    # Get the uuid of the source entity for later use
     source_entity_uuid = source_entity_dict['uuid']
 
-    # Dictionaries to be used by trigger methods
-    normalized_entity_class_dict = {"normalized_entity_class": normalized_entity_class}
+    # For derived Dataset to be linked with existing Collections
+    collection_uuids_list = []
+    if normalized_target_entity_class == "Dataset":
+        if 'collection_uuids' in json_data_dict:
+            collection_uuids_list = json_data_dict['collection_uuids']
+
+        # Check existence of those collections
+        for collection_uuid in collection_uuids_list:
+            collection_dict = query_target_entity('Collection', collection_uuid)
+
+    # Dictionaries to be merged and passed to trigger methods
+    normalized_entity_class_dict = {"normalized_entity_class": normalized_target_entity_class}
     user_info_dict = get_user_info(request)
-    new_ids_dict = create_new_ids(normalized_entity_class)
+    new_ids_dict = create_new_ids(normalized_target_entity_class)
 
     # Merge all the above dictionaries
     # If the latter dictionary contains the same key as the previous one, it will overwrite the value for that key
     data_dict = {**normalized_entity_class_dict, **user_info_dict, **new_ids_dict}
 
-    on_create_trigger_data_dict = generate_triggered_data("on_create_trigger", "ENTITIES", data_dict)
+    generated_on_create_trigger_data_dict = generate_triggered_data("on_create_trigger", "ENTITIES", data_dict)
 
     # Merge two dictionaries
-    merged_dict = {**json_data_dict, **on_create_trigger_data_dict}
-
-    # For Dataset associated with Collections
-    collection_uuids_list = []
-    if 'collection_uuids' in merged_dict:
-        collection_uuids_list = merged_dict['collection_uuids']
-
-    # Check existence of those collections
-    for collection_uuid in collection_uuids_list:
-        collection_dict = query_target_entity('Collection', collection_uuid)
+    merged_dict = {**json_data_dict, **generated_on_create_trigger_data_dict}
 
     # `UNWIND` in Cypher expects List<T>
     data_list = [merged_dict]
@@ -328,13 +330,14 @@ def create_derived_entity(entity_class, source_entity_class, source_entity_id):
     # Must also escape single quotes in the json string to build a valid Cypher query later
     escaped_json_list_str = json_list_str.replace("'", r"\'")
 
-    app.logger.info("======create entity node with escaped_json_list_str======")
+    app.logger.info("======create derived entity with escaped_json_list_str======")
     app.logger.info(escaped_json_list_str)
 
-    # For Activity creation, since Activity is not an Entity, we use "class" for reference
+    # For Activity creation.
+    # Activity is not an Entity, thus we use "class" for reference
     normalized_activity_class = "Activity"
 
-    # Dictionaries to be used by trigger methods
+    # Dictionaries to be merged and passed to trigger methods
     normalized_activity_class_dict = {
         "normalized_activity_class": normalized_activity_class
     }
@@ -345,19 +348,21 @@ def create_derived_entity(entity_class, source_entity_class, source_entity_id):
     data_dict_for_activity = {**parameters_dict, **normalized_activity_class_dict, **user_info_dict, **new_ids_dict_for_activity}
 
     # Get trigger generated data for Activity
-    on_create_trigger_data_dict_for_activity = generate_triggered_data("on_create_trigger", "ACTIVITIES", data_dict_for_activity)
+    generated_on_create_trigger_data_dict_for_activity = generate_triggered_data("on_create_trigger", "ACTIVITIES", data_dict_for_activity)
     
     # `UNWIND` in Cypher expects List<T>
-    activity_data_list = [on_create_trigger_data_dict_for_activity]
+    activity_data_list = [generated_on_create_trigger_data_dict_for_activity]
     
     # Convert the list (only contains one entity) to json list string
     activity_json_list_str = json.dumps(activity_data_list)
 
-    app.logger.info("======create activity node with activity_json_list_str======")
+    app.logger.info("======create activity with activity_json_list_str======")
     app.logger.info(activity_json_list_str)
 
     # Create the derived entity alone with the Activity node and relationships
-    result_dict = neo4j_queries.create_entity(neo4j_driver, normalized_entity_class, escaped_json_list_str, activity_json_list_str = activity_json_list_str, source_entity_uuid = source_entity_uuid, collection_uuids_list = collection_uuids_list)
+    # If `collection_uuids_list` is not an empty list, meaning the target entity is Dataset and 
+    # we'll be also creating relationships between the new dataset node to the existing collection nodes
+    result_dict = neo4j_queries.create_derived_entity(neo4j_driver, normalized_target_entity_class, escaped_json_list_str, activity_json_list_str, source_entity_uuid, collection_uuids_list = collection_uuids_list)
 
     return json_response(normalized_entity_class, result_dict)
 
@@ -397,7 +402,7 @@ def update_entity(entity_class, id):
     # Validate request json against the yaml schema
     validate_json_data_against_schema(json_data_dict, "ENTITIES", normalized_entity_class)
 
-    # Dictionaries to be used by trigger methods
+   # Dictionaries to be merged and passed to trigger methods
     normalized_entity_class_dict = {"normalized_entity_class": normalized_entity_class}
     user_info_dict = get_user_info(request)
 
@@ -511,21 +516,25 @@ def validate_normalized_entity_class(normalized_entity_class):
         bad_request_error("The specified entity class in URL must be one of the following: " + separator.join(accepted_entity_classs))
 
 """
-Validate the normalized entity class for derived entity to be created
+Validate the source and target entity classes for creating derived entity
 
 Parameters
 ----------
-entity_class : str
-    The user specifed entity type in URL
+normalized_source_entity_class : str
+    The normalized source entity class
+normalized_target_entity_class : str
+    The normalized target entity class
 """
-def validate_derived_normalized_entity_class(normalized_entity_class):
+def validate_entity_classes_for_derivation(normalized_source_entity_class, normalized_target_entity_class):
     separator = ", "
-    # Collection can not be derived
-    accepted_entity_classs = ["Dataset", "Donor", "Sample"]
+    accepted_source_entity_classes = ["Dataset", "Sample"]
+    accepted_target_entity_classes = ["Dataset", "Donor", "Sample"]
 
-    # Validate provided entity_class
-    if normalized_entity_class not in accepted_entity_classs:
-        bad_request_error("Invalid entity type specified for the derived entity. Accepted type: " + separator.join(accepted_entity_classs))
+    if normalized_source_entity_class not in accepted_source_entity_classes:
+        bad_request_error("Invalid source entity class specified for creating the derived entity. Accepted classes: " + separator.join(accepted_source_entity_classes))
+
+    if normalized_target_entity_class not in accepted_target_entity_classes:
+        bad_request_error("Invalid target entity class specified for creating the derived entity. Accepted classes: " + separator.join(accepted_target_entity_classes))
 
 
 """
