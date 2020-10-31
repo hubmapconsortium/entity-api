@@ -157,11 +157,11 @@ json
 """
 @app.route('/<entity_class>/<id>', methods = ['GET'])
 def get_entity(entity_class, id):
-    # Validate user provied entity_class from URL
-    validate_entity_class(entity_class)
-
     # Normalize user provided entity_class
     normalized_entity_class = normalize_entity_class(entity_class)
+
+    # Validate the normalized_entity_class to make sure it's one of the accepted classes
+    validate_normalized_entity_class(normalized_entity_class)
 
     # Query target entity against neo4j and return as a dict if exists
     entity_dict = query_target_entity(normalized_entity_class, id)
@@ -195,11 +195,11 @@ json
 """
 @app.route('/<entity_class>', methods = ['POST'])
 def create_entity(entity_class):
-    # Validate user provied entity_class from URL
-    validate_entity_class(entity_class)
-
     # Normalize user provided entity_class
     normalized_entity_class = normalize_entity_class(entity_class)
+
+    # Validate the normalized_entity_class to make sure it's one of the accepted classes
+    validate_normalized_entity_class(normalized_entity_class)
 
     # Always expect a json body
     require_json(request)
@@ -253,7 +253,7 @@ def create_entity(entity_class):
     return json_response(normalized_entity_class, result_dict)
 
 """
-Create a new entity node from the specified source node in neo4j
+Create a new entity from the specified source entity in neo4j
 
 Parameters
 ----------
@@ -273,14 +273,13 @@ json
 def create_derived_entity(entity_class, source_entity_class, source_entity_id):
     source_entity_uuid = None
 
-    # Validate entity_class of the derived entity and source_entity_class from URL
-    # Collection can not be derived
-    validate_derived_entity_class(entity_class)
-    validate_entity_class(source_entity_class)
-
     # Normalize user provided entity_class and source_entity_class
     normalized_entity_class = normalize_entity_class(entity_class)
     normalized_source_entity_class = normalize_entity_class(source_entity_class)
+
+    # Collection can not be used as either the source entity class or the target entity class
+    validate_normalized_entity_class(normalized_source_entity_class)
+    validate_derived_normalized_entity_class(normalized_entity_class)
 
     # Always expect a json body
     require_json(request)
@@ -380,11 +379,11 @@ json
 """
 @app.route('/<entity_class>/<id>', methods = ['PUT'])
 def update_entity(entity_class, id):
-    # Validate user provied entity_class from URL
-    validate_entity_class(entity_class)
-
     # Normalize user provided entity_class
     normalized_entity_class = normalize_entity_class(entity_class)
+ 
+    # Validate the normalized_entity_class to make sure it's one of the accepted classes
+    validate_normalized_entity_class(normalized_entity_class)
 
     # Always expect a json body
     require_json(request)
@@ -496,36 +495,36 @@ def normalize_entity_class(entity_class):
 
 
 """
-Validate the user specifed entity type in URL
+Validate the normalized entity class
 
 Parameters
 ----------
-entity_class : str
-    The user specifed entity type in URL
+normalized_entity_class : str
+    The normalized entity class
 """
-def validate_entity_class(entity_class):
+def validate_normalized_entity_class(normalized_entity_class):
     separator = ", "
     accepted_entity_classs = ["Dataset", "Donor", "Sample", "Collection"]
 
     # Validate provided entity_class
-    if normalize_entity_class(entity_class) not in accepted_entity_classs:
-        bad_request_error("The specified entity type in URL must be one of the following: " + separator.join(accepted_entity_classs))
+    if normalized_entity_class not in accepted_entity_classs:
+        bad_request_error("The specified entity class in URL must be one of the following: " + separator.join(accepted_entity_classs))
 
 """
-Validate the user specifed entity type for derived entity
+Validate the normalized entity class for derived entity to be created
 
 Parameters
 ----------
 entity_class : str
     The user specifed entity type in URL
 """
-def validate_derived_entity_class(entity_class):
+def validate_derived_normalized_entity_class(normalized_entity_class):
     separator = ", "
     # Collection can not be derived
     accepted_entity_classs = ["Dataset", "Donor", "Sample"]
 
     # Validate provided entity_class
-    if normalize_entity_class(entity_class) not in accepted_entity_classs:
+    if normalized_entity_class not in accepted_entity_classs:
         bad_request_error("Invalid entity type specified for the derived entity. Accepted type: " + separator.join(accepted_entity_classs))
 
 
