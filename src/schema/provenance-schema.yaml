@@ -1,5 +1,5 @@
 ############################################# Rules #############################################
-# - By default, the schema treats all entity properties as optional. Use `user_input_required: true` to mark an property as user_input_required
+# - By default, the schema treats all entity properties as optional. Use `user_input_required: true` to mark a property as user_input_required
 # - By default, the schema treats all entity properties as mutable. Use `immutable: true` to mark a property as immutable
 # - By default, the schema treats all entity properties as persistent. Use `transient: true` to mark a property as transient
 # - By default, the schema treats all entity properties as they have no triggers. Specify the trigger methods if needed
