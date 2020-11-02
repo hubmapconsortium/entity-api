@@ -451,7 +451,7 @@ Get all ancestors by uuid
 Parameters
 ----------
 id : string
-    The uuid of target entity 
+    The uuid or hubmap_id of given entity 
 
 Returns
 -------
@@ -470,7 +470,7 @@ Get all descendants by uuid
 Parameters
 ----------
 id : string
-    The uuid of target entity 
+    The uuid or hubmap_id of given entity
 
 Returns
 -------
@@ -489,7 +489,7 @@ Get all parents by uuid
 Parameters
 ----------
 id : string
-    The uuid of target entity 
+    The uuid or hubmap_id of given entity
 
 Returns
 -------
@@ -508,7 +508,7 @@ Get all chilren by uuid
 Parameters
 ----------
 id : string
-    The uuid of target entity 
+    The uuid or hubmap_id of given entity
 
 Returns
 -------
