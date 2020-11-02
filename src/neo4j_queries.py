@@ -82,6 +82,9 @@ def get_entity(neo4j_driver, entity_class, uuid):
                                        uuid = uuid, 
                                        record_field_name = record_field_name)
     
+    logger.info("======get_entity() query:======")
+    logger.info(query)
+
     with neo4j_driver.session() as session:
         try:
             results = session.run(query)
@@ -144,6 +147,9 @@ def get_source_uuid(neo4j_driver, uuid):
     query = parameterized_query.format(uuid = uuid, 
                                        record_field_name = record_field_name)
     
+    logger.info("======get_source_uuid() query:======")
+    logger.info(query)
+
     with neo4j_driver.session() as session:
         try:
             result = session.run(query)
@@ -185,6 +191,9 @@ def get_dataset_uuids_by_collection(neo4j_driver, uuid):
     query = parameterized_query.format(uuid = uuid, 
                                        record_field_name = record_field_name)
     
+    logger.info("======get_dataset_uuids_by_collection() query:======")
+    logger.info(query)
+
     with neo4j_driver.session() as session:
         try:
             results = session.run(query)
@@ -547,6 +556,178 @@ def update_entity(neo4j_driver, entity_class, json_list_str, uuid):
             logger.info(entity_dict)
 
             return entity_dict
+        except CypherError as ce:
+            raise CypherError('A Cypher error was encountered: ' + ce.message)
+        except Exception as e:
+            raise e
+
+# TO-DO
+"""
+Get all ancestors by uuid
+
+Parameters
+----------
+neo4j_driver : neo4j.driver
+    The neo4j driver instance
+uuid : string
+    The uuid of target entity 
+
+Returns
+-------
+list
+    A list of unique ancestor nodes returned from the Cypher query
+"""
+def get_ancestors(neo4j_driver, uuid):
+    with neo4j_driver.session() as session:
+        ancestors_list = []
+
+        parameterized_query = ("MATCH (e:Entity)<-[*]-(ancestor:Entity) " +
+                               "WHERE e.uuid='{uuid}' " +
+                               # COLLECT() returns a list
+                               # apoc.coll.toSet() reruns a set containing unique nodes
+                               "RETURN apoc.coll.toSet(COLLECT(ancestor)) AS {record_field_name}")
+
+        query = parameterized_query.format(uuid = uuid, 
+                                           record_field_name = record_field_name)
+
+        logger.info("======get_ancestors() query:======")
+        logger.info(query)
+
+        try:
+            result = session.run(query)
+            record = result.single()
+            ancestors_list = record[record_field_name]
+
+            return ancestors_list               
+        except CypherError as ce:
+            raise CypherError('A Cypher error was encountered: ' + ce.message)
+        except Exception as e:
+            raise e
+
+# TO-DO
+"""
+Get all descendants by uuid
+
+Parameters
+----------
+neo4j_driver : neo4j.driver
+    The neo4j driver instance
+uuid : string
+    The uuid of target entity 
+
+Returns
+-------
+dict
+    A dictionary of updated entity details returned from the Cypher query
+"""
+def get_descendants(neo4j_driver, uuid):
+    with neo4j_driver.session() as session:
+        descendants = []
+
+        # TO-DO
+        parameterized_query = ("MATCH (e:Entity) <-[:ACTIVITY_OUTPUT]-(e1)<-[r:ACTIVITY_INPUT|:ACTIVITY_OUTPUT*]-(all_ancestors:Entity) " +
+                               "WHERE e.uuid='{uuid}' " +
+                               "RETURN apoc.coll.toSet(COLLECT(all_ancestors { .*, metadata: properties(all_ancestors_metadata) } )) AS {record_field_name}")
+
+        query = parameterized_query.format(uuid = uuid, 
+                                           record_field_name = record_field_name)
+
+        logger.info("======get_descendants() query:======")
+        logger.info(query)
+
+        try:
+            results = session.run(query)
+
+            for record in results:
+                if record.get('all_descendants', None) != None:
+                    descendants = record['all_descendants']
+            return descendants
+        except CypherError as ce:
+            raise CypherError('A Cypher error was encountered: ' + ce.message)
+        except Exception as e:
+            raise e
+
+# TO-DO
+"""
+Get all parents by uuid
+
+Parameters
+----------
+neo4j_driver : neo4j.driver
+    The neo4j driver instance
+uuid : string
+    The uuid of target entity 
+
+Returns
+-------
+dict
+    A dictionary of updated entity details returned from the Cypher query
+"""
+def get_parents(neo4j_driver, uuid):
+    with neo4j_driver.session() as session:
+        parents = []
+
+        # TO-DO
+        parameterized_query = ("MATCH (e:Entity) " +
+                               "WHERE e.uuid='{uuid}' " +
+                               "RETURN e AS {record_field_name}")
+
+        query = parameterized_query.format(uuid = uuid, 
+                                           record_field_name = record_field_name)
+
+        logger.info("======get_parents() query:======")
+        logger.info(query)
+
+        try:
+            results = session.run(query)
+
+            for record in results:
+                if record.get('immediate_ancestors', None) != None:
+                    parents = record['immediate_ancestors']
+            return parents            
+        except CypherError as ce:
+            raise CypherError('A Cypher error was encountered: ' + ce.message)
+        except Exception as e:
+            raise e
+
+# TO-DO
+"""
+Get all children by uuid
+
+Parameters
+----------
+neo4j_driver : neo4j.driver
+    The neo4j driver instance
+uuid : string
+    The uuid of target entity 
+
+Returns
+-------
+dict
+    A dictionary of updated entity details returned from the Cypher query
+"""
+def get_children(neo4j_driver, uuid):
+    with neo4j_driver.session() as session:
+        children = []
+
+        # TO-DO
+        parameterized_query = ("MATCH (e:Entity) <-[:ACTIVITY_OUTPUT]-(e1)<-[r:ACTIVITY_INPUT|:ACTIVITY_OUTPUT*]-(all_ancestors:Entity) " +
+                               "WHERE e.uuid='{uuid}' " +
+                               "RETURN apoc.coll.toSet(COLLECT(all_ancestors { .*, metadata: properties(all_ancestors_metadata) } )) AS {record_field_name}")
+
+        query = parameterized_query.format(uuid = uuid, 
+                                           record_field_name = record_field_name)
+
+        logger.info("======get_children() query:======")
+        logger.info(query)
+
+        try:
+            results = session.run(query)
+
+            for record in results:
+                if record.get('immediate_descendants', None) != None:
+                    children = record['immediate_descendants']
+            return children            
         except CypherError as ce:
             raise CypherError('A Cypher error was encountered: ' + ce.message)
         except Exception as e:

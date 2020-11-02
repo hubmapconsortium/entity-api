@@ -445,6 +445,46 @@ def update_entity(entity_class, id):
     return json_response(normalized_entity_class, result_dict)
 
 
+
+
+
+
+# TO-DO
+"""
+Get all ancestors by uuid
+
+Parameters
+----------
+id : string
+    The uuid of target entity 
+
+Returns
+-------
+json
+    All the updated properties of the target entity
+"""
+@app.route('/ancestors/<id>', methods = ['GET'])
+def get_ancestors(id):
+    ancestors = neo4j_queries.get_ancestors(neo4j_driver, uuid)
+    return jsonify(ancestors), 200
+
+@app.route('/descendants/<id>', methods = ['GET'])
+def get_descendants(id):
+    descendants = neo4j_queries.get_descendants(neo4j_driver, uuid)
+    return jsonify(descendants), 200
+
+@app.route('/parents/<id>', methods = ['GET'])
+def get_parents(id):
+    parents = neo4j_queries.get_parents(neo4j_driver, uuid)
+    return jsonify(parents), 200
+
+@app.route('/children/<id>', methods = ['GET'])
+def get_children(id):
+    children = neo4j_queries.get_children(neo4j_driver, uuid)
+    return jsonify(children), 200
+
+
+
 ####################################################################################################
 ## Internal Functions
 ####################################################################################################
