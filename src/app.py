@@ -260,33 +260,39 @@ Parameters
 ----------
 target_entity_class : str
     One of the target entity classes (case-insensitive since will be normalized): Dataset, Collection, Sample, but NOT Donor or Collection
-source_entity_class : str
-    One of the source entity classes (case-insensitive since will be normalized): Dataset, Sample, Donor, but NOT Collection
-source_entity_id : string
-    Either the uuid or the hubmap_id of the source entity 
+
+JSON body:
+{
+    "source_entities": [
+        {"source_entity_class": "Sample", "source_entity_id": "44324234"},
+        {"source_entity_class": "Sample", "source_entity_id": "6adsd230"}
+    ]
+}
 
 Returns
 -------
 json
     All the properties of the newly created entity
 """
-@app.route('/derive/<target_entity_class>/from/<source_entity_class>/<source_entity_id>', methods = ['POST'])
-def create_derived_entity(target_entity_class, source_entity_class, source_entity_id):
+@app.route('/derive/<target_entity_class>', methods = ['POST'])
+def create_derived_entity(target_entity_class):
     source_entity_uuid = None
 
-    # Normalize user provided entity_class and source_entity_class
+    # Normalize user provided target_entity_class
     normalized_target_entity_class = normalize_entity_class(target_entity_class)
-    normalized_source_entity_class = normalize_entity_class(source_entity_class)
 
     # Collection can not be used as either the source entity class or the target entity class
     # Donor can not be the target derived entity
-    validate_entity_classes_for_derivation(normalized_source_entity_class, normalized_entity_class)
+    validate_target_entity_classes_for_derivation(normalized_target_entity_class)
 
     # Always expect a json body
     require_json(request)
 
     # Parse incoming json string into json data(python dict object)
     json_data_dict = request.get_json()
+
+    if not "source_entities" in json_data_dict:
+        bad_request_error("Key 'source_entities' is missing from the JSON request body")
 
     # Validate request json against the yaml schema
     validate_json_data_against_schema(json_data_dict, "ENTITIES", normalized_target_entity_class)
@@ -601,21 +607,30 @@ Validate the source and target entity classes for creating derived entity
 
 Parameters
 ----------
-normalized_source_entity_class : str
-    The normalized source entity class
 normalized_target_entity_class : str
     The normalized target entity class
 """
-def validate_entity_classes_for_derivation(normalized_source_entity_class, normalized_target_entity_class):
+def validate_target_entity_classes_for_derivation(normalized_target_entity_class):
     separator = ", "
-    accepted_source_entity_classes = ["Dataset", "Sample"]
     accepted_target_entity_classes = ["Dataset", "Donor", "Sample"]
-
-    if normalized_source_entity_class not in accepted_source_entity_classes:
-        bad_request_error("Invalid source entity class specified for creating the derived entity. Accepted classes: " + separator.join(accepted_source_entity_classes))
 
     if normalized_target_entity_class not in accepted_target_entity_classes:
         bad_request_error("Invalid target entity class specified for creating the derived entity. Accepted classes: " + separator.join(accepted_target_entity_classes))
+
+"""
+Validate the source and target entity classes for creating derived entity
+
+Parameters
+----------
+normalized_source_entity_class : str
+    The normalized source entity class
+"""
+def validate_source_entity_classes_for_derivation(normalized_source_entity_class):
+    separator = ", "
+    accepted_source_entity_classes = ["Dataset", "Sample"]
+
+    if normalized_source_entity_class not in accepted_source_entity_classes:
+        bad_request_error("Invalid source entity class specified for creating the derived entity. Accepted classes: " + separator.join(accepted_source_entity_classes))
 
 
 """
