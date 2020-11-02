@@ -561,7 +561,7 @@ def update_entity(neo4j_driver, entity_class, json_list_str, uuid):
         except Exception as e:
             raise e
 
-# TO-DO
+
 """
 Get all ancestors by uuid
 
@@ -575,13 +575,13 @@ uuid : string
 Returns
 -------
 list
-    A list of unique ancestor nodes returned from the Cypher query
+    A list of unique ancestor dictionaries returned from the Cypher query
 """
 def get_ancestors(neo4j_driver, uuid):
     with neo4j_driver.session() as session:
-        ancestors_list = []
+        ancestors = []
 
-        parameterized_query = ("MATCH (e:Entity)<-[*]-(ancestor:Entity) " +
+        parameterized_query = ("MATCH (e:Entity)<-[r:ACTIVITY_INPUT|:ACTIVITY_OUTPUT*]-(ancestor:Entity) " +
                                "WHERE e.uuid='{uuid}' " +
                                # COLLECT() returns a list
                                # apoc.coll.toSet() reruns a set containing unique nodes
@@ -596,15 +596,19 @@ def get_ancestors(neo4j_driver, uuid):
         try:
             result = session.run(query)
             record = result.single()
-            ancestors_list = record[record_field_name]
+            entity_nodes = record[record_field_name]
 
-            return ancestors_list               
+            for entity_node in entity_nodes:
+                entity_dict = node_to_dict(entity_node)
+                ancestors.append(entity_dict)
+
+            return ancestors               
         except CypherError as ce:
             raise CypherError('A Cypher error was encountered: ' + ce.message)
         except Exception as e:
             raise e
 
-# TO-DO
+
 """
 Get all descendants by uuid
 
@@ -618,16 +622,17 @@ uuid : string
 Returns
 -------
 dict
-    A dictionary of updated entity details returned from the Cypher query
+    A list of unique desendant dictionaries returned from the Cypher query
 """
 def get_descendants(neo4j_driver, uuid):
     with neo4j_driver.session() as session:
         descendants = []
 
-        # TO-DO
-        parameterized_query = ("MATCH (e:Entity) <-[:ACTIVITY_OUTPUT]-(e1)<-[r:ACTIVITY_INPUT|:ACTIVITY_OUTPUT*]-(all_ancestors:Entity) " +
+        parameterized_query = ("MATCH (e:Entity)-[r:ACTIVITY_INPUT|:ACTIVITY_OUTPUT*]->(descendant:Entity) " +
                                "WHERE e.uuid='{uuid}' " +
-                               "RETURN apoc.coll.toSet(COLLECT(all_ancestors { .*, metadata: properties(all_ancestors_metadata) } )) AS {record_field_name}")
+                               # COLLECT() returns a list
+                               # apoc.coll.toSet() reruns a set containing unique nodes
+                               "RETURN apoc.coll.toSet(COLLECT(descendant)) AS {record_field_name}")
 
         query = parameterized_query.format(uuid = uuid, 
                                            record_field_name = record_field_name)
@@ -636,18 +641,20 @@ def get_descendants(neo4j_driver, uuid):
         logger.info(query)
 
         try:
-            results = session.run(query)
+            result = session.run(query)
+            record = result.single()
+            entity_nodes = record[record_field_name]
 
-            for record in results:
-                if record.get('all_descendants', None) != None:
-                    descendants = record['all_descendants']
-            return descendants
+            for entity_node in entity_nodes:
+                entity_dict = node_to_dict(entity_node)
+                descendants.append(entity_dict)
+
+            return descendants               
         except CypherError as ce:
             raise CypherError('A Cypher error was encountered: ' + ce.message)
         except Exception as e:
             raise e
 
-# TO-DO
 """
 Get all parents by uuid
 
@@ -661,16 +668,17 @@ uuid : string
 Returns
 -------
 dict
-    A dictionary of updated entity details returned from the Cypher query
+    A list of unique parent dictionaries returned from the Cypher query
 """
 def get_parents(neo4j_driver, uuid):
     with neo4j_driver.session() as session:
         parents = []
 
-        # TO-DO
-        parameterized_query = ("MATCH (e:Entity) " +
+        parameterized_query = ("MATCH (e:Entity)<-[:ACTIVITY_OUTPUT]-(:Activity)<-[:ACTIVITY_INPUT]-(parent:Entity) " +
                                "WHERE e.uuid='{uuid}' " +
-                               "RETURN e AS {record_field_name}")
+                               # COLLECT() returns a list
+                               # apoc.coll.toSet() reruns a set containing unique nodes
+                               "RETURN apoc.coll.toSet(COLLECT(parent)) AS {record_field_name}")
 
         query = parameterized_query.format(uuid = uuid, 
                                            record_field_name = record_field_name)
@@ -679,18 +687,20 @@ def get_parents(neo4j_driver, uuid):
         logger.info(query)
 
         try:
-            results = session.run(query)
+            result = session.run(query)
+            record = result.single()
+            entity_nodes = record[record_field_name]
 
-            for record in results:
-                if record.get('immediate_ancestors', None) != None:
-                    parents = record['immediate_ancestors']
-            return parents            
+            for entity_node in entity_nodes:
+                entity_dict = node_to_dict(entity_node)
+                parents.append(entity_dict)
+
+            return parents               
         except CypherError as ce:
             raise CypherError('A Cypher error was encountered: ' + ce.message)
         except Exception as e:
             raise e
 
-# TO-DO
 """
 Get all children by uuid
 
@@ -704,17 +714,17 @@ uuid : string
 Returns
 -------
 dict
-    A dictionary of updated entity details returned from the Cypher query
+    A list of unique child dictionaries returned from the Cypher query
 """
 def get_children(neo4j_driver, uuid):
     with neo4j_driver.session() as session:
         children = []
 
-        # TO-DO
-        parameterized_query = ("MATCH (e:Entity) <-[:ACTIVITY_OUTPUT]-(e1)<-[r:ACTIVITY_INPUT|:ACTIVITY_OUTPUT*]-(all_ancestors:Entity) " +
+        parameterized_query = ("MATCH (e:Entity)-[:ACTIVITY_INPUT]->(:Activity)-[:ACTIVITY_OUTPUT]->(child:Entity) " +
                                "WHERE e.uuid='{uuid}' " +
-                               "RETURN apoc.coll.toSet(COLLECT(all_ancestors { .*, metadata: properties(all_ancestors_metadata) } )) AS {record_field_name}")
-
+                               # COLLECT() returns a list
+                               # apoc.coll.toSet() reruns a set containing unique nodes
+                               "RETURN apoc.coll.toSet(COLLECT(child)) AS {record_field_name}")
         query = parameterized_query.format(uuid = uuid, 
                                            record_field_name = record_field_name)
 
@@ -722,12 +732,15 @@ def get_children(neo4j_driver, uuid):
         logger.info(query)
 
         try:
-            results = session.run(query)
+            result = session.run(query)
+            record = result.single()
+            entity_nodes = record[record_field_name]
 
-            for record in results:
-                if record.get('immediate_descendants', None) != None:
-                    children = record['immediate_descendants']
-            return children            
+            for entity_node in entity_nodes:
+                entity_dict = node_to_dict(entity_node)
+                children.append(entity_dict)
+
+            return children               
         except CypherError as ce:
             raise CypherError('A Cypher error was encountered: ' + ce.message)
         except Exception as e:

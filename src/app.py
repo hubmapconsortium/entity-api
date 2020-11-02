@@ -445,11 +445,6 @@ def update_entity(entity_class, id):
     return json_response(normalized_entity_class, result_dict)
 
 
-
-
-
-
-# TO-DO
 """
 Get all ancestors by uuid
 
@@ -461,27 +456,70 @@ id : string
 Returns
 -------
 json
-    All the updated properties of the target entity
+    A list of all the ancestors of the target entity
 """
 @app.route('/ancestors/<id>', methods = ['GET'])
 def get_ancestors(id):
-    ancestors = neo4j_queries.get_ancestors(neo4j_driver, uuid)
-    return jsonify(ancestors), 200
+    uuid = get_target_uuid(id)
+    ancestors_list = neo4j_queries.get_ancestors(neo4j_driver, uuid)
+    return json_response("ancestors", ancestors_list)
 
+"""
+Get all descendants by uuid
+
+Parameters
+----------
+id : string
+    The uuid of target entity 
+
+Returns
+-------
+json
+    A list of all the descendants of the target entity
+"""
 @app.route('/descendants/<id>', methods = ['GET'])
 def get_descendants(id):
-    descendants = neo4j_queries.get_descendants(neo4j_driver, uuid)
-    return jsonify(descendants), 200
+    uuid = get_target_uuid(id)
+    descendants_list = neo4j_queries.get_descendants(neo4j_driver, uuid)
+    return json_response("descendants", descendants_list)
 
+"""
+Get all parents by uuid
+
+Parameters
+----------
+id : string
+    The uuid of target entity 
+
+Returns
+-------
+json
+    A list of all the parents of the target entity
+"""
 @app.route('/parents/<id>', methods = ['GET'])
 def get_parents(id):
-    parents = neo4j_queries.get_parents(neo4j_driver, uuid)
-    return jsonify(parents), 200
+    uuid = get_target_uuid(id)
+    parents_list = neo4j_queries.get_parents(neo4j_driver, uuid)
+    return json_response("parents", parents_list)
 
+"""
+Get all chilren by uuid
+
+Parameters
+----------
+id : string
+    The uuid of target entity 
+
+Returns
+-------
+json
+    A list of all the children of the target entity
+"""
 @app.route('/children/<id>', methods = ['GET'])
 def get_children(id):
-    children = neo4j_queries.get_children(neo4j_driver, uuid)
-    return jsonify(children), 200
+    uuid = get_target_uuid(id)
+    children_list = neo4j_queries.get_children(neo4j_driver, uuid)
+    return json_response("children", children_list)
 
 
 
@@ -895,19 +933,20 @@ Generate the final response data
 
 Parameters
 ----------
-normalized_entity_class : str
+key : str
     One of the normalized entity classes: Dataset, Collection, Sample, Donor
-entity_dict : dict
-    The target entity dict
+value : str|bool|list|dict
+    The value of the key
     
 Returns
 -------
 str
-    A response string
+    A response of json string representation
 """
-def json_response(normalized_entity_class, entity_dict):
+def json_response(key, value):
+    # JSON keys are case-sensitive, we use lowercase
     result = {
-        normalized_entity_class.lower(): entity_dict
+        key.lower(): value
     }
 
     return jsonify(result)
