@@ -1,12 +1,12 @@
 ############################################# Rules #############################################
 # - By default, the schema treats all entity properties as optional. Use `user_input_required: true` to mark an property as user_input_required
-# - By default, the schema treats all entity properties as mutable. Use `immutable: true` to mark an property as immutable
-# - By default, the schema treats all entity properties as persistent. Use `transient: true` to mark an property as transient
+# - By default, the schema treats all entity properties as mutable. Use `immutable: true` to mark a property as immutable
+# - By default, the schema treats all entity properties as persistent. Use `transient: true` to mark a property as transient
 # - By default, the schema treats all entity properties as they have no triggers. Specify the trigger methods if needed
-# - If an property is marked as `user_input_required: true`, it means this property is required to be provided in the client request JSON
-# - If an property is marked as `user_input_required: true`, it can't have `trigger` at the same time
-# - If an property has `trigger` metadata, it can't be used in client request JSON
-# - If an property has `on_read` trigger event, it must be transient, meaning it's not stored in neo4j and only available during response
+# - If a property is marked as `user_input_required: true`, it means this property is required to be provided in the client request JSON
+# - If a property is marked as `user_input_required: true`, it can't have `trigger` at the same time
+# - If a property has `trigger` metadata, it can't be used in client request JSON
+# - If a property has `on_read` trigger event, it must be transient, meaning it's not stored in neo4j and only available during response
 # - There are 3 types of triggers: `on_create_trigger`, `on_update_trigger`, and `on_read_trigger`
 
 ############################################# TO-DO #############################################
