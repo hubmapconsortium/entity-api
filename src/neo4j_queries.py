@@ -424,8 +424,13 @@ entity_class : str
     One of the normalized entity classes: Dataset, Collection, Sample, Donor
 entity_json_list_str : string
     The string representation of a list containing only one Entity node to be created
-source_entity_uuid : str
-    The uuid of the source entity
+source_entities_list : list (of dictionaries)
+    The list of source entities if the format of:
+    [
+        {"class": "Sample", "uuid": "6dada44324234"},
+        {"class": "Sample", "uuid": "34dad6adsd230"},
+        ...
+    ]
 activity_json_list_str : string
     The string representation of a list containing only one Activity node to be created
 collection_uuids_list: list
@@ -436,7 +441,7 @@ Returns
 dict
     A dictionary of newly created derived entity details returned from the Cypher query
 """
-def create_derived_entity(neo4j_driver, entity_class, entity_json_list_str, activity_json_list_str, source_entity_uuid, collection_uuids_list = None):
+def create_derived_entity(neo4j_driver, entity_class, entity_json_list_str, activity_json_list_str, source_entities_list, collection_uuids_list = None):
     entity_dict = {}
 
     with neo4j_driver.session(default_access_mode = neo4j.WRITE_ACCESS) as session:
@@ -449,11 +454,15 @@ def create_derived_entity(neo4j_driver, entity_class, entity_json_list_str, acti
             logger.info("======create_derived_entity() resulting entity_dict:======")
             logger.info(entity_dict)
 
-            # 1 - create the Acvitity node
+            # Create the Acvitity node
             activity_dict = create_activity_tx(tx, activity_json_list_str)
-            # 2 - create relationship from source Entity node to this Activity node
-            create_relationship_tx(tx, source_entity_uuid, activity_dict['uuid'], 'ACTIVITY_INPUT', '->')
-            # 3 - create relationship from this Activity node to the derived Enity node
+
+            # Link each source entity to the newly created Activity node
+            for source_entity in source_entities_list:
+                # Create relationship from source Entity node to this Activity node
+                create_relationship_tx(tx, source_entity['uuid'], activity_dict['uuid'], 'ACTIVITY_INPUT', '->')
+                
+            # Create relationship from this Activity node to the derived Enity node
             create_relationship_tx(tx, activity_dict['uuid'], entity_dict['uuid'], 'ACTIVITY_OUTPUT', '->')
 
             # For Dataset associated with Collections

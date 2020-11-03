@@ -264,9 +264,11 @@ target_entity_class : str
 JSON body:
 {
     "source_entities": [
-        {"source_entity_class": "Sample", "source_entity_id": "44324234"},
-        {"source_entity_class": "Sample", "source_entity_id": "6adsd230"}
-    ]
+        {"class": "Sample", "id": "44324234"},
+        {"class": "Sample", "id": "6adsd230"},
+        ...
+    ],
+    all other standard properties...
 }
 
 Returns
@@ -274,16 +276,13 @@ Returns
 json
     All the properties of the newly created entity
 """
-@app.route('/derive/<target_entity_class>', methods = ['POST'])
+@app.route('/derived/<target_entity_class>', methods = ['POST'])
 def create_derived_entity(target_entity_class):
-    source_entity_uuid = None
-
     # Normalize user provided target_entity_class
     normalized_target_entity_class = normalize_entity_class(target_entity_class)
 
-    # Collection can not be used as either the source entity class or the target entity class
-    # Donor can not be the target derived entity
-    validate_target_entity_classes_for_derivation(normalized_target_entity_class)
+    # Donor and Collection can not be the target derived entity classes
+    validate_target_entity_class_for_derivation(normalized_target_entity_class)
 
     # Always expect a json body
     require_json(request)
@@ -294,14 +293,26 @@ def create_derived_entity(target_entity_class):
     if not "source_entities" in json_data_dict:
         bad_request_error("Key 'source_entities' is missing from the JSON request body")
 
+    source_entities_list = json_data_dict['source_entities']
+
+    for source_entity in source_entities_list:
+        if (not "class" in source_entity) or (not "id" in source_entity):
+            bad_request_error("Each source entity object within the 'source_entities' list must contain 'class' key and 'id' key")
+            
+        # Also normalize and validate the source entity class
+        normalized_source_entity_class = normalize_entity_class(source_entity['class'])
+        validate_source_entity_class_for_derivation(normalized_source_entity_class)
+
+        # Query source entity against neo4j and return as a dict if exists
+        source_entity_dict = query_target_entity(normalized_source_entity_class, source_entity['id'])
+        
+        # Add the uuid to the source_entity dict of each source for later use
+        source_entity['uuid'] = source_entity_dict['uuid']
+        # Then delete the 'id' key from each source enity dict
+        del source_entity['id']
+
     # Validate request json against the yaml schema
     validate_json_data_against_schema(json_data_dict, "ENTITIES", normalized_target_entity_class)
-
-    # Query source entity and return as a dict if exists
-    source_entity_dict = query_target_entity(normalized_source_entity_class, source_entity_id)
-
-    # Get the uuid of the source entity for later use
-    source_entity_uuid = source_entity_dict['uuid']
 
     # For derived Dataset to be linked with existing Collections
     collection_uuids_list = []
@@ -368,7 +379,7 @@ def create_derived_entity(target_entity_class):
     # Create the derived entity alone with the Activity node and relationships
     # If `collection_uuids_list` is not an empty list, meaning the target entity is Dataset and 
     # we'll be also creating relationships between the new dataset node to the existing collection nodes
-    result_dict = neo4j_queries.create_derived_entity(neo4j_driver, normalized_target_entity_class, escaped_json_list_str, activity_json_list_str, source_entity_uuid, collection_uuids_list = collection_uuids_list)
+    result_dict = neo4j_queries.create_derived_entity(neo4j_driver, normalized_target_entity_class, escaped_json_list_str, activity_json_list_str, source_entities_list, collection_uuids_list = collection_uuids_list)
 
     return json_response(normalized_entity_class, result_dict)
 
@@ -610,7 +621,7 @@ Parameters
 normalized_target_entity_class : str
     The normalized target entity class
 """
-def validate_target_entity_classes_for_derivation(normalized_target_entity_class):
+def validate_target_entity_class_for_derivation(normalized_target_entity_class):
     separator = ", "
     accepted_target_entity_classes = ["Dataset", "Donor", "Sample"]
 
@@ -625,7 +636,7 @@ Parameters
 normalized_source_entity_class : str
     The normalized source entity class
 """
-def validate_source_entity_classes_for_derivation(normalized_source_entity_class):
+def validate_source_entity_class_for_derivation(normalized_source_entity_class):
     separator = ", "
     accepted_source_entity_classes = ["Dataset", "Sample"]
 
@@ -815,7 +826,7 @@ def query_target_entity(normalized_entity_class, id):
 
     # Existence check
     if not bool(entity_dict):
-        not_found_error("Could not find the target " + normalized_entity_class + " of id " + id)
+        not_found_error("Could not find the " + normalized_entity_class + " of id " + id)
 
     return entity_dict
 
