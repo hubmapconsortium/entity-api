@@ -21,3 +21,12 @@ NEO4J_PASSWORD = '123'
 # Point to remote URL for non-docker development
 # Works regardless of the trailing slash
 UUID_API_URL = 'http://hubmap-auth:9999/hmuuid'
+
+#url where DOIs are redirected to
+#the <identifier> tag is required in the url and will be replaced by the incoming identifier
+COLLECTION_REDIRECT_URL = 'https://ingest.dev.hubmapconsortium.org/redirect-test/<identifier>'
+
+#page where errors are reported back to a user
+#takes arguments ?description=xxxx&details=yyyyy where
+#description is required and details is optional
+ERROR_PAGE_URL = 'https://ingest.dev.hubmapconsortium.org/err-response'

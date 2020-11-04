@@ -18,6 +18,7 @@ import schema_triggers
 # HuBMAP commons
 from hubmap_commons.hm_auth import AuthHelper
 from hubmap_commons.neo4j_connection import Neo4jConnection
+from hubmap_commons import string_helper
 
 # Specify the absolute path of the instance folder and use the config file relative to the instance path
 app = Flask(__name__, instance_path=os.path.join(os.path.abspath(os.path.dirname(__file__)), 'instance'), instance_relative_config=True)
@@ -539,6 +540,186 @@ def get_children(id):
     return json_response("children", children_list)
 
 
+"""
+Redirect doi?
+
+Parameters
+----------
+identifier : string
+    The uuid or hubmap_id of given entity
+"""
+@app.route('/doi/redirect/<identifier>', methods = ['GET'])
+def doi_redirect(identifier):
+    return collection_redirect(identifier)
+
+"""
+Redirect a request from a doi service for a collection of data
+
+Parameters
+----------
+identifier : string
+    The uuid or hubmap_id of given entity
+"""
+@app.route('/collection/redirect/<identifier>', methods = ['GET'])
+def collection_redirect(identifier):
+    try:
+        if string_helper.isBlank(identifier):
+            bad_request_error("No identifier")
+
+        #look up the id, if it doesn't exist return an error
+        ug = UUID_Generator(app.config['UUID_API_URL'])
+        hmuuid_data = ug.getUUID(AuthHelper.instance().getProcessSecret(), identifier)    
+        if hmuuid_data is None or len(hmuuid_data) == 0:
+            not_found_error("Not found")
+
+        if len(hmuuid_data) > 1:
+            bad_request_error("Data Collection is defined multiple times")
+
+        uuid_data = hmuuid_data[0]
+
+        if not 'hmuuid' in uuid_data or string_helper.isBlank(uuid_data['hmuuid']) or not 'type' in uuid_data or string_helper.isBlank(uuid_data['type']) or uuid_data['type'].strip().lower() != 'collection':
+            not_found_error("Data collection not found")
+
+        if 'COLLECTION_REDIRECT_URL' not in app.config or string_helper.isBlank(app.config['COLLECTION_REDIRECT_URL']):
+            internal_server_error("Configuration error")
+
+        redir_url = app.config['COLLECTION_REDIRECT_URL']
+        if redir_url.lower().find('<identifier>') == -1:
+            internal_server_error("Configuration error")
+ 
+        rep_pattern = re.compile(re.escape('<identifier>'), re.RegexFlag.IGNORECASE)
+        redir_url = rep_pattern.sub(uuid_data['hmuuid'], redir_url)
+        
+        return redirect(redir_url, code = 307)
+    except Exception:
+        internal_server_error("Unexpected error while redirecting for Collection with id: " + identifier)
+
+#helper method to show an error message through the ingest
+#portal's error display page a brief description of the error
+#is a required parameter a more detailed description is an optional parameter 
+def _redirect_error_response(description, detail=None):
+    if not 'ERROR_PAGE_URL' in  app.config or string_helper.isBlank(app.config['ERROR_PAGE_URL']):
+        return Response("Config ERROR.  ERROR_PAGE_URL not in application configuration.")
+    
+    redir_url = file_helper.removeTrailingSlashURL(app.config['ERROR_PAGE_URL'])
+    desc = urllib.parse.quote(description, safe='')
+    description_and_details = "?description=" + desc
+    if not string_helper.isBlank(detail):
+        det = urllib.parse.quote(detail, save='')
+        description_and_details = description_and_details + "&details=" + det
+    redir_url = redir_url + description_and_details
+    return redirect(redir_url, code = 307)    
+
+#get the Globus URL to the dataset given a dataset ID
+#
+# It will provide a Globus URL to the dataset directory in of three Globus endpoints based on the access
+# level of the user (public, consortium or protected), public only, of course, if no token is provided.
+# If a dataset isn't found a 404 will be returned. There is a chance that a 500 can be returned, but not
+# likely under normal circumstances, only for a misconfigured or failing in some way endpoint.  If the 
+# Auth token is provided but is expired or invalid a 401 is returned.  If access to the dataset is not
+# allowed for the user (or lack of user) a 403 is returned.
+# Inputs via HTTP GET at /entities/dataset/globus-url/<identifier>
+#   identifier: The HuBMAP ID (e.g. HBM123.ABCD.456) or UUID via a url path parameter 
+#   auth token: (optional) A Globus Nexus token specified in a standard Authorization: Bearer header
+#
+# Outputs
+#   200 with the Globus Application URL to the datasets's directory
+#   404 Dataset not found
+#   403 Access Forbidden
+#   401 Unauthorized (bad or expired token)
+#   500 Unexpected server or other error
+
+@app.route('/entities/dataset/globus-url/<identifier>', methods = ['GET'])
+def get_globus_url(identifier):
+    global prov_helper
+    try:
+        #get the id from the UUID service to resolve to a UUID and check to make sure that it exists
+        ug = UUID_Generator(app.config['UUID_API_URL'])
+        hmuuid_data = ug.getUUID(AuthHelper.instance().getProcessSecret(), identifier)
+        if hmuuid_data is None or len(hmuuid_data) == 0:
+            not_found_error("Dataset id:" + identifier + " not found.")
+        uuid = hmuuid_data[0]['hmuuid']
+        
+        #look up the dataset in Neo4j and retrieve the allowable data access level (public, protected or consortium)
+        #for the dataset and HuBMAP Component ID that the dataset belongs to
+        dset = Dataset(app.config)
+        ds_attribs = dset.get_dataset_metadata_attributes(uuid, ['data_access_level', 'provenance_group_uuid'])
+        if not 'provenance_group_uuid' in ds_attribs or string_helper.isBlank(ds_attribs['provenance_group_uuid']):
+            internal_server_error("Group id not set for dataset with uuid:" + uuid)
+    
+        #if no access level is present on the dataset default to protected
+        if not 'data_access_level' in ds_attribs or string_helper.isBlank(ds_attribs['data_access_level']):
+            data_access_level = HubmapConst.ACCESS_LEVEL_PROTECTED
+        else:
+            data_access_level = ds_attribs['data_access_level']
+        
+        #look up the Component's group ID, return an error if not found
+        data_group_id = ds_attribs['provenance_group_uuid']
+        group_ids = prov_helper.get_group_info_by_id()
+        if not data_group_id in group_ids:
+            internal_server_error("Dataset group: " + data_group_id + " for uuid:" + uuid + " not found.")
+
+        #get the user information (if available) for the caller
+        #getUserDataAccessLevel will return just a "data_access_level" of public
+        #if no auth token is found
+        ahelper = AuthHelper.instance()
+        user_info = ahelper.getUserDataAccessLevel(request)        
+        
+        #construct the Globus URL based on the highest level of access that the user has
+        #and the level of access allowed for the dataset
+        #the first "if" checks to see if the user is a member of the Consortium group
+        #that allows all access to this dataset, if so send them to the "protected"
+        #endpoint even if the user doesn't have full access to all protected data
+        globus_server_uuid = None        
+        dir_path = ""
+        
+        #the user is in the Globus group with full access to thie dataset,
+        #so they have protected level access to it
+        if 'hmgroupids' in user_info and data_group_id in user_info['hmgroupids']:
+            user_access_level = 'protected'
+        else:
+            if not 'data_access_level' in user_info:
+                return Response("Unexpected error, data access level could not be found for user trying to access dataset uuid:" + uuid)        
+            user_access_level = user_info['data_access_level']
+
+        #public access
+        if data_access_level == HubmapConst.ACCESS_LEVEL_PUBLIC:
+            globus_server_uuid = app.config['GLOBUS_PUBLIC_ENDPOINT_UUID']
+            access_dir = _access_level_prefix_dir(app.config['PUBLIC_DATA_SUBDIR'])
+            dir_path = dir_path +  access_dir + "/"
+        #consortium access
+        elif data_access_level == HubmapConst.ACCESS_LEVEL_CONSORTIUM and not user_access_level == HubmapConst.ACCESS_LEVEL_PUBLIC:
+            globus_server_uuid = app.config['GLOBUS_CONSORTIUM_ENDPOINT_UUID']
+            access_dir = _access_level_prefix_dir(app.config['CONSORTIUM_DATA_SUBDIR'])
+            dir_path = dir_path + access_dir + group_ids[data_group_id]['displayname'] + "/"
+        #protected access
+        elif user_access_level == HubmapConst.ACCESS_LEVEL_PROTECTED and data_access_level == HubmapConst.ACCESS_LEVEL_PROTECTED:
+            globus_server_uuid = app.config['GLOBUS_PROTECTED_ENDPOINT_UUID']
+            access_dir = _access_level_prefix_dir(app.config['PROTECTED_DATA_SUBDIR'])
+            dir_path = dir_path + access_dir + group_ids[data_group_id]['displayname'] + "/"
+            
+        if globus_server_uuid is None:
+            return Response("Access not granted", 403)   
+    
+        dir_path = dir_path + uuid + "/"
+        dir_path = urllib.parse.quote(dir_path, safe='')
+        
+        #https://app.globus.org/file-manager?origin_id=28bbb03c-a87d-4dd7-a661-7ea2fb6ea631&origin_path=%2FIEC%20Testing%20Group%2F03584b3d0f8b46de1b629f04be156879%2F
+        url = file_helper.ensureTrailingSlashURL(app.config['GLOBUS_APP_BASE_URL']) + "file-manager?origin_id=" + globus_server_uuid + "&origin_path=" + dir_path  
+                
+        return Response(url, 200)
+    
+    except HTTPException as hte:
+        msg = "HTTPException during get_globus_url HTTP code: " + str(hte.get_status_code()) + " " + hte.get_description() 
+        print(msg)
+        logger.warn(msg, exc_info=True)
+        return Response(hte.get_description(), hte.get_status_code())
+    except Exception as e:
+        print ('An unexpected error occurred. Check log file.')
+        logger.error(e, exc_info=True)
+        internal_server_error('Unhandled exception occured')
+    
+
 
 ####################################################################################################
 ## Internal Functions
@@ -1051,3 +1232,9 @@ def require_json(request):
     if not request.is_json:
         bad_request_error("A JSON body and appropriate Content-Type header are required")
 
+
+def _access_level_prefix_dir(pth):
+    if string_helper.isBlank(pth):
+        return('')
+    else:
+        return(file_helper.ensureTrailingSlashURL(file_helper.ensureBeginningSlashURL(pth)))
