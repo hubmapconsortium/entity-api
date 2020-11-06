@@ -17,8 +17,10 @@ import schema_triggers
 
 # HuBMAP commons
 from hubmap_commons.hm_auth import AuthHelper
+from hubmap_commons.provenance import Provenance
 from hubmap_commons.neo4j_connection import Neo4jConnection
 from hubmap_commons import string_helper
+from hubmap_commons import file_helper
 
 # Specify the absolute path of the instance folder and use the config file relative to the instance path
 app = Flask(__name__, instance_path=os.path.join(os.path.abspath(os.path.dirname(__file__)), 'instance'), instance_relative_config=True)
@@ -26,6 +28,7 @@ app.config.from_pyfile('app.cfg')
 
 # Remove trailing slash / from URL base to avoid "//" caused by config with trailing slash
 app.config['UUID_API_URL'] = app.config['UUID_API_URL'].strip('/')
+app.config['SEARCH_API_URL'] = app.config['SEARCH_API_URL'].strip('/')
 
 # Set logging level (default is warning)
 logging.basicConfig(level=logging.DEBUG)
@@ -66,6 +69,11 @@ neo4j_driver = neo4j_connection.get_driver()
 @app.errorhandler(400)
 def http_bad_request(e):
     return jsonify(error=str(e)), 400
+
+# Error handler for 403 Forbidden with custom error message
+@app.errorhandler(403)
+def http_forbidden(e):
+    return jsonify(error=str(e)), 403
 
 # Error handler for 404 Not Found with custom error message
 @app.errorhandler(404)
@@ -631,39 +639,38 @@ def _redirect_error_response(description, detail=None):
 
 @app.route('/entities/dataset/globus-url/<identifier>', methods = ['GET'])
 def get_globus_url(identifier):
-    global prov_helper
+    normalized_entity_class = "Dataset"
+    
+    # Get all group (tmc/component/Globus Groups/etc...) info as a dict directly from the
+    # hubmap-globus-groups.json file in commons repo
+    prov_helper = Provenance(app.config['APP_CLIENT_ID'], app.config['APP_CLIENT_SECRET'], app.config['UUID_API_URL'])
+    group_ids = prov_helper.get_group_info_by_id()
+
     try:
-        #get the id from the UUID service to resolve to a UUID and check to make sure that it exists
-        ug = UUID_Generator(app.config['UUID_API_URL'])
-        hmuuid_data = ug.getUUID(AuthHelper.instance().getProcessSecret(), identifier)
-        if hmuuid_data is None or len(hmuuid_data) == 0:
-            not_found_error("Dataset id:" + identifier + " not found.")
-        uuid = hmuuid_data[0]['hmuuid']
+        uuid = get_target_uuid(identifier)
         
         #look up the dataset in Neo4j and retrieve the allowable data access level (public, protected or consortium)
         #for the dataset and HuBMAP Component ID that the dataset belongs to
-        dset = Dataset(app.config)
-        ds_attribs = dset.get_dataset_metadata_attributes(uuid, ['data_access_level', 'provenance_group_uuid'])
-        if not 'provenance_group_uuid' in ds_attribs or string_helper.isBlank(ds_attribs['provenance_group_uuid']):
-            internal_server_error("Group id not set for dataset with uuid:" + uuid)
+        entity_dict = neo4j_queries.get_entity(neo4j_driver, normalized_entity_class, uuid)
+        if not 'group_uuid' in entity_dict or string_helper.isBlank(entity_dict['group_uuid']):
+            internal_server_error("Group id not set for dataset with uuid: " + uuid)
     
         #if no access level is present on the dataset default to protected
-        if not 'data_access_level' in ds_attribs or string_helper.isBlank(ds_attribs['data_access_level']):
+        if not 'data_access_level' in entity_dict or string_helper.isBlank(entity_dict['data_access_level']):
             data_access_level = HubmapConst.ACCESS_LEVEL_PROTECTED
         else:
-            data_access_level = ds_attribs['data_access_level']
+            data_access_level = entity_dict['data_access_level']
         
         #look up the Component's group ID, return an error if not found
-        data_group_id = ds_attribs['provenance_group_uuid']
-        group_ids = prov_helper.get_group_info_by_id()
+        data_group_id = entity_dict['group_uuid']
         if not data_group_id in group_ids:
             internal_server_error("Dataset group: " + data_group_id + " for uuid:" + uuid + " not found.")
 
         #get the user information (if available) for the caller
         #getUserDataAccessLevel will return just a "data_access_level" of public
         #if no auth token is found
-        ahelper = AuthHelper.instance()
-        user_info = ahelper.getUserDataAccessLevel(request)        
+        auth_helper = init_auth_helper()
+        user_info = auth_helper.getUserDataAccessLevel(request)        
         
         #construct the Globus URL based on the highest level of access that the user has
         #and the level of access allowed for the dataset
@@ -679,7 +686,7 @@ def get_globus_url(identifier):
             user_access_level = 'protected'
         else:
             if not 'data_access_level' in user_info:
-                return Response("Unexpected error, data access level could not be found for user trying to access dataset uuid:" + uuid)        
+                internal_server_error("Unexpected error, data access level could not be found for user trying to access dataset uuid:" + uuid)        
             user_access_level = user_info['data_access_level']
 
         #public access
@@ -699,7 +706,7 @@ def get_globus_url(identifier):
             dir_path = dir_path + access_dir + group_ids[data_group_id]['displayname'] + "/"
             
         if globus_server_uuid is None:
-            return Response("Access not granted", 403)   
+            forbidden_error("Access not granted")   
     
         dir_path = dir_path + uuid + "/"
         dir_path = urllib.parse.quote(dir_path, safe='')
@@ -708,15 +715,17 @@ def get_globus_url(identifier):
         url = file_helper.ensureTrailingSlashURL(app.config['GLOBUS_APP_BASE_URL']) + "file-manager?origin_id=" + globus_server_uuid + "&origin_path=" + dir_path  
                 
         return Response(url, 200)
-    
     except HTTPException as hte:
-        msg = "HTTPException during get_globus_url HTTP code: " + str(hte.get_status_code()) + " " + hte.get_description() 
-        print(msg)
-        logger.warn(msg, exc_info=True)
+        msg = "HTTPException during get_entity_access_level HTTP code: " + str(hte.get_status_code()) + " " + hte.get_description()
+
+        app.logger.info("======get_globus_url() error======")
+        app.logger.info(msg, exc_info=True)
+
         return Response(hte.get_description(), hte.get_status_code())
     except Exception as e:
-        print ('An unexpected error occurred. Check log file.')
-        logger.error(e, exc_info=True)
+        app.logger.info("======get_globus_url() error======")
+        app.logger.info(e, exc_info = True)
+
         internal_server_error('Unhandled exception occured')
     
 
@@ -735,6 +744,17 @@ err_msg : str
 """
 def bad_request_error(err_msg):
     abort(400, description = err_msg)
+
+"""
+Throws error for 403 Forbidden with message
+
+Parameters
+----------
+err_msg : str
+    The custom error message to return to end users
+"""
+def forbidden_error(err_msg):
+    abort(403, description = err_msg)
 
 """
 Throws error for 404 Not Found with message
@@ -1232,7 +1252,17 @@ def require_json(request):
     if not request.is_json:
         bad_request_error("A JSON body and appropriate Content-Type header are required")
 
+"""
+Always expect a json body from user request
 
+pth : str
+    The input path string
+
+Returns
+-------
+str 
+    The correctly formatted path string
+"""
 def _access_level_prefix_dir(pth):
     if string_helper.isBlank(pth):
         return('')

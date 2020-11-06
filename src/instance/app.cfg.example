@@ -17,16 +17,33 @@ NEO4J_USERNAME = 'neo4j'
 NEO4J_PASSWORD = '123'
 
 # URL for talking to UUID API (default value used for docker deployment)
-# Don't use localhost since uuid-api running on a different container
+# Don't use localhost since uuid-api is running on a different container
 # Point to remote URL for non-docker development
 # Works regardless of the trailing slash
 UUID_API_URL = 'http://hubmap-auth:9999/hmuuid'
 
-#url where DOIs are redirected to
-#the <identifier> tag is required in the url and will be replaced by the incoming identifier
+# URL for talking to Search API (default value used for docker deployment)
+# Don't use localhost since search-api is running on a different container
+# Point to remote URL for non-docker development
+# Works regardless of the trailing slash
+SEARCH_API_URL = 'http://hubmap-auth:6666'
+
+# Below configurations are for DOI redirection
+# UUIDs of the Globus endpoints
+GLOBUS_PUBLIC_ENDPOINT_UUID = ''
+GLOBUS_CONSORTIUM_ENDPOINT_UUID = ''
+GLOBUS_PROTECTED_ENDPOINT_UUID = ''
+
+# Sub directories under the base data/globus directory where different access levels of data sits
+PROTECTED_DATA_SUBDIR = 'private'
+CONSORTIUM_DATA_SUBDIR = 'consortium'
+PUBLIC_DATA_SUBDIR = 'public'
+
+# The url where DOIs are redirected to
+# The <identifier> tag is required in the url and will be replaced by the incoming identifier
 COLLECTION_REDIRECT_URL = 'https://ingest.dev.hubmapconsortium.org/redirect-test/<identifier>'
 
-#page where errors are reported back to a user
-#takes arguments ?description=xxxx&details=yyyyy where
-#description is required and details is optional
+# Page where errors are reported back to a user
+# Takes arguments ?description=xxxx&details=yyyyy where
+# description is required and details is optional
 ERROR_PAGE_URL = 'https://ingest.dev.hubmapconsortium.org/err-response'
