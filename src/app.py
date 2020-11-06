@@ -468,6 +468,10 @@ def update_entity(entity_class, id):
     # Update the exisiting entity
     result_dict = neo4j_queries.update_entity(neo4j_driver, normalized_entity_class, escaped_json_list_str, entity_uuid)
 
+    # How to handle reindex collection?
+    # Also reindex the updated entity node in elasticsearch via search-api
+    reindex_entity(entity_uuid)
+
     return json_response(normalized_entity_class, result_dict)
 
 
@@ -1225,8 +1229,6 @@ dict
         "username": "username@pitt.edu",
         "hmscopes": ["urn:globus:auth:scope:nexus.api.globus.org:groups"],
     }
-
-
 """
 def get_user_info(request):
     auth_helper = init_auth_helper()
@@ -1251,6 +1253,25 @@ request : Flask request object
 def require_json(request):
     if not request.is_json:
         bad_request_error("A JSON body and appropriate Content-Type header are required")
+
+"""
+Make a call to search-api to reindex the updated entity
+
+Parameters
+----------
+request : Flask request object
+    The Flask request passed from the API endpoint 
+
+Returns
+-------
+dict
+"""
+def reindex_entity(uuid):
+    try:
+        # Reindex this node in elasticsearch via search-api
+        rspn = requests.put(app.config['SEARCH_API_URL'] + "/reindex/" + uuid)
+    except:
+        internal_server_error("Failed to reindex entity with uuid: " + uuid)
 
 """
 Always expect a json body from user request

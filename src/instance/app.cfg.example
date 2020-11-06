@@ -16,13 +16,13 @@ NEO4J_SERVER = 'bolt://hubmap-neo4j:7687'
 NEO4J_USERNAME = 'neo4j'
 NEO4J_PASSWORD = '123'
 
-# URL for talking to UUID API (default value used for docker deployment)
+# URL for talking to UUID API (default value used for docker deployment, no token needed)
 # Don't use localhost since uuid-api is running on a different container
 # Point to remote URL for non-docker development
 # Works regardless of the trailing slash
 UUID_API_URL = 'http://hubmap-auth:9999/hmuuid'
 
-# URL for talking to Search API (default value used for docker deployment)
+# URL for talking to Search API (default value used for docker deployment, no token needed)
 # Don't use localhost since search-api is running on a different container
 # Point to remote URL for non-docker development
 # Works regardless of the trailing slash
