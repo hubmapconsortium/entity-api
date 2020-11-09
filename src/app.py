@@ -686,17 +686,17 @@ def get_globus_url(id):
         #public access
         if data_access_level == HubmapConst.ACCESS_LEVEL_PUBLIC:
             globus_server_uuid = app.config['GLOBUS_PUBLIC_ENDPOINT_UUID']
-            access_dir = _access_level_prefix_dir(app.config['PUBLIC_DATA_SUBDIR'])
+            access_dir = access_level_prefix_dir(app.config['PUBLIC_DATA_SUBDIR'])
             dir_path = dir_path +  access_dir + "/"
         #consortium access
         elif data_access_level == HubmapConst.ACCESS_LEVEL_CONSORTIUM and not user_access_level == HubmapConst.ACCESS_LEVEL_PUBLIC:
             globus_server_uuid = app.config['GLOBUS_CONSORTIUM_ENDPOINT_UUID']
-            access_dir = _access_level_prefix_dir(app.config['CONSORTIUM_DATA_SUBDIR'])
+            access_dir = access_level_prefix_dir(app.config['CONSORTIUM_DATA_SUBDIR'])
             dir_path = dir_path + access_dir + group_ids[data_group_id]['displayname'] + "/"
         #protected access
         elif user_access_level == HubmapConst.ACCESS_LEVEL_PROTECTED and data_access_level == HubmapConst.ACCESS_LEVEL_PROTECTED:
             globus_server_uuid = app.config['GLOBUS_PROTECTED_ENDPOINT_UUID']
-            access_dir = _access_level_prefix_dir(app.config['PROTECTED_DATA_SUBDIR'])
+            access_dir = access_level_prefix_dir(app.config['PROTECTED_DATA_SUBDIR'])
             dir_path = dir_path + access_dir + group_ids[data_group_id]['displayname'] + "/"
             
         if globus_server_uuid is None:
@@ -1244,7 +1244,7 @@ def require_json(request):
         bad_request_error("A JSON body and appropriate Content-Type header are required")
 
 """
-Make a call to search-api to reindex the updated entity
+Make a call to search-api to reindex this entity node in elasticsearch
 
 Parameters
 ----------
@@ -1257,7 +1257,6 @@ dict
 """
 def reindex_entity(uuid):
     try:
-        # Reindex this node in elasticsearch via search-api
         rspn = requests.put(app.config['SEARCH_API_URL'] + "/reindex/" + uuid)
     except:
         internal_server_error("Failed to reindex entity with uuid: " + uuid)
@@ -1273,7 +1272,7 @@ Returns
 str 
     One of the formatted dir path string: /public/, /protected/, /consortium/
 """
-def _access_level_prefix_dir(dir_name):
+def access_level_prefix_dir(dir_name):
     if string_helper.isBlank(dir_name):
         return ''
     else:
