@@ -157,7 +157,7 @@ Parameters
 entity_class : str
     One of the normalized entity classes: Dataset, Collection, Sample, Donor
 id : string
-    Either the uuid or the hubmap_id of target entity 
+    The HuBMAP ID (e.g. HBM123.ABCD.456) or UUID of target entity 
 
 Returns
 -------
@@ -401,7 +401,7 @@ Parameters
 entity_class : str
     One of the normalized entity classes: Dataset, Collection, Sample, Donor
 id : string
-    The uuid of target entity 
+    The HuBMAP ID (e.g. HBM123.ABCD.456) or UUID of target entity 
 
 Returns
 -------
@@ -481,7 +481,7 @@ Get all ancestors by uuid
 Parameters
 ----------
 id : string
-    The uuid or hubmap_id of given entity 
+    The HuBMAP ID (e.g. HBM123.ABCD.456) or UUID of given entity 
 
 Returns
 -------
@@ -500,7 +500,7 @@ Get all descendants by uuid
 Parameters
 ----------
 id : string
-    The uuid or hubmap_id of given entity
+    The HuBMAP ID (e.g. HBM123.ABCD.456) or UUID of given entity
 
 Returns
 -------
@@ -519,7 +519,7 @@ Get all parents by uuid
 Parameters
 ----------
 id : string
-    The uuid or hubmap_id of given entity
+    The HuBMAP ID (e.g. HBM123.ABCD.456) or UUID of given entity
 
 Returns
 -------
@@ -538,7 +538,7 @@ Get all chilren by uuid
 Parameters
 ----------
 id : string
-    The uuid or hubmap_id of given entity
+    The HuBMAP ID (e.g. HBM123.ABCD.456) or UUID of given entity
 
 Returns
 -------
@@ -557,30 +557,30 @@ Redirect doi?
 
 Parameters
 ----------
-identifier : string
-    The uuid or hubmap_id of given entity
+id : string
+    The HuBMAP ID (e.g. HBM123.ABCD.456) or UUID of given entity
 """
-@app.route('/doi/redirect/<identifier>', methods = ['GET'])
-def doi_redirect(identifier):
-    return collection_redirect(identifier)
+@app.route('/doi/redirect/<id>', methods = ['GET'])
+def doi_redirect(id):
+    return collection_redirect(id)
 
 """
 Redirect a request from a doi service for a collection of data
 
 Parameters
 ----------
-identifier : string
-    The uuid or hubmap_id of given entity
+id : string
+    The HuBMAP ID (e.g. HBM123.ABCD.456) or UUID of given entity
 """
-@app.route('/collection/redirect/<identifier>', methods = ['GET'])
-def collection_redirect(identifier):
+@app.route('/collection/redirect/<id>', methods = ['GET'])
+def collection_redirect(id):
     try:
-        if string_helper.isBlank(identifier):
+        if string_helper.isBlank(id):
             bad_request_error("No identifier")
 
         #look up the id, if it doesn't exist return an error
         ug = UUID_Generator(app.config['UUID_API_URL'])
-        hmuuid_data = ug.getUUID(AuthHelper.instance().getProcessSecret(), identifier)    
+        hmuuid_data = ug.getUUID(AuthHelper.instance().getProcessSecret(), id)    
         if hmuuid_data is None or len(hmuuid_data) == 0:
             not_found_error("Not found")
 
@@ -604,45 +604,35 @@ def collection_redirect(identifier):
         
         return redirect(redir_url, code = 307)
     except Exception:
-        internal_server_error("Unexpected error while redirecting for Collection with id: " + identifier)
+        internal_server_error("Unexpected error while redirecting for Collection with id: " + id)
 
-#helper method to show an error message through the ingest
-#portal's error display page a brief description of the error
-#is a required parameter a more detailed description is an optional parameter 
-def _redirect_error_response(description, detail=None):
-    if not 'ERROR_PAGE_URL' in  app.config or string_helper.isBlank(app.config['ERROR_PAGE_URL']):
-        return Response("Config ERROR.  ERROR_PAGE_URL not in application configuration.")
-    
-    redir_url = file_helper.removeTrailingSlashURL(app.config['ERROR_PAGE_URL'])
-    desc = urllib.parse.quote(description, safe='')
-    description_and_details = "?description=" + desc
-    if not string_helper.isBlank(detail):
-        det = urllib.parse.quote(detail, save='')
-        description_and_details = description_and_details + "&details=" + det
-    redir_url = redir_url + description_and_details
-    return redirect(redir_url, code = 307)    
 
-#get the Globus URL to the dataset given a dataset ID
-#
-# It will provide a Globus URL to the dataset directory in of three Globus endpoints based on the access
-# level of the user (public, consortium or protected), public only, of course, if no token is provided.
-# If a dataset isn't found a 404 will be returned. There is a chance that a 500 can be returned, but not
-# likely under normal circumstances, only for a misconfigured or failing in some way endpoint.  If the 
-# Auth token is provided but is expired or invalid a 401 is returned.  If access to the dataset is not
-# allowed for the user (or lack of user) a 403 is returned.
-# Inputs via HTTP GET at /entities/dataset/globus-url/<identifier>
-#   identifier: The HuBMAP ID (e.g. HBM123.ABCD.456) or UUID via a url path parameter 
-#   auth token: (optional) A Globus Nexus token specified in a standard Authorization: Bearer header
-#
-# Outputs
-#   200 with the Globus Application URL to the datasets's directory
-#   404 Dataset not found
-#   403 Access Forbidden
-#   401 Unauthorized (bad or expired token)
-#   500 Unexpected server or other error
+"""
+Get the Globus URL to the dataset given a dataset ID
 
-@app.route('/entities/dataset/globus-url/<identifier>', methods = ['GET'])
-def get_globus_url(identifier):
+It will provide a Globus URL to the dataset directory in of three Globus endpoints based on the access
+level of the user (public, consortium or protected), public only, of course, if no token is provided.
+If a dataset isn't found a 404 will be returned. There is a chance that a 500 can be returned, but not
+likely under normal circumstances, only for a misconfigured or failing in some way endpoint. If the 
+Auth token is provided but is expired or invalid a 401 is returned.  If access to the dataset is not
+allowed for the user (or lack of user) a 403 is returned.
+
+Parameters
+----------
+id : string
+    The HuBMAP ID (e.g. HBM123.ABCD.456) or UUID of given entity
+
+Returns
+-------
+Response
+    200 with the Globus Application URL to the datasets's directory
+    404 Dataset not found
+    403 Access Forbidden
+    401 Unauthorized (bad or expired token)
+    500 Unexpected server or other error
+"""
+@app.route('/entities/dataset/globus-url/<id>', methods = ['GET'])
+def get_globus_url(id):
     normalized_entity_class = "Dataset"
     
     # Get all group (tmc/component/Globus Groups/etc...) info as a dict directly from the
@@ -651,7 +641,7 @@ def get_globus_url(identifier):
     group_ids = prov_helper.get_group_info_by_id()
 
     try:
-        uuid = get_target_uuid(identifier)
+        uuid = get_target_uuid(id)
         
         #look up the dataset in Neo4j and retrieve the allowable data access level (public, protected or consortium)
         #for the dataset and HuBMAP Component ID that the dataset belongs to
@@ -732,7 +722,6 @@ def get_globus_url(identifier):
 
         internal_server_error('Unhandled exception occured')
     
-
 
 ####################################################################################################
 ## Internal Functions
@@ -1274,18 +1263,18 @@ def reindex_entity(uuid):
         internal_server_error("Failed to reindex entity with uuid: " + uuid)
 
 """
-Always expect a json body from user request
+Ensure the access level dir with leading and trailing slashes
 
-pth : str
-    The input path string
+dir_name : str
+    The name of the sub directory corresponding to each access level
 
 Returns
 -------
 str 
-    The correctly formatted path string
+    One of the formatted dir path string: /public/, /protected/, /consortium/
 """
-def _access_level_prefix_dir(pth):
-    if string_helper.isBlank(pth):
-        return('')
+def _access_level_prefix_dir(dir_name):
+    if string_helper.isBlank(dir_name):
+        return ''
     else:
-        return(file_helper.ensureTrailingSlashURL(file_helper.ensureBeginningSlashURL(pth)))
+        return file_helper.ensureTrailingSlashURL(file_helper.ensureBeginningSlashURL(dir_name))

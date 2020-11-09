@@ -42,8 +42,3 @@ PUBLIC_DATA_SUBDIR = 'public'
 # The url where DOIs are redirected to
 # The <identifier> tag is required in the url and will be replaced by the incoming identifier
 COLLECTION_REDIRECT_URL = 'https://ingest.dev.hubmapconsortium.org/redirect-test/<identifier>'
-
-# Page where errors are reported back to a user
-# Takes arguments ?description=xxxx&details=yyyyy where
-# description is required and details is optional
-ERROR_PAGE_URL = 'https://ingest.dev.hubmapconsortium.org/err-response'
