@@ -53,8 +53,8 @@ def load_provenance_schema_yaml_file(file):
 
             return schema
         except yaml.YAMLError as exc:
-            app.logger.info("======schema yaml failed to load======")
-            app.logger.info(exc)
+            app.logger.error("======schema yaml failed to load======")
+            app.logger.error(exc)
    
 # Have the schema informaiton available for any requests
 schema = load_provenance_schema_yaml_file(app.config['SCHEMA_YAML_FILE'])
@@ -139,10 +139,12 @@ string
 def cache_clear():
     cache.clear()
     
-    app.logger.info("======schema yaml cache cleared======")
+    msg = "schema yaml cache cleared"
+
+    app.logger.info(msg)
     app.logger.info(schema)
 
-    return "schema yaml cache cleared"
+    return msg
 
 ####################################################################################################
 ## API
@@ -712,15 +714,15 @@ def get_globus_url(id):
     except HTTPException as hte:
         msg = "HTTPException during get_entity_access_level HTTP code: " + str(hte.get_status_code()) + " " + hte.get_description()
 
-        app.logger.info("======get_globus_url() error======")
-        app.logger.info(msg, exc_info=True)
+        app.logger.error("======get_globus_url() error======")
+        app.logger.error(msg)
 
-        return Response(hte.get_description(), hte.get_status_code())
+        internal_server_error(msg)
     except Exception as e:
-        app.logger.info("======get_globus_url() error======")
-        app.logger.info(e, exc_info = True)
+        app.logger.error("======get_globus_url() error======")
+        app.logger.error(e)
 
-        internal_server_error('Unhandled exception occured')
+        internal_server_error('Unhandled exception occured during executing get_globus_url()')
     
 
 ####################################################################################################
@@ -979,11 +981,13 @@ def create_new_ids(normalized_entity_class, generate_doi = True):
 
         return new_ids_dict
     else:
-        app.logger.info("======Failed to create new ids via the uuid-api service for during the creation of this new entity======")
+        msg = "Failed to create new ids via the uuid-api service for during the creation of this new entity"
+        
+        app.logger.error(msg)
         app.logger.info("response status code: " + str(response.status_code))
         app.logger.info("response text: " + response.text)
 
-        internal_server_error("Failed to create new ids via the uuid-api service for during the creation of this new entity")
+        internal_server_error(msg)
 
 
 """
@@ -1009,12 +1013,12 @@ def query_target_entity(normalized_entity_class, id):
         entity_dict = neo4j_queries.get_entity(neo4j_driver, normalized_entity_class, uuid)
     except Exception as e:
         app.logger.info("======Exception from calling neo4j_queries.get_entity()======")
-        app.logger.info(e)
+        app.logger.error(e)
 
         internal_server_error(e)
     except CypherError as ce:
         app.logger.info("======CypherError from calling neo4j_queries.get_entity()======")
-        app.logger.info(ce)
+        app.logger.error(ce)
         
         internal_server_error(ce)
 
@@ -1229,7 +1233,11 @@ def get_user_info(request):
 
     # If returns error response, invalid header or token
     if isinstance(user_info, Response):
-        bad_request_error("Failed to query the user info with the given globus token")
+        msg = "Failed to query the user info with the given globus token"
+
+        app.logger.error(msg)
+
+        bad_request_error(msg)
 
     return user_info
 
@@ -1257,9 +1265,19 @@ dict
 """
 def reindex_entity(uuid):
     try:
-        rspn = requests.put(app.config['SEARCH_API_URL'] + "/reindex/" + uuid)
+        response = requests.put(app.config['SEARCH_API_URL'] + "/reindex/" + uuid)
+        # The reindex takes time, so 202 Accepted response status code indicates that 
+        # the request has been accepted for processing, but the processing has not been completed
+        if response.status_code == 202:
+            app.logger.info("The search-api has accepted the reindex request for uuid: " + uuid)
+        else:
+            app.logger.error("The search-api failed to initialize the reindex for uuid: " + uuid)
     except:
-        internal_server_error("Failed to reindex entity with uuid: " + uuid)
+        msg = "Failed to send the reindex request to search-api for entity with uuid: " + uuid
+
+        app.logger.error(msg)
+
+        internal_server_error(msg)
 
 """
 Ensure the access level dir with leading and trailing slashes
