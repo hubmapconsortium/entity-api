@@ -182,7 +182,7 @@ def get_entity(entity_class, id):
 
     # Merge all the above dictionaries
     # If the latter dictionary contains the same key as the previous one, it will overwrite the value for that key
-    data_dict = {**parameters_dict, **entity_dict}
+    data_dict = {**entity_dict, **normalized_entity_class_dict}
 
     generated_on_read_trigger_data_dict = generate_triggered_data("on_read_trigger", "ENTITIES", data_dict)
 
@@ -373,7 +373,7 @@ def create_derived_entity(target_entity_class):
     new_ids_dict_for_activity = create_new_ids(normalized_activity_class)
 
     # Build a merged dict for Activity
-    data_dict_for_activity = {**parameters_dict, **normalized_activity_class_dict, **user_info_dict, **new_ids_dict_for_activity}
+    data_dict_for_activity = {**normalized_activity_class_dict, **user_info_dict, **new_ids_dict_for_activity}
 
     # Get trigger generated data for Activity
     generated_on_create_trigger_data_dict_for_activity = generate_triggered_data("on_create_trigger", "ACTIVITIES", data_dict_for_activity)
