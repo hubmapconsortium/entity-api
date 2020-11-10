@@ -400,12 +400,17 @@ def create_entity(neo4j_driver, entity_class, entity_json_list_str, collection_u
 
             return entity_dict
         except CypherError as ce:
+            logger.error("======create_entity() Cypher error:======")
+            logger.error(ce)
+
             raise CypherError('A Cypher error was encountered: ' + ce.message)
         except TransactionError as te:
-            logger.info("======create_entity() transaction error:======")
-            logger.info(te.value)
+            logger.error("======create_entity() transaction error:======")
+            logger.error(te.value)
 
             if tx.closed() == False:
+                logger.info("create_entity() transaction failed, rollback")
+
                 tx.rollback()
 
             raise TransactionError('Neo4j transaction error: create_entity()' + te.value)
@@ -473,12 +478,17 @@ def create_derived_entity(neo4j_driver, entity_class, entity_json_list_str, acti
 
             return entity_dict
         except CypherError as ce:
+            logger.error("======create_derived_entity() Cypher error:======")
+            logger.error(ce)
+
             raise CypherError('A Cypher error was encountered: ' + ce.message)
         except TransactionError as te:
-            logger.info("======create_derived_entity() transaction error:======")
-            logger.info(te.value)
+            logger.error("======create_derived_entity() transaction error:======")
+            logger.error(te.value)
 
             if tx.closed() == False:
+                logger.info("create_derived_entity() transaction failed, rollback")
+
                 tx.rollback()
 
             raise TransactionError('Neo4j transaction error: create_derived_entity()' + te.value)
@@ -566,6 +576,9 @@ def update_entity(neo4j_driver, entity_class, json_list_str, uuid):
 
             return entity_dict
         except CypherError as ce:
+            logger.error("======update_entity() Cypher error:======")
+            logger.error(ce)
+
             raise CypherError('A Cypher error was encountered: ' + ce.message)
         except Exception as e:
             raise e
@@ -613,6 +626,9 @@ def get_ancestors(neo4j_driver, uuid):
 
             return ancestors               
         except CypherError as ce:
+            logger.error("======get_ancestors() Cypher error:======")
+            logger.error(ce)
+
             raise CypherError('A Cypher error was encountered: ' + ce.message)
         except Exception as e:
             raise e
@@ -660,6 +676,9 @@ def get_descendants(neo4j_driver, uuid):
 
             return descendants               
         except CypherError as ce:
+            logger.error("======get_descendants() Cypher error:======")
+            logger.error(ce)
+
             raise CypherError('A Cypher error was encountered: ' + ce.message)
         except Exception as e:
             raise e
@@ -706,6 +725,9 @@ def get_parents(neo4j_driver, uuid):
 
             return parents               
         except CypherError as ce:
+            logger.error("======get_parents() Cypher error:======")
+            logger.error(ce)
+
             raise CypherError('A Cypher error was encountered: ' + ce.message)
         except Exception as e:
             raise e
@@ -751,6 +773,9 @@ def get_children(neo4j_driver, uuid):
 
             return children               
         except CypherError as ce:
+            logger.error("======get_children() Cypher error:======")
+            logger.error(ce)
+            
             raise CypherError('A Cypher error was encountered: ' + ce.message)
         except Exception as e:
             raise e
