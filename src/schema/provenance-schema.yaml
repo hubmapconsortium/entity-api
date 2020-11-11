@@ -16,8 +16,6 @@
 # - Verify and mark all `immutable` properties
 #
 # - More details needed for Dataset.status trigger method on update
-# - More info needed for creator_uuids, creators_info, and contacts_info (`created_by_user_email` is a single value, why multiple creators?)
-# - Joe added `source_uuid` for Dataset/Donor/Sample to indicate derived entity, do we need this?
 
 # Shared properties across ACTIVITIES and ENTITIES
 shared_properties: &shared_properties
@@ -117,16 +115,17 @@ shared_entity_properties: &shared_entity_properties
     on_create_trigger: get_data_access_level
     on_update_trigger: get_data_access_level
   ###### Shared transient properties ######
-  creators_info:
+  # Currently cretors and contacts are only available for Collection
+  creators:
     transient: true
     type: list
     description: "A list of the people who created the entity with full name, email, ORCID iD, institution, etc.. This is analogus to the author list on a publication."
-    on_read_trigger: get_creators_info # Based on the `creator_uuids`
-  contacts_info:
+    on_read_trigger: get_creators # Based on the `creator_uuids`
+  contacts:
     transient: true
     type: list 
     description: "A list of the people who are the main contacts to get information about the entity."
-    on_read_trigger: get_contacts_info # Based on the `contact_uuids`
+    on_read_trigger: get_contacts # Based on the `contact_uuids`
   
 # Note: don't relate the entities schema to the neo4j data modeling
 ENTITIES:
@@ -161,13 +160,14 @@ ENTITIES:
         user_input_required: true
         type: string
       collection_uuids:
+        transient: true
         type: list
         description: "A list of collection uuids that this dataset belongs to"
-      source_uuid: # Added by Joe, do we want this?
+      source_uuids:
         transient: true
-        type: string
-        description: "The uuid of source entity from which this new entity is derived from"
-        on_read_trigger: get_source_uuid
+        type: list
+        description: "The uuids of source entities from which this new entity is derived from"
+        on_read_trigger: get_source_uuids
       published_timestamp: # Can we unpublish a Dataset, immutable or not? - Joe
         type: integer
       published_user_displayname:
@@ -189,7 +189,7 @@ ENTITIES:
       local_directory_rel_path:
         type: string
       status:
-        type: string
+        type: string (Published, New, QA, Error, Hold, Invalid)
         # When the status property is updated we need to automatically trigger updates 
         # for any Donor, Sample, Collection connected to it. - Bill
         # Will need more details - Joe
@@ -218,11 +218,11 @@ ENTITIES:
         type: string
       lab_donor_id:
         type: string
-      source_uuid: # Added by Joe, do we want this?
+      source_uuids:
         transient: true
-        type: string
-        description: "The uuid of source entity from which this new entity is derived from"
-        on_read_trigger: get_source_uuid
+        type: list
+        description: "The uuids of source entities from which this new entity is derived from"
+        on_read_trigger: get_source_uuids
       submission_id:
         type: string
       portal_metadata_upload_files:
@@ -253,6 +253,7 @@ ENTITIES:
         type: string
       protocol_url:
         type: string
+      # Hide it, and it'll be gone eventually
       protocol_info:
         type: string
       image_file_metadata:
@@ -261,11 +262,11 @@ ENTITIES:
         type: string
       organ_other:
         type: string
-      source_uuid: # Added by Joe, do we want this?
+      source_uuids:
         transient: true
-        type: string
-        description: "The uuid of source entity from which this new entity is derived from"
-        on_read_trigger: get_source_uuid
+        type: list
+        description: "The uuids of source entities from which this new entity is derived from"
+        on_read_trigger: get_source_uuids
       submission_id:
         type: string
       organ:

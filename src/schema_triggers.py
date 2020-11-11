@@ -113,8 +113,8 @@ Returns
 str
     The uuid string of source entity
 """
-def get_source_uuid(combined_data_dict):
-    return neo4j_queries.get_source_uuid(combined_data_dict['neo4j_driver'], combined_data_dict['uuid'])
+def get_source_uuids(combined_data_dict):
+    return neo4j_queries.get_source_uuids(combined_data_dict['neo4j_driver'], combined_data_dict['uuid'])
 
 """
 Trigger event method of getting uuid
@@ -192,13 +192,39 @@ def get_data_access_level(combined_data_dict):
 
     return data_access_level
 
-# TO-DO
-def get_creators_info(combined_data_dict):
-    return "dummy"
+"""
+Trigger event method of getting a list of cretors for a given entity
 
-# TO-DO
-def get_contacts_info(combined_data_dict):
-    return "dummy"
+Parameters
+----------
+combined_data_dict : dict
+    A merged dictionary that contains all possible input data to be used
+    It's fine if a trigger method doesn't use any input data
+
+Returns
+-------
+list
+    A list of creators information
+"""
+def get_creators(combined_data_dict):
+    return combined_data_dict['creators']
+
+"""
+Trigger event method of getting a list of contacts for a given entity
+
+Parameters
+----------
+combined_data_dict : dict
+    A merged dictionary that contains all possible input data to be used
+    It's fine if a trigger method doesn't use any input data
+
+Returns
+-------
+list
+    A list of contacts information
+"""
+def get_contacts(combined_data_dict):
+    return combined_data_dict['contacts']
 
 ####################################################################################################
 ## Trigger methods specific to Collection

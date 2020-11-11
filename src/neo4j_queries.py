@@ -122,7 +122,7 @@ def get_entity(neo4j_driver, entity_class, uuid):
 ####################################################################################################
 
 """
-Get the source uuid of a given derived entity (Dataset/Donor/Sample) by uuid
+Get the source entities uuids of a given derived entity (Dataset/Donor/Sample) by uuid
 
 Parameters
 ----------
@@ -133,21 +133,18 @@ uuid : str
 
 Returns
 -------
-str
-    The uuid of source entity
+list
+    A unique list of uuids of source entities
 """
-def get_source_uuid(neo4j_driver, uuid):
-    nodes = []
-    entity_dict = {}
-
+def get_source_uuids(neo4j_driver, uuid):
     parameterized_query = ("MATCH (s:Entity)-[:ACTIVITY_INPUT]->(a:Activity)-[:ACTIVITY_OUTPUT]->(t:Entity) " + 
                            "WHERE t.uuid = '{uuid}' " +
-                           "RETURN s.uuid AS {record_field_name}")
+                           "RETURN apoc.coll.toSet(COLLECT(s.uuid)) AS {record_field_name}")
 
     query = parameterized_query.format(uuid = uuid, 
                                        record_field_name = record_field_name)
     
-    logger.info("======get_source_uuid() query:======")
+    logger.info("======get_source_uuids() query:======")
     logger.info(query)
 
     with neo4j_driver.session() as session:
@@ -155,12 +152,12 @@ def get_source_uuid(neo4j_driver, uuid):
             result = session.run(query)
 
             record = result.single()
-            source_uuid = record[record_field_name]
+            source_uuids = record[record_field_name]
 
-            logger.info("======get_source_uuid() resulting source_uuid:======")
-            logger.info(source_uuid)
+            logger.info("======get_source_uuids() resulting source_uuids list:======")
+            logger.info(source_uuids)
 
-            return source_uuid
+            return source_uuids
         except CypherError as ce:
             raise CypherError('A Cypher error was encountered: ' + ce.message)
         except Exception as e:
