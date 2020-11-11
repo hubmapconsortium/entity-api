@@ -524,8 +524,13 @@ def update_entity_tx(tx, entity_class, json_list_str, uuid):
     parameterized_query = ("WITH apoc.convert.fromJsonList('{json_list_str}') AS entities_list " +
                            "UNWIND entities_list AS data " +
                            "MATCH (e:{entity_class}) " +
-                           "WHERE e.uuid='{uuid}' " +
-                           "SET e = data RETURN e AS {record_field_name}")
+                           "WHERE e.uuid = '{uuid}' " +
+                           # https://neo4j.com/docs/cypher-manual/current/clauses/set/#set-setting-properties-using-map
+                           # `+=` is the magic here:
+                           # Any properties in the map that are not on the node will be added.
+                           # Any properties not in the map that are on the node will be left as is.
+                           # Any properties that are in both the map and the node will be replaced in the node. However, if any property in the map is null, it will be removed from the node.
+                           "SET e += data RETURN e AS {record_field_name}")
 
     query = parameterized_query.format(json_list_str = json_list_str, 
                                        entity_class = entity_class, 

@@ -443,20 +443,15 @@ def update_entity(entity_class, id):
 
     generated_on_update_trigger_data_dict = generate_triggered_data("on_update_trigger", "ENTITIES", data_dict)
 
-    # Add new properties if updating for the first time
-    # Otherwise just overwrite existing values (E.g., last_modified_timestamp)
-    triggered_data_keys = generated_on_update_trigger_data_dict.keys()
-    for key in triggered_data_keys:
-        entity_dict[key] = generated_on_update_trigger_data_dict[key]
- 
-    # Overwrite old property values with updated values
-    json_data_keys = json_data_dict.keys()
-    for key in json_data_keys:
-        entity_dict[key] = json_data_dict[key]
+    # Merge two dictionaries
+    merged_dict = {**json_data_dict, **generated_on_update_trigger_data_dict}
 
-    # By now the entity dict contains all user updates and all triggered data
+    # By now the merged_dict contains all user updates and all triggered data to be added to the entity node
+    # Any properties in merged_dict that are not on the node will be added.
+    # Any properties not in merged_dict that are on the node will be left as is.
+    # Any properties that are in both merged_dict and the node will be replaced in the node. However, if any property in the map is null, it will be removed from the node.
     # `UNWIND` in Cypher expects List<T>
-    data_list = [entity_dict]
+    data_list = [merged_dict]
     
     # Convert the list (only contains one entity) to json list string
     json_list_str = json.dumps(data_list)
