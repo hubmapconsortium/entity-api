@@ -14,6 +14,10 @@
 # - Verify and mark all `user_input_required` properties
 # - Clarify the use of `title` and `label` properties across all the entities
 # - Verify and mark all `immutable` properties
+#
+# - More details needed for Dataset.status trigger method on update
+# - More info needed for creator_uuids, creators_info, and contacts_info (`created_by_user_email` is a single value, why multiple creators?)
+# - Joe added `source_uuid` for Dataset/Donor/Sample to indicate derived entity, do we need this?
 
 # Shared properties across ACTIVITIES and ENTITIES
 shared_properties: &shared_properties
@@ -186,6 +190,10 @@ ENTITIES:
         type: string
       status:
         type: string
+        # When the status property is updated we need to automatically trigger updates 
+        # for any Donor, Sample, Collection connected to it. - Bill
+        # Will need more details - Joe
+        on_update_trigger: update_data_access_level
       run_id:
         type: string
       ingest_id:

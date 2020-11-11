@@ -224,6 +224,9 @@ def get_dataset_uuids_by_collection(combined_data_dict):
 ## Trigger methods specific to Dataset
 ####################################################################################################
 
+# TO-DO
+def update_data_access_level(combined_data_dict):
+    return "dummy"
 
 ####################################################################################################
 ## Trigger methods specific to Donor

@@ -122,7 +122,7 @@ def get_entity(neo4j_driver, entity_class, uuid):
 ####################################################################################################
 
 """
-Get the source uuid of a given derived entity's uuid
+Get the source uuid of a given derived entity (Dataset/Donor/Sample) by uuid
 
 Parameters
 ----------

@@ -1024,7 +1024,7 @@ def query_target_entity(normalized_entity_class, id):
 
     # Existence check
     if not bool(entity_dict):
-        not_found_error("Could not find the " + normalized_entity_class + " of id " + id)
+        not_found_error("Could not find the " + normalized_entity_class + " of id: " + id)
 
     return entity_dict
 
