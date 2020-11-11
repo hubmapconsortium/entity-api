@@ -18,7 +18,7 @@ Parameters
 ----------
 tx : neo4j transaction handler
     The neo4j transaction handler instance
-json_list_str : string
+json_list_str : str
     The string representation of a list containing only one entity to be created
 
 Returns
@@ -62,7 +62,7 @@ neo4j_driver : neo4j.driver
     The neo4j driver instance
 entity_class : str
     One of the normalized entity classes: Dataset, Collection, Sample, Donor
-uuid : string
+uuid : str
     The uuid of target entity 
 
 Returns
@@ -128,12 +128,12 @@ Parameters
 ----------
 neo4j_driver : neo4j.driver
     The neo4j driver instance
-uuid : string
+uuid : str
     The uuid of target entity 
 
 Returns
 -------
-string
+str
     The uuid of source entity
 """
 def get_source_uuid(neo4j_driver, uuid):
@@ -173,7 +173,7 @@ Parameters
 ----------
 neo4j_driver : neo4j.driver
     The neo4j driver instance
-uuid : string
+uuid : str
     The uuid of target entity 
 
 Returns
@@ -224,7 +224,7 @@ tx : neo4j transaction handler
     The neo4j transaction handler instance
 entity_class : str
     One of the normalized entity classes: Dataset, Collection, Sample, Donor
-json_list_str : string
+json_list_str : str
     The string representation of a list containing only one entity to be created
 collection_uuids_list: list
     The list of collection uuids to be linked
@@ -282,7 +282,7 @@ direction: str
 
 Returns
 -------
-string
+str
     The relationship type name
 """
 def create_relationship_tx(tx, source_node_uuid, target_node_uuid, relationship, direction):
@@ -333,7 +333,7 @@ collection_uuids_list: list
 
 Returns
 -------
-string
+str
     The relationship type name
 """
 def create_dataset_collection_relationships_tx(tx, entity_dict, collection_uuids_list):
@@ -369,7 +369,7 @@ neo4j_driver : neo4j.driver
     The neo4j driver instance
 entity_class : str
     One of the normalized entity classes: Dataset, Collection, Sample, Donor
-entity_json_list_str : string
+entity_json_list_str : str
     The string representation of a list containing only one Entity node to be created
 collection_uuids_list: list
     The list of collection uuids to be linked
@@ -427,7 +427,7 @@ neo4j_driver : neo4j.driver
     The neo4j driver instance
 entity_class : str
     One of the normalized entity classes: Dataset, Collection, Sample, Donor
-entity_json_list_str : string
+entity_json_list_str : str
     The string representation of a list containing only one Entity node to be created
 source_entities_list : list (of dictionaries)
     The list of source entities if the format of:
@@ -436,7 +436,7 @@ source_entities_list : list (of dictionaries)
         {"class": "Sample", "uuid": "34dad6adsd230"},
         ...
     ]
-activity_json_list_str : string
+activity_json_list_str : str
     The string representation of a list containing only one Activity node to be created
 collection_uuids_list: list
     The list of collection uuids to be linked
@@ -509,9 +509,9 @@ tx : neo4j transaction handler
     The neo4j transaction handler instance
 entity_class : str
     One of the normalized entity classes: Dataset, Collection, Sample, Donor
-json_list_str : string
+json_list_str : str
     The string representation of a list containing only one entity to be created
-uuid : string
+uuid : str
     The uuid of target entity 
 
 Returns
@@ -553,9 +553,9 @@ neo4j_driver : neo4j.driver
     The neo4j driver instance
 entity_class : str
     One of the normalized entity classes: Dataset, Collection, Sample, Donor
-json_list_str : string
+json_list_str : str
     The string representation of a list containing only one entity to be created
-uuid : string
+uuid : str
     The uuid of target entity 
 
 Returns
@@ -591,7 +591,7 @@ Parameters
 ----------
 neo4j_driver : neo4j.driver
     The neo4j driver instance
-uuid : string
+uuid : str
     The uuid of target entity 
 
 Returns
@@ -641,7 +641,7 @@ Parameters
 ----------
 neo4j_driver : neo4j.driver
     The neo4j driver instance
-uuid : string
+uuid : str
     The uuid of target entity 
 
 Returns
@@ -690,7 +690,7 @@ Parameters
 ----------
 neo4j_driver : neo4j.driver
     The neo4j driver instance
-uuid : string
+uuid : str
     The uuid of target entity 
 
 Returns
@@ -739,7 +739,7 @@ Parameters
 ----------
 neo4j_driver : neo4j.driver
     The neo4j driver instance
-uuid : string
+uuid : str
     The uuid of target entity 
 
 Returns

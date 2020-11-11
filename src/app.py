@@ -94,7 +94,7 @@ The default route
 
 Returns
 -------
-string
+str
     A welcome message
 """
 @app.route('/', methods = ['GET'])
@@ -132,7 +132,7 @@ Force cache clear even before it expires
 
 Returns
 -------
-string
+str
     A confirmation message
 """
 @app.route('/cache_clear', methods = ['GET'])
@@ -158,7 +158,7 @@ Parameters
 ----------
 entity_class : str
     One of the normalized entity classes: Dataset, Collection, Sample, Donor
-id : string
+id : str
     The HuBMAP ID (e.g. HBM123.ABCD.456) or UUID of target entity 
 
 Returns
@@ -402,7 +402,7 @@ Parameters
 ----------
 entity_class : str
     One of the normalized entity classes: Dataset, Collection, Sample, Donor
-id : string
+id : str
     The HuBMAP ID (e.g. HBM123.ABCD.456) or UUID of target entity 
 
 Returns
@@ -482,7 +482,7 @@ Get all ancestors by uuid
 
 Parameters
 ----------
-id : string
+id : str
     The HuBMAP ID (e.g. HBM123.ABCD.456) or UUID of given entity 
 
 Returns
@@ -501,7 +501,7 @@ Get all descendants by uuid
 
 Parameters
 ----------
-id : string
+id : str
     The HuBMAP ID (e.g. HBM123.ABCD.456) or UUID of given entity
 
 Returns
@@ -520,7 +520,7 @@ Get all parents by uuid
 
 Parameters
 ----------
-id : string
+id : str
     The HuBMAP ID (e.g. HBM123.ABCD.456) or UUID of given entity
 
 Returns
@@ -539,7 +539,7 @@ Get all chilren by uuid
 
 Parameters
 ----------
-id : string
+id : str
     The HuBMAP ID (e.g. HBM123.ABCD.456) or UUID of given entity
 
 Returns
@@ -559,7 +559,7 @@ Redirect doi?
 
 Parameters
 ----------
-id : string
+id : str
     The HuBMAP ID (e.g. HBM123.ABCD.456) or UUID of given entity
 """
 @app.route('/doi/redirect/<id>', methods = ['GET'])
@@ -571,7 +571,7 @@ Redirect a request from a doi service for a collection of data
 
 Parameters
 ----------
-id : string
+id : str
     The HuBMAP ID (e.g. HBM123.ABCD.456) or UUID of given entity
 """
 @app.route('/collection/redirect/<id>', methods = ['GET'])
@@ -621,7 +621,7 @@ allowed for the user (or lack of user) a 403 is returned.
 
 Parameters
 ----------
-id : string
+id : str
     The HuBMAP ID (e.g. HBM123.ABCD.456) or UUID of given entity
 
 Returns
@@ -780,7 +780,7 @@ Parameters
 ----------
 normalized_entity_class : str
     One of the normalized entity classes: Dataset, Collection, Sample, Donor
-id : string
+id : str
     The uuid of target entity 
 
 Returns
@@ -868,12 +868,12 @@ Retrive target uuid based on the given id
 
 Parameters
 ----------
-id : string
+id : str
     Either the uuid or hubmap_id of target entity 
 
 Returns
 -------
-string
+str
     The uuid string from the uuid-api call
 
     The list returned by uuid-api that contains all the associated ids, e.g.:
@@ -997,7 +997,7 @@ Parameters
 ----------
 normalized_entity_class : str
     One of the normalized entity classes: Dataset, Collection, Sample, Donor
-id : string
+id : str
     The uuid or hubmap_id of target entity 
 
 Returns

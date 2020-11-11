@@ -23,12 +23,13 @@ combined_data_dict : dict
 
 Returns
 -------
-string
-    A timestamp string
+int
+    A timestamp integer of seconds
 """
 def get_current_timestamp(combined_data_dict):
     current_time = datetime.datetime.now() 
-    return current_time.timestamp() 
+    seconds = int(current_time.timestamp())
+    return seconds
 
 """
 Trigger event method of generating current timestamp
@@ -41,7 +42,7 @@ combined_data_dict : dict
 
 Returns
 -------
-string
+str
     The string of normalized entity type
 """
 def get_entity_type(combined_data_dict):
@@ -58,7 +59,7 @@ combined_data_dict : dict
 
 Returns
 -------
-string
+str
     The 'sub' string
 """
 def get_user_sub(combined_data_dict):
@@ -75,7 +76,7 @@ combined_data_dict : dict
 
 Returns
 -------
-string
+str
     The 'email' string
 """
 def get_user_email(combined_data_dict):
@@ -92,7 +93,7 @@ combined_data_dict : dict
 
 Returns
 -------
-string
+str
     The 'name' string
 """
 def get_user_name(combined_data_dict):
@@ -109,7 +110,7 @@ combined_data_dict : dict
 
 Returns
 -------
-string
+str
     The uuid string
 """
 def get_source_uuid(combined_data_dict):
@@ -126,7 +127,7 @@ combined_data_dict : dict
 
 Returns
 -------
-string
+str
     The uuid string
 """
 def create_uuid(combined_data_dict):
@@ -143,7 +144,7 @@ combined_data_dict : dict
 
 Returns
 -------
-string
+str
     The doi_suffix_id string
 """
 def create_doi_suffix_id(combined_data_dict):
@@ -160,7 +161,7 @@ combined_data_dict : dict
 
 Returns
 -------
-string
+str
     The hubmap_id string
 """
 def create_hubmap_id(combined_data_dict):
@@ -177,7 +178,7 @@ combined_data_dict : dict
 
 Returns
 -------
-string
+str
     The data access level string
 """
 def get_data_access_level(combined_data_dict):
@@ -261,7 +262,7 @@ combined_data_dict : dict
 
 Returns
 -------
-string
+str
     The creation_action string
 """
 def get_activity_creation_action(combined_data_dict):
