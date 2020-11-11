@@ -81,13 +81,6 @@ shared_entity_properties: &shared_entity_properties
     type: string
     immutable: true
     description: "The url from the doi registry for this entity"
-  creator_uuids:
-    type: list
-    immutable: true
-    description: "A list of uuids referencing the people who created the entity"
-  contact_uuids:
-    type: list
-    description: "A list of uuids referencing the people who are the main contacts about this entity"
   # All the `last_modified_*` properties are not immutable
   last_modified_timestamp:
     type: integer
@@ -101,30 +94,35 @@ shared_entity_properties: &shared_entity_properties
   last_modified_user_displayname:
     type: string
     on_update_trigger: get_user_name
-  ###### All other shared properties ######
-  entity_type:
-    type: string
-    description: "One of the normalized entity types: Dataset, Collection, Sample, Donor"
-    immutable: true
-    on_create_trigger: get_entity_type 
   ###### Shared transient properties ######
   data_access_level:
     transient: true
     type: string
     description: "One of the values: public, consortium, protected. Only Dataset may have protected value"
     on_read_trigger: get_data_access_level
+  ###### All other shared properties ######
+  entity_type:
+    type: string
+    description: "One of the normalized entity types: Dataset, Collection, Sample, Donor"
+    immutable: true
+    on_create_trigger: get_entity_type 
   # Currently cretors and contacts are only available for Collection
   creators:
-    transient: true
     type: list
     description: "A list of the people who created the entity with full name, email, ORCID iD, institution, etc.. This is analogus to the author list on a publication."
-    on_read_trigger: get_creators # Based on the `creator_uuids`
   contacts:
-    transient: true
     type: list 
     description: "A list of the people who are the main contacts to get information about the entity."
-    on_read_trigger: get_contacts # Based on the `contact_uuids`
+  # To-DO
+  # creator_ids:
+  #   type: list
+  #   immutable: true
+  #   description: "A list of ids (will need to decide on uuid or orcid id) referencing the people who created the entity"
+  # contact_ids:
+  #   type: list
+  #   description: "A list of ids (will need to decide on uuid or orcid id) referencing the people who are the main contacts about this entity"
   
+
 # Note: don't relate the entities schema to the neo4j data modeling
 ENTITIES:
   ############################################# Collection #############################################

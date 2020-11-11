@@ -2,7 +2,6 @@
 ## Schema trigger methods based on the yaml file - DO NOT RENAME
 ####################################################################################################
 
-import logging
 import datetime
 
 # Local modules
@@ -207,40 +206,6 @@ str
 """
 def create_hubmap_id(combined_data_dict):
     return combined_data_dict['hubmap_id']
-
-"""
-Trigger event method of getting a list of cretors for a given entity
-
-Parameters
-----------
-combined_data_dict : dict
-    A merged dictionary that contains all possible input data to be used
-    It's fine if a trigger method doesn't use any input data
-
-Returns
--------
-list
-    A list of creators information
-"""
-def get_creators(combined_data_dict):
-    return combined_data_dict['creators']
-
-"""
-Trigger event method of getting a list of contacts for a given entity
-
-Parameters
-----------
-combined_data_dict : dict
-    A merged dictionary that contains all possible input data to be used
-    It's fine if a trigger method doesn't use any input data
-
-Returns
--------
-list
-    A list of contacts information
-"""
-def get_contacts(combined_data_dict):
-    return combined_data_dict['contacts']
 
 ####################################################################################################
 ## Trigger methods specific to Collection
