@@ -111,7 +111,7 @@ combined_data_dict : dict
 Returns
 -------
 str
-    The uuid string
+    The uuid string of source entity
 """
 def get_source_uuid(combined_data_dict):
     return neo4j_queries.get_source_uuid(combined_data_dict['neo4j_driver'], combined_data_dict['uuid'])
@@ -182,12 +182,13 @@ str
     The data access level string
 """
 def get_data_access_level(combined_data_dict):
-    data_access_level = "consortium"
+    # Default to "protected"
+    data_access_level = "protected"
 
     normalized_entity_class = combined_data_dict['normalized_entity_class']
     if normalized_entity_class == "Dataset":
-        if combined_data_dict['contains_human_genetic_sequences']:
-            data_access_level = "protected" 
+        if not combined_data_dict['contains_human_genetic_sequences']:
+            data_access_level = "consortium" 
 
     return data_access_level
 
