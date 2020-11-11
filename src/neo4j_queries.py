@@ -208,6 +208,86 @@ def get_dataset_uuids_by_collection(neo4j_driver, uuid):
             raise e
 
 
+"""
+Get count of published Dataset in the provenance hierarchy for a given  Collection/Sample/Donor
+
+Parameters
+----------
+neo4j_driver : neo4j.driver
+    The neo4j driver instance
+entity_class : str
+    One of the normalized entity classes: Collection, Sample, Donor
+uuid : str
+    The uuid of target entity 
+
+Returns
+-------
+int
+    The count of published Dataset in the provenance hierarchy 
+    below the target entity (Donor, Sample and Collection)
+"""
+def count_attached_published_datasets(neo4j_driver, entity_class, uuid):
+    with neo4j_driver.session() as session:
+        parameterized_query = ("MATCH (e:{entity_class})-[r:ACTIVITY_INPUT|:ACTIVITY_OUTPUT*]->(d:Dataset) " +
+                               "WHERE e.uuid='{uuid}' AND d.status = 'Published' " +
+                               # COLLECT() returns a list
+                               # apoc.coll.toSet() reruns a set containing unique nodes
+                               "RETURN COUNT(d) AS {record_field_name}")
+
+        query = parameterized_query.format(entity_class = entity_class,
+        	                               uuid = uuid, 
+                                           record_field_name = record_field_name)
+
+        logger.info("======count_attached_published_datasets() query:======")
+        logger.info(query)
+
+        try:
+            result = session.run(query)
+            record = result.single()
+            count = record[record_field_name]
+
+            logger.info("======count_attached_published_datasets() resulting count:======")
+            logger.info(count)
+            
+            return count               
+        except CypherError as ce:
+            logger.error("======count_attached_published_datasets() Cypher error:======")
+            logger.error(ce)
+
+            raise CypherError('A Cypher error was encountered: ' + ce.message)
+        except Exception as e:
+            raise e
+
+
+    dataset_uuids_list = []
+
+    parameterized_query = ("MATCH (e:Entity)-[:IN_COLLECTION]->(c:Collection) " + 
+                           "WHERE c.uuid = '{uuid}' " +
+                           "RETURN DISTINCT e.uuid AS {record_field_name}")
+
+    query = parameterized_query.format(uuid = uuid, 
+                                       record_field_name = record_field_name)
+    
+    logger.info("======get_dataset_uuids_by_collection() query:======")
+    logger.info(query)
+
+    with neo4j_driver.session() as session:
+        try:
+            results = session.run(query)
+
+            for record in results:
+                dataset_uuids_list.append(record.get(record_field_name))
+
+            logger.info("======get_collection_dataset_uuids() resulting list:======")
+            logger.info(dataset_uuids_list)
+
+            return dataset_uuids_list
+        except CypherError as ce:
+            raise CypherError('A Cypher error was encountered: ' + ce.message)
+        except Exception as e:
+            raise e
+
+
 ####################################################################################################
 ## Entity creation
 ####################################################################################################

@@ -49,6 +49,47 @@ def get_entity_type(combined_data_dict):
     return combined_data_dict['normalized_entity_class']
 
 """
+Trigger event method of getting data access level
+
+Parameters
+----------
+combined_data_dict : dict
+    A merged dictionary that contains all possible input data to be used
+    It's fine if a trigger method doesn't use any input data
+
+Returns
+-------
+str
+    The data access level string
+"""
+def get_data_access_level(combined_data_dict):
+    normalized_entity_class = combined_data_dict['normalized_entity_class']
+
+    if normalized_entity_class == "Dataset":
+        # Default to "protected"
+        data_access_level = "protected"
+
+        if combined_data_dict['contains_human_genetic_sequences']:
+            data_access_level = "protected" 
+        else:
+            if combined_data_dict['status'] == "Published":
+                data_access_level = "public"
+            else:
+                data_access_level = "consortium" 
+    else:
+        # Default to "consortium" for Collection/Donor/Sample
+        data_access_level = "consortium"
+        
+        # public if any dataset below it in the provenance hierarchy is published
+        # (i.e. Dataset.status == "Published")
+        count = neo4j_queries.count_attached_published_datasets(combined_data_dict['neo4j_driver'], normalized_entity_class, combined_data_dict['uuid'])
+
+        if count > 0:
+            data_access_level = "public"
+
+    return data_access_level
+
+"""
 Trigger event method of getting user sub
 
 Parameters
@@ -168,31 +209,6 @@ def create_hubmap_id(combined_data_dict):
     return combined_data_dict['hubmap_id']
 
 """
-Trigger event method of getting data access level
-
-Parameters
-----------
-combined_data_dict : dict
-    A merged dictionary that contains all possible input data to be used
-    It's fine if a trigger method doesn't use any input data
-
-Returns
--------
-str
-    The data access level string
-"""
-def get_data_access_level(combined_data_dict):
-    # Default to "protected"
-    data_access_level = "protected"
-
-    normalized_entity_class = combined_data_dict['normalized_entity_class']
-    if normalized_entity_class == "Dataset":
-        if not combined_data_dict['contains_human_genetic_sequences']:
-            data_access_level = "consortium" 
-
-    return data_access_level
-
-"""
 Trigger event method of getting a list of cretors for a given entity
 
 Parameters
@@ -252,9 +268,6 @@ def get_dataset_uuids_by_collection(combined_data_dict):
 ## Trigger methods specific to Dataset
 ####################################################################################################
 
-# TO-DO
-def update_data_access_level(combined_data_dict):
-    return "dummy"
 
 ####################################################################################################
 ## Trigger methods specific to Donor
@@ -264,6 +277,7 @@ def update_data_access_level(combined_data_dict):
 ####################################################################################################
 ## Trigger methods specific to Sample
 ####################################################################################################
+
 
 ####################################################################################################
 ## Trigger methods specific to Activity

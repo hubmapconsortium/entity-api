@@ -14,8 +14,6 @@
 # - Verify and mark all `user_input_required` properties
 # - Clarify the use of `title` and `label` properties across all the entities
 # - Verify and mark all `immutable` properties
-#
-# - More details needed for Dataset.status trigger method on update
 
 # Shared properties across ACTIVITIES and ENTITIES
 shared_properties: &shared_properties
@@ -109,12 +107,12 @@ shared_entity_properties: &shared_entity_properties
     description: "One of the normalized entity types: Dataset, Collection, Sample, Donor"
     immutable: true
     on_create_trigger: get_entity_type 
-  data_access_level: # 
-    type: string
-    description: "One of the values: public, consortium, protected. Only Dataset can have protected value"
-    on_create_trigger: get_data_access_level
-    on_update_trigger: get_data_access_level
   ###### Shared transient properties ######
+  data_access_level:
+    transient: true
+    type: string
+    description: "One of the values: public, consortium, protected. Only Dataset may have protected value"
+    on_read_trigger: get_data_access_level
   # Currently cretors and contacts are only available for Collection
   creators:
     transient: true
@@ -180,6 +178,7 @@ ENTITIES:
         type: string
       dataset_name:
         type: string
+      # The Dataset.data_access_level is based on Dataset.status and Dataset.contains_human_genetic_sequences
       contains_human_genetic_sequences:
         user_input_required: true
         type: boolean
@@ -188,12 +187,10 @@ ENTITIES:
         type: string
       local_directory_rel_path:
         type: string
+      # The Dataset.data_access_level is based on Dataset.status and Dataset.contains_human_genetic_sequences
       status:
-        type: string (Published, New, QA, Error, Hold, Invalid)
-        # When the status property is updated we need to automatically trigger updates 
-        # for any Donor, Sample, Collection connected to it. - Bill
-        # Will need more details - Joe
-        on_update_trigger: update_data_access_level
+        type: string
+        description: "Published|New|QA|Error|Hold|Invalid"
       run_id:
         type: string
       ingest_id:
