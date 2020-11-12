@@ -248,9 +248,6 @@ ENTITIES:
         type: string
       protocol_url:
         type: string
-      # Hide it, and it'll be gone eventually
-      protocol_info:
-        type: string
       image_file_metadata:
         type: string
       sample_count:
