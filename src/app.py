@@ -216,10 +216,10 @@ def get_all_entity_uuids(entity_class):
     validate_normalized_entity_class(normalized_entity_class)
 
     # Query target entity against neo4j and return as a dict if exists
-    uuids_list = neo4j_queries.get_all_entity_uuids(neo4j_driver, normalized_entity_class)
-
-
-    return json_response(normalized_entity_class + '_uuids', uuids_list)
+    entities_list = neo4j_queries.get_all_entities_by_class(neo4j_driver, normalized_entity_class)
+    
+    # Use the plural name as json key
+    return json_response(normalized_entity_class + 's', entities_list)
 
 """
 Create a new entity node in neo4j

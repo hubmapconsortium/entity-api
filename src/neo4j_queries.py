@@ -118,7 +118,7 @@ def get_entity(neo4j_driver, entity_class, uuid):
             raise e
 
 """
-Get the uuids of all nodes for the target entity class
+Get all the entity nodes for the given entity class
 
 Parameters
 ----------
@@ -130,30 +130,30 @@ entity_class : str
 Returns
 -------
 list
-    A list of entity uuids returned from the Cypher query
+    A list of entities of the given class returned from the Cypher query
 """
-def get_all_entity_uuids(neo4j_driver, entity_class):
+def get_all_entities_by_class(neo4j_driver, entity_class):
     parameterized_query = ("MATCH (e:{entity_class}) " + 
                            # COLLECT() returns a list
                            # apoc.coll.toSet() reruns a set containing unique nodes
-                           "RETURN apoc.coll.toSet(COLLECT(e.uuid)) AS {record_field_name}")
+                           "RETURN apoc.coll.toSet(COLLECT(e)) AS {record_field_name}")
 
     query = parameterized_query.format(entity_class = entity_class, 
                                        record_field_name = record_field_name)
     
-    logger.info("======get_all_entity_uuids() query:======")
+    logger.info("======get_all_entities_by_class() query:======")
     logger.info(query)
 
     with neo4j_driver.session() as session:
         try:
             result = session.run(query)
             record = result.single()
-            uuids_list = record[record_field_name]
+            entities_list = record[record_field_name]
 
-            logger.info("======get_all_entity_uuids() resulting uuids_list:======")
-            logger.info(uuids_list)
+            logger.info("======get_all_entities_by_class() resulting entities_list:======")
+            logger.info(entities_list)
 
-            return uuids_list
+            return entities_list
         except CypherError as ce:
             raise CypherError('A Cypher error was encountered: ' + ce.message)
         except Exception as e:
