@@ -166,7 +166,7 @@ json
 @app.route('/<id>', methods = ['GET'])
 def get_entity_by_id(id):
     # Query target entity against neo4j and return as a dict if exists
-    entity_dict = query_target_entity(id, normalized_entity_class)
+    entity_dict = query_target_entity(id)
 
     # Normalize the returned entity_class
     normalized_entity_class = normalize_entity_class(entity_dict['entity_type'])
