@@ -172,6 +172,46 @@ def get_all_entities_by_class(neo4j_driver, entity_class):
         except Exception as e:
             raise e
 
+"""
+Get the uuids of all nodes for the target entity class
+Parameters
+----------
+neo4j_driver : neo4j.driver
+    The neo4j driver instance
+entity_class : str
+    One of the normalized entity classes: Dataset, Collection, Sample, Donor
+Returns
+-------
+list
+    A list of entity uuids returned from the Cypher query
+"""
+def get_all_entity_uuids_by_class(neo4j_driver, entity_class):
+    parameterized_query = ("MATCH (e:{entity_class}) " + 
+                           # COLLECT() returns a list
+                           # apoc.coll.toSet() reruns a set containing unique nodes
+                           "RETURN apoc.coll.toSet(COLLECT(e.uuid)) AS {record_field_name}")
+
+    query = parameterized_query.format(entity_class = entity_class, 
+                                       record_field_name = record_field_name)
+    
+    logger.info("======get_all_entity_uuids_by_class() query:======")
+    logger.info(query)
+
+    with neo4j_driver.session() as session:
+        try:
+            result = session.run(query)
+            record = result.single()
+            uuids_list = record[record_field_name]
+
+            logger.info("======get_all_entity_uuids_by_class() resulting uuids_list:======")
+            logger.info(uuids_list)
+
+            return uuids_list
+        except CypherError as ce:
+            raise CypherError('A Cypher error was encountered: ' + ce.message)
+        except Exception as e:
+            raise e
+
 
 ####################################################################################################
 ## Called by trigger methogs

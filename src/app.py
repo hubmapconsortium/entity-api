@@ -242,7 +242,7 @@ entity_class : str
 Returns
 -------
 json
-    All the entity nodes uuids in a list of the target entity class
+    All the entity nodes in a list of the target entity class
 """
 @app.route('/<entity_class>/all', methods = ['GET'])
 def get_all_entities_by_class(entity_class):
@@ -257,6 +257,32 @@ def get_all_entities_by_class(entity_class):
     
     # Use the plural name as json key
     return json_response(normalized_entity_class + 's', entity_dict_list)
+
+
+"""
+Retrive all the uuids of entity nodes for a given entity class
+Parameters
+----------
+entity_class : str
+    One of the normalized entity classes: Dataset, Collection, Sample, Donor
+Returns
+-------
+json
+    All the entity nodes uuids in a list of the target entity class
+"""
+@app.route('/<entity_class>/uuids', methods = ['GET'])
+def get_all_entity_uuids_by_class(entity_class):
+    # Normalize user provided entity_class
+    normalized_entity_class = normalize_entity_class(entity_class)
+
+    # Validate the normalized_entity_class to make sure it's one of the accepted classes
+    validate_normalized_entity_class(normalized_entity_class)
+
+    # Query target entity against neo4j and return as a dict if exists
+    uuids_list = neo4j_queries.get_all_entity_uuids_by_class(normalized_entity_class)
+
+    return json_response(normalized_entity_class + '_uuids', uuids_list)
+
 
 """
 Create a new entity node in neo4j
