@@ -130,7 +130,7 @@ entity_class : str
 Returns
 -------
 list
-    A list of entities of the given class returned from the Cypher query
+    A list of entity dicts of the given class returned from the Cypher query
 """
 def get_all_entities_by_class(neo4j_driver, entity_class):
     parameterized_query = ("MATCH (e:{entity_class}) " + 
@@ -148,12 +148,17 @@ def get_all_entities_by_class(neo4j_driver, entity_class):
         try:
             result = session.run(query)
             record = result.single()
-            entities_list = record[record_field_name]
+            entity_nodes = record[record_field_name]
+            entity_dict_list = []
 
-            logger.info("======get_all_entities_by_class() resulting entities_list:======")
-            logger.info(entities_list)
+            for entity_node in entity_nodes:
+                entity_dict = node_to_dict(entity_node)
+                entity_dict_list.append(entity_dict)
 
-            return entities_list
+            logger.info("======get_all_entities_by_class() resulting entity_dict_list:======")
+            logger.info(entity_dict_list)
+
+            return entity_dict_list
         except CypherError as ce:
             raise CypherError('A Cypher error was encountered: ' + ce.message)
         except Exception as e:

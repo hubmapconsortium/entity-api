@@ -208,18 +208,18 @@ json
     All the entity nodes uuids in a list of the target entity class
 """
 @app.route('/<entity_class>/all', methods = ['GET'])
-def get_all_entity_uuids(entity_class):
+def get_all_entities_by_class(entity_class):
     # Normalize user provided entity_class
     normalized_entity_class = normalize_entity_class(entity_class)
 
     # Validate the normalized_entity_class to make sure it's one of the accepted classes
     validate_normalized_entity_class(normalized_entity_class)
 
-    # Query target entity against neo4j and return as a dict if exists
-    entities_list = neo4j_queries.get_all_entities_by_class(neo4j_driver, normalized_entity_class)
+    # Get back a list of entity dicts for the given entity class
+    entity_dict_list = neo4j_queries.get_all_entities_by_class(neo4j_driver, normalized_entity_class)
     
     # Use the plural name as json key
-    return json_response(normalized_entity_class + 's', entities_list)
+    return json_response(normalized_entity_class + 's', entity_dict_list)
 
 """
 Create a new entity node in neo4j
