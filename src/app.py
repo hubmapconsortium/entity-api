@@ -216,7 +216,7 @@ def get_all_entity_uuids(entity_class):
     validate_normalized_entity_class(normalized_entity_class)
 
     # Query target entity against neo4j and return as a dict if exists
-    uuids_list = neo4j_queries.get_all_entity_uuids(normalized_entity_class)
+    uuids_list = neo4j_queries.get_all_entity_uuids(neo4j_driver, normalized_entity_class)
 
 
     return json_response(normalized_entity_class + '_uuids', uuids_list)
