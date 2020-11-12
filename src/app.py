@@ -177,6 +177,9 @@ def get_entity(entity_class, id):
     # Query target entity against neo4j and return as a dict if exists
     entity_dict = query_target_entity(normalized_entity_class, id)
 
+    # Get rid of the entity node properties that are not defined in the yaml schema
+    entity_dict = remove_undefined_entity_properties(normalized_entity_class, entity_dict)
+
     # Dictionaries to be merged and passed to trigger methods
     normalized_entity_class_dict = {"normalized_entity_class": normalized_entity_class}
 
@@ -464,6 +467,9 @@ def update_entity(entity_class, id):
 
     # Update the exisiting entity
     result_dict = neo4j_queries.update_entity(neo4j_driver, normalized_entity_class, escaped_json_list_str, entity_uuid)
+
+    # Get rid of the entity node properties that are not defined in the yaml schema
+    result_dict = remove_undefined_entity_properties(normalized_entity_class, result_dict)
 
     # How to handle reindex collection?
     # Also reindex the updated entity node in elasticsearch via search-api
@@ -1095,6 +1101,32 @@ def validate_json_data_against_schema(json_data_dict, normalized_schema_section_
     if len(invalid_data_type_keys) > 0:
         bad_request_error("Keys in request json with invalid data types: " + separator.join(invalid_data_type_keys))
 
+"""
+Remove entity node properties that are not defined in the yaml schema prior to response
+
+Parameters
+----------
+trigger_type : str
+    One of the trigger types: on_create_trigger, on_update_trigger, on_read_trigger
+
+data_dict : dict
+    A merged dictionary that contains all possible data to be used by the trigger methods
+
+Returns
+-------
+dict
+    A entity dictionary with keys that are all defined in schema yaml
+"""
+def remove_undefined_entity_properties(normalized_entity_class, entity_dict):
+    properties = schema['ENTITIES'][normalized_entity_class]['properties']
+    schema_keys = properties.keys() 
+    entity_keys = entity_dict.keys()
+
+    for key in entity_keys:
+        if key not in schema_keys:
+            del entity_dict[key]
+
+    return entity_dict
 
 """
 Generating triggered data based on the target events and methods
