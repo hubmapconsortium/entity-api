@@ -1120,7 +1120,9 @@ dict
 def remove_undefined_entity_properties(normalized_entity_class, entity_dict):
     properties = schema['ENTITIES'][normalized_entity_class]['properties']
     schema_keys = properties.keys() 
-    entity_keys = entity_dict.keys()
+    # In Python 3, entity_dict.keys() returns an iterable, which causes error if deleting keys during the loop
+    # We can use list to force a copy of the keys to be made
+    entity_keys = list(entity_dict)
 
     for key in entity_keys:
         if key not in schema_keys:
