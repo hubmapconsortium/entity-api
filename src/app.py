@@ -64,7 +64,7 @@ schema = load_provenance_schema_yaml_file(app.config['SCHEMA_YAML_FILE'])
 ## Neo4j connection
 ####################################################################################################
 
-neo4j_driver = GraphDatabase.driver(app.config['NEO4J_SERVER'], auth = (app.config['NEO4J_USERNAME'], app.config['NEO4J_PASSWORD']))
+neo4j_driver = GraphDatabase.driver(app.config['NEO4J_SERVER'], auth = (app.config['NEO4J_USERNAME'], app.config['NEO4J_PASSWORD']), max_connection_lifetime = 200)
     
 
 ####################################################################################################
@@ -818,7 +818,7 @@ def get_globus_url(id):
 
 def get_neo4j_driver(neo4j_driver):
     if neo4j_driver.closed():
-        neo4j_driver = GraphDatabase.driver(app.config['NEO4J_SERVER'], auth = (app.config['NEO4J_USERNAME'], app.config['NEO4J_PASSWORD']))
+        neo4j_driver = GraphDatabase.driver(app.config['NEO4J_SERVER'], auth = (app.config['NEO4J_USERNAME'], app.config['NEO4J_PASSWORD']), max_connection_lifetime = 200)
     
     return neo4j_driver
 
