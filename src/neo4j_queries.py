@@ -134,79 +134,58 @@ neo4j_driver : neo4j.driver
     The neo4j driver instance
 entity_class : str
     One of the normalized entity classes: Dataset, Collection, Sample, Donor
+property_key : str
+    A target property key for result filtering
 
 Returns
 -------
 list
     A list of entity dicts of the given class returned from the Cypher query
 """
-def get_all_entities_by_class(neo4j_driver, entity_class):
-    parameterized_query = ("MATCH (e:{entity_class}) " + 
-                           # COLLECT() returns a list
-                           # apoc.coll.toSet() reruns a set containing unique nodes
-                           "RETURN apoc.coll.toSet(COLLECT(e)) AS {record_field_name}")
+def get_entities_by_class(neo4j_driver, entity_class, property_key = None):
+    if property_key:
+        parameterized_query = ("MATCH (e:{entity_class}) " + 
+                               # COLLECT() returns a list
+                               # apoc.coll.toSet() reruns a set containing unique nodes
+                               "RETURN apoc.coll.toSet(COLLECT(e.{property_key})) AS {record_field_name}")
 
-    query = parameterized_query.format(entity_class = entity_class, 
-                                       record_field_name = record_field_name)
+        query = parameterized_query.format(entity_class = entity_class, 
+                                           property_key = property_key,
+                                           record_field_name = record_field_name)
+    else:
+        parameterized_query = ("MATCH (e:{entity_class}) " + 
+                               # COLLECT() returns a list
+                               # apoc.coll.toSet() reruns a set containing unique nodes
+                               "RETURN apoc.coll.toSet(COLLECT(e)) AS {record_field_name}")
+
+        query = parameterized_query.format(entity_class = entity_class, 
+                                           record_field_name = record_field_name)
     
-    logger.info("======get_all_entities_by_class() query:======")
+    logger.info("======get_entities_by_class() query:======")
     logger.info(query)
 
     with neo4j_driver.session() as session:
         try:
             result = session.run(query)
             record = result.single()
-            entity_nodes = record[record_field_name]
-            entity_dict_list = []
+            
+            result_list = []
 
-            for entity_node in entity_nodes:
-                entity_dict = node_to_dict(entity_node)
-                entity_dict_list.append(entity_dict)
+            if property_key:
+                # Just return the list of property values from each entity node
+                result_list = record[record_field_name]
+            else:
+                # Convert the entity nodes to dicts
+                nodes = record[record_field_name]
 
-            logger.info("======get_all_entities_by_class() resulting entity_dict_list:======")
-            logger.info(entity_dict_list)
+                for node in nodes:
+                    entity_dict = node_to_dict(entity_node)
+                    result_list.append(entity_dict)
 
-            return entity_dict_list
-        except CypherError as ce:
-            raise CypherError('A Cypher error was encountered: ' + ce.message)
-        except Exception as e:
-            raise e
+            logger.info("======get_entities_by_class() result_list:======")
+            logger.info(result_list)
 
-"""
-Get the uuids of all nodes for the target entity class
-Parameters
-----------
-neo4j_driver : neo4j.driver
-    The neo4j driver instance
-entity_class : str
-    One of the normalized entity classes: Dataset, Collection, Sample, Donor
-Returns
--------
-list
-    A list of entity uuids returned from the Cypher query
-"""
-def get_all_entity_uuids_by_class(neo4j_driver, entity_class):
-    parameterized_query = ("MATCH (e:{entity_class}) " + 
-                           # COLLECT() returns a list
-                           # apoc.coll.toSet() reruns a set containing unique nodes
-                           "RETURN apoc.coll.toSet(COLLECT(e.uuid)) AS {record_field_name}")
-
-    query = parameterized_query.format(entity_class = entity_class, 
-                                       record_field_name = record_field_name)
-    
-    logger.info("======get_all_entity_uuids_by_class() query:======")
-    logger.info(query)
-
-    with neo4j_driver.session() as session:
-        try:
-            result = session.run(query)
-            record = result.single()
-            uuids_list = record[record_field_name]
-
-            logger.info("======get_all_entity_uuids_by_class() resulting uuids_list:======")
-            logger.info(uuids_list)
-
-            return uuids_list
+            return result_list
         except CypherError as ce:
             raise CypherError('A Cypher error was encountered: ' + ce.message)
         except Exception as e:

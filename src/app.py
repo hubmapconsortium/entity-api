@@ -42,6 +42,7 @@ cache = TTLCache(maxsize=app.config['CACHE_MAXSIZE'], ttl=app.config['CACHE_TTL'
 ####################################################################################################
 ## Provenance yaml schema loading
 ####################################################################################################
+
 @cached(cache)
 def load_provenance_schema_yaml_file(file):
     with open(file, 'r') as stream:
@@ -56,14 +57,21 @@ def load_provenance_schema_yaml_file(file):
             app.logger.error("======schema yaml failed to load======")
             app.logger.error(exc)
    
-# Have the schema informaiton available for any requests
+# Have the schema informaiton available for all API endpoints below
 schema = load_provenance_schema_yaml_file(app.config['SCHEMA_YAML_FILE'])
+
 
 ####################################################################################################
 ## Neo4j connection
 ####################################################################################################
+
 neo4j_connection = Neo4jConnection(app.config['NEO4J_SERVER'], app.config['NEO4J_USERNAME'], app.config['NEO4J_PASSWORD'])
 neo4j_driver = neo4j_connection.get_driver()
+
+
+####################################################################################################
+## Error handlers
+####################################################################################################
 
 # Error handler for 400 Bad Request with custom error message
 @app.errorhandler(400)
@@ -80,13 +88,14 @@ def http_forbidden(e):
 def http_not_found(e):
     return jsonify(error=str(e)), 404
 
-# Error handler for 404 Not Found with custom error message
+# Error handler for 500 Internal Server Error with custom error message
 @app.errorhandler(500)
 def http_internal_server_error(e):
     return jsonify(error=str(e)), 500
 
+
 ####################################################################################################
-## Default route, status, cache clear
+## API Endpoints
 ####################################################################################################
 
 """
@@ -110,48 +119,41 @@ json
     A json containing the status details
 """
 @app.route('/status', methods = ['GET'])
-def status():
-    response_data = {
+def get_status():
+    status_data = {
         # Use strip() to remove leading and trailing spaces, newlines, and tabs
         'version': (Path(__file__).parent / 'VERSION').read_text().strip(),
         'build': (Path(__file__).parent / 'BUILD').read_text().strip(),
         'neo4j_connection': False
     }
 
-    conn = Neo4jConnection(app.config['NEO4J_SERVER'], app.config['NEO4J_USERNAME'], app.config['NEO4J_PASSWORD'])
-    driver = conn.get_driver()
-    is_connected = neo4j_connection.check_connection(driver)
+    is_connected = neo4j_connection.check_connection(neo4j_driver)
     
     if is_connected:
-        response_data['neo4j_connection'] = True
+        status_data['neo4j_connection'] = True
 
-    return jsonify(response_data)
+    return jsonify(status_data)
 
 """
-Force cache clear even before it expires
+Force delete cache even before it expires
 
 Returns
 -------
 str
     A confirmation message
 """
-@app.route('/cache_clear', methods = ['GET'])
-def cache_clear():
+@app.route('/schema_cache', methods = ['DELETE'])
+def delete_schema_cache():
     cache.clear()
     
-    msg = "schema yaml cache cleared"
+    msg = "The cache of schema yaml has been deleted."
 
     app.logger.info(msg)
-    app.logger.info(schema)
 
     return msg
 
-####################################################################################################
-## API
-####################################################################################################
-
 """
-Retrive the properties of a given entity by eiter uuid or hubmap_id
+Retrive the properties of a given entity by id
 
 Parameters
 ----------
@@ -163,13 +165,13 @@ Returns
 json
     All the properties of the target entity
 """
-@app.route('/<id>', methods = ['GET'])
+@app.route('/entities/<id>', methods = ['GET'])
 def get_entity_by_id(id):
     # Query target entity against neo4j and return as a dict if exists
     entity_dict = query_target_entity(id)
 
     # Normalize the returned entity_class
-    normalized_entity_class = normalize_entity_class(entity_dict['entity_type'])
+    normalized_entity_class = normalize_entity_class(entity_dict['entity_class'])
 
     # Get rid of the entity node properties that are not defined in the yaml schema
     entity_dict = remove_undefined_entity_properties(normalized_entity_class, entity_dict)
@@ -186,50 +188,45 @@ def get_entity_by_id(id):
     # Merge the entity info and the generated on read data into one dictionary
     result_dict = {**entity_dict, **generated_on_read_trigger_data_dict}
 
-    return json_response(normalized_entity_class, result_dict)
+    # Final result
+    final_result = result_dict
+
+    # Result filtering based on query string
+    # For example: /entities/<id>?property=data_access_level
+    args = request.args
+    if 'property' in args:
+        property_key = args['property']
+        # Validate the target property
+        accepted_keys = ['data_access_level']
+
+        if property_key not in accepted_keys:
+            bad_request_error("Unsupported property specified in the query string")
+        
+        # Only return the property value
+        property_value = result_dict[property_key]
+
+        # Final result
+        final_result = property_value
+
+    # Response with the final result
+    return jsonify(final_result)
 
 """
-Retrive the properties of a given entity by eiter uuid or hubmap_id
+Show all the supported entity classes
 
 Parameters
 ----------
 entity_class : str
     One of the normalized entity classes: Dataset, Collection, Sample, Donor
-id : str
-    The HuBMAP ID (e.g. HBM123.ABCD.456) or UUID of target entity 
 
 Returns
 -------
 json
-    All the properties of the target entity
+    A list of all the available entity classes defined in the schema yaml
 """
-@app.route('/<entity_class>/<id>', methods = ['GET'])
-def get_entity_by_class_and_id(entity_class, id):
-    # Normalize user provided entity_class
-    normalized_entity_class = normalize_entity_class(entity_class)
-
-    # Validate the normalized_entity_class to make sure it's one of the accepted classes
-    validate_normalized_entity_class(normalized_entity_class)
-
-    # Query target entity against neo4j and return as a dict if exists
-    entity_dict = query_target_entity(id, normalized_entity_class)
-
-    # Get rid of the entity node properties that are not defined in the yaml schema
-    entity_dict = remove_undefined_entity_properties(normalized_entity_class, entity_dict)
-
-    # Dictionaries to be merged and passed to trigger methods
-    normalized_entity_class_dict = {"normalized_entity_class": normalized_entity_class}
-
-    # Merge all the above dictionaries
-    # If the latter dictionary contains the same key as the previous one, it will overwrite the value for that key
-    data_dict = {**entity_dict, **normalized_entity_class_dict}
-
-    generated_on_read_trigger_data_dict = generate_triggered_data("on_read_trigger", "ENTITIES", data_dict)
-
-    # Merge the entity info and the generated on read data into one dictionary
-    result_dict = {**entity_dict, **generated_on_read_trigger_data_dict}
-
-    return json_response(normalized_entity_class, result_dict)
+@app.route('/entity_classes', methods = ['GET'])
+def get_entity_classes():
+    return jsonify(schema['ENTITIES'].keys())
 
 """
 Retrive all the uuids of entity nodes for a given entity class
@@ -244,45 +241,38 @@ Returns
 json
     All the entity nodes in a list of the target entity class
 """
-@app.route('/<entity_class>/all', methods = ['GET'])
-def get_all_entities_by_class(entity_class):
+@app.route('/entities/<entity_class>', methods = ['GET'])
+def get_entities_by_class(entity_class):
     # Normalize user provided entity_class
     normalized_entity_class = normalize_entity_class(entity_class)
 
-    # Validate the normalized_entity_class to make sure it's one of the accepted classes
+    # Validate the normalized_entity_class to enure it's one of the accepted classes
     validate_normalized_entity_class(normalized_entity_class)
 
     # Get back a list of entity dicts for the given entity class
-    entity_dict_list = neo4j_queries.get_all_entities_by_class(neo4j_driver, normalized_entity_class)
+    entities_list = neo4j_queries.get_entities_by_class(neo4j_driver, normalized_entity_class)
     
-    # Use the plural name as json key
-    return json_response(normalized_entity_class + 's', entity_dict_list)
+    final_result = entities_list
 
+    # Result filtering based on query string
+    # For example: /entities/<entity_class>?property=uuid
+    args = request.args
+    if 'property' in args:
+        property_key = args['property']
+        # Validate the target property
+        accepted_keys = ['uuid']
 
-"""
-Retrive all the uuids of entity nodes for a given entity class
-Parameters
-----------
-entity_class : str
-    One of the normalized entity classes: Dataset, Collection, Sample, Donor
-Returns
--------
-json
-    All the entity nodes uuids in a list of the target entity class
-"""
-@app.route('/<entity_class>/uuids', methods = ['GET'])
-def get_all_entity_uuids_by_class(entity_class):
-    # Normalize user provided entity_class
-    normalized_entity_class = normalize_entity_class(entity_class)
+        if property_key not in accepted_keys:
+            bad_request_error("Unsupported property specified in the query string")
+        
+        # Only return a list of the filtered property value of each entity
+        property_list = neo4j_queries.get_entities_by_class(neo4j_driver, normalized_entity_class, property_key)
 
-    # Validate the normalized_entity_class to make sure it's one of the accepted classes
-    validate_normalized_entity_class(normalized_entity_class)
+        # Final result
+        final_result = property_value
 
-    # Query target entity against neo4j and return as a dict if exists
-    uuids_list = neo4j_queries.get_all_entity_uuids_by_class(neo4j_driver, normalized_entity_class)
-
-    return json_response(normalized_entity_class + '_uuids', uuids_list)
-
+    # Response with the final result
+    return jsonify(final_result)
 
 """
 Create a new entity node in neo4j
@@ -355,7 +345,7 @@ def create_entity(entity_class):
     # we'll be also creating relationships between the new dataset node to the existing collection nodes
     result_dict = neo4j_queries.create_entity(neo4j_driver, normalized_entity_class, escaped_json_list_str, collection_uuids_list = collection_uuids_list)
 
-    return json_response(normalized_entity_class, result_dict)
+    return jsonify(result_dict)
 
 """
 Create a derived entity from the given source entity in neo4j
@@ -485,7 +475,7 @@ def create_derived_entity(target_entity_class):
     # we'll be also creating relationships between the new dataset node to the existing collection nodes
     result_dict = neo4j_queries.create_derived_entity(neo4j_driver, normalized_target_entity_class, escaped_json_list_str, activity_json_list_str, source_entities_list, collection_uuids_list = collection_uuids_list)
 
-    return json_response(normalized_entity_class, result_dict)
+    return jsonify(result_dict)
 
 
 """
@@ -565,7 +555,7 @@ def update_entity(entity_class, id):
     # Also reindex the updated entity node in elasticsearch via search-api
     reindex_entity(entity_uuid)
 
-    return json_response(normalized_entity_class, result_dict)
+    return jsonify(result_dict)
 
 
 """
@@ -585,7 +575,7 @@ json
 def get_ancestors(id):
     uuid = get_target_uuid(id)
     ancestors_list = neo4j_queries.get_ancestors(neo4j_driver, uuid)
-    return json_response("ancestors", ancestors_list)
+    return jsonify(ancestors_list)
 
 """
 Get all descendants by uuid
@@ -604,7 +594,7 @@ json
 def get_descendants(id):
     uuid = get_target_uuid(id)
     descendants_list = neo4j_queries.get_descendants(neo4j_driver, uuid)
-    return json_response("descendants", descendants_list)
+    return jsonify(descendants_list)
 
 """
 Get all parents by uuid
@@ -623,7 +613,7 @@ json
 def get_parents(id):
     uuid = get_target_uuid(id)
     parents_list = neo4j_queries.get_parents(neo4j_driver, uuid)
-    return json_response("parents", parents_list)
+    return jsonify(parents_list)
 
 """
 Get all chilren by uuid
@@ -642,7 +632,7 @@ json
 def get_children(id):
     uuid = get_target_uuid(id)
     children_list = neo4j_queries.get_children(neo4j_driver, uuid)
-    return json_response("children", children_list)
+    return jsonify(children_list)
 
 
 """
