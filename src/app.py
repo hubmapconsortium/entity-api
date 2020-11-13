@@ -230,7 +230,11 @@ json
 """
 @app.route('/entity_classes', methods = ['GET'])
 def get_entity_classes():
-    return jsonify(schema['ENTITIES'].keys())
+    dict_keys = schema['ENTITIES'].keys()
+    # Need convert the dict_keys object to a list
+    classes_list = list(dict_keys)
+    
+    return jsonify(classes_list)
 
 """
 Retrive all the uuids of entity nodes for a given entity class
