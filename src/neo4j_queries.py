@@ -168,7 +168,7 @@ def get_entities_by_class(neo4j_driver, entity_class, property_key = None):
                 nodes = record[record_field_name]
 
                 for node in nodes:
-                    entity_dict = node_to_dict(entity_node)
+                    entity_dict = node_to_dict(node)
                     result_list.append(entity_dict)
 
             logger.info("======get_entities_by_class() result_list:======")
