@@ -7,6 +7,17 @@ logger = logging.getLogger(__name__)
 # The filed name of the single result record
 record_field_name = 'result'
 
+def check_connection(neo4j_driver):
+    with neo4j_driver.session() as session:
+        try:
+            session.run("CALL db.schema()")
+            return true
+        except CypherError as ce:
+            raise CypherError("A Cypher error was encountered: " + ce.message)
+        except Exception as e:
+            raise e
+
+
 ####################################################################################################
 ## Activity creation
 ####################################################################################################

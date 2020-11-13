@@ -125,7 +125,7 @@ def get_status():
         'neo4j_connection': False
     }
 
-    is_connected = neo4j_connection.check_connection(neo4j_driver)
+    is_connected = neo4j_queries.check_connection(get_neo4j_driver(neo4j_driver))
     
     if is_connected:
         status_data['neo4j_connection'] = True
@@ -259,7 +259,7 @@ def get_entities_by_class(entity_class):
     validate_normalized_entity_class(normalized_entity_class)
 
     # Get back a list of entity dicts for the given entity class
-    entities_list = neo4j_queries.get_entities_by_class(get_neo4j_driver(), normalized_entity_class)
+    entities_list = neo4j_queries.get_entities_by_class(get_neo4j_driver(neo4j_driver), normalized_entity_class)
     
     final_result = entities_list
 
@@ -274,7 +274,7 @@ def get_entities_by_class(entity_class):
             bad_request_error("Unsupported property key specified in the query string")
         
         # Only return a list of the filtered property value of each entity
-        property_list = neo4j_queries.get_entities_by_class(get_neo4j_driver(), normalized_entity_class, property_key)
+        property_list = neo4j_queries.get_entities_by_class(get_neo4j_driver(neo4j_driver), normalized_entity_class, property_key)
 
         # Final result
         final_result = property_list
@@ -353,7 +353,7 @@ def create_entity(entity_class):
     # Create new entity
     # If `collection_uuids_list` is not an empty list, meaning the target entity is Dataset and 
     # we'll be also creating relationships between the new dataset node to the existing collection nodes
-    result_dict = neo4j_queries.create_entity(get_neo4j_driver(), normalized_entity_class, escaped_json_list_str, collection_uuids_list = collection_uuids_list)
+    result_dict = neo4j_queries.create_entity(get_neo4j_driver(neo4j_driver), normalized_entity_class, escaped_json_list_str, collection_uuids_list = collection_uuids_list)
 
     return jsonify(result_dict)
 
@@ -482,7 +482,7 @@ def create_derived_entity(target_entity_class):
     # Create the derived entity alone with the Activity node and relationships
     # If `collection_uuids_list` is not an empty list, meaning the target entity is Dataset and 
     # we'll be also creating relationships between the new dataset node to the existing collection nodes
-    result_dict = neo4j_queries.create_derived_entity(get_neo4j_driver(), normalized_target_entity_class, escaped_json_list_str, activity_json_list_str, source_entities_list, collection_uuids_list = collection_uuids_list)
+    result_dict = neo4j_queries.create_derived_entity(get_neo4j_driver(neo4j_driver), normalized_target_entity_class, escaped_json_list_str, activity_json_list_str, source_entities_list, collection_uuids_list = collection_uuids_list)
 
     return jsonify(result_dict)
 
@@ -552,7 +552,7 @@ def update_entity(id):
     app.logger.info(json_list_str)
 
     # Update the exisiting entity
-    result_dict = neo4j_queries.update_entity(get_neo4j_driver(), normalized_entity_class, escaped_json_list_str, entity_uuid)
+    result_dict = neo4j_queries.update_entity(get_neo4j_driver(neo4j_driver), normalized_entity_class, escaped_json_list_str, entity_uuid)
 
     # Get rid of the entity node properties that are not defined in the yaml schema
     result_dict = remove_undefined_entity_properties(normalized_entity_class, result_dict)
@@ -580,7 +580,7 @@ json
 @app.route('/ancestors/<id>', methods = ['GET'])
 def get_ancestors(id):
     uuid = get_target_uuid(id)
-    ancestors_list = neo4j_queries.get_ancestors(get_neo4j_driver(), uuid)
+    ancestors_list = neo4j_queries.get_ancestors(get_neo4j_driver(neo4j_driver), uuid)
     return jsonify(ancestors_list)
 
 """
@@ -599,7 +599,7 @@ json
 @app.route('/descendants/<id>', methods = ['GET'])
 def get_descendants(id):
     uuid = get_target_uuid(id)
-    descendants_list = neo4j_queries.get_descendants(get_neo4j_driver(), uuid)
+    descendants_list = neo4j_queries.get_descendants(get_neo4j_driver(neo4j_driver), uuid)
     return jsonify(descendants_list)
 
 """
@@ -618,7 +618,7 @@ json
 @app.route('/parents/<id>', methods = ['GET'])
 def get_parents(id):
     uuid = get_target_uuid(id)
-    parents_list = neo4j_queries.get_parents(get_neo4j_driver(), uuid)
+    parents_list = neo4j_queries.get_parents(get_neo4j_driver(neo4j_driver), uuid)
     return jsonify(parents_list)
 
 """
@@ -637,7 +637,7 @@ json
 @app.route('/children/<id>', methods = ['GET'])
 def get_children(id):
     uuid = get_target_uuid(id)
-    children_list = neo4j_queries.get_children(get_neo4j_driver(), uuid)
+    children_list = neo4j_queries.get_children(get_neo4j_driver(neo4j_driver), uuid)
     return jsonify(children_list)
 
 
@@ -734,7 +734,7 @@ def get_globus_url(id):
         
         #look up the dataset in Neo4j and retrieve the allowable data access level (public, protected or consortium)
         #for the dataset and HuBMAP Component ID that the dataset belongs to
-        entity_dict = neo4j_queries.get_entity(get_neo4j_driver(), normalized_entity_class, uuid)
+        entity_dict = neo4j_queries.get_entity(get_neo4j_driver(neo4j_driver), normalized_entity_class, uuid)
         if not 'group_uuid' in entity_dict or string_helper.isBlank(entity_dict['group_uuid']):
             internal_server_error("Group id not set for dataset with uuid: " + uuid)
     
@@ -816,7 +816,7 @@ def get_globus_url(id):
 ## Internal Functions
 ####################################################################################################
 
-def get_neo4j_driver():
+def get_neo4j_driver(neo4j_driver):
     if neo4j_driver.closed():
         neo4j_driver = GraphDatabase.driver(app.config['NEO4J_SERVER'], auth = (app.config['NEO4J_USERNAME'], app.config['NEO4J_PASSWORD']))
     
@@ -1148,7 +1148,7 @@ def query_target_entity(id):
     uuid = get_target_uuid(id)
 
     try:
-        entity_dict = neo4j_queries.get_entity(get_neo4j_driver(), uuid)
+        entity_dict = neo4j_queries.get_entity(get_neo4j_driver(neo4j_driver), uuid)
     except Exception as e:
         app.logger.info("======Exception from calling neo4j_queries.get_entity()======")
         app.logger.error(e)
