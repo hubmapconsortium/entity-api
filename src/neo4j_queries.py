@@ -4,7 +4,7 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-# Use "entity" as the filed name of the single result record
+# The filed name of the single result record
 record_field_name = 'result'
 
 ####################################################################################################
