@@ -269,7 +269,7 @@ def get_entities_by_class(entity_class):
         property_list = neo4j_queries.get_entities_by_class(neo4j_driver, normalized_entity_class, property_key)
 
         # Final result
-        final_result = property_value
+        final_result = property_list
 
     # Response with the final result
     return jsonify(final_result)
