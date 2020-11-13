@@ -11,7 +11,7 @@ def check_connection(neo4j_driver):
     with neo4j_driver.session() as session:
         try:
             session.run("CALL db.schema()")
-            return true
+            return True
         except CypherError as ce:
             raise CypherError("A Cypher error was encountered: " + ce.message)
         except Exception as e:
