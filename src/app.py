@@ -167,6 +167,9 @@ json
 """
 @app.route('/entities/id/<id>', methods = ['GET'])
 def get_entity_by_id(id):
+    # A list of supported property keys can be used for result filtering in URL query string
+    accepted_keys = ['data_access_level']
+
     # Query target entity against neo4j and return as a dict if exists
     entity_dict = query_target_entity(id)
 
@@ -196,17 +199,18 @@ def get_entity_by_id(id):
     args = request.args
     if 'property' in args:
         property_key = args['property']
-        # Validate the target property
-        accepted_keys = ['data_access_level']
 
+        # Validate the target property
         if property_key not in accepted_keys:
-            bad_request_error("Unsupported property specified in the query string")
+            bad_request_error("Unsupported property key specified in the query string")
         
         # Only return the property value
         property_value = result_dict[property_key]
 
         # Final result
         final_result = property_value
+    else:
+        bad_request_error("The specified query string is not supported. Use '?property=<key>' to filter the result")
 
     # Response with the final result
     return jsonify(final_result)
@@ -243,6 +247,9 @@ json
 """
 @app.route('/entities/class/<entity_class>', methods = ['GET'])
 def get_entities_by_class(entity_class):
+    # A list of supported property keys can be used for result filtering in URL query string
+    accepted_keys = ['uuid']
+
     # Normalize user provided entity_class
     normalized_entity_class = normalize_entity_class(entity_class)
 
@@ -259,17 +266,18 @@ def get_entities_by_class(entity_class):
     args = request.args
     if 'property' in args:
         property_key = args['property']
-        # Validate the target property
-        accepted_keys = ['uuid']
 
+        # Validate the target property
         if property_key not in accepted_keys:
-            bad_request_error("Unsupported property specified in the query string")
+            bad_request_error("Unsupported property key specified in the query string")
         
         # Only return a list of the filtered property value of each entity
         property_list = neo4j_queries.get_entities_by_class(neo4j_driver, normalized_entity_class, property_key)
 
         # Final result
         final_result = property_list
+    else:
+        bad_request_error("The specified query string is not supported. Use '?property=<key>' to filter the result")
 
     # Response with the final result
     return jsonify(final_result)
