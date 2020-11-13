@@ -232,7 +232,7 @@ json
 """
 @app.route('/entity_classes', methods = ['GET'])
 def get_entity_classes():
-    return jsonify(get_schema_entity_classes())
+    return jsonify(get_all_entity_classes())
 
 """
 Retrive all the entity nodes for a given entity class
@@ -870,10 +870,44 @@ Returns
 list
     A list of entity classes
 """
-def get_schema_entity_classes():
+def get_all_entity_classes():
     dict_keys = schema['ENTITIES'].keys()
     # Need convert the dict_keys object to a list
     return list(dict_keys)
+
+"""
+Get a list of entity classes that can be used as derivation source in the schmea yaml
+
+Returns
+-------
+list
+    A list of entity classes
+"""
+def get_derivation_source_entity_classes():
+    derivation_source_entity_classes = []
+    entity_classes = get_schema_entity_classes()
+    for entity_class in entity_classes:
+        if schema['ENTITIES'][entity_class]['derivation']['source']:
+            derivation_source_entity_classes.append(entity_class)
+
+    return derivation_source_entity_classes
+
+"""
+Get a list of entity classes that can be used as derivation target in the schmea yaml
+
+Returns
+-------
+list
+    A list of entity classes
+"""
+def get_derivation_target_entity_classes():
+    derivation_target_entity_classes = []
+    entity_classes = get_schema_entity_classes()
+    for entity_class in entity_classes:
+        if schema['ENTITIES'][entity_class]['derivation']['target']:
+            derivation_target_entity_classes.append(entity_class)
+
+    return derivation_target_entity_classes
 
 """
 Lowercase and captalize the entity type string
@@ -921,7 +955,7 @@ normalized_target_entity_class : str
 """
 def validate_target_entity_class_for_derivation(normalized_target_entity_class):
     separator = ", "
-    accepted_target_entity_classes = ['Dataset', 'Donor', 'Sample']
+    accepted_target_entity_classes = get_derivation_target_entity_classes()
 
     if normalized_target_entity_class not in accepted_target_entity_classes:
         bad_request_error("Invalid target entity class specified for creating the derived entity. Accepted classes: " + separator.join(accepted_target_entity_classes))
@@ -936,7 +970,7 @@ normalized_source_entity_class : str
 """
 def validate_source_entity_class_for_derivation(normalized_source_entity_class):
     separator = ", "
-    accepted_source_entity_classes = ['Dataset', 'Sample']
+    accepted_source_entity_classes = get_derivation_source_entity_classes()
 
     if normalized_source_entity_class not in accepted_source_entity_classes:
         bad_request_error("Invalid source entity class specified for creating the derived entity. Accepted classes: " + separator.join(accepted_source_entity_classes))

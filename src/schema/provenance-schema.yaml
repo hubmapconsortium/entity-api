@@ -127,6 +127,10 @@ shared_entity_properties: &shared_entity_properties
 ENTITIES:
   ############################################# Collection #############################################
   Collection:
+    # Collection can not be derivation source nor target
+    derivation:
+      source: false
+      target: false
     properties:
       <<: *shared_properties
       <<: *shared_entity_properties
@@ -146,6 +150,10 @@ ENTITIES:
 
   ############################################# Dataset #############################################
   Dataset:
+    # Dataset can be either derivation source or target
+    derivation:
+      source: true
+      target: true
     properties:
       <<: *shared_properties
       <<: *shared_entity_properties
@@ -199,6 +207,10 @@ ENTITIES:
 
   ############################################# Donor #############################################
   Donor:
+    # Dnor can be derivation source but not target
+    derivation:
+      source: false
+      target: true
     properties:
       <<: *shared_properties
       <<: *shared_entity_properties
@@ -234,6 +246,10 @@ ENTITIES:
 
   ############################################# Sample #############################################
   Sample:
+    # Sample can be either derivation source or target
+    derivation:
+      source: true
+      target: true
     properties:
       <<: *shared_properties
       <<: *shared_entity_properties
