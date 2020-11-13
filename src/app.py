@@ -154,6 +154,8 @@ def delete_schema_cache():
 
 """
 Retrive the properties of a given entity by id
+Result filtering is supported based on query string
+For example: /entities/<id>?property=data_access_level
 
 Parameters
 ----------
@@ -163,12 +165,12 @@ id : str
 Returns
 -------
 json
-    All the properties of the target entity
+    All the properties or filtered property of the target entity
 """
 @app.route('/entities/id/<id>', methods = ['GET'])
 def get_entity_by_id(id):
     # A list of supported property keys can be used for result filtering in URL query string
-    accepted_keys = ['data_access_level']
+    result_filtering_accepted_property_keys = ['data_access_level']
 
     # Query target entity against neo4j and return as a dict if exists
     entity_dict = query_target_entity(id)
@@ -180,13 +182,13 @@ def get_entity_by_id(id):
     entity_dict = remove_undefined_entity_properties(normalized_entity_class, entity_dict)
 
     # Dictionaries to be merged and passed to trigger methods
-    normalized_entity_class_dict = {"normalized_entity_class": normalized_entity_class}
+    normalized_entity_class_dict = {'normalized_entity_class': normalized_entity_class}
 
     # Merge all the above dictionaries
     # If the latter dictionary contains the same key as the previous one, it will overwrite the value for that key
     data_dict = {**entity_dict, **normalized_entity_class_dict}
 
-    generated_on_read_trigger_data_dict = generate_triggered_data("on_read_trigger", "ENTITIES", data_dict)
+    generated_on_read_trigger_data_dict = generate_triggered_data('on_read_trigger', 'ENTITIES', data_dict)
 
     # Merge the entity info and the generated on read data into one dictionary
     result_dict = {**entity_dict, **generated_on_read_trigger_data_dict}
@@ -201,7 +203,7 @@ def get_entity_by_id(id):
         property_key = args['property']
 
         # Validate the target property
-        if property_key not in accepted_keys:
+        if property_key not in result_filtering_accepted_property_keys:
             bad_request_error("Unsupported property key specified in the query string")
         
         # Only return the property value
@@ -233,11 +235,13 @@ def get_entity_classes():
     dict_keys = schema['ENTITIES'].keys()
     # Need convert the dict_keys object to a list
     classes_list = list(dict_keys)
-    
+
     return jsonify(classes_list)
 
 """
-Retrive all the uuids of entity nodes for a given entity class
+Retrive all the entity nodes for a given entity class
+Result filtering is supported based on query string
+For example: /entities/<entity_class>?property=uuid
 
 Parameters
 ----------
@@ -252,7 +256,7 @@ json
 @app.route('/entities/class/<entity_class>', methods = ['GET'])
 def get_entities_by_class(entity_class):
     # A list of supported property keys can be used for result filtering in URL query string
-    accepted_keys = ['uuid']
+    result_filtering_accepted_property_keys = ['uuid']
 
     # Normalize user provided entity_class
     normalized_entity_class = normalize_entity_class(entity_class)
@@ -272,7 +276,7 @@ def get_entities_by_class(entity_class):
         property_key = args['property']
 
         # Validate the target property
-        if property_key not in accepted_keys:
+        if property_key not in result_filtering_accepted_property_keys:
             bad_request_error("Unsupported property key specified in the query string")
         
         # Only return a list of the filtered property value of each entity
@@ -314,7 +318,7 @@ def create_entity(entity_class):
     json_data_dict = request.get_json()
 
     # Validate request json against the yaml schema
-    validate_json_data_against_schema(json_data_dict, "ENTITIES", normalized_entity_class)
+    validate_json_data_against_schema(json_data_dict, 'ENTITIES', normalized_entity_class)
 
     # For new dataset to be linked to existing collections
     collection_uuids_list = []
@@ -327,7 +331,7 @@ def create_entity(entity_class):
             collection_dict = query_target_entity(collection_uuid)
 
     # Dictionaries to be merged and passed to trigger methods
-    normalized_entity_class_dict = {"normalized_entity_class": normalized_entity_class}
+    normalized_entity_class_dict = {'normalized_entity_class': normalized_entity_class}
     user_info_dict = get_user_info(request)
     new_ids_dict = create_new_ids(normalized_entity_class)
 
@@ -335,7 +339,7 @@ def create_entity(entity_class):
     # If the latter dictionary contains the same key as the previous one, it will overwrite the value for that key
     data_dict = {**normalized_entity_class_dict, **user_info_dict, **new_ids_dict}
 
-    generated_on_create_trigger_data_dict = generate_triggered_data("on_create_trigger", "ENTITIES", data_dict)
+    generated_on_create_trigger_data_dict = generate_triggered_data('on_create_trigger', 'ENTITIES', data_dict)
 
     # Merge the user json data and generated trigger data into one dictionary
     merged_dict = {**json_data_dict, **generated_on_create_trigger_data_dict}
@@ -396,13 +400,13 @@ def create_derived_entity(target_entity_class):
     # Parse incoming json string into json data(python dict object)
     json_data_dict = request.get_json()
 
-    if not "source_entities" in json_data_dict:
+    if not 'source_entities' in json_data_dict:
         bad_request_error("Key 'source_entities' is missing from the JSON request body")
 
     source_entities_list = json_data_dict['source_entities']
 
     for source_entity in source_entities_list:
-        if (not "class" in source_entity) or (not "id" in source_entity):
+        if (not 'class' in source_entity) or (not 'id' in source_entity):
             bad_request_error("Each source entity object within the 'source_entities' list must contain 'class' key and 'id' key")
             
         # Also normalize and validate the source entity class
@@ -418,11 +422,11 @@ def create_derived_entity(target_entity_class):
         del source_entity['id']
 
     # Validate request json against the yaml schema
-    validate_json_data_against_schema(json_data_dict, "ENTITIES", normalized_target_entity_class)
+    validate_json_data_against_schema(json_data_dict, 'ENTITIES', normalized_target_entity_class)
 
     # For derived Dataset to be linked with existing Collections
     collection_uuids_list = []
-    if normalized_target_entity_class == "Dataset":
+    if normalized_target_entity_class == 'Dataset':
         if 'collection_uuids' in json_data_dict:
             collection_uuids_list = json_data_dict['collection_uuids']
 
@@ -431,7 +435,7 @@ def create_derived_entity(target_entity_class):
             collection_dict = query_target_entity(collection_uuid)
 
     # Dictionaries to be merged and passed to trigger methods
-    normalized_entity_class_dict = {"normalized_entity_class": normalized_target_entity_class}
+    normalized_entity_class_dict = {'normalized_entity_class': normalized_target_entity_class}
     user_info_dict = get_user_info(request)
     new_ids_dict = create_new_ids(normalized_target_entity_class)
 
@@ -439,7 +443,7 @@ def create_derived_entity(target_entity_class):
     # If the latter dictionary contains the same key as the previous one, it will overwrite the value for that key
     data_dict = {**normalized_entity_class_dict, **user_info_dict, **new_ids_dict}
 
-    generated_on_create_trigger_data_dict = generate_triggered_data("on_create_trigger", "ENTITIES", data_dict)
+    generated_on_create_trigger_data_dict = generate_triggered_data('on_create_trigger', 'ENTITIES', data_dict)
 
     # Merge two dictionaries
     merged_dict = {**json_data_dict, **generated_on_create_trigger_data_dict}
@@ -458,12 +462,11 @@ def create_derived_entity(target_entity_class):
 
     # For Activity creation.
     # Activity is not an Entity, thus we use "class" for reference
-    normalized_activity_class = "Activity"
+    normalized_activity_class = 'Activity'
 
     # Dictionaries to be merged and passed to trigger methods
-    normalized_activity_class_dict = {
-        "normalized_activity_class": normalized_activity_class
-    }
+    normalized_activity_class_dict = {'normalized_activity_class': normalized_activity_class}
+
     # Create new ids for the Activity node
     new_ids_dict_for_activity = create_new_ids(normalized_activity_class)
 
@@ -471,7 +474,7 @@ def create_derived_entity(target_entity_class):
     data_dict_for_activity = {**normalized_activity_class_dict, **user_info_dict, **new_ids_dict_for_activity}
 
     # Get trigger generated data for Activity
-    generated_on_create_trigger_data_dict_for_activity = generate_triggered_data("on_create_trigger", "ACTIVITIES", data_dict_for_activity)
+    generated_on_create_trigger_data_dict_for_activity = generate_triggered_data('on_create_trigger', 'ACTIVITIES', data_dict_for_activity)
     
     # `UNWIND` in Cypher expects List<T>
     activity_data_list = [generated_on_create_trigger_data_dict_for_activity]
@@ -523,17 +526,17 @@ def update_entity(id):
     entity_uuid = entity_dict['uuid']
 
     # Validate request json against the yaml schema
-    validate_json_data_against_schema(json_data_dict, "ENTITIES", normalized_entity_class)
+    validate_json_data_against_schema(json_data_dict, 'ENTITIES', normalized_entity_class)
 
     # Dictionaries to be merged and passed to trigger methods
-    normalized_entity_class_dict = {"normalized_entity_class": normalized_entity_class}
+    normalized_entity_class_dict = {'normalized_entity_class': normalized_entity_class}
     user_info_dict = get_user_info(request)
 
     # Merge all the above dictionaries
     # If the latter dictionary contains the same key as the previous one, it will overwrite the value for that key
     data_dict = {**normalized_entity_class_dict, **user_info_dict}
 
-    generated_on_update_trigger_data_dict = generate_triggered_data("on_update_trigger", "ENTITIES", data_dict)
+    generated_on_update_trigger_data_dict = generate_triggered_data('on_update_trigger', 'ENTITIES', data_dict)
 
     # Merge two dictionaries
     merged_dict = {**json_data_dict, **generated_on_update_trigger_data_dict}
@@ -725,7 +728,7 @@ Response
 """
 @app.route('/entities/dataset/globus-url/<id>', methods = ['GET'])
 def get_globus_url(id):
-    normalized_entity_class = "Dataset"
+    normalized_entity_class = 'Dataset'
     
     # Get all group (tmc/component/Globus Groups/etc...) info as a dict directly from the
     # hubmap-globus-groups.json file in commons repo
@@ -893,7 +896,7 @@ normalized_entity_class : str
 """
 def validate_normalized_entity_class(normalized_entity_class):
     separator = ", "
-    accepted_entity_classs = ["Dataset", "Donor", "Sample", "Collection"]
+    accepted_entity_classs = ['Dataset', 'Donor', 'Sample', 'Collection']
 
     # Validate provided entity_class
     if normalized_entity_class not in accepted_entity_classs:
@@ -909,7 +912,7 @@ normalized_target_entity_class : str
 """
 def validate_target_entity_class_for_derivation(normalized_target_entity_class):
     separator = ", "
-    accepted_target_entity_classes = ["Dataset", "Donor", "Sample"]
+    accepted_target_entity_classes = ['Dataset', 'Donor', 'Sample']
 
     if normalized_target_entity_class not in accepted_target_entity_classes:
         bad_request_error("Invalid target entity class specified for creating the derived entity. Accepted classes: " + separator.join(accepted_target_entity_classes))
@@ -924,7 +927,7 @@ normalized_source_entity_class : str
 """
 def validate_source_entity_class_for_derivation(normalized_source_entity_class):
     separator = ", "
-    accepted_source_entity_classes = ["Dataset", "Sample"]
+    accepted_source_entity_classes = ['Dataset', 'Sample']
 
     if normalized_source_entity_class not in accepted_source_entity_classes:
         bad_request_error("Invalid source entity class specified for creating the derived entity. Accepted classes: " + separator.join(accepted_source_entity_classes))
@@ -995,9 +998,9 @@ def get_target_uuid(id):
         ids_list = response.json()
 
         if len(ids_list) == 0:
-            internal_server_error('unable to find information on identifier: ' + id)
+            internal_server_error("unable to find information on identifier: " + id)
         if len(ids_list) > 1:
-            internal_server_error('found multiple records for identifier: ' + id)
+            internal_server_error("found multiple records for identifier: " + id)
         
         return ids_list[0]['hmuuid']
     else:
@@ -1254,7 +1257,7 @@ def generate_triggered_data(trigger_type, normalized_schema_section_key, data_di
     schema_keys = properties.keys() 
 
     # Always pass the `neo4j_driver` along with the data_dict to schema_triggers.py module
-    neo4j_driver_dict = {"neo4j_driver": neo4j_driver}
+    neo4j_driver_dict = {'neo4j_driver': neo4j_driver}
     combined_data_dict = {**neo4j_driver_dict, **data_dict}
 
     # Put all resulting data into a dictionary too
@@ -1267,29 +1270,6 @@ def generate_triggered_data(trigger_type, normalized_schema_section_key, data_di
             trigger_generated_data_dict[key] = trigger_method_to_call(combined_data_dict)
 
     return trigger_generated_data_dict
-
-"""
-Generate the final response data
-
-Parameters
-----------
-key : str
-    One of the normalized entity classes: Dataset, Collection, Sample, Donor
-value : str|bool|list|dict
-    The value of the key
-    
-Returns
--------
-str
-    A response of json string representation
-"""
-def json_response(key, value):
-    # JSON keys are case-sensitive, we use lowercase
-    result = {
-        key.lower(): value
-    }
-
-    return jsonify(result)
 
 """
 Initialize AuthHelper (AuthHelper from HuBMAP commons package)

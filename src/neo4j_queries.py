@@ -5,7 +5,7 @@ import logging
 logger = logging.getLogger(__name__)
 
 # Use "entity" as the filed name of the single result record
-record_field_name = "result"
+record_field_name = 'result'
 
 ####################################################################################################
 ## Activity creation
@@ -110,7 +110,7 @@ def get_entity(neo4j_driver, uuid):
 
             return entity_dict
         except CypherError as ce:
-            raise CypherError('A Cypher error was encountered: ' + ce.message)
+            raise CypherError("A Cypher error was encountered: " + ce.message)
         except Exception as e:
             raise e
 
@@ -176,7 +176,7 @@ def get_entities_by_class(neo4j_driver, entity_class, property_key = None):
 
             return result_list
         except CypherError as ce:
-            raise CypherError('A Cypher error was encountered: ' + ce.message)
+            raise CypherError("A Cypher error was encountered: " + ce.message)
         except Exception as e:
             raise e
 
@@ -223,7 +223,7 @@ def get_source_uuids(neo4j_driver, uuid):
 
             return source_uuids
         except CypherError as ce:
-            raise CypherError('A Cypher error was encountered: ' + ce.message)
+            raise CypherError("A Cypher error was encountered: " + ce.message)
         except Exception as e:
             raise e
 
@@ -267,7 +267,7 @@ def get_dataset_uuids_by_collection(neo4j_driver, uuid):
 
             return dataset_uuids_list
         except CypherError as ce:
-            raise CypherError('A Cypher error was encountered: ' + ce.message)
+            raise CypherError("A Cypher error was encountered: " + ce.message)
         except Exception as e:
             raise e
 
@@ -318,7 +318,7 @@ def count_attached_published_datasets(neo4j_driver, entity_class, uuid):
             logger.error("======count_attached_published_datasets() Cypher error:======")
             logger.error(ce)
 
-            raise CypherError('A Cypher error was encountered: ' + ce.message)
+            raise CypherError("A Cypher error was encountered: " + ce.message)
         except Exception as e:
             raise e
 
@@ -347,7 +347,7 @@ def count_attached_published_datasets(neo4j_driver, entity_class, uuid):
 
             return dataset_uuids_list
         except CypherError as ce:
-            raise CypherError('A Cypher error was encountered: ' + ce.message)
+            raise CypherError("A Cypher error was encountered: " + ce.message)
         except Exception as e:
             raise e
 
@@ -544,7 +544,7 @@ def create_entity(neo4j_driver, entity_class, entity_json_list_str, collection_u
             logger.error("======create_entity() Cypher error:======")
             logger.error(ce)
 
-            raise CypherError('A Cypher error was encountered: ' + ce.message)
+            raise CypherError("A Cypher error was encountered: " + ce.message)
         except TransactionError as te:
             logger.error("======create_entity() transaction error:======")
             logger.error(te.value)
@@ -554,7 +554,7 @@ def create_entity(neo4j_driver, entity_class, entity_json_list_str, collection_u
 
                 tx.rollback()
 
-            raise TransactionError('Neo4j transaction error: create_entity()' + te.value)
+            raise TransactionError("Neo4j transaction error: create_entity()" + te.value)
         except Exception as e:
             raise e
 
@@ -622,7 +622,7 @@ def create_derived_entity(neo4j_driver, entity_class, entity_json_list_str, acti
             logger.error("======create_derived_entity() Cypher error:======")
             logger.error(ce)
 
-            raise CypherError('A Cypher error was encountered: ' + ce.message)
+            raise CypherError("A Cypher error was encountered: " + ce.message)
         except TransactionError as te:
             logger.error("======create_derived_entity() transaction error:======")
             logger.error(te.value)
@@ -632,7 +632,7 @@ def create_derived_entity(neo4j_driver, entity_class, entity_json_list_str, acti
 
                 tx.rollback()
 
-            raise TransactionError('Neo4j transaction error: create_derived_entity()' + te.value)
+            raise TransactionError("Neo4j transaction error: create_derived_entity()" + te.value)
         except Exception as e:
             raise e
 
@@ -725,7 +725,7 @@ def update_entity(neo4j_driver, entity_class, json_list_str, uuid):
             logger.error("======update_entity() Cypher error:======")
             logger.error(ce)
 
-            raise CypherError('A Cypher error was encountered: ' + ce.message)
+            raise CypherError("A Cypher error was encountered: " + ce.message)
         except Exception as e:
             raise e
 
@@ -775,7 +775,7 @@ def get_ancestors(neo4j_driver, uuid):
             logger.error("======get_ancestors() Cypher error:======")
             logger.error(ce)
 
-            raise CypherError('A Cypher error was encountered: ' + ce.message)
+            raise CypherError("A Cypher error was encountered: " + ce.message)
         except Exception as e:
             raise e
 
@@ -825,7 +825,7 @@ def get_descendants(neo4j_driver, uuid):
             logger.error("======get_descendants() Cypher error:======")
             logger.error(ce)
 
-            raise CypherError('A Cypher error was encountered: ' + ce.message)
+            raise CypherError("A Cypher error was encountered: " + ce.message)
         except Exception as e:
             raise e
 
@@ -874,7 +874,7 @@ def get_parents(neo4j_driver, uuid):
             logger.error("======get_parents() Cypher error:======")
             logger.error(ce)
 
-            raise CypherError('A Cypher error was encountered: ' + ce.message)
+            raise CypherError("A Cypher error was encountered: " + ce.message)
         except Exception as e:
             raise e
 
@@ -922,7 +922,7 @@ def get_children(neo4j_driver, uuid):
             logger.error("======get_children() Cypher error:======")
             logger.error(ce)
             
-            raise CypherError('A Cypher error was encountered: ' + ce.message)
+            raise CypherError("A Cypher error was encountered: " + ce.message)
         except Exception as e:
             raise e
 
