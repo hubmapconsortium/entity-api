@@ -165,7 +165,7 @@ Returns
 json
     All the properties of the target entity
 """
-@app.route('/entities/<id>', methods = ['GET'])
+@app.route('/entities/id/<id>', methods = ['GET'])
 def get_entity_by_id(id):
     # Query target entity against neo4j and return as a dict if exists
     entity_dict = query_target_entity(id)
@@ -241,7 +241,7 @@ Returns
 json
     All the entity nodes in a list of the target entity class
 """
-@app.route('/entities/<entity_class>', methods = ['GET'])
+@app.route('/entities/class/<entity_class>', methods = ['GET'])
 def get_entities_by_class(entity_class):
     # Normalize user provided entity_class
     normalized_entity_class = normalize_entity_class(entity_class)
@@ -493,8 +493,8 @@ Returns
 json
     All the updated properties of the target entity
 """
-@app.route('/entities/<entity_class>/<id>', methods = ['PUT'])
-def update_entity(entity_class, id):
+@app.route('/entities/<id>', methods = ['PUT'])
+def update_entity(id):
     # Always expect a json body
     require_json(request)
 
