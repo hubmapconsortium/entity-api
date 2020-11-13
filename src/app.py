@@ -885,7 +885,7 @@ list
 """
 def get_derivation_source_entity_classes():
     derivation_source_entity_classes = []
-    entity_classes = get_schema_entity_classes()
+    entity_classes = get_all_entity_classes()
     for entity_class in entity_classes:
         if schema['ENTITIES'][entity_class]['derivation']['source']:
             derivation_source_entity_classes.append(entity_class)
@@ -902,7 +902,7 @@ list
 """
 def get_derivation_target_entity_classes():
     derivation_target_entity_classes = []
-    entity_classes = get_schema_entity_classes()
+    entity_classes = get_all_entity_classes()
     for entity_class in entity_classes:
         if schema['ENTITIES'][entity_class]['derivation']['target']:
             derivation_target_entity_classes.append(entity_class)
@@ -939,7 +939,7 @@ normalized_entity_class : str
 """
 def validate_normalized_entity_class(normalized_entity_class):
     separator = ", "
-    accepted_entity_classes = get_schema_entity_classes()
+    accepted_entity_classes = get_all_entity_classes()
 
     # Validate provided entity_class
     if normalized_entity_class not in accepted_entity_classes:
