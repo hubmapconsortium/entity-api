@@ -232,11 +232,7 @@ json
 """
 @app.route('/entity_classes', methods = ['GET'])
 def get_entity_classes():
-    dict_keys = schema['ENTITIES'].keys()
-    # Need convert the dict_keys object to a list
-    classes_list = list(dict_keys)
-
-    return jsonify(classes_list)
+    return jsonify(get_schema_entity_classes())
 
 """
 Retrive all the entity nodes for a given entity class
@@ -867,6 +863,19 @@ def internal_server_error(err_msg):
     abort(500, description = err_msg)
 
 """
+Get a list of all the supported entity classes in the schmea yaml
+
+Returns
+-------
+list
+    A list of entity classes
+"""
+def get_schema_entity_classes():
+    dict_keys = schema['ENTITIES'].keys()
+    # Need convert the dict_keys object to a list
+    return list(dict_keys)
+
+"""
 Lowercase and captalize the entity type string
 
 Parameters
@@ -896,11 +905,11 @@ normalized_entity_class : str
 """
 def validate_normalized_entity_class(normalized_entity_class):
     separator = ", "
-    accepted_entity_classs = ['Dataset', 'Donor', 'Sample', 'Collection']
+    accepted_entity_classes = get_schema_entity_classes()
 
     # Validate provided entity_class
-    if normalized_entity_class not in accepted_entity_classs:
-        bad_request_error("The specified entity class in URL must be one of the following: " + separator.join(accepted_entity_classs))
+    if normalized_entity_class not in accepted_entity_classes:
+        bad_request_error("The specified entity class in URL must be one of the following: " + separator.join(accepted_entity_classes))
 
 """
 Validate the source and target entity classes for creating derived entity
