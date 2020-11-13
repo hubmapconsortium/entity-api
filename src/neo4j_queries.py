@@ -62,39 +62,28 @@ neo4j_driver : neo4j.driver
     The neo4j driver instance
 uuid : str
     The uuid of target entity 
-entity_class : str (optional)
-    One of the normalized entity classes: Dataset, Collection, Sample, Donor
 
 Returns
 -------
 dict
     A dictionary of entity details returned from the Cypher query
 """
-def get_entity(neo4j_driver, uuid, entity_class = None):
-    nodes = []
-    entity_dict = {}
+def get_entity(neo4j_driver, uuid):
+    parameterized_query = ("MATCH (e:Entity) " + 
+                           "WHERE e.uuid = '{uuid}' " +
+                           "RETURN e AS {record_field_name}")
 
-    if entity_class:
-        parameterized_query = ("MATCH (e:{entity_class}) " + 
-                               "WHERE e.uuid = '{uuid}' " +
-                               "RETURN e AS {record_field_name}")
-
-        query = parameterized_query.format(entity_class = entity_class, 
-                                           uuid = uuid, 
-                                           record_field_name = record_field_name)
-    else:
-        parameterized_query = ("MATCH (e:Entity) " + 
-                               "WHERE e.uuid = '{uuid}' " +
-                               "RETURN e AS {record_field_name}")
-
-        query = parameterized_query.format(uuid = uuid, 
-                                           record_field_name = record_field_name)
+    query = parameterized_query.format(uuid = uuid, 
+                                       record_field_name = record_field_name)
     
     logger.info("======get_entity() query:======")
     logger.info(query)
 
     with neo4j_driver.session() as session:
         try:
+            nodes = []
+            entity_dict = {}
+
             results = session.run(query)
 
             # Add all records to the nodes list

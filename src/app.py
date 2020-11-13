@@ -287,7 +287,7 @@ Returns
 json
     All the properties of the newly created entity
 """
-@app.route('/<entity_class>', methods = ['POST'])
+@app.route('/entities/<entity_class>', methods = ['POST'])
 def create_entity(entity_class):
     # Normalize user provided entity_class
     normalized_entity_class = normalize_entity_class(entity_class)
@@ -312,7 +312,7 @@ def create_entity(entity_class):
 
         # Check existence of those collections
         for collection_uuid in collection_uuids_list:
-            collection_dict = query_target_entity(collection_uuid, 'Collection')
+            collection_dict = query_target_entity(collection_uuid)
 
     # Dictionaries to be merged and passed to trigger methods
     normalized_entity_class_dict = {"normalized_entity_class": normalized_entity_class}
@@ -398,7 +398,7 @@ def create_derived_entity(target_entity_class):
         validate_source_entity_class_for_derivation(normalized_source_entity_class)
 
         # Query source entity against neo4j and return as a dict if exists
-        source_entity_dict = query_target_entity(source_entity['id'], normalized_source_entity_class)
+        source_entity_dict = query_target_entity(source_entity['id'])
         
         # Add the uuid to the source_entity dict of each source for later use
         source_entity['uuid'] = source_entity_dict['uuid']
@@ -416,7 +416,7 @@ def create_derived_entity(target_entity_class):
 
         # Check existence of those collections
         for collection_uuid in collection_uuids_list:
-            collection_dict = query_target_entity(collection_uuid, 'Collection')
+            collection_dict = query_target_entity(collection_uuid)
 
     # Dictionaries to be merged and passed to trigger methods
     normalized_entity_class_dict = {"normalized_entity_class": normalized_target_entity_class}
@@ -493,14 +493,8 @@ Returns
 json
     All the updated properties of the target entity
 """
-@app.route('/<entity_class>/<id>', methods = ['PUT'])
+@app.route('/entities/<entity_class>/<id>', methods = ['PUT'])
 def update_entity(entity_class, id):
-    # Normalize user provided entity_class
-    normalized_entity_class = normalize_entity_class(entity_class)
- 
-    # Validate the normalized_entity_class to make sure it's one of the accepted classes
-    validate_normalized_entity_class(normalized_entity_class)
-
     # Always expect a json body
     require_json(request)
 
@@ -508,7 +502,10 @@ def update_entity(entity_class, id):
     json_data_dict = request.get_json()
 
     # Get target entity and return as a dict if exists
-    entity_dict = query_target_entity(id, normalized_entity_class)
+    entity_dict = query_target_entity(id)
+
+    # Normalize user provided entity_class
+    normalized_entity_class = normalize_entity_class(entity_dict['entity_class'])
 
     # Get the uuid of the entity for later use
     entity_uuid = entity_dict['uuid']
@@ -1078,20 +1075,18 @@ Parameters
 ----------
 id : str
     The uuid or hubmap_id of target entity
-normalized_entity_class : str (optional)
-    One of the normalized entity classes: Dataset, Collection, Sample, Donor 
 
 Returns
 -------
 dict
     A dictionary of entity details returned from neo4j
 """
-def query_target_entity(id, normalized_entity_class = None):
+def query_target_entity(id):
     # Make a call to uuid-api to get back the uuid
     uuid = get_target_uuid(id)
 
     try:
-        entity_dict = neo4j_queries.get_entity(neo4j_driver, uuid, normalized_entity_class)
+        entity_dict = neo4j_queries.get_entity(neo4j_driver, uuid)
     except Exception as e:
         app.logger.info("======Exception from calling neo4j_queries.get_entity()======")
         app.logger.error(e)
@@ -1105,7 +1100,7 @@ def query_target_entity(id, normalized_entity_class = None):
 
     # Existence check
     if not bool(entity_dict):
-        not_found_error("Could not find the " + normalized_entity_class + " of id: " + id)
+        not_found_error("Could not find the entity of id: " + id)
 
     return entity_dict
 
