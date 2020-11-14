@@ -1235,7 +1235,7 @@ def validate_json_data_against_schema(json_data_dict, normalized_entity_class, e
                     missing_required_keys.append(key)
                 else:
                     # It is a missing key when the existing entity data doesn't have it
-                    if properties[key] not in existing_entity_dict:
+                    if key not in existing_entity_dict:
                         missing_required_keys.append(key)
 
     if len(missing_required_keys) > 0:
