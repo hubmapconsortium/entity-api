@@ -22,8 +22,10 @@ bool
 """
 def check_connection(neo4j_db):
     parameterized_query = ("RETURN 1 AS {record_field_name}")
-
     query = parameterized_query.format(record_field_name = record_field_name)
+
+    logger.info("======check_connection() query:======")
+    logger.info(query)
 
     try:
         result = neo4j_db.run(query)
@@ -33,6 +35,9 @@ def check_connection(neo4j_db):
         if int_value == 1:
             return True
     except CypherError as ce:
+        logger.error("======check_connection() Cypher error:======")
+        logger.error(ce)
+
         raise CypherError("A Cypher error was encountered: " + ce.message)
     except Exception as e:
         raise e
@@ -140,6 +145,9 @@ def get_entity(neo4j_db, uuid):
 
         return entity_dict
     except CypherError as ce:
+        logger.error("======get_entity() Cypher error:======")
+        logger.error(ce)
+
         raise CypherError("A Cypher error was encountered: " + ce.message)
     except Exception as e:
         raise e
@@ -205,6 +213,9 @@ def get_entities_by_class(neo4j_db, entity_class, property_key = None):
 
         return result_list
     except CypherError as ce:
+        logger.error("======get_entities_by_class() Cypher error:======")
+        logger.error(ce)
+
         raise CypherError("A Cypher error was encountered: " + ce.message)
     except Exception as e:
         raise e
@@ -251,6 +262,9 @@ def get_source_uuids(neo4j_db, uuid):
 
         return source_uuids
     except CypherError as ce:
+        logger.error("======get_source_uuids() Cypher error:======")
+        logger.error(ce)
+
         raise CypherError("A Cypher error was encountered: " + ce.message)
     except Exception as e:
         raise e
@@ -294,6 +308,9 @@ def get_dataset_uuids_by_collection(neo4j_db, uuid):
 
         return dataset_uuids_list
     except CypherError as ce:
+        logger.error("======get_collection_dataset_uuids() Cypher error:======")
+        logger.error(ce)
+        
         raise CypherError("A Cypher error was encountered: " + ce.message)
     except Exception as e:
         raise e
