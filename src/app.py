@@ -72,7 +72,6 @@ def get_neo4j_db():
         g.neo4j_db = neo4j_driver.session(database = app.config['NEO4J_DB'])
     return g.neo4j_db
 
-
 @app.teardown_appcontext
 def close_neo4j_db(error):
     if hasattr(g, 'neo4j_db'):
@@ -324,7 +323,7 @@ def create_entity(entity_class):
     json_data_dict = request.get_json()
 
     # Validate request json against the yaml schema
-    validate_json_data_against_schema(json_data_dict, 'ENTITIES', normalized_entity_class)
+    validate_json_data_against_schema(json_data_dict, normalized_entity_class)
 
     # For new dataset to be linked to existing collections
     collection_uuids_list = []
@@ -428,7 +427,7 @@ def create_derived_entity(target_entity_class):
         del source_entity['id']
 
     # Validate request json against the yaml schema
-    validate_json_data_against_schema(json_data_dict, 'ENTITIES', normalized_target_entity_class)
+    validate_json_data_against_schema(json_data_dict, normalized_target_entity_class)
 
     # For derived Dataset to be linked with existing Collections
     collection_uuids_list = []
@@ -532,7 +531,8 @@ def update_entity(id):
     entity_uuid = entity_dict['uuid']
 
     # Validate request json against the yaml schema
-    validate_json_data_against_schema(json_data_dict, 'ENTITIES', normalized_entity_class)
+    # Pass in the entity_dict for missing required key check, this is different from creating new entity
+    validate_json_data_against_schema(json_data_dict, normalized_entity_class, existing_entity_dict = entity_dict)
 
     # Dictionaries to be merged and passed to trigger methods
     normalized_entity_class_dict = {'normalized_entity_class': normalized_entity_class}
@@ -1182,9 +1182,11 @@ json_data_dict : dict
     The JSON data dict from user request
 normalized_entity_class : str
     One of the normalized entity classes: Dataset, Collection, Sample, Donor
+existing_entity_dict : dict
+    Emoty dict for creating new entity, otherwise pass in the existing entity dict
 """
-def validate_json_data_against_schema(json_data_dict, normalized_schema_section_key, normalized_entity_class):
-    properties = schema[normalized_schema_section_key][normalized_entity_class]['properties']
+def validate_json_data_against_schema(json_data_dict, normalized_entity_class, existing_entity_dict = {}):
+    properties = schema['ENTITIES'][normalized_entity_class]['properties']
     schema_keys = properties.keys() 
     json_data_keys = json_data_dict.keys()
     separator = ", "
@@ -1222,12 +1224,19 @@ def validate_json_data_against_schema(json_data_dict, normalized_schema_section_
     missing_required_keys = []
     for key in schema_keys:
         # Schema rules: 
-        # - By default, the schema treats all entity properties as optional. Use `user_input_required: true` to mark an attribute as required
-        # - If an attribute is marked as `user_input_required: true`, it can't have `trigger` at the same time
+        # - By default, the schema treats all entity properties as optional. Use `user_input_required: true` to mark a property as required
+        # - If aproperty is marked as `user_input_required: true`, it can't have `trigger` at the same time
         # It's reenforced here because we can't guarantee this rule is being followed correctly in the schema yaml
         if 'user_input_required' in properties[key]:
             if properties[key]['user_input_required'] and ('trigger' not in properties[key]) and (key not in json_data_keys):
-                missing_required_keys.append(key)
+                # When existing_entity_dict is empty, it means creating new entity
+                # When existing_entity_dict is not empty, it means updating an existing entity
+                if not bool(existing_entity_dict):
+                    missing_required_keys.append(key)
+                else:
+                    # It is a missing key when the existing entity data doesn't have it
+                    if properties[key] not in existing_entity_dict:
+                        missing_required_keys.append(key)
 
     if len(missing_required_keys) > 0:
         bad_request_error("Missing required keys in request json: " + separator.join(missing_required_keys))
