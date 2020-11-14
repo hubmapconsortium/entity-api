@@ -81,7 +81,7 @@ def get_data_access_level(combined_data_dict):
         
         # public if any dataset below it in the provenance hierarchy is published
         # (i.e. Dataset.status == "Published")
-        count = neo4j_queries.count_attached_published_datasets(combined_data_dict['neo4j_driver'], normalized_entity_class, combined_data_dict['uuid'])
+        count = neo4j_queries.count_attached_published_datasets(combined_data_dict['neo4j_db'], normalized_entity_class, combined_data_dict['uuid'])
 
         if count > 0:
             data_access_level = 'public'
@@ -154,7 +154,7 @@ str
     The uuid string of source entity
 """
 def get_source_uuids(combined_data_dict):
-    return neo4j_queries.get_source_uuids(combined_data_dict['neo4j_driver'], combined_data_dict['uuid'])
+    return neo4j_queries.get_source_uuids(combined_data_dict['neo4j_db'], combined_data_dict['uuid'])
 
 """
 Trigger event method of getting uuid
@@ -226,7 +226,7 @@ list
     A list a associated dataset uuids
 """
 def get_dataset_uuids_by_collection(combined_data_dict):
-    return neo4j_queries.get_dataset_uuids_by_collection(combined_data_dict['neo4j_driver'], combined_data_dict['uuid'])
+    return neo4j_queries.get_dataset_uuids_by_collection(combined_data_dict['neo4j_db'], combined_data_dict['uuid'])
 
 
 ####################################################################################################

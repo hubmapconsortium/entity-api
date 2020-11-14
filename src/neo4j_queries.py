@@ -7,15 +7,35 @@ logger = logging.getLogger(__name__)
 # The filed name of the single result record
 record_field_name = 'result'
 
-def check_connection(neo4j_driver):
-    with neo4j_driver.session() as session:
-        try:
-            session.run("CALL db.schema()")
+"""
+Check neo4j connectivity
+
+Parameters
+----------
+neo4j_db : neo4j database session
+    The neo4j database session
+
+Returns
+-------
+bool
+    True if is connected, otherwise error
+"""
+def check_connection(neo4j_db):
+    parameterized_query = ("RETURN 1 AS {record_field_name}")
+
+    query = parameterized_query.format(record_field_name = record_field_name)
+
+    try:
+        result = neo4j_db.run(query)
+        record = result.single()
+        int_value = record[record_field_name]
+        
+        if int_value == 1:
             return True
-        except CypherError as ce:
-            raise CypherError("A Cypher error was encountered: " + ce.message)
-        except Exception as e:
-            raise e
+    except CypherError as ce:
+        raise CypherError("A Cypher error was encountered: " + ce.message)
+    except Exception as e:
+        raise e
 
 
 ####################################################################################################
@@ -69,8 +89,8 @@ Get target entity dict
 
 Parameters
 ----------
-neo4j_driver : neo4j.driver
-    The neo4j driver instance
+neo4j_db : neo4j database session
+    The neo4j database session
 uuid : str
     The uuid of target entity 
 
@@ -79,7 +99,7 @@ Returns
 dict
     A dictionary of entity details returned from the Cypher query
 """
-def get_entity(neo4j_driver, uuid):
+def get_entity(neo4j_db, uuid):
     parameterized_query = ("MATCH (e:Entity) " + 
                            "WHERE e.uuid = '{uuid}' " +
                            "RETURN e AS {record_field_name}")
@@ -90,48 +110,47 @@ def get_entity(neo4j_driver, uuid):
     logger.info("======get_entity() query:======")
     logger.info(query)
 
-    with neo4j_driver.session() as session:
-        try:
-            nodes = []
-            entity_dict = {}
+    try:
+        nodes = []
+        entity_dict = {}
 
-            results = session.run(query)
+        results = neo4j_db.run(query)
 
-            # Add all records to the nodes list
-            for record in results:
-                nodes.append(record.get(record_field_name))
-            
-            logger.info("======get_entity() resulting nodes:======")
-            logger.info(nodes)
+        # Add all records to the nodes list
+        for record in results:
+            nodes.append(record.get(record_field_name))
+        
+        logger.info("======get_entity() resulting nodes:======")
+        logger.info(nodes)
 
-            # Return an empty dict if no result
-            if len(nodes) < 1:
-                return entity_dict
-
-            # Raise an exception if multiple nodes returned
-            if len(nodes) > 1:
-                message = "{num_nodes} entity nodes with same uuid {uuid} found in the Neo4j database."
-                raise Exception(message.format(num_nodes = str(len(nodes)), uuid = uuid))
-            
-            # Convert the neo4j node into Python dict
-            entity_dict = node_to_dict(nodes[0])
-
-            logger.info("======get_entity() resulting entity_dict:======")
-            logger.info(entity_dict)
-
+        # Return an empty dict if no result
+        if len(nodes) < 1:
             return entity_dict
-        except CypherError as ce:
-            raise CypherError("A Cypher error was encountered: " + ce.message)
-        except Exception as e:
-            raise e
+
+        # Raise an exception if multiple nodes returned
+        if len(nodes) > 1:
+            message = "{num_nodes} entity nodes with same uuid {uuid} found in the Neo4j database."
+            raise Exception(message.format(num_nodes = str(len(nodes)), uuid = uuid))
+        
+        # Convert the neo4j node into Python dict
+        entity_dict = node_to_dict(nodes[0])
+
+        logger.info("======get_entity() resulting entity_dict:======")
+        logger.info(entity_dict)
+
+        return entity_dict
+    except CypherError as ce:
+        raise CypherError("A Cypher error was encountered: " + ce.message)
+    except Exception as e:
+        raise e
 
 """
 Get all the entity nodes for the given entity class
 
 Parameters
 ----------
-neo4j_driver : neo4j.driver
-    The neo4j driver instance
+neo4j_db : neo4j database session
+    The neo4j database session
 entity_class : str
     One of the normalized entity classes: Dataset, Collection, Sample, Donor
 property_key : str
@@ -142,7 +161,7 @@ Returns
 list
     A list of entity dicts of the given class returned from the Cypher query
 """
-def get_entities_by_class(neo4j_driver, entity_class, property_key = None):
+def get_entities_by_class(neo4j_db, entity_class, property_key = None):
     if property_key:
         parameterized_query = ("MATCH (e:{entity_class}) " + 
                                # COLLECT() returns a list
@@ -164,32 +183,31 @@ def get_entities_by_class(neo4j_driver, entity_class, property_key = None):
     logger.info("======get_entities_by_class() query:======")
     logger.info(query)
 
-    with neo4j_driver.session() as session:
-        try:
-            result = session.run(query)
-            record = result.single()
-            
-            result_list = []
+    try:
+        result = neo4j_db.run(query)
+        record = result.single()
+        
+        result_list = []
 
-            if property_key:
-                # Just return the list of property values from each entity node
-                result_list = record[record_field_name]
-            else:
-                # Convert the entity nodes to dicts
-                nodes = record[record_field_name]
+        if property_key:
+            # Just return the list of property values from each entity node
+            result_list = record[record_field_name]
+        else:
+            # Convert the entity nodes to dicts
+            nodes = record[record_field_name]
 
-                for node in nodes:
-                    entity_dict = node_to_dict(node)
-                    result_list.append(entity_dict)
+            for node in nodes:
+                entity_dict = node_to_dict(node)
+                result_list.append(entity_dict)
 
-            logger.info("======get_entities_by_class() result_list:======")
-            logger.info(result_list)
+        logger.info("======get_entities_by_class() result_list:======")
+        logger.info(result_list)
 
-            return result_list
-        except CypherError as ce:
-            raise CypherError("A Cypher error was encountered: " + ce.message)
-        except Exception as e:
-            raise e
+        return result_list
+    except CypherError as ce:
+        raise CypherError("A Cypher error was encountered: " + ce.message)
+    except Exception as e:
+        raise e
 
 
 ####################################################################################################
@@ -201,8 +219,8 @@ Get the source entities uuids of a given derived entity (Dataset/Donor/Sample) b
 
 Parameters
 ----------
-neo4j_driver : neo4j.driver
-    The neo4j driver instance
+neo4j_db : neo4j database session
+    The neo4j database session
 uuid : str
     The uuid of target entity 
 
@@ -211,7 +229,7 @@ Returns
 list
     A unique list of uuids of source entities
 """
-def get_source_uuids(neo4j_driver, uuid):
+def get_source_uuids(neo4j_db, uuid):
     parameterized_query = ("MATCH (s:Entity)-[:ACTIVITY_INPUT]->(a:Activity)-[:ACTIVITY_OUTPUT]->(t:Entity) " + 
                            "WHERE t.uuid = '{uuid}' " +
                            "RETURN apoc.coll.toSet(COLLECT(s.uuid)) AS {record_field_name}")
@@ -222,29 +240,28 @@ def get_source_uuids(neo4j_driver, uuid):
     logger.info("======get_source_uuids() query:======")
     logger.info(query)
 
-    with neo4j_driver.session() as session:
-        try:
-            result = session.run(query)
+    try:
+        result = neo4j_db.run(query)
 
-            record = result.single()
-            source_uuids = record[record_field_name]
+        record = result.single()
+        source_uuids = record[record_field_name]
 
-            logger.info("======get_source_uuids() resulting source_uuids list:======")
-            logger.info(source_uuids)
+        logger.info("======get_source_uuids() resulting source_uuids list:======")
+        logger.info(source_uuids)
 
-            return source_uuids
-        except CypherError as ce:
-            raise CypherError("A Cypher error was encountered: " + ce.message)
-        except Exception as e:
-            raise e
+        return source_uuids
+    except CypherError as ce:
+        raise CypherError("A Cypher error was encountered: " + ce.message)
+    except Exception as e:
+        raise e
 
 """
 Get a list of associated dataset uuids for a given derived entity's uuid
 
 Parameters
 ----------
-neo4j_driver : neo4j.driver
-    The neo4j driver instance
+neo4j_db : neo4j database session
+    The neo4j database session
 uuid : str
     The uuid of target entity 
 
@@ -253,7 +270,7 @@ Returns
 list
     The list comtaining associated dataset uuids
 """
-def get_dataset_uuids_by_collection(neo4j_driver, uuid):
+def get_dataset_uuids_by_collection(neo4j_db, uuid):
     dataset_uuids_list = []
 
     parameterized_query = ("MATCH (e:Entity)-[:IN_COLLECTION]->(c:Collection) " + 
@@ -266,21 +283,20 @@ def get_dataset_uuids_by_collection(neo4j_driver, uuid):
     logger.info("======get_dataset_uuids_by_collection() query:======")
     logger.info(query)
 
-    with neo4j_driver.session() as session:
-        try:
-            results = session.run(query)
+    try:
+        results = neo4j_db.run(query)
 
-            for record in results:
-                dataset_uuids_list.append(record.get(record_field_name))
+        for record in results:
+            dataset_uuids_list.append(record.get(record_field_name))
 
-            logger.info("======get_collection_dataset_uuids() resulting list:======")
-            logger.info(dataset_uuids_list)
+        logger.info("======get_collection_dataset_uuids() resulting list:======")
+        logger.info(dataset_uuids_list)
 
-            return dataset_uuids_list
-        except CypherError as ce:
-            raise CypherError("A Cypher error was encountered: " + ce.message)
-        except Exception as e:
-            raise e
+        return dataset_uuids_list
+    except CypherError as ce:
+        raise CypherError("A Cypher error was encountered: " + ce.message)
+    except Exception as e:
+        raise e
 
 
 """
@@ -288,8 +304,8 @@ Get count of published Dataset in the provenance hierarchy for a given  Collecti
 
 Parameters
 ----------
-neo4j_driver : neo4j.driver
-    The neo4j driver instance
+neo4j_db : neo4j database session
+    The neo4j database session
 entity_class : str
     One of the normalized entity classes: Collection, Sample, Donor
 uuid : str
@@ -301,66 +317,36 @@ int
     The count of published Dataset in the provenance hierarchy 
     below the target entity (Donor, Sample and Collection)
 """
-def count_attached_published_datasets(neo4j_driver, entity_class, uuid):
-    with neo4j_driver.session() as session:
-        parameterized_query = ("MATCH (e:{entity_class})-[r:ACTIVITY_INPUT|:ACTIVITY_OUTPUT*]->(d:Dataset) " +
-                               "WHERE e.uuid='{uuid}' AND d.status = 'Published' " +
-                               # COLLECT() returns a list
-                               # apoc.coll.toSet() reruns a set containing unique nodes
-                               "RETURN COUNT(d) AS {record_field_name}")
+def count_attached_published_datasets(neo4j_db, entity_class, uuid):
+    parameterized_query = ("MATCH (e:{entity_class})-[r:ACTIVITY_INPUT|:ACTIVITY_OUTPUT*]->(d:Dataset) " +
+                           "WHERE e.uuid='{uuid}' AND d.status = 'Published' " +
+                           # COLLECT() returns a list
+                           # apoc.coll.toSet() reruns a set containing unique nodes
+                           "RETURN COUNT(d) AS {record_field_name}")
 
-        query = parameterized_query.format(entity_class = entity_class,
-        	                               uuid = uuid, 
-                                           record_field_name = record_field_name)
-
-        logger.info("======count_attached_published_datasets() query:======")
-        logger.info(query)
-
-        try:
-            result = session.run(query)
-            record = result.single()
-            count = record[record_field_name]
-
-            logger.info("======count_attached_published_datasets() resulting count:======")
-            logger.info(count)
-            
-            return count               
-        except CypherError as ce:
-            logger.error("======count_attached_published_datasets() Cypher error:======")
-            logger.error(ce)
-
-            raise CypherError("A Cypher error was encountered: " + ce.message)
-        except Exception as e:
-            raise e
-
-
-    dataset_uuids_list = []
-
-    parameterized_query = ("MATCH (e:Entity)-[:IN_COLLECTION]->(c:Collection) " + 
-                           "WHERE c.uuid = '{uuid}' " +
-                           "RETURN DISTINCT e.uuid AS {record_field_name}")
-
-    query = parameterized_query.format(uuid = uuid, 
+    query = parameterized_query.format(entity_class = entity_class,
+    	                               uuid = uuid, 
                                        record_field_name = record_field_name)
-    
-    logger.info("======get_dataset_uuids_by_collection() query:======")
+
+    logger.info("======count_attached_published_datasets() query:======")
     logger.info(query)
 
-    with neo4j_driver.session() as session:
-        try:
-            results = session.run(query)
+    try:
+        result = neo4j_db.run(query)
+        record = result.single()
+        count = record[record_field_name]
 
-            for record in results:
-                dataset_uuids_list.append(record.get(record_field_name))
+        logger.info("======count_attached_published_datasets() resulting count:======")
+        logger.info(count)
+        
+        return count               
+    except CypherError as ce:
+        logger.error("======count_attached_published_datasets() Cypher error:======")
+        logger.error(ce)
 
-            logger.info("======get_collection_dataset_uuids() resulting list:======")
-            logger.info(dataset_uuids_list)
-
-            return dataset_uuids_list
-        except CypherError as ce:
-            raise CypherError("A Cypher error was encountered: " + ce.message)
-        except Exception as e:
-            raise e
+        raise CypherError("A Cypher error was encountered: " + ce.message)
+    except Exception as e:
+        raise e
 
 
 ####################################################################################################
@@ -517,8 +503,8 @@ Create a new entity node (ans also links to existing Collection nodes if provide
 
 Parameters
 ----------
-neo4j_driver : neo4j.driver
-    The neo4j driver instance
+neo4j_db : neo4j database session
+    The neo4j database session
 entity_class : str
     One of the normalized entity classes: Dataset, Collection, Sample, Donor
 entity_json_list_str : str
@@ -531,43 +517,42 @@ Returns
 dict
     A dictionary of newly created entity details returned from the Cypher query
 """
-def create_entity(neo4j_driver, entity_class, entity_json_list_str, collection_uuids_list = None):
-    entity_dict = {}
+def create_entity(neo4j_db, entity_class, entity_json_list_str, collection_uuids_list = None):
+    try:
+        entity_dict = {}
 
-    with neo4j_driver.session(default_access_mode = neo4j.WRITE_ACCESS) as session:
-        try:
-            tx = session.begin_transaction()
+        tx = neo4j_db.begin_transaction()
 
-            entity_node = create_entity_tx(tx, entity_class, entity_json_list_str)
-            entity_dict = node_to_dict(entity_node)
+        entity_node = create_entity_tx(tx, entity_class, entity_json_list_str)
+        entity_dict = node_to_dict(entity_node)
 
-            logger.info("======create_entity() resulting entity_dict:======")
-            logger.info(entity_dict)
- 
-            # For Dataset associated with Collections
-            if collection_uuids_list:
-                create_dataset_collection_relationships_tx(tx, entity_dict, collection_uuids_list)
-            
-            tx.commit()
+        logger.info("======create_entity() resulting entity_dict:======")
+        logger.info(entity_dict)
 
-            return entity_dict
-        except CypherError as ce:
-            logger.error("======create_entity() Cypher error:======")
-            logger.error(ce)
+        # For Dataset associated with Collections
+        if collection_uuids_list:
+            create_dataset_collection_relationships_tx(tx, entity_dict, collection_uuids_list)
+        
+        tx.commit()
 
-            raise CypherError("A Cypher error was encountered: " + ce.message)
-        except TransactionError as te:
-            logger.error("======create_entity() transaction error:======")
-            logger.error(te.value)
+        return entity_dict
+    except CypherError as ce:
+        logger.error("======create_entity() Cypher error:======")
+        logger.error(ce)
 
-            if tx.closed() == False:
-                logger.info("create_entity() transaction failed, rollback")
+        raise CypherError("A Cypher error was encountered: " + ce.message)
+    except TransactionError as te:
+        logger.error("======create_entity() transaction error:======")
+        logger.error(te.value)
 
-                tx.rollback()
+        if tx.closed() == False:
+            logger.info("create_entity() transaction failed, rollback")
 
-            raise TransactionError("Neo4j transaction error: create_entity()" + te.value)
-        except Exception as e:
-            raise e
+            tx.rollback()
+
+        raise TransactionError("Neo4j transaction error: create_entity()" + te.value)
+    except Exception as e:
+        raise e
 
 
 """
@@ -575,8 +560,8 @@ Create a derived entity node and link to source entity node via Activity node an
 
 Parameters
 ----------
-neo4j_driver : neo4j.driver
-    The neo4j driver instance
+neo4j_db : neo4j database session
+    The neo4j database session
 entity_class : str
     One of the normalized entity classes: Dataset, Collection, Sample, Donor
 entity_json_list_str : str
@@ -598,54 +583,53 @@ Returns
 dict
     A dictionary of newly created derived entity details returned from the Cypher query
 """
-def create_derived_entity(neo4j_driver, entity_class, entity_json_list_str, activity_json_list_str, source_entities_list, collection_uuids_list = None):
-    entity_dict = {}
+def create_derived_entity(neo4j_db, entity_class, entity_json_list_str, activity_json_list_str, source_entities_list, collection_uuids_list = None):
+    try:
+        entity_dict = {}
 
-    with neo4j_driver.session(default_access_mode = neo4j.WRITE_ACCESS) as session:
-        try:
-            tx = session.begin_transaction()
+        tx = neo4j_db.begin_transaction()
 
-            entity_node = create_entity_tx(tx, entity_class, entity_json_list_str)
-            entity_dict = node_to_dict(entity_node)
+        entity_node = create_entity_tx(tx, entity_class, entity_json_list_str)
+        entity_dict = node_to_dict(entity_node)
 
-            logger.info("======create_derived_entity() resulting entity_dict:======")
-            logger.info(entity_dict)
+        logger.info("======create_derived_entity() resulting entity_dict:======")
+        logger.info(entity_dict)
 
-            # Create the Acvitity node
-            activity_dict = create_activity_tx(tx, activity_json_list_str)
+        # Create the Acvitity node
+        activity_dict = create_activity_tx(tx, activity_json_list_str)
 
-            # Link each source entity to the newly created Activity node
-            for source_entity in source_entities_list:
-                # Create relationship from source Entity node to this Activity node
-                create_relationship_tx(tx, source_entity['uuid'], activity_dict['uuid'], 'ACTIVITY_INPUT', '->')
-                
-            # Create relationship from this Activity node to the derived Enity node
-            create_relationship_tx(tx, activity_dict['uuid'], entity_dict['uuid'], 'ACTIVITY_OUTPUT', '->')
-
-            # For Dataset associated with Collections
-            if collection_uuids_list:
-                create_dataset_collection_relationship_tx(tx, entity_dict, collection_uuids_list)
+        # Link each source entity to the newly created Activity node
+        for source_entity in source_entities_list:
+            # Create relationship from source Entity node to this Activity node
+            create_relationship_tx(tx, source_entity['uuid'], activity_dict['uuid'], 'ACTIVITY_INPUT', '->')
             
-            tx.commit()
+        # Create relationship from this Activity node to the derived Enity node
+        create_relationship_tx(tx, activity_dict['uuid'], entity_dict['uuid'], 'ACTIVITY_OUTPUT', '->')
 
-            return entity_dict
-        except CypherError as ce:
-            logger.error("======create_derived_entity() Cypher error:======")
-            logger.error(ce)
+        # For Dataset associated with Collections
+        if collection_uuids_list:
+            create_dataset_collection_relationship_tx(tx, entity_dict, collection_uuids_list)
+        
+        tx.commit()
 
-            raise CypherError("A Cypher error was encountered: " + ce.message)
-        except TransactionError as te:
-            logger.error("======create_derived_entity() transaction error:======")
-            logger.error(te.value)
+        return entity_dict
+    except CypherError as ce:
+        logger.error("======create_derived_entity() Cypher error:======")
+        logger.error(ce)
 
-            if tx.closed() == False:
-                logger.info("create_derived_entity() transaction failed, rollback")
+        raise CypherError("A Cypher error was encountered: " + ce.message)
+    except TransactionError as te:
+        logger.error("======create_derived_entity() transaction error:======")
+        logger.error(te.value)
 
-                tx.rollback()
+        if tx.closed() == False:
+            logger.info("create_derived_entity() transaction failed, rollback")
 
-            raise TransactionError("Neo4j transaction error: create_derived_entity()" + te.value)
-        except Exception as e:
-            raise e
+            tx.rollback()
+
+        raise TransactionError("Neo4j transaction error: create_derived_entity()" + te.value)
+    except Exception as e:
+        raise e
 
 
 ####################################################################################################
@@ -706,8 +690,8 @@ Update the properties of an existing entity node in neo4j
 
 Parameters
 ----------
-neo4j_driver : neo4j.driver
-    The neo4j driver instance
+neo4j_db : neo4j database session
+    The neo4j database session
 entity_class : str
     One of the normalized entity classes: Dataset, Collection, Sample, Donor
 json_list_str : str
@@ -720,25 +704,24 @@ Returns
 dict
     A dictionary of updated entity details returned from the Cypher query
 """
-def update_entity(neo4j_driver, entity_class, json_list_str, uuid):
-    entity_dict = {}
+def update_entity(neo4j_db, entity_class, json_list_str, uuid):
+    try:
+        entity_dict = {}
 
-    with neo4j_driver.session() as session:
-        try:
-            entity_node = session.write_transaction(update_entity_tx, entity_class, json_list_str, uuid)
-            entity_dict = node_to_dict(entity_node)
+        entity_node = neo4j_db.write_transaction(update_entity_tx, entity_class, json_list_str, uuid)
+        entity_dict = node_to_dict(entity_node)
 
-            logger.info("======update_entity() resulting entity_dict:======")
-            logger.info(entity_dict)
+        logger.info("======update_entity() resulting entity_dict:======")
+        logger.info(entity_dict)
 
-            return entity_dict
-        except CypherError as ce:
-            logger.error("======update_entity() Cypher error:======")
-            logger.error(ce)
+        return entity_dict
+    except CypherError as ce:
+        logger.error("======update_entity() Cypher error:======")
+        logger.error(ce)
 
-            raise CypherError("A Cypher error was encountered: " + ce.message)
-        except Exception as e:
-            raise e
+        raise CypherError("A Cypher error was encountered: " + ce.message)
+    except Exception as e:
+        raise e
 
 
 """
@@ -746,8 +729,8 @@ Get all ancestors by uuid
 
 Parameters
 ----------
-neo4j_driver : neo4j.driver
-    The neo4j driver instance
+neo4j_db : neo4j database session
+    The neo4j database session
 uuid : str
     The uuid of target entity 
 
@@ -756,39 +739,38 @@ Returns
 list
     A list of unique ancestor dictionaries returned from the Cypher query
 """
-def get_ancestors(neo4j_driver, uuid):
-    with neo4j_driver.session() as session:
-        ancestors = []
+def get_ancestors(neo4j_db, uuid):
+    ancestors = []
 
-        parameterized_query = ("MATCH (e:Entity)<-[r:ACTIVITY_INPUT|:ACTIVITY_OUTPUT*]-(ancestor:Entity) " +
-                               "WHERE e.uuid='{uuid}' " +
-                               # COLLECT() returns a list
-                               # apoc.coll.toSet() reruns a set containing unique nodes
-                               "RETURN apoc.coll.toSet(COLLECT(ancestor)) AS {record_field_name}")
+    parameterized_query = ("MATCH (e:Entity)<-[r:ACTIVITY_INPUT|:ACTIVITY_OUTPUT*]-(ancestor:Entity) " +
+                           "WHERE e.uuid='{uuid}' " +
+                           # COLLECT() returns a list
+                           # apoc.coll.toSet() reruns a set containing unique nodes
+                           "RETURN apoc.coll.toSet(COLLECT(ancestor)) AS {record_field_name}")
 
-        query = parameterized_query.format(uuid = uuid, 
-                                           record_field_name = record_field_name)
+    query = parameterized_query.format(uuid = uuid, 
+                                       record_field_name = record_field_name)
 
-        logger.info("======get_ancestors() query:======")
-        logger.info(query)
+    logger.info("======get_ancestors() query:======")
+    logger.info(query)
 
-        try:
-            result = session.run(query)
-            record = result.single()
-            entity_nodes = record[record_field_name]
+    try:
+        result = neo4j_db.run(query)
+        record = result.single()
+        entity_nodes = record[record_field_name]
 
-            for entity_node in entity_nodes:
-                entity_dict = node_to_dict(entity_node)
-                ancestors.append(entity_dict)
+        for entity_node in entity_nodes:
+            entity_dict = node_to_dict(entity_node)
+            ancestors.append(entity_dict)
 
-            return ancestors               
-        except CypherError as ce:
-            logger.error("======get_ancestors() Cypher error:======")
-            logger.error(ce)
+        return ancestors               
+    except CypherError as ce:
+        logger.error("======get_ancestors() Cypher error:======")
+        logger.error(ce)
 
-            raise CypherError("A Cypher error was encountered: " + ce.message)
-        except Exception as e:
-            raise e
+        raise CypherError("A Cypher error was encountered: " + ce.message)
+    except Exception as e:
+        raise e
 
 
 """
@@ -796,8 +778,8 @@ Get all descendants by uuid
 
 Parameters
 ----------
-neo4j_driver : neo4j.driver
-    The neo4j driver instance
+neo4j_db : neo4j database session
+    The neo4j database session
 uuid : str
     The uuid of target entity 
 
@@ -806,47 +788,46 @@ Returns
 dict
     A list of unique desendant dictionaries returned from the Cypher query
 """
-def get_descendants(neo4j_driver, uuid):
-    with neo4j_driver.session() as session:
-        descendants = []
+def get_descendants(neo4j_db, uuid):
+    descendants = []
 
-        parameterized_query = ("MATCH (e:Entity)-[r:ACTIVITY_INPUT|:ACTIVITY_OUTPUT*]->(descendant:Entity) " +
-                               "WHERE e.uuid='{uuid}' " +
-                               # COLLECT() returns a list
-                               # apoc.coll.toSet() reruns a set containing unique nodes
-                               "RETURN apoc.coll.toSet(COLLECT(descendant)) AS {record_field_name}")
+    parameterized_query = ("MATCH (e:Entity)-[r:ACTIVITY_INPUT|:ACTIVITY_OUTPUT*]->(descendant:Entity) " +
+                           "WHERE e.uuid='{uuid}' " +
+                           # COLLECT() returns a list
+                           # apoc.coll.toSet() reruns a set containing unique nodes
+                           "RETURN apoc.coll.toSet(COLLECT(descendant)) AS {record_field_name}")
 
-        query = parameterized_query.format(uuid = uuid, 
-                                           record_field_name = record_field_name)
+    query = parameterized_query.format(uuid = uuid, 
+                                       record_field_name = record_field_name)
 
-        logger.info("======get_descendants() query:======")
-        logger.info(query)
+    logger.info("======get_descendants() query:======")
+    logger.info(query)
 
-        try:
-            result = session.run(query)
-            record = result.single()
-            entity_nodes = record[record_field_name]
+    try:
+        result = neo4j_db.run(query)
+        record = result.single()
+        entity_nodes = record[record_field_name]
 
-            for entity_node in entity_nodes:
-                entity_dict = node_to_dict(entity_node)
-                descendants.append(entity_dict)
+        for entity_node in entity_nodes:
+            entity_dict = node_to_dict(entity_node)
+            descendants.append(entity_dict)
 
-            return descendants               
-        except CypherError as ce:
-            logger.error("======get_descendants() Cypher error:======")
-            logger.error(ce)
+        return descendants               
+    except CypherError as ce:
+        logger.error("======get_descendants() Cypher error:======")
+        logger.error(ce)
 
-            raise CypherError("A Cypher error was encountered: " + ce.message)
-        except Exception as e:
-            raise e
+        raise CypherError("A Cypher error was encountered: " + ce.message)
+    except Exception as e:
+        raise e
 
 """
 Get all parents by uuid
 
 Parameters
 ----------
-neo4j_driver : neo4j.driver
-    The neo4j driver instance
+neo4j_db : neo4j database session
+    The neo4j database session
 uuid : str
     The uuid of target entity 
 
@@ -855,47 +836,46 @@ Returns
 dict
     A list of unique parent dictionaries returned from the Cypher query
 """
-def get_parents(neo4j_driver, uuid):
-    with neo4j_driver.session() as session:
-        parents = []
+def get_parents(neo4j_db, uuid):
+    parents = []
 
-        parameterized_query = ("MATCH (e:Entity)<-[:ACTIVITY_OUTPUT]-(:Activity)<-[:ACTIVITY_INPUT]-(parent:Entity) " +
-                               "WHERE e.uuid='{uuid}' " +
-                               # COLLECT() returns a list
-                               # apoc.coll.toSet() reruns a set containing unique nodes
-                               "RETURN apoc.coll.toSet(COLLECT(parent)) AS {record_field_name}")
+    parameterized_query = ("MATCH (e:Entity)<-[:ACTIVITY_OUTPUT]-(:Activity)<-[:ACTIVITY_INPUT]-(parent:Entity) " +
+                           "WHERE e.uuid='{uuid}' " +
+                           # COLLECT() returns a list
+                           # apoc.coll.toSet() reruns a set containing unique nodes
+                           "RETURN apoc.coll.toSet(COLLECT(parent)) AS {record_field_name}")
 
-        query = parameterized_query.format(uuid = uuid, 
-                                           record_field_name = record_field_name)
+    query = parameterized_query.format(uuid = uuid, 
+                                       record_field_name = record_field_name)
 
-        logger.info("======get_parents() query:======")
-        logger.info(query)
+    logger.info("======get_parents() query:======")
+    logger.info(query)
 
-        try:
-            result = session.run(query)
-            record = result.single()
-            entity_nodes = record[record_field_name]
+    try:
+        result = neo4j_db.run(query)
+        record = result.single()
+        entity_nodes = record[record_field_name]
 
-            for entity_node in entity_nodes:
-                entity_dict = node_to_dict(entity_node)
-                parents.append(entity_dict)
+        for entity_node in entity_nodes:
+            entity_dict = node_to_dict(entity_node)
+            parents.append(entity_dict)
 
-            return parents               
-        except CypherError as ce:
-            logger.error("======get_parents() Cypher error:======")
-            logger.error(ce)
+        return parents               
+    except CypherError as ce:
+        logger.error("======get_parents() Cypher error:======")
+        logger.error(ce)
 
-            raise CypherError("A Cypher error was encountered: " + ce.message)
-        except Exception as e:
-            raise e
+        raise CypherError("A Cypher error was encountered: " + ce.message)
+    except Exception as e:
+        raise e
 
 """
 Get all children by uuid
 
 Parameters
 ----------
-neo4j_driver : neo4j.driver
-    The neo4j driver instance
+neo4j_db : neo4j database session
+    The neo4j database session
 uuid : str
     The uuid of target entity 
 
@@ -904,38 +884,37 @@ Returns
 dict
     A list of unique child dictionaries returned from the Cypher query
 """
-def get_children(neo4j_driver, uuid):
-    with neo4j_driver.session() as session:
-        children = []
+def get_children(neo4j_db, uuid):
+    children = []
 
-        parameterized_query = ("MATCH (e:Entity)-[:ACTIVITY_INPUT]->(:Activity)-[:ACTIVITY_OUTPUT]->(child:Entity) " +
-                               "WHERE e.uuid='{uuid}' " +
-                               # COLLECT() returns a list
-                               # apoc.coll.toSet() reruns a set containing unique nodes
-                               "RETURN apoc.coll.toSet(COLLECT(child)) AS {record_field_name}")
-        query = parameterized_query.format(uuid = uuid, 
-                                           record_field_name = record_field_name)
+    parameterized_query = ("MATCH (e:Entity)-[:ACTIVITY_INPUT]->(:Activity)-[:ACTIVITY_OUTPUT]->(child:Entity) " +
+                           "WHERE e.uuid='{uuid}' " +
+                           # COLLECT() returns a list
+                           # apoc.coll.toSet() reruns a set containing unique nodes
+                           "RETURN apoc.coll.toSet(COLLECT(child)) AS {record_field_name}")
+    query = parameterized_query.format(uuid = uuid, 
+                                       record_field_name = record_field_name)
 
-        logger.info("======get_children() query:======")
-        logger.info(query)
+    logger.info("======get_children() query:======")
+    logger.info(query)
 
-        try:
-            result = session.run(query)
-            record = result.single()
-            entity_nodes = record[record_field_name]
+    try:
+        result = neo4j_db.run(query)
+        record = result.single()
+        entity_nodes = record[record_field_name]
 
-            for entity_node in entity_nodes:
-                entity_dict = node_to_dict(entity_node)
-                children.append(entity_dict)
+        for entity_node in entity_nodes:
+            entity_dict = node_to_dict(entity_node)
+            children.append(entity_dict)
 
-            return children               
-        except CypherError as ce:
-            logger.error("======get_children() Cypher error:======")
-            logger.error(ce)
-            
-            raise CypherError("A Cypher error was encountered: " + ce.message)
-        except Exception as e:
-            raise e
+        return children               
+    except CypherError as ce:
+        logger.error("======get_children() Cypher error:======")
+        logger.error(ce)
+        
+        raise CypherError("A Cypher error was encountered: " + ce.message)
+    except Exception as e:
+        raise e
 
 ####################################################################################################
 ## Internal Functions
