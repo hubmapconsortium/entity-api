@@ -309,22 +309,32 @@ def get_entities_by_class(entity_class):
     return jsonify(final_result)
 
 """
-Create a derived entity from the given source entity in neo4j
+Create an entity (new or derived) of the target class in neo4j
 
 Parameters
 ----------
-target_entity_class : str
+entity_class : str
     One of the target entity classes (case-insensitive since will be normalized): Dataset, Collection, Sample, but NOT Donor or Collection
 
-JSON body:
-{
-    "source_entities": [
-        {"class": "Sample", "id": "44324234"},
-        {"class": "Sample", "id": "6adsd230"},
-        ...
-    ],
-    all other standard properties...
-}
+    json body for creating new entity:
+    {
+        "source_entities": null,
+        "target_entity": {
+            all the standard properties defined in schema yaml for the target class...
+        }
+    }
+
+    json body for creating derived entity:
+    {
+        "source_entities": [
+            {"class": "Sample", "id": "44324234"},
+            {"class": "Sample", "id": "6adsd230"},
+            ...
+        ],
+        "target_entity": {
+            all the standard properties defined in schema yaml for the target class...
+        }
+    }
 
 Returns
 -------
@@ -347,12 +357,17 @@ def create_entity(entity_class):
 
     # When 'source_entities' appears in request json, it means to create a derived entity
     # from the source entities
-    if 'source_entities' in json_data_dict:
-        if len(json_data_dict) > 1:
-            bad_request_error("The json request must only contain 'source_entities' to create a derived entity.")
-        entity_dict = create_derived_entity(normalized_entity_class, json_data_dict)
+    if ('source_entities' not in json_data_dict) or ('target_entity' not in json_data_dict):
+        bad_request_error("Incorrect json structure. The json request must contain 'source_entities' and 'target_entity'.")
+    
+    if len(json_data_dict) > 2:
+        bad_request_error("Incorrect json structure. The json request must not contain keys other than 'source_entities' and 'target_entity'.")
+    
+    if json_data_dict['source_entities'] is None:
+        # Only pass in the target entity dict
+        entity_dict = create_new_entity(normalized_entity_class, json_data_dict['target_entity'])
     else:
-        entity_dict = create_new_entity(normalized_entity_class, json_data_dict)
+        entity_dict = create_derived_entity(normalized_entity_class, json_data_dict)
 
     return jsonify(entity_dict)
 
@@ -814,14 +829,16 @@ target_entity_class : str
 json_data_dict: dict
     The json request dict
 
-    JSON body:
+    json body:
     {
         "source_entities": [
             {"class": "Sample", "id": "44324234"},
             {"class": "Sample", "id": "6adsd230"},
             ...
         ],
-        all other standard properties...
+        "target_entity": {
+            all the standard properties defined in schema yaml for the target class...
+        }
     }
 
 Returns
@@ -835,7 +852,7 @@ def create_derived_entity(normalized_target_entity_class, json_data_dict):
 
     # Ensure it's a list
     if not isinstance(json_data_dict['source_entities'], list):
-        bad_request_error("The 'source_entities' in JSON request must be an array.")
+        bad_request_error("The 'source_entities' in json request must be an array.")
 
     source_entities_list = json_data_dict['source_entities']
 
@@ -855,8 +872,8 @@ def create_derived_entity(normalized_target_entity_class, json_data_dict):
         # Then delete the 'id' key from each source enity dict
         del source_entity['id']
 
-    # Validate request json against the yaml schema
-    validate_json_data_against_schema(json_data_dict, normalized_target_entity_class)
+    # Validate target entity data against the yaml schema
+    validate_json_data_against_schema(json_data_dict['target_entity'], normalized_target_entity_class)
 
     # For derived Dataset to be linked with existing Collections
     collection_uuids_list = []
@@ -1102,7 +1119,7 @@ def get_target_uuid(id):
 
 """
 Create a set of new ids for the new entity to be created
-Make a POST call to uuid-api with the following JSON:
+Make a POST call to uuid-api with the following json:
 {
     "entityType":"Dataset",
     "generateDOI": "true"
@@ -1141,7 +1158,7 @@ def create_new_ids(normalized_entity_class, generate_doi = True):
     # Must use "generateDOI": "true" to generate the doi (doi_suffix_id) and displayDoi (hubmap_id)
     json_to_post = {
         'entityType': normalized_entity_class, 
-        'generateDOI': str(generate_doi).lower() # Convert python bool to JSON string "true" or "false"
+        'generateDOI': str(generate_doi).lower() # Convert python bool to json string "true" or "false"
     }
 
     # Use modified version of globus app secrect from configuration as the internal token
@@ -1215,12 +1232,12 @@ def query_target_entity(id):
 
 
 """
-Validate JSON data from user request against the schema
+Validate json data from user request against the schema
 
 Parameters
 ----------
 json_data_dict : dict
-    The JSON data dict from user request
+    The json data dict from user request
 normalized_entity_class : str
     One of the normalized entity classes: Dataset, Collection, Sample, Donor
 existing_entity_dict : dict
@@ -1232,7 +1249,7 @@ def validate_json_data_against_schema(json_data_dict, normalized_entity_class, e
     json_data_keys = json_data_dict.keys()
     separator = ", "
 
-    # Check if keys in request JSON are supported
+    # Check if keys in request json are supported
     unsupported_keys = []
     for key in json_data_keys:
         if key not in schema_keys:
@@ -1241,7 +1258,7 @@ def validate_json_data_against_schema(json_data_dict, normalized_entity_class, e
     if len(unsupported_keys) > 0:
         bad_request_error("Unsupported keys in request json: " + separator.join(unsupported_keys))
 
-    # Check if keys in request JSON are immutable
+    # Check if keys in request json are immutable
     immutable_keys = []
     for key in json_data_keys:
         if 'immutable' in properties[key]:
@@ -1251,7 +1268,7 @@ def validate_json_data_against_schema(json_data_dict, normalized_entity_class, e
     if len(immutable_keys) > 0:
         bad_request_error("Immutable keys are not allowed in request json: " + separator.join(immutable_keys))
     
-    # Check if keys in request JSON are generated transient keys
+    # Check if keys in request json are generated transient keys
     transient_keys = []
     for key in json_data_keys:
         if 'transient' in properties[key]:
@@ -1448,7 +1465,7 @@ request : Flask request object
 """
 def require_json(request):
     if not request.is_json:
-        bad_request_error("A JSON body and appropriate Content-Type header are required")
+        bad_request_error("A json body and appropriate Content-Type header are required")
 
 """
 Make a call to search-api to reindex this entity node in elasticsearch
