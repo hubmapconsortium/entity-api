@@ -834,7 +834,7 @@ def create_derived_entity(normalized_target_entity_class, json_data_dict):
     validate_target_entity_class_for_derivation(normalized_target_entity_class)
 
     # Ensure it's a list
-    if not if isinstance(json_data_dict['source_entities'], list):
+    if not isinstance(json_data_dict['source_entities'], list):
         bad_request_error("The 'source_entities' in JSON request must be an array.")
 
     source_entities_list = json_data_dict['source_entities']
