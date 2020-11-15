@@ -809,7 +809,7 @@ def create_new_entity(normalized_entity_class, json_data_dict):
     # Must also escape single quotes in the json string to build a valid Cypher query later
     escaped_json_list_str = json_list_str.replace("'", r"\'")
 
-    app.logger.info("======create_entity() with escaped_json_list_str======")
+    app.logger.info("======create_new_entity() with escaped_json_list_str======")
     app.logger.info(escaped_json_list_str)
 
     # Create new entity
@@ -908,7 +908,7 @@ def create_derived_entity(normalized_target_entity_class, json_data_dict):
     # Must also escape single quotes in the json string to build a valid Cypher query later
     escaped_json_list_str = json_list_str.replace("'", r"\'")
 
-    app.logger.info("======create derived entity with escaped_json_list_str======")
+    app.logger.info("======create_derived_entity() with escaped_json_list_str======")
     app.logger.info(escaped_json_list_str)
 
     # For Activity creation.
@@ -933,7 +933,7 @@ def create_derived_entity(normalized_target_entity_class, json_data_dict):
     # Convert the list (only contains one entity) to json list string
     activity_json_list_str = json.dumps(activity_data_list)
 
-    app.logger.info("======create activity with activity_json_list_str======")
+    app.logger.info("======create_derived_entity() create activity with activity_json_list_str======")
     app.logger.info(activity_json_list_str)
 
     # Create the derived entity alone with the Activity node and relationships
