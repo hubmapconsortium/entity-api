@@ -67,11 +67,24 @@ schema = load_provenance_schema_yaml_file(app.config['SCHEMA_YAML_FILE'])
 # Have the neo4j connection available in the application context (lifetime of a request)
 neo4j_driver = GraphDatabase.driver(app.config['NEO4J_URI'], auth = (app.config['NEO4J_USERNAME'], app.config['NEO4J_PASSWORD']))
 
+"""
+Get the current neo4j database connection session if exists
+Otherwise create a new one
+
+Returns
+-------
+neo4j.session
+    The neo4j database connection session
+"""
 def get_neo4j_db():
     if not hasattr(g, 'neo4j_db'):
         g.neo4j_db = neo4j_driver.session(database = app.config['NEO4J_DB'])
     return g.neo4j_db
 
+"""
+Prevent from maxing the connection pool (maximum total number of connections allowed per host)
+by closing the current neo4j connection session at the end of every request
+"""
 @app.teardown_appcontext
 def close_neo4j_db(error):
     if hasattr(g, 'neo4j_db'):
