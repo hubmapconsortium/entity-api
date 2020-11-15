@@ -318,7 +318,7 @@ entity_class : str
 
     json body for creating new entity:
     {
-        "source_entities": null,
+        "source_entities": null or [],
         "target_entity": {
             all the standard properties defined in schema yaml for the target class...
         }
@@ -765,7 +765,7 @@ Parameters
 entity_class : str
     One of the normalized entity classes: Dataset, Collection, Sample, Donor
 json_data_dict: dict
-    The json request dict
+    The json request dict of "target_entity" key
 
 Returns
 -------
