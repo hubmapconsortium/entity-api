@@ -833,11 +833,15 @@ def create_derived_entity(normalized_target_entity_class, json_data_dict):
     # Donor and Collection can not be the target derived entity classes
     validate_target_entity_class_for_derivation(normalized_target_entity_class)
 
+    # Ensure it's a list
+    if not if isinstance(json_data_dict['source_entities'], list):
+        bad_request_error("The 'source_entities' in JSON request must be an array.")
+
     source_entities_list = json_data_dict['source_entities']
 
     for source_entity in source_entities_list:
         if (not 'class' in source_entity) or (not 'id' in source_entity):
-            bad_request_error("Each source entity object within the 'source_entities' list must contain 'class' key and 'id' key")
+            bad_request_error("Each source entity object within the 'source_entities' array must contain 'class' key and 'id' key")
             
         # Also normalize and validate the source entity class
         normalized_source_entity_class = normalize_entity_class(source_entity['class'])
