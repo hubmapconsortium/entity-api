@@ -1,5 +1,5 @@
 from flask import Flask, g, jsonify, abort, request, Response
-from neo4j import GraphDatabase, CypherError
+from neo4j import GraphDatabase
 import sys
 import os
 import yaml
@@ -1213,19 +1213,7 @@ dict
 def query_target_entity(id):
     # Make a call to uuid-api to get back the uuid
     uuid = get_target_uuid(id)
-
-    try:
-        entity_dict = neo4j_queries.get_entity(get_neo4j_db(), uuid)
-    except Exception as e:
-        app.logger.info("======Exception from calling neo4j_queries.get_entity()======")
-        app.logger.error(e)
-
-        internal_server_error(e)
-    except CypherError as ce:
-        app.logger.info("======CypherError from calling neo4j_queries.get_entity()======")
-        app.logger.error(ce)
-        
-        internal_server_error(ce)
+    entity_dict = neo4j_queries.get_entity(get_neo4j_db(), uuid)
 
     # Existence check
     if not bool(entity_dict):
