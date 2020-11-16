@@ -17,7 +17,6 @@ import schema_triggers
 
 # HuBMAP commons
 from hubmap_commons.hm_auth import AuthHelper
-from hubmap_commons.provenance import Provenance
 from hubmap_commons import string_helper
 from hubmap_commons import file_helper
 
@@ -72,6 +71,8 @@ def load_group_data(file):
     with open(file) as jsFile:
         groups = json.load(jsFile)
 
+        app.logger.info("======groups json loaded successfully======")
+
         groups_by_id = {}
         groups_by_name = {}
         groups_by_tmc_prefix = {}
@@ -98,6 +99,15 @@ def load_group_data(file):
                 
                 groups_by_name[group['name'].lower().strip()] = group_obj
                 groups_by_id[group['uuid']] = group_obj
+
+                app.logger.info("======groups_by_id======")
+                app.logger.info(groups_by_id)
+
+                app.logger.info("======groups_by_name======")
+                app.logger.info(groups_by_name)
+
+                app.logger.info("======groups_by_tmc_prefix======")
+                app.logger.info(groups_by_tmc_prefix)
 
         return groups_by_id, groups_by_name, groups_by_tmc_prefix
 
