@@ -133,7 +133,9 @@ neo4j.Session object
 """
 def get_neo4j_db():
     if not hasattr(g, 'neo4j_db'):
-        g.neo4j_db = neo4j_driver.session(database = app.config['NEO4J_DB'])
+        # Once upgrade to neo4j v4, we can specify the target database 
+        #g.neo4j_db = neo4j_driver.session(database = app.config['NEO4J_DB'])
+        g.neo4j_db = neo4j_driver.session()
     return g.neo4j_db
 
 """
