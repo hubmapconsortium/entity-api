@@ -76,7 +76,7 @@ Otherwise create a new one
 
 Returns
 -------
-neo4j.session
+neo4j.Session object
     The neo4j database connection session
 """
 def get_neo4j_db():

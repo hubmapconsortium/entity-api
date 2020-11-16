@@ -1,5 +1,5 @@
 import neo4j
-from neo4j import CypherError, TransactionError
+from neo4j import CypherSyntaxError, TransactionError
 import logging
 
 logger = logging.getLogger(__name__)
@@ -12,7 +12,7 @@ Check neo4j connectivity
 
 Parameters
 ----------
-neo4j_db : neo4j database session
+neo4j_db : neo4j.Session object
     The neo4j database session
 
 Returns
@@ -34,11 +34,11 @@ def check_connection(neo4j_db):
         
         if int_value == 1:
             return True
-    except CypherError as ce:
+    except CypherSyntaxError as ce:
         logger.error("======check_connection() Cypher error:======")
         logger.error(ce)
 
-        raise CypherError("A Cypher error was encountered: " + ce.message)
+        raise CypherSyntaxError("A CypherSyntaxError was encountered: " + ce.message)
     except Exception as e:
         raise e
 
@@ -94,7 +94,7 @@ Get target entity dict
 
 Parameters
 ----------
-neo4j_db : neo4j database session
+neo4j_db : neo4j.Session object
     The neo4j database session
 uuid : str
     The uuid of target entity 
@@ -144,11 +144,11 @@ def get_entity(neo4j_db, uuid):
         logger.info(entity_dict)
 
         return entity_dict
-    except CypherError as ce:
+    except CypherSyntaxError as ce:
         logger.error("======get_entity() Cypher error:======")
         logger.error(ce)
 
-        raise CypherError("A Cypher error was encountered: " + ce.message)
+        raise CypherSyntaxError("A CypherSyntaxError was encountered: " + ce.message)
     except Exception as e:
         raise e
 
@@ -157,7 +157,7 @@ Get all the entity nodes for the given entity class
 
 Parameters
 ----------
-neo4j_db : neo4j database session
+neo4j_db : neo4j.Session object
     The neo4j database session
 entity_class : str
     One of the normalized entity classes: Dataset, Collection, Sample, Donor
@@ -212,11 +212,11 @@ def get_entities_by_class(neo4j_db, entity_class, property_key = None):
         logger.info(result_list)
 
         return result_list
-    except CypherError as ce:
+    except CypherSyntaxError as ce:
         logger.error("======get_entities_by_class() Cypher error:======")
         logger.error(ce)
 
-        raise CypherError("A Cypher error was encountered: " + ce.message)
+        raise CypherSyntaxError("A CypherSyntaxError was encountered: " + ce.message)
     except Exception as e:
         raise e
 
@@ -230,7 +230,7 @@ Get the source entities uuids of a given derived entity (Dataset/Donor/Sample) b
 
 Parameters
 ----------
-neo4j_db : neo4j database session
+neo4j_db : neo4j.Session object
     The neo4j database session
 uuid : str
     The uuid of target entity 
@@ -261,11 +261,11 @@ def get_source_uuids(neo4j_db, uuid):
         logger.info(source_uuids)
 
         return source_uuids
-    except CypherError as ce:
+    except CypherSyntaxError as ce:
         logger.error("======get_source_uuids() Cypher error:======")
         logger.error(ce)
 
-        raise CypherError("A Cypher error was encountered: " + ce.message)
+        raise CypherSyntaxError("A CypherSyntaxError was encountered: " + ce.message)
     except Exception as e:
         raise e
 
@@ -274,7 +274,7 @@ Get a list of associated dataset uuids for a given derived entity's uuid
 
 Parameters
 ----------
-neo4j_db : neo4j database session
+neo4j_db : neo4j.Session object
     The neo4j database session
 uuid : str
     The uuid of target entity 
@@ -307,11 +307,11 @@ def get_dataset_uuids_by_collection(neo4j_db, uuid):
         logger.info(dataset_uuids_list)
 
         return dataset_uuids_list
-    except CypherError as ce:
+    except CypherSyntaxError as ce:
         logger.error("======get_collection_dataset_uuids() Cypher error:======")
         logger.error(ce)
         
-        raise CypherError("A Cypher error was encountered: " + ce.message)
+        raise CypherSyntaxError("A CypherSyntaxError was encountered: " + ce.message)
     except Exception as e:
         raise e
 
@@ -321,7 +321,7 @@ Get count of published Dataset in the provenance hierarchy for a given  Collecti
 
 Parameters
 ----------
-neo4j_db : neo4j database session
+neo4j_db : neo4j.Session object
     The neo4j database session
 entity_class : str
     One of the normalized entity classes: Collection, Sample, Donor
@@ -357,11 +357,11 @@ def count_attached_published_datasets(neo4j_db, entity_class, uuid):
         logger.info(count)
         
         return count               
-    except CypherError as ce:
+    except CypherSyntaxError as ce:
         logger.error("======count_attached_published_datasets() Cypher error:======")
         logger.error(ce)
 
-        raise CypherError("A Cypher error was encountered: " + ce.message)
+        raise CypherSyntaxError("A CypherSyntaxError was encountered: " + ce.message)
     except Exception as e:
         raise e
 
@@ -520,7 +520,7 @@ Create a new entity node (ans also links to existing Collection nodes if provide
 
 Parameters
 ----------
-neo4j_db : neo4j database session
+neo4j_db : neo4j.Session object
     The neo4j database session
 entity_class : str
     One of the normalized entity classes: Dataset, Collection, Sample, Donor
@@ -553,11 +553,11 @@ def create_entity(neo4j_db, entity_class, entity_json_list_str, collection_uuids
         tx.commit()
 
         return entity_dict
-    except CypherError as ce:
+    except CypherSyntaxError as ce:
         logger.error("======create_entity() Cypher error:======")
         logger.error(ce)
 
-        raise CypherError("A Cypher error was encountered: " + ce.message)
+        raise CypherSyntaxError("A CypherSyntaxError was encountered: " + ce.message)
     except TransactionError as te:
         logger.error("======create_entity() transaction error:======")
         logger.error(te.value)
@@ -577,7 +577,7 @@ Create a derived entity node and link to source entity node via Activity node an
 
 Parameters
 ----------
-neo4j_db : neo4j database session
+neo4j_db : neo4j.Session object
     The neo4j database session
 entity_class : str
     One of the normalized entity classes: Dataset, Collection, Sample, Donor
@@ -630,11 +630,11 @@ def create_derived_entity(neo4j_db, entity_class, entity_json_list_str, activity
         tx.commit()
 
         return entity_dict
-    except CypherError as ce:
+    except CypherSyntaxError as ce:
         logger.error("======create_derived_entity() Cypher error:======")
         logger.error(ce)
 
-        raise CypherError("A Cypher error was encountered: " + ce.message)
+        raise CypherSyntaxError("A CypherSyntaxError was encountered: " + ce.message)
     except TransactionError as te:
         logger.error("======create_derived_entity() transaction error:======")
         logger.error(te.value)
@@ -707,7 +707,7 @@ Update the properties of an existing entity node in neo4j
 
 Parameters
 ----------
-neo4j_db : neo4j database session
+neo4j_db : neo4j.Session object
     The neo4j database session
 entity_class : str
     One of the normalized entity classes: Dataset, Collection, Sample, Donor
@@ -732,11 +732,11 @@ def update_entity(neo4j_db, entity_class, json_list_str, uuid):
         logger.info(entity_dict)
 
         return entity_dict
-    except CypherError as ce:
+    except CypherSyntaxError as ce:
         logger.error("======update_entity() Cypher error:======")
         logger.error(ce)
 
-        raise CypherError("A Cypher error was encountered: " + ce.message)
+        raise CypherSyntaxError("A CypherSyntaxError was encountered: " + ce.message)
     except Exception as e:
         raise e
 
@@ -746,7 +746,7 @@ Get all ancestors by uuid
 
 Parameters
 ----------
-neo4j_db : neo4j database session
+neo4j_db : neo4j.Session object
     The neo4j database session
 uuid : str
     The uuid of target entity 
@@ -781,11 +781,11 @@ def get_ancestors(neo4j_db, uuid):
             ancestors.append(entity_dict)
 
         return ancestors               
-    except CypherError as ce:
+    except CypherSyntaxError as ce:
         logger.error("======get_ancestors() Cypher error:======")
         logger.error(ce)
 
-        raise CypherError("A Cypher error was encountered: " + ce.message)
+        raise CypherSyntaxError("A CypherSyntaxError was encountered: " + ce.message)
     except Exception as e:
         raise e
 
@@ -795,7 +795,7 @@ Get all descendants by uuid
 
 Parameters
 ----------
-neo4j_db : neo4j database session
+neo4j_db : neo4j.Session object
     The neo4j database session
 uuid : str
     The uuid of target entity 
@@ -830,11 +830,11 @@ def get_descendants(neo4j_db, uuid):
             descendants.append(entity_dict)
 
         return descendants               
-    except CypherError as ce:
+    except CypherSyntaxError as ce:
         logger.error("======get_descendants() Cypher error:======")
         logger.error(ce)
 
-        raise CypherError("A Cypher error was encountered: " + ce.message)
+        raise CypherSyntaxError("A CypherSyntaxError was encountered: " + ce.message)
     except Exception as e:
         raise e
 
@@ -843,7 +843,7 @@ Get all parents by uuid
 
 Parameters
 ----------
-neo4j_db : neo4j database session
+neo4j_db : neo4j.Session object
     The neo4j database session
 uuid : str
     The uuid of target entity 
@@ -878,11 +878,11 @@ def get_parents(neo4j_db, uuid):
             parents.append(entity_dict)
 
         return parents               
-    except CypherError as ce:
+    except CypherSyntaxError as ce:
         logger.error("======get_parents() Cypher error:======")
         logger.error(ce)
 
-        raise CypherError("A Cypher error was encountered: " + ce.message)
+        raise CypherSyntaxError("A CypherSyntaxError was encountered: " + ce.message)
     except Exception as e:
         raise e
 
@@ -891,7 +891,7 @@ Get all children by uuid
 
 Parameters
 ----------
-neo4j_db : neo4j database session
+neo4j_db : neo4j.Session object
     The neo4j database session
 uuid : str
     The uuid of target entity 
@@ -925,11 +925,11 @@ def get_children(neo4j_db, uuid):
             children.append(entity_dict)
 
         return children               
-    except CypherError as ce:
+    except CypherSyntaxError as ce:
         logger.error("======get_children() Cypher error:======")
         logger.error(ce)
         
-        raise CypherError("A Cypher error was encountered: " + ce.message)
+        raise CypherSyntaxError("A CypherSyntaxError was encountered: " + ce.message)
     except Exception as e:
         raise e
 
