@@ -14,5 +14,3 @@ services:
       - "../BUILD:/usr/src/app/src/BUILD"
       # Mount the source code
       - "../src:/usr/src/app/src"
-      # Mount the logrotate configuration file
-      - "../src/entity-api.logrotate.conf:/etc/logrotate.d/entity-api"

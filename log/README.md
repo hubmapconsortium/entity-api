@@ -4,4 +4,4 @@ All the API logging is forwarded to the uWSGI server and gets written into the l
 
 ## Log rotation
 
-On the host system, the log rotation is handled via `logrotate` utility with a daily logging rotation on the host system. The configuration file `docker/entity-api/entity-api.logrotate.conf` is being mounted from docker container to the host.
+On the host system, the log rotation is handled via `logrotate` utility with a daily logging rotation schedule. Copy the configuration file from `src/entity-api.logrotate.conf` to `/etc/logrotate.d/`.

@@ -8,8 +8,5 @@ services:
       - HOST_UID=${HOST_UID:-1000}
     init: true
     restart: always
-    volumes:
-      # Mount the logrotate configuration file
-      - "../src/entity-api.logrotate.conf:/etc/logrotate.d/entity-api"
 
 
