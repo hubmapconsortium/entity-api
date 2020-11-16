@@ -1,5 +1,4 @@
-import neo4j
-from neo4j import CypherSyntaxError, TransactionError
+from neo4j.exceptions import CypherSyntaxError, TransactionError
 import logging
 
 logger = logging.getLogger(__name__)

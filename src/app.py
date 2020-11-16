@@ -64,6 +64,48 @@ schema = load_provenance_schema_yaml_file(app.config['SCHEMA_YAML_FILE'])
 
 
 ####################################################################################################
+## Globus groups json loading
+####################################################################################################
+
+# Ported from Provenance.py in commons
+def load_group_data(file):
+    with open(file) as jsFile:
+        groups = json.load(jsFile)
+
+        groups_by_id = {}
+        groups_by_name = {}
+        groups_by_tmc_prefix = {}
+
+        for group in groups:
+            if 'name' in group and 'uuid' in group and 'generateuuid' in group and 'displayname' in group and not string_helper.isBlank(group['name']) and not string_helper.isBlank(group['uuid']) and not string_helper.isBlank(group['displayname']):
+                group_obj = {
+                    'name' : group['name'].lower().strip(), 
+                    'uuid' : group['uuid'].lower().strip(),
+                    'displayname' : group['displayname'], 
+                    'generateuuid': group['generateuuid']
+                }
+
+                if 'tmc_prefix' in group:
+                    group_obj['tmc_prefix'] = group['tmc_prefix']
+
+                    if 'uuid' in group and 'displayname' in group and not string_helper.isBlank(group['uuid']) and not string_helper.isBlank(group['displayname']):
+                        group_info = {}
+                        group_info['uuid'] = group['uuid']
+                        group_info['displayname'] = group['displayname']
+                        group_info['tmc_prefix'] = group['tmc_prefix']
+                       
+                        groups_by_tmc_prefix[group['tmc_prefix'].upper().strip()] = group_info
+                
+                groups_by_name[group['name'].lower().strip()] = group_obj
+                groups_by_id[group['uuid']] = group_obj
+
+        return groups_by_id, groups_by_name, groups_by_tmc_prefix
+
+# Have the groups informaiton available in the application context (lifetime of a request)
+groups_by_id, groups_by_name, groups_by_tmc_prefix = load_group_data(app.config['GROUPS_JSON_FILE'])
+
+
+####################################################################################################
 ## Neo4j connection
 ####################################################################################################
 
@@ -610,11 +652,6 @@ Response
 @app.route('/entities/dataset/globus-url/<id>', methods = ['GET'])
 def get_globus_url(id):
     normalized_entity_class = 'Dataset'
-    
-    # Get all group (tmc/component/Globus Groups/etc...) info as a dict directly from the
-    # hubmap-globus-groups.json file in commons repo
-    prov_helper = Provenance(app.config['APP_CLIENT_ID'], app.config['APP_CLIENT_SECRET'], app.config['UUID_API_URL'])
-    group_ids = prov_helper.get_group_info_by_id()
 
     try:
         uuid = get_target_uuid(id)
@@ -633,7 +670,7 @@ def get_globus_url(id):
         
         #look up the Component's group ID, return an error if not found
         data_group_id = entity_dict['group_uuid']
-        if not data_group_id in group_ids:
+        if not data_group_id in groups_by_id:
             internal_server_error("Dataset group: " + data_group_id + " for uuid:" + uuid + " not found.")
 
         #get the user information (if available) for the caller

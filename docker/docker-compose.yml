@@ -25,6 +25,10 @@ services:
       - "../src/instance:/usr/src/app/src/instance"
       # Mount the logging to container
       - "../log:/usr/src/app/log"
+      # Mount the schema yaml file
+      - "../src/resources/provenance_schema.yaml:/usr/src/app/src/resources/provenance_schema.yaml"
+      # Mount the groups json file
+      - "../src/resources/globus_groups.json:/usr/src/app/src/resources/globus_groups.json"
     networks:
       - gateway_hubmap
 

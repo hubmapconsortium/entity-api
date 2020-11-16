@@ -1,0 +1,196 @@
+[
+  {
+    "description": "Read access to HuBMAP data",
+    "has_subgroups": false,
+    "identity_set_properties": null,
+    "uuid": "5777527e-ec11-11e8-ab41-0af86edb4424",
+    "group_type": "regular",
+    "name": "HuBMAP-Read",
+    "displayname": "HuBMAP-read",
+    "generateuuid": false
+  },
+  {
+    "description": "Access to HuBMAP protected data",
+    "has_subgroups": false,
+    "identity_set_properties": null,
+    "uuid": "c0a18357-b036-11ea-96d3-0e2053f596b5",
+    "group_type": "regular",
+    "name": "HuBMAP-Protected-Data",
+    "displayname": "HuBMAP Protected Data",
+    "generateuuid": false
+  },
+  {
+    "description": "Users who can submit HuBMAP datasets",
+    "has_subgroups": false,
+    "identity_set_properties": null,
+    "uuid": "89a69625-99d7-11ea-9366-0e98982705c1",
+    "group_type": "regular",
+    "name": "HuBMAP-Data-Admin",
+    "displayname": "HuBMAP-data-admin",
+    "generateuuid": false
+  },
+  {
+    "description": "Users who have write access in the University of Florida directory",
+    "has_subgroups": false,
+    "identity_set_properties": null,
+    "uuid": "07a29e4c-ed43-11e8-b56a-0e8017bdda58",
+    "group_type": "regular",
+    "name": "HuBMAP-UFlorida-TMC",
+    "displayname": "University of Florida TMC",
+    "generateuuid": true,
+    "tmc_prefix": "UFL"
+  },
+  {
+    "description": "Users who have write access to the California Institute of Technology directory",
+    "has_subgroups": false,
+    "identity_set_properties": null,
+    "uuid": "308f5ffc-ed43-11e8-b56a-0e8017bdda58",
+    "group_type": "regular",
+    "name": "HuBMAP-CalTech-TMC",
+    "displayname": "California Institute of Technology TMC",
+    "generateuuid": true,
+    "tmc_prefix": "CALT"
+  },
+  {
+    "description": "Users who have write access to the Vanderbilt University directory",
+    "has_subgroups": false,
+    "identity_set_properties": null,
+    "uuid": "73bb26e4-ed43-11e8-8f19-0a7c1eab007a",
+    "group_type": "regular",
+    "name": "HuBMAP-Vanderbilt-TMC",
+    "displayname": "Vanderbilt TMC",
+    "generateuuid": true,
+    "tmc_prefix": "VAN"
+  },
+  {
+    "description": "Users who have write access to the Stanford University directory",
+    "has_subgroups": false,
+    "identity_set_properties": null,
+    "uuid": "def5fd76-ed43-11e8-b56a-0e8017bdda58",
+    "group_type": "regular",
+    "name": "HuBMAP-Stanford-TMC",
+    "displayname": "Stanford TMC",
+    "generateuuid": true,
+    "tmc_prefix": "STAN"
+  },
+  {
+    "description": "Users who have access to the University of California San Diego directory",
+    "has_subgroups": false,
+    "identity_set_properties": null,
+    "uuid": "03b3d854-ed44-11e8-8bce-0e368f3075e8",
+    "group_type": "regular",
+    "name": "HuBMAP-UCSD-TMC",
+    "displayname": "University of California San Diego TMC",
+    "generateuuid": true,
+    "tmc_prefix": "UCSD"
+  },
+  {
+    "description": "Users who have access to the Broad Institute RTI directory",
+    "has_subgroups": false,
+    "identity_set_properties": null,
+    "uuid": "9c4a56ca-79ac-11ea-8359-0e41da796b5d",
+    "group_type": "regular",
+    "name": "HuBMAP-Broad-RTI",
+    "displayname": "Broad Institute RTI",
+    "generateuuid": true,
+    "tmc_prefix": "RTIBD"
+  },
+  {
+    "description": "Users who have access to the General Electric RTI directory",
+    "has_subgroups": false,
+    "identity_set_properties": null,
+    "uuid": "5c106f29-ea2d-11e9-85e8-0efb3ba9a670",
+    "group_type": "regular",
+    "name": "HuBMAP-GE-RTI",
+    "displayname": "General Electric RTI",
+    "generateuuid": true,
+    "tmc_prefix": "RTIGE"
+  },
+  {
+    "description": "Users who have access to the Northwestern RTI directory",
+    "has_subgroups": false,
+    "identity_set_properties": null,
+    "uuid": "76755cd8-79ad-11ea-8293-0a53601d30b5",
+    "group_type": "regular",
+    "name": "HuBMAP-Northwestern-RTI",
+    "displayname": "Northwestern RTI",
+    "generateuuid": true,
+    "tmc_prefix": "RTINW"
+  },
+  {
+    "description": "Users who have access to the Stanford RTI directory",
+    "has_subgroups": false,
+    "identity_set_properties": null,
+    "uuid": "f5af3a5a-e93c-11e9-8559-0efb3ba9a670",
+    "group_type": "regular",
+    "name": "HuBMAP-Stanford-RTI",
+    "displayname": "Stanford RTI",
+    "generateuuid": true,
+    "tmc_prefix": "RTIST"
+  },
+  {
+    "description": "Users who have access to the Cal Tech TTD directory",
+    "has_subgroups": false,
+    "identity_set_properties": null,
+    "uuid": "ab7db177-79ad-11ea-835a-0e41da796b5d",
+    "group_type": "regular",
+    "name": "HuBMAP-CalTech-TTD",
+    "displayname": "Cal Tech TTD",
+    "generateuuid": true,
+    "tmc_prefix": "TTDCT"
+  },
+  {
+    "description": "Users who have access to the Harvard TTD directory",
+    "has_subgroups": false,
+    "identity_set_properties": null,
+    "uuid": "ca46f893-79ad-11ea-b66c-0a990c2810ad",
+    "group_type": "regular",
+    "name": "HuBMAP-Harvard-TTD",
+    "displayname": "Harvard TTD",
+    "generateuuid": true,
+    "tmc_prefix": "TTDHV"
+  },
+  {
+    "description": "Users who have access to the Purdue TTD directory",
+    "has_subgroups": false,
+    "identity_set_properties": null,
+    "uuid": "eb5c5345-79ad-11ea-bc85-0ef992ed7ca1",
+    "group_type": "regular",
+    "name": "HuBMAP-Purdue-TTD",
+    "displayname": "Purdue TTD",
+    "generateuuid": true,
+    "tmc_prefix": "TTDPD"
+  },
+  {
+    "description": "Users who have access to the Stanford TTD directory",
+    "has_subgroups": false,
+    "identity_set_properties": null,
+    "uuid": "f677f31f-79b0-11ea-8295-0a53601d30b5",
+    "group_type": "regular",
+    "name": "HuBMAP-Stanford-TTD",
+    "displayname": "Stanford TTD",
+    "generateuuid": true,
+    "tmc_prefix": "TTDST"
+  },
+  {
+    "description": "Users who have write access to all directories",
+    "has_subgroups": false,
+    "identity_set_properties": null,
+    "uuid": "2cf25858-ed44-11e8-991d-0e368f3075e8",
+    "group_type": "regular",
+    "name": "HuBMAP-All-Access",
+    "displayname": "HuBMAP-All-Access",
+    "generateuuid": true
+  },
+  {
+    "description": "Users who have write access to the testing folder",
+    "has_subgroups": false,
+    "identity_set_properties": null,
+    "uuid": "5bd084c8-edc2-11e8-802f-0e368f3075e8",
+    "group_type": "regular",
+    "name": "HuBMAP-Testing-Group",
+    "displayname": "IEC Testing Group",
+    "generateuuid": true,
+    "tmc_prefix": "TEST"
+  }
+]
