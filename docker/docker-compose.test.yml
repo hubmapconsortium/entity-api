@@ -9,6 +9,8 @@ services:
     init: true
     restart: always
     volumes:
-      # Mount the source code to container
-      - "../src/schema/hubmap-entities.yaml:/usr/src/app/src/schema/hubmap-entities.yaml"
+      # Mount the schema yaml file
+      - "../src/schema/provenance-schema.yaml:/usr/src/app/src/schema/provenance-schema.yaml"
+      # Mount the logrotate configuration file
+      - "../src/entity-api.logrotate.conf:/etc/logrotate.d/entity-api"
 
