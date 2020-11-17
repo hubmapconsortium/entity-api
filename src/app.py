@@ -681,6 +681,8 @@ def get_dataset_globus_url(id):
         bad_request_error("The target entity enity of the specified id is not a Dataset")
 
     uuid = entity_dict['uuid']
+
+    group_ids = globus_groups['by_id']
     
     # 'data_access_level' is always available since it's transint property
     data_access_level = entity_dict['data_access_level']
@@ -690,7 +692,7 @@ def get_dataset_globus_url(id):
 
     #look up the Component's group ID, return an error if not found
     data_group_id = entity_dict['group_uuid']
-    if not data_group_id in globus_groups['by_id']:
+    if not data_group_id in group_ids:
         internal_server_error("Can not find dataset group: " + data_group_id + " for id: " + id)
 
     # Get the user information (if available) for the caller
