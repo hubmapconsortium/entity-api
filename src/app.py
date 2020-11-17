@@ -11,6 +11,7 @@ from cachetools import cached, TTLCache
 import functools
 from pathlib import Path
 import logging
+import urllib
 
 # Local modules
 import neo4j_queries
