@@ -3,9 +3,9 @@ from neo4j import GraphDatabase
 import sys
 import os
 import yaml
+import json
 import requests
 from urllib3.exceptions import InsecureRequestWarning
-import json
 from cachetools import cached, TTLCache
 import functools
 from pathlib import Path
@@ -20,6 +20,12 @@ from hubmap_commons.hm_auth import AuthHelper
 from hubmap_commons import string_helper
 from hubmap_commons import file_helper
 
+# Set logging fromat and level (default is warning)
+# All the API logging is forwarded to the uWSGI server and gets written into the log file `uwsgo-entity-api.log`
+# Log rotation is handled via logrotate on the host system with a configuration file
+# Do NOT handle log file and rotation via the Python logging to avoid issues with multi-worker processes
+logging.basicConfig(format='[%(asctime)s] %(levelname)s in %(module)s: %(message)s', level=logging.DEBUG, datefmt='%Y-%m-%d %H:%M:%S')
+
 # Specify the absolute path of the instance folder and use the config file relative to the instance path
 app = Flask(__name__, instance_path=os.path.join(os.path.abspath(os.path.dirname(__file__)), 'instance'), instance_relative_config=True)
 app.config.from_pyfile('app.cfg')
@@ -27,12 +33,6 @@ app.config.from_pyfile('app.cfg')
 # Remove trailing slash / from URL base to avoid "//" caused by config with trailing slash
 app.config['UUID_API_URL'] = app.config['UUID_API_URL'].strip('/')
 app.config['SEARCH_API_URL'] = app.config['SEARCH_API_URL'].strip('/')
-
-# Set logging fromat and level (default is warning)
-# All the API logging is forwarded to the uWSGI server and gets written into the log file `uwsgo-entity-api.log`
-# Log rotation is handled via logrotate on the host system with a configuration file
-# Do NOT handle log file and rotation via the Python logging to avoid issues with multi-worker processes
-logging.basicConfig(format='[%(asctime)s] %(levelname)s in %(module)s: %(message)s', level=logging.DEBUG, datefmt='%Y-%m-%d %H:%M:%S')
 
 # LRU Cache implementation with per-item time-to-live (TTL) value
 # with a memoizing callable that saves up to maxsize results based on a Least Frequently Used (LFU) algorithm
@@ -44,19 +44,30 @@ cache = TTLCache(maxsize=app.config['CACHE_MAXSIZE'], ttl=app.config['CACHE_TTL'
 ## Provenance yaml schema loading
 ####################################################################################################
 
+"""
+Load the schema yaml file
+
+Parameters
+----------
+valid_yaml_file : file
+    A valid yaml file
+
+Returns
+-------
+dict
+    A dict containing the schema details
+"""
 @cached(cache)
-def load_provenance_schema_yaml_file(file):
-    with open(file, 'r') as stream:
-        try:
-            schema = yaml.safe_load(stream)
+def load_provenance_schema_yaml_file(valid_yaml_file):
+    with open(valid_yaml_file) as file:
+        schema = yaml.safe_load(file)
 
-            app.logger.info("======schema yaml loaded successfully======")
-            app.logger.info(schema)
+        app.logger.info("Schema yaml file loaded successfully")
 
-            return schema
-        except yaml.YAMLError as exc:
-            app.logger.error("======schema yaml failed to load======")
-            app.logger.error(exc)
+        app.logger.debug("======schema======")
+        app.logger.debug(schema)
+
+        return schema
    
 # Have the schema informaiton available in the application context (lifetime of a request)
 schema = load_provenance_schema_yaml_file(app.config['SCHEMA_YAML_FILE'])
@@ -66,12 +77,25 @@ schema = load_provenance_schema_yaml_file(app.config['SCHEMA_YAML_FILE'])
 ## Globus groups json loading
 ####################################################################################################
 
-# Ported from Provenance.py in commons
-def load_group_data(file):
-    with open(file) as jsFile:
-        groups = json.load(jsFile)
+"""
+Load the globus groups information json file
 
-        app.logger.info("======groups json loaded successfully======")
+Parameters
+----------
+valid_json_file : file
+    A valid json file
+
+Returns
+-------
+dict
+    A dict containing the groups details
+"""
+@cached(cache)
+def load_globus_groups_json_file(valid_json_file):
+    with open(valid_json_file) as file:
+        groups = json.load(file)
+
+        app.logger.info("Globus groups json file loaded successfully")
 
         groups_by_id = {}
         groups_by_name = {}
@@ -100,19 +124,26 @@ def load_group_data(file):
                 groups_by_name[group['name'].lower().strip()] = group_obj
                 groups_by_id[group['uuid']] = group_obj
 
-                app.logger.info("======groups_by_id======")
-                app.logger.info(groups_by_id)
+                app.logger.debug("======groups_by_id======")
+                app.logger.debug(groups_by_id)
 
-                app.logger.info("======groups_by_name======")
-                app.logger.info(groups_by_name)
+                app.logger.debug("======groups_by_name======")
+                app.logger.debug(groups_by_name)
 
-                app.logger.info("======groups_by_tmc_prefix======")
-                app.logger.info(groups_by_tmc_prefix)
-
-        return groups_by_id, groups_by_name, groups_by_tmc_prefix
+                app.logger.debug("======groups_by_tmc_prefix======")
+                app.logger.debug(groups_by_tmc_prefix)
+        
+        # Wrap the final data
+        globus_groups = {
+            'by_id': groups_by_id,
+            'by_name': groups_by_name,
+            'by_tmc_prefix': groups_by_tmc_prefix
+        }
+        
+        return globus_groups
 
 # Have the groups informaiton available in the application context (lifetime of a request)
-groups_by_id, groups_by_name, groups_by_tmc_prefix = load_group_data(app.config['GROUPS_JSON_FILE'])
+globus_groups = load_globus_groups_json_file(app.config['GROUPS_JSON_FILE'])
 
 
 ####################################################################################################
@@ -221,14 +252,11 @@ Returns
 str
     A confirmation message
 """
-@app.route('/schema_cache', methods = ['DELETE'])
-def delete_schema_cache():
+@app.route('/cache', methods = ['DELETE'])
+def delete_cache():
     cache.clear()
-    
-    msg = "The cache of schema yaml has been deleted."
-
+    msg = "The cache of schema yaml and groups json have been deleted."
     app.logger.info(msg)
-
     return msg
 
 """
@@ -490,8 +518,8 @@ def update_entity(id):
     # Must also escape single quotes in the json string to build a valid Cypher query later
     escaped_json_list_str = json_list_str.replace("'", r"\'")
 
-    app.logger.info("======update entity with json_list_str======")
-    app.logger.info(json_list_str)
+    app.logger.debug("======update entity with json_list_str======")
+    app.logger.debug(json_list_str)
 
     # Update the exisiting entity
     result_dict = neo4j_queries.update_entity(get_neo4j_db(), normalized_entity_class, escaped_json_list_str, entity_uuid)
@@ -682,7 +710,7 @@ def get_globus_url(id):
         
         #look up the Component's group ID, return an error if not found
         data_group_id = entity_dict['group_uuid']
-        if not data_group_id in groups_by_id:
+        if not data_group_id in globus_groups['by_id']:
             internal_server_error("Dataset group: " + data_group_id + " for uuid:" + uuid + " not found.")
 
         #get the user information (if available) for the caller
@@ -737,12 +765,12 @@ def get_globus_url(id):
     except HTTPException as hte:
         msg = "HTTPException during get_entity_access_level HTTP code: " + str(hte.get_status_code()) + " " + hte.get_description()
 
-        app.logger.error("======get_globus_url() error======")
+        app.logger.error("HTTPException from calling get_globus_url()")
         app.logger.error(msg)
 
         internal_server_error(msg)
     except Exception as e:
-        app.logger.error("======get_globus_url() error======")
+        app.logger.error("Exception from calling get_globus_url()")
         app.logger.error(e)
 
         internal_server_error('Unhandled exception occured during executing get_globus_url()')
@@ -861,8 +889,8 @@ def create_new_entity(normalized_entity_class, json_data_dict):
     # Must also escape single quotes in the json string to build a valid Cypher query later
     escaped_json_list_str = json_list_str.replace("'", r"\'")
 
-    app.logger.info("======create_new_entity() with escaped_json_list_str======")
-    app.logger.info(escaped_json_list_str)
+    app.logger.debug("======create_new_entity() with escaped_json_list_str======")
+    app.logger.debug(escaped_json_list_str)
 
     # Create new entity
     # If `collection_uuids_list` is not an empty list, meaning the target entity is Dataset and 
@@ -960,8 +988,8 @@ def create_derived_entity(normalized_target_entity_class, json_data_dict):
     # Must also escape single quotes in the json string to build a valid Cypher query later
     escaped_json_list_str = json_list_str.replace("'", r"\'")
 
-    app.logger.info("======create_derived_entity() with escaped_json_list_str======")
-    app.logger.info(escaped_json_list_str)
+    app.logger.debug("======create_derived_entity() with escaped_json_list_str======")
+    app.logger.debug(escaped_json_list_str)
 
     # For Activity creation.
     # Activity is not an Entity, thus we use "class" for reference
@@ -985,8 +1013,8 @@ def create_derived_entity(normalized_target_entity_class, json_data_dict):
     # Convert the list (only contains one entity) to json list string
     activity_json_list_str = json.dumps(activity_data_list)
 
-    app.logger.info("======create_derived_entity() create activity with activity_json_list_str======")
-    app.logger.info(activity_json_list_str)
+    app.logger.debug("======create_derived_entity() create activity with activity_json_list_str======")
+    app.logger.debug(activity_json_list_str)
 
     # Create the derived entity alone with the Activity node and relationships
     # If `collection_uuids_list` is not an empty list, meaning the target entity is Dataset and 
@@ -1237,11 +1265,15 @@ def create_new_ids(normalized_entity_class, generate_doi = True):
 
         return new_ids_dict
     else:
-        msg = "Failed to create new ids via the uuid-api service for during the creation of this new entity"
+        msg = "Failed to create new ids via the uuid-api service during the creation of this new " + normalized_entity_class
         
         app.logger.error(msg)
-        app.logger.info("response status code: " + str(response.status_code))
-        app.logger.info("response text: " + response.text)
+
+        app.logger.debug("======create_new_ids() status code======")
+        app.logger.debug(response.status_code)
+
+        app.logger.debug("======create_new_ids() response text======")
+        app.logger.debug(response.text)
 
         internal_server_error(msg)
 
@@ -1484,8 +1516,8 @@ def get_user_info(request):
     # `group_required` is a boolean, when True, 'hmgroupids' is in the output
     user_info = auth_helper.getUserInfoUsingRequest(request, False)
 
-    app.logger.info("======get_user_info()======")
-    app.logger.info(user_info)
+    app.logger.debug("======get_user_info()======")
+    app.logger.debug(user_info)
 
     # If returns error response, invalid header or token
     if isinstance(user_info, Response):

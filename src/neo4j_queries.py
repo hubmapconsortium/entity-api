@@ -23,21 +23,21 @@ def check_connection(neo4j_db):
     parameterized_query = ("RETURN 1 AS {record_field_name}")
     query = parameterized_query.format(record_field_name = record_field_name)
 
-    logger.info("======check_connection() query:======")
-    logger.info(query)
-
     try:
         result = neo4j_db.run(query)
         record = result.single()
         int_value = record[record_field_name]
         
         if int_value == 1:
+            logger.info("Neo4j is connected :)")
             return True
-    except CypherSyntaxError as ce:
-        logger.error("======check_connection() Cypher error:======")
-        logger.error(ce)
 
-        raise CypherSyntaxError("A CypherSyntaxError was encountered: " + ce.message)
+        logger.info("Neo4j is NOT connected :(")
+        return False
+    except CypherSyntaxError as ce:
+        msg = "CypherSyntaxError from calling check_connection(): " + ce.message
+        logger.error(msg)
+        raise CypherSyntaxError(msg)
     except Exception as e:
         raise e
 
@@ -72,15 +72,15 @@ def create_activity_tx(tx, json_list_str):
     query = parameterized_query.format(json_list_str = json_list_str,
                                        record_field_name = record_field_name)
 
-    logger.info("======create_activity_tx() query:======")
-    logger.info(query)
+    logger.debug("======create_activity_tx() query======")
+    logger.debug(query)
 
     result = tx.run(query)
     record = result.single()
     node = record[record_field_name]
 
-    logger.info("======create_activity_tx() resulting node:======")
-    logger.info(node)
+    logger.debug("======create_activity_tx() resulting node======")
+    logger.debug(node)
 
     return node
 
@@ -111,8 +111,8 @@ def get_entity(neo4j_db, uuid):
     query = parameterized_query.format(uuid = uuid, 
                                        record_field_name = record_field_name)
     
-    logger.info("======get_entity() query:======")
-    logger.info(query)
+    logger.debug("======get_entity() query======")
+    logger.debug(query)
 
     try:
         nodes = []
@@ -124,8 +124,8 @@ def get_entity(neo4j_db, uuid):
         for record in results:
             nodes.append(record.get(record_field_name))
         
-        logger.info("======get_entity() resulting nodes:======")
-        logger.info(nodes)
+        logger.debug("======get_entity() resulting nodes======")
+        logger.debug(nodes)
 
         # Return an empty dict if no result
         if len(nodes) < 1:
@@ -139,15 +139,14 @@ def get_entity(neo4j_db, uuid):
         # Convert the neo4j node into Python dict
         entity_dict = node_to_dict(nodes[0])
 
-        logger.info("======get_entity() resulting entity_dict:======")
-        logger.info(entity_dict)
+        logger.debug("======get_entity() resulting entity_dict======")
+        logger.debug(entity_dict)
 
         return entity_dict
     except CypherSyntaxError as ce:
-        logger.error("======get_entity() Cypher error:======")
-        logger.error(ce)
-
-        raise CypherSyntaxError("A CypherSyntaxError was encountered: " + ce.message)
+        msg = "CypherSyntaxError from calling get_entity(): " + ce.message
+        logger.error(msg)
+        raise CypherSyntaxError(msg)
     except Exception as e:
         raise e
 
@@ -187,7 +186,7 @@ def get_entities_by_class(neo4j_db, entity_class, property_key = None):
         query = parameterized_query.format(entity_class = entity_class, 
                                            record_field_name = record_field_name)
     
-    logger.info("======get_entities_by_class() query:======")
+    logger.info("======get_entities_by_class() query======")
     logger.info(query)
 
     try:
@@ -207,15 +206,14 @@ def get_entities_by_class(neo4j_db, entity_class, property_key = None):
                 entity_dict = node_to_dict(node)
                 result_list.append(entity_dict)
 
-        logger.info("======get_entities_by_class() result_list:======")
-        logger.info(result_list)
+        logger.debug("======get_entities_by_class() result_list======")
+        logger.debug(result_list)
 
         return result_list
     except CypherSyntaxError as ce:
-        logger.error("======get_entities_by_class() Cypher error:======")
-        logger.error(ce)
-
-        raise CypherSyntaxError("A CypherSyntaxError was encountered: " + ce.message)
+        msg = "CypherSyntaxError from calling get_entities_by_class(): " + ce.message
+        logger.error(msg)
+        raise CypherSyntaxError(msg)
     except Exception as e:
         raise e
 
@@ -247,8 +245,8 @@ def get_source_uuids(neo4j_db, uuid):
     query = parameterized_query.format(uuid = uuid, 
                                        record_field_name = record_field_name)
     
-    logger.info("======get_source_uuids() query:======")
-    logger.info(query)
+    logger.debug("======get_source_uuids() query======")
+    logger.debug(query)
 
     try:
         result = neo4j_db.run(query)
@@ -256,15 +254,14 @@ def get_source_uuids(neo4j_db, uuid):
         record = result.single()
         source_uuids = record[record_field_name]
 
-        logger.info("======get_source_uuids() resulting source_uuids list:======")
-        logger.info(source_uuids)
+        logger.debug("======get_source_uuids() resulting source_uuids list======")
+        logger.debug(source_uuids)
 
         return source_uuids
     except CypherSyntaxError as ce:
-        logger.error("======get_source_uuids() Cypher error:======")
-        logger.error(ce)
-
-        raise CypherSyntaxError("A CypherSyntaxError was encountered: " + ce.message)
+        msg = "CypherSyntaxError from calling get_source_uuids(): " + ce.message
+        logger.error(msg)
+        raise CypherSyntaxError(msg)
     except Exception as e:
         raise e
 
@@ -293,8 +290,8 @@ def get_dataset_uuids_by_collection(neo4j_db, uuid):
     query = parameterized_query.format(uuid = uuid, 
                                        record_field_name = record_field_name)
     
-    logger.info("======get_dataset_uuids_by_collection() query:======")
-    logger.info(query)
+    logger.debug("======get_dataset_uuids_by_collection() query======")
+    logger.debug(query)
 
     try:
         results = neo4j_db.run(query)
@@ -302,15 +299,14 @@ def get_dataset_uuids_by_collection(neo4j_db, uuid):
         for record in results:
             dataset_uuids_list.append(record.get(record_field_name))
 
-        logger.info("======get_collection_dataset_uuids() resulting list:======")
-        logger.info(dataset_uuids_list)
+        logger.debug("======get_collection_dataset_uuids() resulting list======")
+        logger.debug(dataset_uuids_list)
 
         return dataset_uuids_list
     except CypherSyntaxError as ce:
-        logger.error("======get_collection_dataset_uuids() Cypher error:======")
-        logger.error(ce)
-        
-        raise CypherSyntaxError("A CypherSyntaxError was encountered: " + ce.message)
+        msg = "CypherSyntaxError from calling get_collection_dataset_uuids(): " + ce.message
+        logger.error(msg)
+        raise CypherSyntaxError(msg)
     except Exception as e:
         raise e
 
@@ -344,23 +340,22 @@ def count_attached_published_datasets(neo4j_db, entity_class, uuid):
     	                               uuid = uuid, 
                                        record_field_name = record_field_name)
 
-    logger.info("======count_attached_published_datasets() query:======")
-    logger.info(query)
+    logger.debug("======count_attached_published_datasets() query======")
+    logger.debug(query)
 
     try:
         result = neo4j_db.run(query)
         record = result.single()
         count = record[record_field_name]
 
-        logger.info("======count_attached_published_datasets() resulting count:======")
-        logger.info(count)
+        logger.debug("======count_attached_published_datasets() resulting count======")
+        logger.debug(count)
         
         return count               
     except CypherSyntaxError as ce:
-        logger.error("======count_attached_published_datasets() Cypher error:======")
-        logger.error(ce)
-
-        raise CypherSyntaxError("A CypherSyntaxError was encountered: " + ce.message)
+        msg = "CypherSyntaxError from calling count_attached_published_datasets(): " + ce.message
+        logger.error(msg)
+        raise CypherSyntaxError(msg)
     except Exception as e:
         raise e
 
@@ -400,15 +395,15 @@ def create_entity_tx(tx, entity_class, json_list_str):
                                        entity_class = entity_class, 
                                        record_field_name = record_field_name)
 
-    logger.info("======create_entity_tx() query:======")
-    logger.info(query)
+    logger.debug("======create_entity_tx() query======")
+    logger.debug(query)
 
     result = tx.run(query)
     record = result.single()
     node = record[record_field_name]
 
-    logger.info("======create_entity_tx() resulting node:======")
-    logger.info(node)
+    logger.debug("======create_entity_tx() resulting node======")
+    logger.debug(node)
 
     return node
 
@@ -461,15 +456,15 @@ def create_relationship_tx(tx, source_node_uuid, target_node_uuid, relationship,
                                        outgoing = outgoing,
                                        record_field_name = record_field_name)
 
-    logger.info("======create_relationship_tx() query:======")
-    logger.info(query)
+    logger.debug("======create_relationship_tx() query======")
+    logger.debug(query)
 
     result = tx.run(query)
     record = result.single()
     relationship = record[record_field_name]
 
-    logger.info("======create_relationship_tx() resulting relationship:======")
-    logger.info("(source node) " + incoming + " [:" + relationship + "] " + outgoing + " (target node)")
+    logger.debug("======create_relationship_tx() resulting relationship======")
+    logger.debug("(source node) " + incoming + " [:" + relationship + "] " + outgoing + " (target node)")
 
     return relationship
 
@@ -501,15 +496,15 @@ def create_dataset_collection_relationships_tx(tx, entity_dict, collection_uuids
                                        collection_uuids_list_str = collection_uuids_list_str,
                                        record_field_name = record_field_name)
 
-    logger.info("======create_dataset_collection_relationships_tx() query:======")
-    logger.info(query)
+    logger.debug("======create_dataset_collection_relationships_tx() query======")
+    logger.debug(query)
 
     result = tx.run(query)
     record = result.single()
     relationship = record[record_field_name]
 
-    logger.info("======create_dataset_collection_relationships_tx() resulting relationship:======")
-    logger.info(relationship)
+    logger.debug("======create_dataset_collection_relationships_tx() resulting relationship======")
+    logger.debug(relationship)
 
     return relationship
 
@@ -542,31 +537,32 @@ def create_entity(neo4j_db, entity_class, entity_json_list_str, collection_uuids
         entity_node = create_entity_tx(tx, entity_class, entity_json_list_str)
         entity_dict = node_to_dict(entity_node)
 
-        logger.info("======create_entity() resulting entity_dict:======")
-        logger.info(entity_dict)
+        logger.debug("======create_entity() resulting entity_dict======")
+        logger.debug(entity_dict)
 
         # For Dataset associated with Collections
         if collection_uuids_list:
+            logger.info("Create relationships between target dataset and associated collections")
+
             create_dataset_collection_relationships_tx(tx, entity_dict, collection_uuids_list)
         
         tx.commit()
 
         return entity_dict
     except CypherSyntaxError as ce:
-        logger.error("======create_entity() Cypher error:======")
-        logger.error(ce)
-
-        raise CypherSyntaxError("A CypherSyntaxError was encountered: " + ce.message)
+        msg = "CypherSyntaxError from calling create_entity(): " + ce.message
+        logger.error(msg)
+        raise CypherSyntaxError(msg)
     except TransactionError as te:
-        logger.error("======create_entity() transaction error:======")
-        logger.error(te.value)
+        msg = "TransactionError from calling create_entity(): " + te.value
+        logger.error(msg)
 
         if tx.closed() == False:
-            logger.info("create_entity() transaction failed, rollback")
+            logger.info("Failed to commit create_entity() transaction, rollback")
 
             tx.rollback()
 
-        raise TransactionError("Neo4j transaction error: create_entity()" + te.value)
+        raise TransactionError(msg)
     except Exception as e:
         raise e
 
@@ -608,8 +604,8 @@ def create_derived_entity(neo4j_db, entity_class, entity_json_list_str, activity
         entity_node = create_entity_tx(tx, entity_class, entity_json_list_str)
         entity_dict = node_to_dict(entity_node)
 
-        logger.info("======create_derived_entity() resulting entity_dict:======")
-        logger.info(entity_dict)
+        logger.debug("======create_derived_entity() resulting entity_dict======")
+        logger.debug(entity_dict)
 
         # Create the Acvitity node
         activity_dict = create_activity_tx(tx, activity_json_list_str)
@@ -630,20 +626,18 @@ def create_derived_entity(neo4j_db, entity_class, entity_json_list_str, activity
 
         return entity_dict
     except CypherSyntaxError as ce:
-        logger.error("======create_derived_entity() Cypher error:======")
-        logger.error(ce)
-
-        raise CypherSyntaxError("A CypherSyntaxError was encountered: " + ce.message)
+        msg = "CypherSyntaxError from calling create_derived_entity(): " + ce.message
+        logger.error(msg)
+        raise CypherSyntaxError(msg)
     except TransactionError as te:
-        logger.error("======create_derived_entity() transaction error:======")
-        logger.error(te.value)
+        msg = "TransactionError from calling create_derived_entity(): " + te.value
+        logger.error(msg)
 
         if tx.closed() == False:
-            logger.info("create_derived_entity() transaction failed, rollback")
-
+            logger.error("Failed to commit create_derived_entity() transaction, rollback")
             tx.rollback()
 
-        raise TransactionError("Neo4j transaction error: create_derived_entity()" + te.value)
+        raise TransactionError(msg)
     except Exception as e:
         raise e
 
@@ -689,15 +683,15 @@ def update_entity_tx(tx, entity_class, json_list_str, uuid):
                                        uuid = uuid, 
                                        record_field_name = record_field_name)
     
-    logger.info("======update_entity_tx() query:======")
-    logger.info(query)
+    logger.debug("======update_entity_tx() query======")
+    logger.debug(query)
 
     result = tx.run(query)
     record = result.single()
     node = record[record_field_name]
 
-    logger.info("======update_entity_tx() resulting node:======")
-    logger.info(node)
+    logger.debug("======update_entity_tx() resulting node======")
+    logger.debug(node)
 
     return node
 
@@ -727,15 +721,14 @@ def update_entity(neo4j_db, entity_class, json_list_str, uuid):
         entity_node = neo4j_db.write_transaction(update_entity_tx, entity_class, json_list_str, uuid)
         entity_dict = node_to_dict(entity_node)
 
-        logger.info("======update_entity() resulting entity_dict:======")
-        logger.info(entity_dict)
+        logger.debug("======update_entity() resulting entity_dict======")
+        logger.debug(entity_dict)
 
         return entity_dict
     except CypherSyntaxError as ce:
-        logger.error("======update_entity() Cypher error:======")
-        logger.error(ce)
-
-        raise CypherSyntaxError("A CypherSyntaxError was encountered: " + ce.message)
+        msg = "CypherSyntaxError from calling update_entity()" + ce.message
+        logger.error(msg)
+        raise CypherSyntaxError(msg)
     except Exception as e:
         raise e
 
@@ -767,8 +760,8 @@ def get_ancestors(neo4j_db, uuid):
     query = parameterized_query.format(uuid = uuid, 
                                        record_field_name = record_field_name)
 
-    logger.info("======get_ancestors() query:======")
-    logger.info(query)
+    logger.debug("======get_ancestors() query======")
+    logger.debug(query)
 
     try:
         result = neo4j_db.run(query)
@@ -781,10 +774,9 @@ def get_ancestors(neo4j_db, uuid):
 
         return ancestors               
     except CypherSyntaxError as ce:
-        logger.error("======get_ancestors() Cypher error:======")
-        logger.error(ce)
-
-        raise CypherSyntaxError("A CypherSyntaxError was encountered: " + ce.message)
+        msg = "CypherSyntaxError from calling get_ancestors()" + ce.message
+        logger.error(msg)
+        raise CypherSyntaxError(msg)
     except Exception as e:
         raise e
 
@@ -816,8 +808,8 @@ def get_descendants(neo4j_db, uuid):
     query = parameterized_query.format(uuid = uuid, 
                                        record_field_name = record_field_name)
 
-    logger.info("======get_descendants() query:======")
-    logger.info(query)
+    logger.debug("======get_descendants() query======")
+    logger.debug(query)
 
     try:
         result = neo4j_db.run(query)
@@ -830,10 +822,9 @@ def get_descendants(neo4j_db, uuid):
 
         return descendants               
     except CypherSyntaxError as ce:
-        logger.error("======get_descendants() Cypher error:======")
-        logger.error(ce)
-
-        raise CypherSyntaxError("A CypherSyntaxError was encountered: " + ce.message)
+        msg = "CypherSyntaxError from calling get_descendants(): " + ce.message
+        logger.error(msg)
+        raise CypherSyntaxError(msg)
     except Exception as e:
         raise e
 
@@ -864,8 +855,8 @@ def get_parents(neo4j_db, uuid):
     query = parameterized_query.format(uuid = uuid, 
                                        record_field_name = record_field_name)
 
-    logger.info("======get_parents() query:======")
-    logger.info(query)
+    logger.debug("======get_parents() query======")
+    logger.debug(query)
 
     try:
         result = neo4j_db.run(query)
@@ -878,10 +869,9 @@ def get_parents(neo4j_db, uuid):
 
         return parents               
     except CypherSyntaxError as ce:
-        logger.error("======get_parents() Cypher error:======")
-        logger.error(ce)
-
-        raise CypherSyntaxError("A CypherSyntaxError was encountered: " + ce.message)
+        msg = "CypherSyntaxError from calling get_parents(): " + ce.message
+        logger.error(msg)
+        raise CypherSyntaxError(msg)
     except Exception as e:
         raise e
 
@@ -911,8 +901,8 @@ def get_children(neo4j_db, uuid):
     query = parameterized_query.format(uuid = uuid, 
                                        record_field_name = record_field_name)
 
-    logger.info("======get_children() query:======")
-    logger.info(query)
+    logger.debug("======get_children() query======")
+    logger.debug(query)
 
     try:
         result = neo4j_db.run(query)
@@ -925,10 +915,9 @@ def get_children(neo4j_db, uuid):
 
         return children               
     except CypherSyntaxError as ce:
-        logger.error("======get_children() Cypher error:======")
-        logger.error(ce)
-        
-        raise CypherSyntaxError("A CypherSyntaxError was encountered: " + ce.message)
+        msg = "CypherSyntaxError from calling get_children(): " + ce.message
+        logger.error(msg)
+        raise CypherSyntaxError(msg)
     except Exception as e:
         raise e
 
