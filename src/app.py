@@ -681,7 +681,7 @@ def get_dataset_globus_url(id):
     data_access_level = entity_dict['data_access_level']
 
     if not 'group_uuid' in entity_dict or string_helper.isBlank(entity_dict['group_uuid']):
-        internal_server_error("Group id not set for dataset with id: " + id)
+        internal_server_error("Group uuid not set for dataset with id: " + id)
 
     #look up the Component's group ID, return an error if not found
     data_group_id = entity_dict['group_uuid']

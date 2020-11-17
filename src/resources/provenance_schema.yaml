@@ -203,6 +203,10 @@ ENTITIES:
         type: string
       local_directory_url_path:
         type: string
+      group_uuid:
+        type: string
+      group_name:
+        type: string
       
 
   ############################################# Donor #############################################
