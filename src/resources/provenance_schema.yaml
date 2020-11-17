@@ -101,11 +101,11 @@ shared_entity_properties: &shared_entity_properties
     description: "One of the values: public, consortium, protected. Only Dataset may have protected value"
     on_read_trigger: get_data_access_level
   ###### All other shared properties ######
-  entity_type:
+  entity_class:
     type: string
     description: "One of the normalized entity types: Dataset, Collection, Sample, Donor"
     immutable: true
-    on_create_trigger: get_entity_type 
+    on_create_trigger: get_entity_class 
   # Currently cretors and contacts are only available for Collection
   creators:
     type: list
