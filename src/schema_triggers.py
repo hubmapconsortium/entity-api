@@ -31,7 +31,7 @@ def get_current_timestamp(combined_data_dict):
     return seconds
 
 """
-Trigger event method of generating current timestamp
+Trigger event method of getting the entity class of a given entity
 
 Parameters
 ----------
@@ -42,9 +42,9 @@ combined_data_dict : dict
 Returns
 -------
 str
-    The string of normalized entity type
+    The string of normalized entity class
 """
-def get_entity_type(combined_data_dict):
+def get_entity_class(combined_data_dict):
     return combined_data_dict['normalized_entity_class']
 
 """
@@ -272,4 +272,4 @@ str
     The creation_action string
 """
 def get_activity_creation_action(combined_data_dict):
-    return "Create {entity_type} Activity".format(entity_type = combined_data_dict['normalized_activity_class'])
+    return "Create {entity_class} Activity".format(entity_class = combined_data_dict['normalized_activity_class'])
