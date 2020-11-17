@@ -666,6 +666,11 @@ Response
 """
 @app.route('/dataset/globus-url/<id>', methods = ['GET'])
 def get_dataset_globus_url(id):
+    # For now, don't use the constants from commons
+    ACCESS_LEVEL_PUBLIC = 'public'
+    ACCESS_LEVEL_CONSORTIUM = 'consortium'
+    ACCESS_LEVEL_PROTECTED = 'protected'
+
     # Query target entity against uuid-api and neo4j and return as a dict if exists
     # Then retrieve the allowable data access level (public, protected or consortium)
     # for the dataset and HuBMAP Component ID that the dataset belongs to
@@ -712,17 +717,17 @@ def get_dataset_globus_url(id):
         user_access_level = user_info['data_access_level']
 
     #public access
-    if data_access_level == HubmapConst.ACCESS_LEVEL_PUBLIC:
+    if data_access_level == ACCESS_LEVEL_PUBLIC:
         globus_server_uuid = app.config['GLOBUS_PUBLIC_ENDPOINT_UUID']
         access_dir = access_level_prefix_dir(app.config['PUBLIC_DATA_SUBDIR'])
         dir_path = dir_path +  access_dir + "/"
     #consortium access
-    elif data_access_level == HubmapConst.ACCESS_LEVEL_CONSORTIUM and not user_access_level == HubmapConst.ACCESS_LEVEL_PUBLIC:
+    elif data_access_level == ACCESS_LEVEL_CONSORTIUM and not user_access_level == ACCESS_LEVEL_PUBLIC:
         globus_server_uuid = app.config['GLOBUS_CONSORTIUM_ENDPOINT_UUID']
         access_dir = access_level_prefix_dir(app.config['CONSORTIUM_DATA_SUBDIR'])
         dir_path = dir_path + access_dir + group_ids[data_group_id]['displayname'] + "/"
     #protected access
-    elif user_access_level == HubmapConst.ACCESS_LEVEL_PROTECTED and data_access_level == HubmapConst.ACCESS_LEVEL_PROTECTED:
+    elif user_access_level == ACCESS_LEVEL_PROTECTED and data_access_level == ACCESS_LEVEL_PROTECTED:
         globus_server_uuid = app.config['GLOBUS_PROTECTED_ENDPOINT_UUID']
         access_dir = access_level_prefix_dir(app.config['PROTECTED_DATA_SUBDIR'])
         dir_path = dir_path + access_dir + group_ids[data_group_id]['displayname'] + "/"
