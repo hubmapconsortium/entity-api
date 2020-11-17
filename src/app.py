@@ -279,7 +279,7 @@ def get_entity_by_id(id):
     # A list of supported property keys can be used for result filtering in URL query string
     result_filtering_accepted_property_keys = ['data_access_level']
 
-    # Query target entity against neo4j and return as a dict if exists
+    # Query target entity against uuid-api and neo4j and return as a dict if exists
     entity_dict = query_target_entity(id)
 
     # Normalize the returned entity_class
@@ -609,19 +609,6 @@ def get_children(id):
     children_list = neo4j_queries.get_children(get_neo4j_db(), uuid)
     return jsonify(children_list)
 
-
-"""
-Redirect doi?
-
-Parameters
-----------
-id : str
-    The HuBMAP ID (e.g. HBM123.ABCD.456) or UUID of given entity
-"""
-@app.route('/doi/redirect/<id>', methods = ['GET'])
-def doi_redirect(id):
-    return collection_redirect(id)
-
 """
 Redirect a request from a doi service for a collection of data
 
@@ -632,38 +619,25 @@ id : str
 """
 @app.route('/collection/redirect/<id>', methods = ['GET'])
 def collection_redirect(id):
-    try:
-        if string_helper.isBlank(id):
-            bad_request_error("No identifier")
+    # Query target entity against uuid-api and neo4j and return as a dict if exists
+    entity_dict = query_target_entity(id)
 
-        #look up the id, if it doesn't exist return an error
-        ug = UUID_Generator(app.config['UUID_API_URL'])
-        hmuuid_data = ug.getUUID(AuthHelper.instance().getProcessSecret(), id)    
-        if hmuuid_data is None or len(hmuuid_data) == 0:
-            not_found_error("Not found")
+    # Only for collection
+    if entity_dict['entity_class'] != 'Collection':
+        bad_request_error("The target entity of the specified id is not a Collection")
 
-        if len(hmuuid_data) > 1:
-            bad_request_error("Data Collection is defined multiple times")
+    uuid = entity_dict['uuid']
 
-        uuid_data = hmuuid_data[0]
+    # URL template
+    redirect_url = app.config['COLLECTION_REDIRECT_URL']
 
-        if not 'hmuuid' in uuid_data or string_helper.isBlank(uuid_data['hmuuid']) or not 'type' in uuid_data or string_helper.isBlank(uuid_data['type']) or uuid_data['type'].strip().lower() != 'collection':
-            not_found_error("Data collection not found")
+    if redirect_url.lower().find('<identifier>') == -1:
+        internal_server_error("Incorrect configuration value for 'COLLECTION_REDIRECT_URL'")
 
-        if 'COLLECTION_REDIRECT_URL' not in app.config or string_helper.isBlank(app.config['COLLECTION_REDIRECT_URL']):
-            internal_server_error("Configuration error")
-
-        redir_url = app.config['COLLECTION_REDIRECT_URL']
-        if redir_url.lower().find('<identifier>') == -1:
-            internal_server_error("Configuration error")
- 
-        rep_pattern = re.compile(re.escape('<identifier>'), re.RegexFlag.IGNORECASE)
-        redir_url = rep_pattern.sub(uuid_data['hmuuid'], redir_url)
-        
-        return redirect(redir_url, code = 307)
-    except Exception:
-        internal_server_error("Unexpected error while redirecting for Collection with id: " + id)
-
+    rep_pattern = re.compile(re.escape('<identifier>'), re.RegexFlag.IGNORECASE)
+    redirect_url = rep_pattern.sub(uuid, redirect_url)
+    
+    return redirect(redirect_url, code = 307)
 
 """
 Get the Globus URL to the dataset given a dataset ID
@@ -689,92 +663,80 @@ Response
     401 Unauthorized (bad or expired token)
     500 Unexpected server or other error
 """
-@app.route('/entities/dataset/globus-url/<id>', methods = ['GET'])
-def get_globus_url(id):
-    normalized_entity_class = 'Dataset'
-
-    try:
-        uuid = get_target_uuid(id)
-        
-        #look up the dataset in Neo4j and retrieve the allowable data access level (public, protected or consortium)
-        #for the dataset and HuBMAP Component ID that the dataset belongs to
-        entity_dict = neo4j_queries.get_entity(get_neo4j_db(), normalized_entity_class, uuid)
-        if not 'group_uuid' in entity_dict or string_helper.isBlank(entity_dict['group_uuid']):
-            internal_server_error("Group id not set for dataset with uuid: " + uuid)
+@app.route('/dataset/globus-url/<id>', methods = ['GET'])
+def get_dataset_globus_url(id):
+    # Query target entity against uuid-api and neo4j and return as a dict if exists
+    # Then retrieve the allowable data access level (public, protected or consortium)
+    # for the dataset and HuBMAP Component ID that the dataset belongs to
+    entity_dict = query_target_entity(id)
     
-        #if no access level is present on the dataset default to protected
-        if not 'data_access_level' in entity_dict or string_helper.isBlank(entity_dict['data_access_level']):
-            data_access_level = HubmapConst.ACCESS_LEVEL_PROTECTED
-        else:
-            data_access_level = entity_dict['data_access_level']
-        
-        #look up the Component's group ID, return an error if not found
-        data_group_id = entity_dict['group_uuid']
-        if not data_group_id in globus_groups['by_id']:
-            internal_server_error("Dataset group: " + data_group_id + " for uuid:" + uuid + " not found.")
+    # Only for dataset
+    if entity_dict['entity_class'] != 'Dataset':
+        bad_request_error("The target entity enity of the specified id is not a Dataset")
 
-        #get the user information (if available) for the caller
-        #getUserDataAccessLevel will return just a "data_access_level" of public
-        #if no auth token is found
-        auth_helper = init_auth_helper()
-        user_info = auth_helper.getUserDataAccessLevel(request)        
-        
-        #construct the Globus URL based on the highest level of access that the user has
-        #and the level of access allowed for the dataset
-        #the first "if" checks to see if the user is a member of the Consortium group
-        #that allows all access to this dataset, if so send them to the "protected"
-        #endpoint even if the user doesn't have full access to all protected data
-        globus_server_uuid = None        
-        dir_path = ""
-        
-        #the user is in the Globus group with full access to thie dataset,
-        #so they have protected level access to it
-        if 'hmgroupids' in user_info and data_group_id in user_info['hmgroupids']:
-            user_access_level = 'protected'
-        else:
-            if not 'data_access_level' in user_info:
-                internal_server_error("Unexpected error, data access level could not be found for user trying to access dataset uuid:" + uuid)        
-            user_access_level = user_info['data_access_level']
+    uuid = entity_dict['uuid']
+    
+    # 'data_access_level' is always available since it's transint property
+    data_access_level = entity_dict['data_access_level']
 
-        #public access
-        if data_access_level == HubmapConst.ACCESS_LEVEL_PUBLIC:
-            globus_server_uuid = app.config['GLOBUS_PUBLIC_ENDPOINT_UUID']
-            access_dir = access_level_prefix_dir(app.config['PUBLIC_DATA_SUBDIR'])
-            dir_path = dir_path +  access_dir + "/"
-        #consortium access
-        elif data_access_level == HubmapConst.ACCESS_LEVEL_CONSORTIUM and not user_access_level == HubmapConst.ACCESS_LEVEL_PUBLIC:
-            globus_server_uuid = app.config['GLOBUS_CONSORTIUM_ENDPOINT_UUID']
-            access_dir = access_level_prefix_dir(app.config['CONSORTIUM_DATA_SUBDIR'])
-            dir_path = dir_path + access_dir + group_ids[data_group_id]['displayname'] + "/"
-        #protected access
-        elif user_access_level == HubmapConst.ACCESS_LEVEL_PROTECTED and data_access_level == HubmapConst.ACCESS_LEVEL_PROTECTED:
-            globus_server_uuid = app.config['GLOBUS_PROTECTED_ENDPOINT_UUID']
-            access_dir = access_level_prefix_dir(app.config['PROTECTED_DATA_SUBDIR'])
-            dir_path = dir_path + access_dir + group_ids[data_group_id]['displayname'] + "/"
+    if not 'group_uuid' in entity_dict or string_helper.isBlank(entity_dict['group_uuid']):
+        internal_server_error("Group id not set for dataset with id: " + id)
+
+    #look up the Component's group ID, return an error if not found
+    data_group_id = entity_dict['group_uuid']
+    if not data_group_id in globus_groups['by_id']:
+        internal_server_error("Can not find dataset group: " + data_group_id + " for id: " + id)
+
+    # Get the user information (if available) for the caller
+    # getUserDataAccessLevel will return just a "data_access_level" of public
+    # if no auth token is found
+    auth_helper = init_auth_helper()
+    user_info = auth_helper.getUserDataAccessLevel(request)        
+    
+    #construct the Globus URL based on the highest level of access that the user has
+    #and the level of access allowed for the dataset
+    #the first "if" checks to see if the user is a member of the Consortium group
+    #that allows all access to this dataset, if so send them to the "protected"
+    #endpoint even if the user doesn't have full access to all protected data
+    globus_server_uuid = None        
+    dir_path = ""
+    
+    #the user is in the Globus group with full access to thie dataset,
+    #so they have protected level access to it
+    if 'hmgroupids' in user_info and data_group_id in user_info['hmgroupids']:
+        user_access_level = 'protected'
+    else:
+        if not 'data_access_level' in user_info:
+            internal_server_error("Unexpected error, data access level could not be found for user trying to access dataset uuid:" + uuid)        
+        user_access_level = user_info['data_access_level']
+
+    #public access
+    if data_access_level == HubmapConst.ACCESS_LEVEL_PUBLIC:
+        globus_server_uuid = app.config['GLOBUS_PUBLIC_ENDPOINT_UUID']
+        access_dir = access_level_prefix_dir(app.config['PUBLIC_DATA_SUBDIR'])
+        dir_path = dir_path +  access_dir + "/"
+    #consortium access
+    elif data_access_level == HubmapConst.ACCESS_LEVEL_CONSORTIUM and not user_access_level == HubmapConst.ACCESS_LEVEL_PUBLIC:
+        globus_server_uuid = app.config['GLOBUS_CONSORTIUM_ENDPOINT_UUID']
+        access_dir = access_level_prefix_dir(app.config['CONSORTIUM_DATA_SUBDIR'])
+        dir_path = dir_path + access_dir + group_ids[data_group_id]['displayname'] + "/"
+    #protected access
+    elif user_access_level == HubmapConst.ACCESS_LEVEL_PROTECTED and data_access_level == HubmapConst.ACCESS_LEVEL_PROTECTED:
+        globus_server_uuid = app.config['GLOBUS_PROTECTED_ENDPOINT_UUID']
+        access_dir = access_level_prefix_dir(app.config['PROTECTED_DATA_SUBDIR'])
+        dir_path = dir_path + access_dir + group_ids[data_group_id]['displayname'] + "/"
+        
+    if globus_server_uuid is None:
+        forbidden_error("Access not granted")   
+
+    dir_path = dir_path + uuid + "/"
+    dir_path = urllib.parse.quote(dir_path, safe='')
+    
+    #https://app.globus.org/file-manager?origin_id=28bbb03c-a87d-4dd7-a661-7ea2fb6ea631&origin_path=%2FIEC%20Testing%20Group%2F03584b3d0f8b46de1b629f04be156879%2F
+    url = file_helper.ensureTrailingSlashURL(app.config['GLOBUS_APP_BASE_URL']) + "file-manager?origin_id=" + globus_server_uuid + "&origin_path=" + dir_path  
             
-        if globus_server_uuid is None:
-            forbidden_error("Access not granted")   
-    
-        dir_path = dir_path + uuid + "/"
-        dir_path = urllib.parse.quote(dir_path, safe='')
-        
-        #https://app.globus.org/file-manager?origin_id=28bbb03c-a87d-4dd7-a661-7ea2fb6ea631&origin_path=%2FIEC%20Testing%20Group%2F03584b3d0f8b46de1b629f04be156879%2F
-        url = file_helper.ensureTrailingSlashURL(app.config['GLOBUS_APP_BASE_URL']) + "file-manager?origin_id=" + globus_server_uuid + "&origin_path=" + dir_path  
-                
-        return Response(url, 200)
-    except HTTPException as hte:
-        msg = "HTTPException during get_entity_access_level HTTP code: " + str(hte.get_status_code()) + " " + hte.get_description()
+    return Response(url, 200)
 
-        app.logger.error("HTTPException from calling get_globus_url()")
-        app.logger.error(msg)
-
-        internal_server_error(msg)
-    except Exception as e:
-        app.logger.error("Exception from calling get_globus_url()")
-        app.logger.error(e)
-
-        internal_server_error('Unhandled exception occured during executing get_globus_url()')
-    
 
 ####################################################################################################
 ## Internal Functions
@@ -944,7 +906,7 @@ def create_derived_entity(normalized_target_entity_class, json_data_dict):
         normalized_source_entity_class = normalize_entity_class(source_entity['class'])
         validate_source_entity_class_for_derivation(normalized_source_entity_class)
 
-        # Query source entity against neo4j and return as a dict if exists
+        # Query source entity against uuid-api and neo4j and return as a dict if exists
         source_entity_dict = query_target_entity(source_entity['id'])
         
         # Add the uuid to the source_entity dict of each source for later use
@@ -1189,9 +1151,9 @@ def get_target_uuid(id):
         ids_list = response.json()
 
         if len(ids_list) == 0:
-            internal_server_error("unable to find information on identifier: " + id)
+            internal_server_error("Unable to find information on id: " + id)
         if len(ids_list) > 1:
-            internal_server_error("found multiple records for identifier: " + id)
+            internal_server_error("Found multiple records for id: " + id)
         
         return ids_list[0]['hmuuid']
     else:

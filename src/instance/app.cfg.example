@@ -44,6 +44,6 @@ PROTECTED_DATA_SUBDIR = 'private'
 CONSORTIUM_DATA_SUBDIR = 'consortium'
 PUBLIC_DATA_SUBDIR = 'public'
 
-# The url where DOIs are redirected to
+# The url where collection DOIs are redirected to
 # The <identifier> tag is required in the url and will be replaced by the incoming identifier
 COLLECTION_REDIRECT_URL = 'https://ingest.dev.hubmapconsortium.org/redirect-test/<identifier>'
