@@ -33,6 +33,9 @@ UUID_API_URL = 'http://hubmap-auth:9999/hmuuid'
 # Works regardless of the trailing slash
 SEARCH_API_URL = 'http://hubmap-auth:6666'
 
+#The Base URL to the Globus transfer application site
+GLOBUS_APP_BASE_URL = 'https://app.globus.org'
+
 # Below configurations are for DOI redirection
 # UUIDs of the Globus endpoints
 GLOBUS_PUBLIC_ENDPOINT_UUID = ''
@@ -47,3 +50,4 @@ PUBLIC_DATA_SUBDIR = 'public'
 # The url where collection DOIs are redirected to
 # The <identifier> tag is required in the url and will be replaced by the incoming identifier
 COLLECTION_REDIRECT_URL = 'https://ingest.dev.hubmapconsortium.org/redirect-test/<identifier>'
+
