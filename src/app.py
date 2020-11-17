@@ -535,7 +535,7 @@ def update_entity(id):
     return jsonify(result_dict)
 
 """
-Get all ancestors by uuid
+Get all ancestors of the given entity
 
 Parameters
 ----------
@@ -554,7 +554,7 @@ def get_ancestors(id):
     return jsonify(ancestors_list)
 
 """
-Get all descendants by uuid
+Get all descendants of the given entity
 
 Parameters
 ----------
@@ -573,7 +573,7 @@ def get_descendants(id):
     return jsonify(descendants_list)
 
 """
-Get all parents by uuid
+Get all parents of the given entity
 
 Parameters
 ----------
@@ -592,7 +592,7 @@ def get_parents(id):
     return jsonify(parents_list)
 
 """
-Get all chilren by uuid
+Get all chilren of the given entity
 
 Parameters
 ----------

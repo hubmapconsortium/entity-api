@@ -8,6 +8,112 @@ A description of the API calls is found here: [Entities API](http://smart-api.in
 
 The yaml file `src/schema/hubmap-entities.yaml` contains all the attributes of each entity type and generated metadata information of attributes via trigger methods. This file is being used to validate the user input and also as a way of standarding all the details of entities.
 
+## API endpoints and examples
+
+### Get all entity classes
+
+````
+GET https://entity-api.refactor.hubmapconsortium.org/entity_classes
+````
+This returns a list of normalized entity classes: Collection, Dataset, Donor, Sample
+
+### Get an entity by id
+
+````
+GET https://entity-api.refactor.hubmapconsortium.org/entities/<id>
+````
+
+Note: The `<id>` can be either a HuBMAP ID (e.g. HBM123.ABCD.456) or UUID of target entity
+
+Result filtering is supported based on query string. For example:
+
+````
+GET https://entity-api.refactor.hubmapconsortium.org/entities/<id>?property=data_access_level
+````
+
+### Get all entities of a given class 
+
+````
+GET https://entity-api.refactor.hubmapconsortium.org/<entity_class>/entities
+````
+
+Result filtering is supported based on query string. For example:
+
+````
+GET https://entity-api.refactor.hubmapconsortium.org/<entity_class>/entities?property=uuid
+````
+
+This would return a list of UUIDs of the given entity class instead of all the properties.
+
+### Create an entity (new or derived) of the target class
+
+````
+POST https://entity-api.refactor.hubmapconsortium.org/entities/<entity_class>
+````
+
+The same JSON envelop will be used in the request body: 
+
+Create a new entity:
+
+````
+{
+    "source_entities": null or [],
+    "target_entity": {
+        all the standard properties defined in schema yaml for the target class...
+    }
+}
+````
+
+Create a derived entity:
+
+````
+{
+    "source_entities": [
+        {"class": "Sample", "id": "44324234"},
+        {"class": "Sample", "id": "6adsd230"},
+        ...
+    ],
+    "target_entity": {
+        all the standard properties defined in schema yaml for the target class...
+    }
+}
+````
+
+### Update the properties of a given entity (except for Collection)
+
+````
+PUT https://entity-api.refactor.hubmapconsortium.org/entities/<id>
+````
+
+The JSON request body will need to contain the properties (only the ones to be updated) defiend in the schema yaml file.
+
+### Get all the ancestors of a given entity
+
+````
+GET https://entity-api.refactor.hubmapconsortium.org/ancestors/<id>
+````
+
+
+### Get all the descendants of a given entity
+
+````
+GET https://entity-api.refactor.hubmapconsortium.org/descendants/<id>
+````
+
+
+### Get all the parents of a given entity
+
+````
+GET https://entity-api.refactor.hubmapconsortium.org/parents/<id>
+````
+
+
+### Get all the children of a given entity
+
+````
+GET https://entity-api.refactor.hubmapconsortium.org/children/<id>
+````
+
 ## Development and deployment environments
 
 We have the following 5 development and deployment environments:
