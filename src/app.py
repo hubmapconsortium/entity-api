@@ -642,7 +642,7 @@ def collection_redirect(id):
     return redirect(redirect_url, code = 307)
 
 """
-Get the Globus URL to the dataset given a dataset ID
+Get the Globus URL to the given dataset
 
 It will provide a Globus URL to the dataset directory in of three Globus endpoints based on the access
 level of the user (public, consortium or protected), public only, of course, if no token is provided.

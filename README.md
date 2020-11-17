@@ -114,6 +114,18 @@ GET https://entity-api.refactor.hubmapconsortium.org/parents/<id>
 GET https://entity-api.refactor.hubmapconsortium.org/children/<id>
 ````
 
+### Get the Globus URL to the given dataset
+
+````
+GET https://entity-api.refactor.hubmapconsortium.org/dataset/globus-url/<id>
+````
+
+### Redirect a request from a doi service for a collection of data
+
+````
+GET https://entity-api.refactor.hubmapconsortium.org/collection/redirect/<id>
+````
+
 ## Development and deployment environments
 
 We have the following 5 development and deployment environments:
