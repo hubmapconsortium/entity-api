@@ -6,7 +6,7 @@ A description of the API calls is found here: [Entities API](http://smart-api.in
 
 ## Entities schema yaml
 
-The yaml file `src/schema/hubmap-entities.yaml` contains all the attributes of each entity type and generated metadata information of attributes via trigger methods. This file is being used to validate the user input and also as a way of standarding all the details of entities.
+The yaml file `src/resources/hubmap-entities.yaml` contains all the attributes of each entity type and generated metadata information of attributes via trigger methods. This file is being used to validate the user input and also as a way of standarding all the details of entities.
 
 ## API endpoints and examples
 
