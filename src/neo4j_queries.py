@@ -891,7 +891,7 @@ def get_parents(neo4j_db, uuid, property_key = None):
                                            property_key = property_key,
                                            record_field_name = record_field_name)
     else:
-        arameterized_query = ("MATCH (e:Entity)<-[:ACTIVITY_OUTPUT]-(:Activity)<-[:ACTIVITY_INPUT]-(parent:Entity) " +
+        parameterized_query = ("MATCH (e:Entity)<-[:ACTIVITY_OUTPUT]-(:Activity)<-[:ACTIVITY_INPUT]-(parent:Entity) " +
                                "WHERE e.uuid='{uuid}' " +
                                # COLLECT() returns a list
                                # apoc.coll.toSet() reruns a set containing unique nodes
