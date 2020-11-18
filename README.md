@@ -43,7 +43,7 @@ Result filtering is supported based on query string. For example:
 GET https://entity-api.refactor.hubmapconsortium.org/<entity_class>/entities?property=uuid
 ````
 
-This would return a list of UUIDs of the given entity class instead of all the properties.
+This would return a list of UUIDs of the resulting entities instead of all the properties.
 
 ### Create an entity (new or derived) of the target class
 
@@ -93,6 +93,13 @@ The JSON request body will need to contain the properties (only the ones to be u
 GET https://entity-api.refactor.hubmapconsortium.org/ancestors/<id>
 ````
 
+Result filtering is supported based on query string. For example:
+
+````
+GET https://entity-api.refactor.hubmapconsortium.org/ancestors/<id>?property=uuid
+````
+
+This would return a list of UUIDs of the resulting entities instead of all the properties.
 
 ### Get all the descendants of a given entity
 
@@ -100,6 +107,13 @@ GET https://entity-api.refactor.hubmapconsortium.org/ancestors/<id>
 GET https://entity-api.refactor.hubmapconsortium.org/descendants/<id>
 ````
 
+Result filtering is supported based on query string. For example:
+
+````
+GET https://entity-api.refactor.hubmapconsortium.org/descendants/<id>?property=uuid
+````
+
+This would return a list of UUIDs of the resulting entities instead of all the properties.
 
 ### Get all the parents of a given entity
 
@@ -107,12 +121,27 @@ GET https://entity-api.refactor.hubmapconsortium.org/descendants/<id>
 GET https://entity-api.refactor.hubmapconsortium.org/parents/<id>
 ````
 
+Result filtering is supported based on query string. For example:
+
+````
+GET https://entity-api.refactor.hubmapconsortium.org/parents/<id>?property=uuid
+````
+
+This would return a list of UUIDs of the resulting entities instead of all the properties.
 
 ### Get all the children of a given entity
 
 ````
 GET https://entity-api.refactor.hubmapconsortium.org/children/<id>
 ````
+
+Result filtering is supported based on query string. For example:
+
+````
+GET https://entity-api.refactor.hubmapconsortium.org/children/<id>?property=uuid
+````
+
+This would return a list of UUIDs of the resulting entities instead of all the properties.
 
 ### Get the Globus URL to the given dataset
 

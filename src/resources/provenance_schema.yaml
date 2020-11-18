@@ -182,7 +182,7 @@ ENTITIES:
         type: string
       pipeline_message:
         type: string
-      dataset_name:
+      title:
         type: string
       # The Dataset.data_access_level is based on Dataset.status and Dataset.contains_human_genetic_sequences
       contains_human_genetic_sequences:
@@ -240,7 +240,7 @@ ENTITIES:
         type: string
       next_identifier:
         type: string
-      label:
+      lab_name:
         type: string
       protocol_file:
         type: string

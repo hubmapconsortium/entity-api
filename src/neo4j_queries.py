@@ -206,9 +206,6 @@ def get_entities_by_class(neo4j_db, entity_class, property_key = None):
                 entity_dict = node_to_dict(node)
                 result_list.append(entity_dict)
 
-        logger.debug("======get_entities_by_class() result_list======")
-        logger.debug(result_list)
-
         return result_list
     except CypherSyntaxError as ce:
         msg = "CypherSyntaxError from calling get_entities_by_class(): " + ce.message
@@ -742,23 +739,34 @@ neo4j_db : neo4j.Session object
     The neo4j database session
 uuid : str
     The uuid of target entity 
+property_key : str
+    A target property key for result filtering
 
 Returns
 -------
 list
     A list of unique ancestor dictionaries returned from the Cypher query
 """
-def get_ancestors(neo4j_db, uuid):
-    ancestors = []
+def get_ancestors(neo4j_db, uuid, property_key = None):
+    if property_key:
+        parameterized_query = ("MATCH (e:Entity)<-[r:ACTIVITY_INPUT|:ACTIVITY_OUTPUT*]-(ancestor:Entity) " +
+                               "WHERE e.uuid='{uuid}' " +
+                               # COLLECT() returns a list
+                               # apoc.coll.toSet() reruns a set containing unique nodes
+                               "RETURN apoc.coll.toSet(COLLECT(ancestor.{property_key})) AS {record_field_name}")
 
-    parameterized_query = ("MATCH (e:Entity)<-[r:ACTIVITY_INPUT|:ACTIVITY_OUTPUT*]-(ancestor:Entity) " +
-                           "WHERE e.uuid='{uuid}' " +
-                           # COLLECT() returns a list
-                           # apoc.coll.toSet() reruns a set containing unique nodes
-                           "RETURN apoc.coll.toSet(COLLECT(ancestor)) AS {record_field_name}")
+        query = parameterized_query.format(uuid = uuid, 
+                                           property_key = property_key,
+                                           record_field_name = record_field_name)
+    else:
+        parameterized_query = ("MATCH (e:Entity)<-[r:ACTIVITY_INPUT|:ACTIVITY_OUTPUT*]-(ancestor:Entity) " +
+                               "WHERE e.uuid='{uuid}' " +
+                               # COLLECT() returns a list
+                               # apoc.coll.toSet() reruns a set containing unique nodes
+                               "RETURN apoc.coll.toSet(COLLECT(ancestor)) AS {record_field_name}")
 
-    query = parameterized_query.format(uuid = uuid, 
-                                       record_field_name = record_field_name)
+        query = parameterized_query.format(uuid = uuid, 
+                                           record_field_name = record_field_name)
 
     logger.debug("======get_ancestors() query======")
     logger.debug(query)
@@ -766,13 +774,21 @@ def get_ancestors(neo4j_db, uuid):
     try:
         result = neo4j_db.run(query)
         record = result.single()
-        entity_nodes = record[record_field_name]
 
-        for entity_node in entity_nodes:
-            entity_dict = node_to_dict(entity_node)
-            ancestors.append(entity_dict)
+        result_list = []
 
-        return ancestors               
+        if property_key:
+            # Just return the list of property values from each entity node
+            result_list = record[record_field_name]
+        else:
+            # Convert the entity nodes to dicts
+            nodes = record[record_field_name]
+
+            for node in nodes:
+                entity_dict = node_to_dict(node)
+                result_list.append(entity_dict)
+
+        return result_list               
     except CypherSyntaxError as ce:
         msg = "CypherSyntaxError from calling get_ancestors()" + ce.message
         logger.error(msg)
@@ -790,37 +806,55 @@ neo4j_db : neo4j.Session object
     The neo4j database session
 uuid : str
     The uuid of target entity 
+property_key : str
+    A target property key for result filtering
 
 Returns
 -------
 dict
     A list of unique desendant dictionaries returned from the Cypher query
 """
-def get_descendants(neo4j_db, uuid):
-    descendants = []
+def get_descendants(neo4j_db, uuid, property_key = None):
+    if property_key:
+        parameterized_query = ("MATCH (e:Entity)-[r:ACTIVITY_INPUT|:ACTIVITY_OUTPUT*]->(descendant:Entity) " +
+                               "WHERE e.uuid='{uuid}' " +
+                               # COLLECT() returns a list
+                               # apoc.coll.toSet() reruns a set containing unique nodes
+                               "RETURN apoc.coll.toSet(COLLECT(descendant.{property_key})) AS {record_field_name}")
 
-    parameterized_query = ("MATCH (e:Entity)-[r:ACTIVITY_INPUT|:ACTIVITY_OUTPUT*]->(descendant:Entity) " +
-                           "WHERE e.uuid='{uuid}' " +
-                           # COLLECT() returns a list
-                           # apoc.coll.toSet() reruns a set containing unique nodes
-                           "RETURN apoc.coll.toSet(COLLECT(descendant)) AS {record_field_name}")
+        query = parameterized_query.format(uuid = uuid, 
+                                           property_key = property_key,
+                                           record_field_name = record_field_name)
+    else:
+        parameterized_query = ("MATCH (e:Entity)-[r:ACTIVITY_INPUT|:ACTIVITY_OUTPUT*]->(descendant:Entity) " +
+                               "WHERE e.uuid='{uuid}' " +
+                               # COLLECT() returns a list
+                               # apoc.coll.toSet() reruns a set containing unique nodes
+                               "RETURN apoc.coll.toSet(COLLECT(descendant)) AS {record_field_name}")
 
-    query = parameterized_query.format(uuid = uuid, 
-                                       record_field_name = record_field_name)
-
+        query = parameterized_query.format(uuid = uuid, 
+                                           record_field_name = record_field_name)
     logger.debug("======get_descendants() query======")
     logger.debug(query)
 
     try:
         result = neo4j_db.run(query)
         record = result.single()
-        entity_nodes = record[record_field_name]
 
-        for entity_node in entity_nodes:
-            entity_dict = node_to_dict(entity_node)
-            descendants.append(entity_dict)
+        result_list = []
 
-        return descendants               
+        if property_key:
+            # Just return the list of property values from each entity node
+            result_list = record[record_field_name]
+        else:
+            # Convert the entity nodes to dicts
+            nodes = record[record_field_name]
+
+            for node in nodes:
+                entity_dict = node_to_dict(node)
+                result_list.append(entity_dict)
+
+        return result_list               
     except CypherSyntaxError as ce:
         msg = "CypherSyntaxError from calling get_descendants(): " + ce.message
         logger.error(msg)
@@ -837,23 +871,34 @@ neo4j_db : neo4j.Session object
     The neo4j database session
 uuid : str
     The uuid of target entity 
+property_key : str
+    A target property key for result filtering
 
 Returns
 -------
 dict
     A list of unique parent dictionaries returned from the Cypher query
 """
-def get_parents(neo4j_db, uuid):
-    parents = []
+def get_parents(neo4j_db, uuid, property_key = None):
+    if property_key:
+        parameterized_query = ("MATCH (e:Entity)<-[:ACTIVITY_OUTPUT]-(:Activity)<-[:ACTIVITY_INPUT]-(parent:Entity) " +
+                               "WHERE e.uuid='{uuid}' " +
+                               # COLLECT() returns a list
+                               # apoc.coll.toSet() reruns a set containing unique nodes
+                               "RETURN apoc.coll.toSet(COLLECT(parent.{property_key})) AS {record_field_name}")
 
-    parameterized_query = ("MATCH (e:Entity)<-[:ACTIVITY_OUTPUT]-(:Activity)<-[:ACTIVITY_INPUT]-(parent:Entity) " +
-                           "WHERE e.uuid='{uuid}' " +
-                           # COLLECT() returns a list
-                           # apoc.coll.toSet() reruns a set containing unique nodes
-                           "RETURN apoc.coll.toSet(COLLECT(parent)) AS {record_field_name}")
+        query = parameterized_query.format(uuid = uuid, 
+                                           property_key = property_key,
+                                           record_field_name = record_field_name)
+    else:
+        arameterized_query = ("MATCH (e:Entity)<-[:ACTIVITY_OUTPUT]-(:Activity)<-[:ACTIVITY_INPUT]-(parent:Entity) " +
+                               "WHERE e.uuid='{uuid}' " +
+                               # COLLECT() returns a list
+                               # apoc.coll.toSet() reruns a set containing unique nodes
+                               "RETURN apoc.coll.toSet(COLLECT(parent)) AS {record_field_name}")
 
-    query = parameterized_query.format(uuid = uuid, 
-                                       record_field_name = record_field_name)
+        query = parameterized_query.format(uuid = uuid, 
+                                           record_field_name = record_field_name)
 
     logger.debug("======get_parents() query======")
     logger.debug(query)
@@ -861,13 +906,21 @@ def get_parents(neo4j_db, uuid):
     try:
         result = neo4j_db.run(query)
         record = result.single()
-        entity_nodes = record[record_field_name]
 
-        for entity_node in entity_nodes:
-            entity_dict = node_to_dict(entity_node)
-            parents.append(entity_dict)
+        result_list = []
 
-        return parents               
+        if property_key:
+            # Just return the list of property values from each entity node
+            result_list = record[record_field_name]
+        else:
+            # Convert the entity nodes to dicts
+            nodes = record[record_field_name]
+
+            for node in nodes:
+                entity_dict = node_to_dict(node)
+                result_list.append(entity_dict)
+
+        return result_list               
     except CypherSyntaxError as ce:
         msg = "CypherSyntaxError from calling get_parents(): " + ce.message
         logger.error(msg)
@@ -884,22 +937,32 @@ neo4j_db : neo4j.Session object
     The neo4j database session
 uuid : str
     The uuid of target entity 
+property_key : str
+    A target property key for result filtering
 
 Returns
 -------
 dict
     A list of unique child dictionaries returned from the Cypher query
 """
-def get_children(neo4j_db, uuid):
-    children = []
-
-    parameterized_query = ("MATCH (e:Entity)-[:ACTIVITY_INPUT]->(:Activity)-[:ACTIVITY_OUTPUT]->(child:Entity) " +
-                           "WHERE e.uuid='{uuid}' " +
-                           # COLLECT() returns a list
-                           # apoc.coll.toSet() reruns a set containing unique nodes
-                           "RETURN apoc.coll.toSet(COLLECT(child)) AS {record_field_name}")
-    query = parameterized_query.format(uuid = uuid, 
-                                       record_field_name = record_field_name)
+def get_children(neo4j_db, uuid, property_key = None):
+    if property_key:
+        parameterized_query = ("MATCH (e:Entity)-[:ACTIVITY_INPUT]->(:Activity)-[:ACTIVITY_OUTPUT]->(child:Entity) " +
+                               "WHERE e.uuid='{uuid}' " +
+                               # COLLECT() returns a list
+                               # apoc.coll.toSet() reruns a set containing unique nodes
+                               "RETURN apoc.coll.toSet(COLLECT(child.{property_key})) AS {record_field_name}")
+        query = parameterized_query.format(uuid = uuid, 
+                                           property_key = property_key,
+                                           record_field_name = record_field_name)
+    else:
+        parameterized_query = ("MATCH (e:Entity)-[:ACTIVITY_INPUT]->(:Activity)-[:ACTIVITY_OUTPUT]->(child:Entity) " +
+                               "WHERE e.uuid='{uuid}' " +
+                               # COLLECT() returns a list
+                               # apoc.coll.toSet() reruns a set containing unique nodes
+                               "RETURN apoc.coll.toSet(COLLECT(child)) AS {record_field_name}")
+        query = parameterized_query.format(uuid = uuid, 
+                                           record_field_name = record_field_name)
 
     logger.debug("======get_children() query======")
     logger.debug(query)
@@ -907,13 +970,20 @@ def get_children(neo4j_db, uuid):
     try:
         result = neo4j_db.run(query)
         record = result.single()
-        entity_nodes = record[record_field_name]
+        result_list = []
 
-        for entity_node in entity_nodes:
-            entity_dict = node_to_dict(entity_node)
-            children.append(entity_dict)
+        if property_key:
+            # Just return the list of property values from each entity node
+            result_list = record[record_field_name]
+        else:
+            # Convert the entity nodes to dicts
+            nodes = record[record_field_name]
 
-        return children               
+            for node in nodes:
+                entity_dict = node_to_dict(node)
+                result_list.append(entity_dict)
+
+        return result_list             
     except CypherSyntaxError as ce:
         msg = "CypherSyntaxError from calling get_children(): " + ce.message
         logger.error(msg)

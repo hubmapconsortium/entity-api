@@ -537,6 +537,8 @@ def update_entity(id):
 
 """
 Get all ancestors of the given entity
+Result filtering based on query string
+For example: /ancestors/<id>?property=uuid
 
 Parameters
 ----------
@@ -552,10 +554,34 @@ json
 def get_ancestors(id):
     uuid = get_target_uuid(id)
     ancestors_list = neo4j_queries.get_ancestors(get_neo4j_db(), uuid)
-    return jsonify(ancestors_list)
+
+    # Final result
+    final_result = ancestors_list
+
+    # Result filtering based on query string
+    result_filtering_accepted_property_keys = ['uuid']
+    if bool(request.args):
+        property_key = request.args.get('property')
+
+        if property_key is not None:
+            # Validate the target property
+            if property_key not in result_filtering_accepted_property_keys:
+                bad_request_error("Unsupported property key specified in the query string")
+            
+            # Only return a list of the filtered property value of each entity
+            property_list = neo4j_queries.get_ancestors(get_neo4j_db(), uuid, property_key)
+
+            # Final result
+            final_result = property_list
+        else:
+            bad_request_error("The specified query string is not supported. Use '?property=<key>' to filter the result")
+
+    return jsonify(final_result)
 
 """
 Get all descendants of the given entity
+Result filtering based on query string
+For example: /descendants/<id>?property=uuid
 
 Parameters
 ----------
@@ -571,10 +597,34 @@ json
 def get_descendants(id):
     uuid = get_target_uuid(id)
     descendants_list = neo4j_queries.get_descendants(get_neo4j_db(), uuid)
-    return jsonify(descendants_list)
+
+    # Final result
+    final_result = descendants_list
+
+    # Result filtering based on query string
+    result_filtering_accepted_property_keys = ['uuid']
+    if bool(request.args):
+        property_key = request.args.get('property')
+
+        if property_key is not None:
+            # Validate the target property
+            if property_key not in result_filtering_accepted_property_keys:
+                bad_request_error("Unsupported property key specified in the query string")
+            
+            # Only return a list of the filtered property value of each entity
+            property_list = neo4j_queries.get_descendants(get_neo4j_db(), uuid, property_key)
+
+            # Final result
+            final_result = property_list
+        else:
+            bad_request_error("The specified query string is not supported. Use '?property=<key>' to filter the result")
+
+    return jsonify(final_result)
 
 """
 Get all parents of the given entity
+Result filtering based on query string
+For example: /parents/<id>?property=uuid
 
 Parameters
 ----------
@@ -590,10 +640,34 @@ json
 def get_parents(id):
     uuid = get_target_uuid(id)
     parents_list = neo4j_queries.get_parents(get_neo4j_db(), uuid)
-    return jsonify(parents_list)
+
+    # Final result
+    final_result = parents_list
+
+    # Result filtering based on query string
+    result_filtering_accepted_property_keys = ['uuid']
+    if bool(request.args):
+        property_key = request.args.get('property')
+
+        if property_key is not None:
+            # Validate the target property
+            if property_key not in result_filtering_accepted_property_keys:
+                bad_request_error("Unsupported property key specified in the query string")
+            
+            # Only return a list of the filtered property value of each entity
+            property_list = neo4j_queries.get_parents(get_neo4j_db(), uuid, property_key)
+
+            # Final result
+            final_result = property_list
+        else:
+            bad_request_error("The specified query string is not supported. Use '?property=<key>' to filter the result")
+
+    return jsonify(final_result)
 
 """
 Get all chilren of the given entity
+Result filtering based on query string
+For example: /children/<id>?property=uuid
 
 Parameters
 ----------
@@ -609,7 +683,29 @@ json
 def get_children(id):
     uuid = get_target_uuid(id)
     children_list = neo4j_queries.get_children(get_neo4j_db(), uuid)
-    return jsonify(children_list)
+
+    # Final result
+    final_result = children_list
+
+    # Result filtering based on query string
+    result_filtering_accepted_property_keys = ['uuid']
+    if bool(request.args):
+        property_key = request.args.get('property')
+
+        if property_key is not None:
+            # Validate the target property
+            if property_key not in result_filtering_accepted_property_keys:
+                bad_request_error("Unsupported property key specified in the query string")
+            
+            # Only return a list of the filtered property value of each entity
+            property_list = neo4j_queries.get_children(get_neo4j_db(), uuid, property_key)
+
+            # Final result
+            final_result = property_list
+        else:
+            bad_request_error("The specified query string is not supported. Use '?property=<key>' to filter the result")
+
+    return jsonify(final_result)
 
 """
 Redirect a request from a doi service for a collection of data
