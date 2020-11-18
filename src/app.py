@@ -278,9 +278,6 @@ json
 """
 @app.route('/entities/<id>', methods = ['GET'])
 def get_entity_by_id(id):
-    # A list of supported property keys can be used for result filtering in URL query string
-    result_filtering_accepted_property_keys = ['data_access_level']
-
     # Query target entity against uuid-api and neo4j and return as a dict if exists
     entity_dict = query_target_entity(id)
 
@@ -306,14 +303,15 @@ def get_entity_by_id(id):
     final_result = result_dict
 
     # Result filtering based on query string
-    # For example: /entities/<id>?property=data_access_level
+    result_filtering_accepted_property_keys = ['data_access_level']
+    separator = ', '
     if bool(request.args):
         property_key = request.args.get('property')
 
         if property_key is not None:
             # Validate the target property
             if property_key not in result_filtering_accepted_property_keys:
-                bad_request_error("Unsupported property key specified in the query string")
+                bad_request_error("Only the following property keys are supported in the query string: " + separator.join(result_filtering_accepted_property_keys))
             
             # Only return the property value
             property_value = result_dict[property_key]
@@ -360,9 +358,6 @@ json
 """
 @app.route('/<entity_class>/entities', methods = ['GET'])
 def get_entities_by_class(entity_class):
-    # A list of supported property keys can be used for result filtering in URL query string
-    result_filtering_accepted_property_keys = ['uuid']
-
     # Normalize user provided entity_class
     normalized_entity_class = normalize_entity_class(entity_class)
 
@@ -375,14 +370,15 @@ def get_entities_by_class(entity_class):
     final_result = entities_list
 
     # Result filtering based on query string
-    # For example: /entities/<entity_class>?property=uuid
+    result_filtering_accepted_property_keys = ['uuid']
+    separator = ', '
     if bool(request.args):
         property_key = request.args.get('property')
 
         if property_key is not None:
             # Validate the target property
             if property_key not in result_filtering_accepted_property_keys:
-                bad_request_error("Unsupported property key specified in the query string")
+                bad_request_error("Only the following property keys are supported in the query string: " + separator.join(result_filtering_accepted_property_keys))
             
             # Only return a list of the filtered property value of each entity
             property_list = neo4j_queries.get_entities_by_class(get_neo4j_db(), normalized_entity_class, property_key)
@@ -560,13 +556,14 @@ def get_ancestors(id):
 
     # Result filtering based on query string
     result_filtering_accepted_property_keys = ['uuid']
+    separator = ', '
     if bool(request.args):
         property_key = request.args.get('property')
 
         if property_key is not None:
             # Validate the target property
             if property_key not in result_filtering_accepted_property_keys:
-                bad_request_error("Unsupported property key specified in the query string")
+                bad_request_error("Only the following property keys are supported in the query string: " + separator.join(result_filtering_accepted_property_keys))
             
             # Only return a list of the filtered property value of each entity
             property_list = neo4j_queries.get_ancestors(get_neo4j_db(), uuid, property_key)
@@ -603,13 +600,14 @@ def get_descendants(id):
 
     # Result filtering based on query string
     result_filtering_accepted_property_keys = ['uuid']
+    separator = ', '
     if bool(request.args):
         property_key = request.args.get('property')
 
         if property_key is not None:
             # Validate the target property
             if property_key not in result_filtering_accepted_property_keys:
-                bad_request_error("Unsupported property key specified in the query string")
+                bad_request_error("Only the following property keys are supported in the query string: " + separator.join(result_filtering_accepted_property_keys))
             
             # Only return a list of the filtered property value of each entity
             property_list = neo4j_queries.get_descendants(get_neo4j_db(), uuid, property_key)
@@ -646,13 +644,14 @@ def get_parents(id):
 
     # Result filtering based on query string
     result_filtering_accepted_property_keys = ['uuid']
+    separator = ', '
     if bool(request.args):
         property_key = request.args.get('property')
 
         if property_key is not None:
             # Validate the target property
             if property_key not in result_filtering_accepted_property_keys:
-                bad_request_error("Unsupported property key specified in the query string")
+                bad_request_error("Only the following property keys are supported in the query string: " + separator.join(result_filtering_accepted_property_keys))
             
             # Only return a list of the filtered property value of each entity
             property_list = neo4j_queries.get_parents(get_neo4j_db(), uuid, property_key)
@@ -689,13 +688,14 @@ def get_children(id):
 
     # Result filtering based on query string
     result_filtering_accepted_property_keys = ['uuid']
+    separator = ', '
     if bool(request.args):
         property_key = request.args.get('property')
 
         if property_key is not None:
             # Validate the target property
             if property_key not in result_filtering_accepted_property_keys:
-                bad_request_error("Unsupported property key specified in the query string")
+                bad_request_error("Only the following property keys are supported in the query string: " + separator.join(result_filtering_accepted_property_keys))
             
             # Only return a list of the filtered property value of each entity
             property_list = neo4j_queries.get_children(get_neo4j_db(), uuid, property_key)
@@ -1153,7 +1153,7 @@ normalized_entity_class : str
     The normalized entity class
 """
 def validate_normalized_entity_class(normalized_entity_class):
-    separator = ", "
+    separator = ', '
     accepted_entity_classes = get_all_entity_classes()
 
     # Validate provided entity_class
@@ -1169,7 +1169,7 @@ normalized_target_entity_class : str
     The normalized target entity class
 """
 def validate_target_entity_class_for_derivation(normalized_target_entity_class):
-    separator = ", "
+    separator = ', '
     accepted_target_entity_classes = get_derivation_target_entity_classes()
 
     if normalized_target_entity_class not in accepted_target_entity_classes:
@@ -1184,7 +1184,7 @@ normalized_source_entity_class : str
     The normalized source entity class
 """
 def validate_source_entity_class_for_derivation(normalized_source_entity_class):
-    separator = ", "
+    separator = ', '
     accepted_source_entity_classes = get_derivation_source_entity_classes()
 
     if normalized_source_entity_class not in accepted_source_entity_classes:
@@ -1386,7 +1386,7 @@ def validate_json_data_against_schema(json_data_dict, normalized_entity_class, e
     properties = schema['ENTITIES'][normalized_entity_class]['properties']
     schema_keys = properties.keys() 
     json_data_keys = json_data_dict.keys()
-    separator = ", "
+    separator = ', '
 
     # Check if keys in request json are supported
     unsupported_keys = []
@@ -1497,7 +1497,7 @@ dict
 """
 def generate_triggered_data(trigger_type, normalized_schema_section_key, data_dict):
     accepted_section_keys = ['ACTIVITIES', 'ENTITIES']
-    separator = ", "
+    separator = ', '
     normalized_class = None
 
     if normalized_schema_section_key not in accepted_section_keys:

@@ -62,29 +62,34 @@ str
     The data access level string
 """
 def get_data_access_level(combined_data_dict):
+    # For now, don't use the constants from commons
+    ACCESS_LEVEL_PUBLIC = 'public'
+    ACCESS_LEVEL_CONSORTIUM = 'consortium'
+    ACCESS_LEVEL_PROTECTED = 'protected'
+    
     normalized_entity_class = combined_data_dict['normalized_entity_class']
 
     if normalized_entity_class == 'Dataset':
         # Default to protected
-        data_access_level = 'protected'
+        data_access_level = ACCESS_LEVEL_PROTECTED
 
         if combined_data_dict['contains_human_genetic_sequences']:
-            data_access_level = 'protected'
+            data_access_level = ACCESS_LEVEL_PROTECTED
         else:
             if combined_data_dict['status'] == 'Published':
-                data_access_level = 'public'
+                data_access_level = ACCESS_LEVEL_PUBLIC
             else:
-                data_access_level = 'consortium'
+                data_access_level = ACCESS_LEVEL_CONSORTIUM
     else:
         # Default to consortium for Collection/Donor/Sample
-        data_access_level = 'consortium'
+        data_access_level = ACCESS_LEVEL_CONSORTIUM
         
         # public if any dataset below it in the provenance hierarchy is published
         # (i.e. Dataset.status == "Published")
         count = neo4j_queries.count_attached_published_datasets(combined_data_dict['neo4j_db'], normalized_entity_class, combined_data_dict['uuid'])
 
         if count > 0:
-            data_access_level = 'public'
+            data_access_level = ACCESS_LEVEL_PUBLIC
 
     return data_access_level
 
