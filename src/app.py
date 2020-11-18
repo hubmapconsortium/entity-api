@@ -1256,9 +1256,9 @@ def get_target_uuid(id):
         ids_list = response.json()
 
         if len(ids_list) == 0:
-            internal_server_error("Unable to find information on id: " + id)
+            not_found_error("Unable to find information via uuid-api on id: " + id)
         if len(ids_list) > 1:
-            internal_server_error("Found multiple records for id: " + id)
+            internal_server_error("Found multiple records via uuid-api for id: " + id)
         
         return ids_list[0]['hmuuid']
     else:
