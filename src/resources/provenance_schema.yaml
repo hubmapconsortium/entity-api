@@ -22,34 +22,40 @@ shared_properties: &shared_properties
     type: integer
     immutable: true
     on_create_trigger: get_current_timestamp
+    description: "The timestamp of when the node was created.  The format is an integer representing milliseconds since midnight Jan 1, 1970"
   created_by_user_displayname:
     type: string
     on_create_trigger: get_user_name
     immutable: true
+    description: "The name of the person or process authenticated when creating the object"
   created_by_user_email:
     type: string
     on_create_trigger: get_user_email
     immutable: true
+    description: "The email address of the person or process authenticated when creating the object."
   created_by_user_sub: # I don't fine this in Collection in the current neo4j
     type: string
     on_create_trigger: get_user_sub
     immutable: true
+    description: "The subject id as provided by the authorization mechanism for the person or process authenticated when creating the object."
+    #todo: should this use the same trigger method as last_modified_user_sub to set it?
   ###### ID properties ######
   uuid:
     type: string
-    description: "E.g., 461bbfdc353a2673e381f632510b0f17"
-    on_create_trigger: create_uuid
+    description: "The HuBMAP unique identifier, intended for internal software use only.  This is a 32 digit hexadecimal uuid e.g. 461bbfdc353a2673e381f632510b0f17"
+    on_create_trigger: create_hubmap_ids
     immutable: true
   doi_suffix_id:
     type: string
-    description: "E.g., 456FDTP455"
+    description: "The randomly generated, unique in HuBMAP id used as the doi suffix. This id is used in construction of the HuBMAP Display ID (will be renamed to HuBMAP ID eventually). e.g.: 456FDTP455"
     on_create_trigger: create_doi_suffix_id
     immutable: true
   hubmap_id:
+    #todo: for now map to display_doi when creating ES index, will change attribute name in index at a later date
     type: string
-    description: "E.g., VAN0002"
+    description: "E.g., HBM###.XXXX.###.  A HuBMAP specific id "
     immutable: true
-    on_create_trigger: create_hubmap_id
+    on_create_trigger: create_hubmap_ids
 
 ####################################################################################################
 ## Activities
@@ -62,7 +68,7 @@ ACTIVITIES:
       <<: *shared_properties
       creation_action:
         type: string
-        description: "E.g., Create Dataset Activity"
+        description: "The activity that was performed."
         immutable: true
         on_create_trigger: get_activity_creation_action
 
@@ -76,24 +82,30 @@ shared_entity_properties: &shared_entity_properties
   registered_doi:
     type: string
     immutable: true
-    description: "The doi of the registered entity"
+    description: "The doi of the registered entity. e.g. 10.35079/hbm289.pcbm.487"
   doi_url:
     type: string
     immutable: true
-    description: "The url from the doi registry for this entity"
+    description: "The url from the doi registry for this entity. e.g. https://doi.org/10.35079/hbm289.pcbm.487"
+
+  ###### Last Modified Properties #######
   # All the `last_modified_*` properties are not immutable
   last_modified_timestamp:
     type: integer
     on_update_trigger: get_current_timestamp
+    description: "The timestamp of when the object was last modified.  The format is an integer representing milliseconds since midnight, Jan 1, 1970"
   last_modified_user_sub:
     type: string
     on_update_trigger: get_user_sub
+    description: "The subject id as provided by the authorization mechanism for the person or process authenticated when the object was modified."
   last_modified_user_email:
     type: string
     on_update_trigger: get_user_email
+    description: "The email address of the person or process authenticated when the object was last modified."
   last_modified_user_displayname:
     type: string
     on_update_trigger: get_user_name
+    description: "The name of the person or process authenticated when the object was last modified."
   ###### Shared transient properties ######
   data_access_level:
     transient: true
@@ -139,14 +151,20 @@ ENTITIES:
         type: string
       has_doi:
         type: boolean
-        description: "True if the entity has a doi registered for it, false otherwise/default"
+        description: "True if the entity has a doi registered for it, false otherwise."
       ###### Transient properties ######
-      dataset_uuids:  #used only to pass the reference to linked datasets in on a PUT/POST
+      dataset_uuids:  #used only to pass the reference to linked datasets in on a PUT/POST 
         transient: true
         type: list
-        description: "A list of dataset uuids that belong to this collection"
+        description: "A list of dataset uuids that belong to this collection.  This field is used to pass the set of datasets contained in the collection in on a PUT or POST"
         transient: true
-        on_read_trigger: get_dataset_uuids_by_collection
+	on_create_trigger: connect_datasets_to_collection
+	on_update_trigger: connect_datasets_to_collection
+      datasets:
+	transient: true
+	type: list #list of datasets
+        on_read_trigger: get_datasets_for_collection
+	description: "The datasets that are contained in the collection."
 
   ############################################# Dataset #############################################
   Dataset:
@@ -158,60 +176,84 @@ ENTITIES:
       <<: *shared_properties
       <<: *shared_entity_properties
       title:
+	#todo: check to make sure this field is copied from dataset->metadata.name
         user_input_required: true
         type: string
+	description: "The dataset title."
       data_types:
         user_input_required: true
-        type: string
+        type: json_string
+	description: "The data or assay types contained in this dataset as a json array of strings.  Each is an assay code from https://github.com/hubmapconsortium/search-api/blob/devel/src/search-schema/data/definitions/enums/assay_types.yaml."
       collection_uuids:
         transient: true
         type: list
-        description: "A list of collection uuids that this dataset belongs to"
+        description: "A list of collection uuids for the collections that this dataset belongs to. This is used to pass the reference"
       source_uuids:
         transient: true
         type: list
-        description: "The uuids of source entities from which this new entity is derived from"
+        description: "The uuids of source entities from which this new entity is derived.  Used to pass source entity ids in on POST or PUT calls used to create the linkages."
         on_read_trigger: get_source_uuids
-      published_timestamp: # Can we unpublish a Dataset, immutable or not? - Joe
+      published_timestamp:
         type: integer
+	description: "The timestamp of when the dataset was published.  The format is an integer representing milliseconds since midnight, Jan 1, 1970.  Cannot be set directly must be set with the /datasets/<id>/publish method."
+	immutable: true
       published_user_displayname:
         type: string
+	description: "The name of the authenticated user or process that published the data.  Cannot be set directly must be set with the /datasets/<id>/publish method."
+	immutable: true
       published_user_sub:
         type: string
+	immutable: true
+	description: "The subject id as provided by the authorization mechanism for the person or process authenticated when the dataset was publised.  Cannot be set directly must be set with the /datasets/<id>/publish method."
       published_user_email:
         type: string
-      pipeline_message:
+	immutable: true
+	description: "The email address provided by the authorization mechanism for the person or process authenticated when published.  Cannot be set directly must be set with the /datasets/<id>/publish method."
+      pipeline_message
+        #todo: where is this attribute sourced from?  Is it stored in the database?
         type: string
-      title:
+      dataset_name:
+	#todo: is this field needed?  title above should suffice.
         type: string
       # The Dataset.data_access_level is based on Dataset.status and Dataset.contains_human_genetic_sequences
       contains_human_genetic_sequences:
         user_input_required: true
         type: boolean
-        description: "Will this data contain any human genomic sequence data?"
+        description: "True if the data contains any human genetic sequence information."
       ingest_metadata:
-        type: string
+        type: json_string
+	description: "The metadata returned from the processing at data submission time."
       local_directory_rel_path:
+        #todo: confirm, is this mapped from dataset->metadata.local_directory_url_path?
+	#      if so, we need to calculate this on the fly
         type: string
+	description: "The path on the local file system, relative to the base data directory, where the data is stored."
+	transient: true
+	on_read_trigger: calculate_local_file_path
       # The Dataset.data_access_level is based on Dataset.status and Dataset.contains_human_genetic_sequences
       status:
         type: string
-        description: "Published|New|QA|Error|Hold|Invalid"
+        description: "The status of the dataset one of Published|New|QA|Error|Hold|Invalid. Cannot be set directly must be set with a PUT /datasets/<id>/<status> method.""
+	immutable: true
       run_id:
         type: string
       ingest_id:
         type: string
       local_directory_url_path:
+	#todo: 
         type: string
       group_uuid:
         type: string
+	on_create_trigger: set_group_uuid #method that, if group_uuid is not already set looks for membership in a single "data provider" group and sets to that. Otherwise if not set and no single "provider group" membership throws error
+	#todo: map to provenance_group_uuid in ES
       group_name:
         type: string
-      
+      	on_create_trigger: set_group_name #same as group_uuid, except set group_name
+	#todo: map to provenance_group_name in ES
 
   ############################################# Donor #############################################
   Donor:
-    # Dnor can be derivation source but not target
+    # Donor can be derivation source but not target
     derivation:
       source: false
       target: true
@@ -219,33 +261,62 @@ ENTITIES:
       <<: *shared_properties
       <<: *shared_entity_properties
       # Need `title` property?
-      # Deidentified Name?
+      # Deidentified Name?- we're using label (definition below).  For now...
       image_file_metadata:
-        type: string
+        type: json_string
+	description: "List of uploaded image files and descriptions of the files."
+	#todo: migrate to new attribute set as above portal_metadata_upload files
       metadata:
-        type: string
+        type: json_string
+	description: "Donor metadata coded as described here: <get donor metadata doc from Chuck>"
       protocol_url:
         user_input_required: true
         type: string
+	description: "The protocols.io doi url pointing the protocol describing the donor selection, inclusion/exclusion criteria"
       lab_donor_id:
         type: string
+	description: "A lab specific identifier for the donor."
+
+      #todo- delete this, not needed?? Donors don't have ancestors like datasets and samples, but are linked to a "lab"
       source_uuids:
         transient: true
         type: list
         description: "The uuids of source entities from which this new entity is derived from"
         on_read_trigger: get_source_uuids
       submission_id:
+	description: "The hubmap internal id with embedded semantic information e.g.: VAN0003.  This id is generated at creation time which tracks the lab, donor, organ and sample hierarchy per the following: https://docs.google.com/document/d/1DjHgmqWF1VA5-3mfzLFNfabbzmc8KLSG9xWx1DDLlzo/edit?usp=sharing"
+	todo: map to hubmap_identifier in ES index
         type: string
+	on_create_trigger: create_donor_submission_id
+      group_uuid:
+        type: string
+	on_create_trigger: set_donor_group_uuid #method that, if group_uuid is not already set looks for membership in a single "data provider" group and sets to that. Otherwise if not set and no single "provider group" membership throws error.  This field is also used to link (Neo4j relationship) to the correct Lab node on creation.
+	#todo: map to provenance_group_uuid in ES
+      group_name:
+        type: string
+      	on_create_trigger: set_group_name #same as group_uuid, except set group_name
+	#todo: map to provenance_group_name in ES
       portal_metadata_upload_files:
-        type: string
+        type: json_string
+	description: "list of relative paths to metadata files"
+	#todo: migrate to new attribute (set, maybe) representing a single uploaded sample_metadata.tsv file using the now file upload methods.  Leave this in place for now, but add new attribute(s) to support new methon.  Need to do a design session.
       next_identifier:
         type: string
-      lab_name:
-        type: string
+	immutable: true
+	description: "Internal count of child samples, used for generating the submission id of the children. This field is not exposed via the api."
+	exposed: false
+	#todo: add new yaml attribute, exposed that defaults to true.  When false the attribute is not returned in ws response
+      label:
+	type: string
+	description: "Lab provided, de-identified name for the donor"
+
+      #no longer needed as we no longer allow upload of protocol file, remove if not exposed in ES
       protocol_file:
         type: string
+	description: "relative path to an uploaded file describing the protocol describing the donor selection, inclusion/exclusion criteria.
       open_consent:
-        type: string
+        type: boolean
+	descrption: "True if the donor was consented to allow public, open access to any data, identified or not, derived from the donor's tissue.  Otherwise false."
 
 
   ############################################# Sample #############################################
@@ -259,40 +330,68 @@ ENTITIES:
       <<: *shared_entity_properties
       # Need `title` property?
       # How to specify the source HuBMAP id of a new sample?
+
+      #no longer needed as we no longer allow upload of protocol file, remove if not exposed in ES
       protocol_file:
         type: string
+	#description: relative path to an uploaded file describing the protocol under which the sample was obtained and/or prepared
       specimen_type:
         user_input_required: true
         type: string
+	#description: A code representing the type of specimen.  Must be one of the codes specified in: https://github.com/hubmapconsortium/search-api/blob/devel/src/search-schema/data/definitions/enums/tissue_sample_types.yaml
       portal_metadata_upload_files:
-        type: string
+        type: json_string
+	description: "list of relative paths to metadata files"
+	#todo: migrate to new attribute (set, maybe) representing a single uploaded sample_metadata.tsv file using the now file upload methods.  Leave this in place for now, but add new attribute(s) to support new methon.  Need to do a design session.
       protocol_url:
         type: string
+	user_input_required: true
+	description: "The protocols.io doi url pointing the protocol under wich the sample was obtained and/or prepared."
       image_file_metadata:
-        type: string
+        type: json_string
+	description: "List of uploaded image files and descriptions of the files."
+	#todo: migrate to new attribute set as above portal_metadata_upload files
       sample_count:
         type: string
       organ_other:
         type: string
+	description: The organ type provided by the user if "other" organ type is selected
       source_uuids:
         transient: true
         type: list
-        description: "The uuids of source entities from which this new entity is derived from"
+        description: "The uuids of source entities from which this new entity is derived from. Used on creation or edit to create actions and relationships to the ancestor(s)"
         on_read_trigger: get_source_uuids
+	on_create_trigger: connect_sample_to_parent
+      ancestors:
+	transient: true
+	type: list <samples or donor>
+	on_read_trigger: "get_sample_ancestors"
       submission_id:
-        type: string
+	description: "The hubmap internal id with embedded semantic information e.g.: VAN0003-LK-1-10.  This id is generated at creation time which tracks the lab, donor, organ and sample hierarchy per the following: https://docs.google.com/document/d/1DjHgmqWF1VA5-3mfzLFNfabbzmc8KLSG9xWx1DDLlzo/edit?usp=sharing"
+	todo: map to hubmap_identifier in ES index
+	on_create_trigger: create_sample_submission_id
       organ:
         type: string
+	description: "Organ code specifier, only set if sample_type == organ.  Valid values found in: https://github.com/hubmapconsortium/search-api/blob/devel/src/search-schema/data/definitions/enums/organ_types.yaml"
       lab_tissue_sample_id:
         type: string
+	description: "Lab specific id for the sample."
       next_identifier:
         type: string
+	immutable: true
+	description: "Internal count of child samples, used for generating the submission id of the children. This field is not exposed via the api."
+	exposed: false
+	#todo: add new yaml attribute, exposed that defaults to true.  When false the attribute is not returned in ws response
       metadata:
-        type: string
+        type: json_string
+	description: "The sample specific metadata derived from the uploaded sample_metadata.tsv file"
       rui_location:
-        type: string
+        type: json_string
+	description: "The sample location and orientation in the ancestor organ as specified in the RUI tool."
       specimen_type_other:
         type: string
+	description: "The user provided sample type if the 'other' sample_type is chosen."
       visit:
         type: string
+	description: "The visit id for the donor/patient when the sample was obtained."
 
