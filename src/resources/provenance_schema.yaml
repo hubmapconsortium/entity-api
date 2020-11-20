@@ -48,7 +48,7 @@ shared_properties: &shared_properties
   doi_suffix_id:
     type: string
     description: "The randomly generated, unique in HuBMAP id used as the doi suffix. This id is used in construction of the HuBMAP Display ID (will be renamed to HuBMAP ID eventually). e.g.: 456FDTP455"
-    on_create_trigger: create_doi_suffix_id
+    on_create_trigger: create_hubmap_ids
     immutable: true
   hubmap_id:
     #todo: for now map to display_doi when creating ES index, will change attribute name in index at a later date
@@ -284,15 +284,18 @@ ENTITIES:
         description: "The uuids of source entities from which this new entity is derived from"
         on_read_trigger: get_source_uuids
       submission_id:
+        immutable: true
 	description: "The hubmap internal id with embedded semantic information e.g.: VAN0003.  This id is generated at creation time which tracks the lab, donor, organ and sample hierarchy per the following: https://docs.google.com/document/d/1DjHgmqWF1VA5-3mfzLFNfabbzmc8KLSG9xWx1DDLlzo/edit?usp=sharing"
 	todo: map to hubmap_identifier in ES index
         type: string
 	on_create_trigger: create_donor_submission_id
       group_uuid:
+        immutable: true
         type: string
 	on_create_trigger: set_donor_group_uuid #method that, if group_uuid is not already set looks for membership in a single "data provider" group and sets to that. Otherwise if not set and no single "provider group" membership throws error.  This field is also used to link (Neo4j relationship) to the correct Lab node on creation.
 	#todo: map to provenance_group_uuid in ES
       group_name:
+        immutable: true
         type: string
       	on_create_trigger: set_group_name #same as group_uuid, except set group_name
 	#todo: map to provenance_group_name in ES
