@@ -359,16 +359,16 @@ ENTITIES:
       organ_other:
         type: string
 	description: The organ type provided by the user if "other" organ type is selected
-      source_uuids:
+      source_uuid:
         transient: true
-        type: list
-        description: "The uuids of source entities from which this new entity is derived from. Used on creation or edit to create actions and relationships to the ancestor(s)"
+        type: string
+        description: "The uuid of source entity from which this new entity is derived from. Used on creation or edit to create an action and relationship to the ancestor"
         on_read_trigger: get_source_uuids
 	on_create_trigger: connect_sample_to_parent
-      ancestors:
+      ancestor:
 	transient: true
-	type: list <samples or donor>
-	on_read_trigger: "get_sample_ancestors"
+	type: object <sample or donor>
+	on_read_trigger: "get_sample_ancestor"
       submission_id:
 	description: "The hubmap internal id with embedded semantic information e.g.: VAN0003-LK-1-10.  This id is generated at creation time which tracks the lab, donor, organ and sample hierarchy per the following: https://docs.google.com/document/d/1DjHgmqWF1VA5-3mfzLFNfabbzmc8KLSG9xWx1DDLlzo/edit?usp=sharing"
 	todo: map to hubmap_identifier in ES index
