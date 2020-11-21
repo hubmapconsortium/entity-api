@@ -3,8 +3,11 @@
 ####################################################################################################
 
 import datetime
+import requests
+from urllib3.exceptions import InsecureRequestWarning
 
 # Local modules
+import utility
 import neo4j_queries
 
 ####################################################################################################
@@ -108,7 +111,8 @@ str
     The 'sub' string
 """
 def get_user_sub(combined_data_dict):
-    return combined_data_dict['sub']
+    user_info = utility.get_user_info(combined_data_dict['request'])
+    return user_info['sub']
 
 """
 Trigger event method of getting user email
@@ -125,7 +129,8 @@ str
     The 'email' string
 """
 def get_user_email(combined_data_dict):
-    return combined_data_dict['email']
+    user_info = utility.get_user_info(combined_data_dict['request'])
+    return user_info['email']
 
 """
 Trigger event method of getting user name
@@ -142,10 +147,11 @@ str
     The 'name' string
 """
 def get_user_displayname(combined_data_dict):
-    return combined_data_dict['name']
+    user_info = utility.get_user_info(combined_data_dict['request'])
+    return user_info['name']
 
 """
-Trigger event method of getting uuid
+Trigger event method of getting uuid, hubmap_id for a new entity to be created
 
 Parameters
 ----------
@@ -155,45 +161,14 @@ combined_data_dict : dict
 
 Returns
 -------
-str
-    The uuid string
+dict
+    The dict that contains uuid and hubmap_id created via uuid-api
 """
-def create_uuid(combined_data_dict):
-    return combined_data_dict['uuid']
+def create_hubmap_ids(combined_data_dict):
+    ids = utility.create_hubmap_ids(combined_data_dict['normalized_entity_class'])
+    return ids
 
-"""
-Trigger event method of getting uuid
 
-Parameters
-----------
-combined_data_dict : dict
-    A merged dictionary that contains all possible input data to be used
-    It's fine if a trigger method doesn't use any input data
-
-Returns
--------
-str
-    The doi_suffix_id string
-"""
-def create_doi_suffix_id(combined_data_dict):
-    return combined_data_dict['doi_suffix_id']
-
-"""
-Trigger event method of getting uuid
-
-Parameters
-----------
-combined_data_dict : dict
-    A merged dictionary that contains all possible input data to be used
-    It's fine if a trigger method doesn't use any input data
-
-Returns
--------
-str
-    The hubmap_id string
-"""
-def create_hubmap_id(combined_data_dict):
-    return combined_data_dict['hubmap_id']
 
 ####################################################################################################
 ## Trigger methods specific to Collection
@@ -319,3 +294,4 @@ str
 """
 def get_activity_creation_action(combined_data_dict):
     return "Create {entity_class} Activity".format(entity_class = combined_data_dict['normalized_activity_class'])
+
