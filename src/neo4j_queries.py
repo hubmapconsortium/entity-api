@@ -263,45 +263,47 @@ def get_source_uuids(neo4j_db, uuid):
         raise e
 
 """
-Get a list of associated dataset uuids for a given derived entity's uuid
+Get a list of associated dataset dicts for a given collection
 
 Parameters
 ----------
 neo4j_db : neo4j.Session object
     The neo4j database session
 uuid : str
-    The uuid of target entity 
+    The uuid of collection
 
 Returns
 -------
 list
-    The list comtaining associated dataset uuids
+    The list comtaining associated dataset dicts
 """
-def get_dataset_uuids_by_collection(neo4j_db, uuid):
-    dataset_uuids_list = []
-
+def get_collection_datasets(neo4j_db, uuid):
     parameterized_query = ("MATCH (e:Entity)-[:IN_COLLECTION]->(c:Collection) " + 
                            "WHERE c.uuid = '{uuid}' " +
-                           "RETURN DISTINCT e.uuid AS {record_field_name}")
+                           "RETURN apoc.coll.toSet(COLLECT(e)) AS {record_field_name}")
 
     query = parameterized_query.format(uuid = uuid, 
                                        record_field_name = record_field_name)
     
-    logger.debug("======get_dataset_uuids_by_collection() query======")
+    logger.debug("======get_collection_datasets() query======")
     logger.debug(query)
 
     try:
-        results = neo4j_db.run(query)
+        result = neo4j_db.run(query)
+        record = result.single()
 
-        for record in results:
-            dataset_uuids_list.append(record.get(record_field_name))
+        result_list = []
 
-        logger.debug("======get_collection_dataset_uuids() resulting list======")
-        logger.debug(dataset_uuids_list)
+        # Convert the entity nodes to dicts
+        nodes = record[record_field_name]
 
-        return dataset_uuids_list
+        for node in nodes:
+            entity_dict = node_to_dict(node)
+            result_list.append(entity_dict)
+
+        return result_list
     except CypherSyntaxError as ce:
-        msg = "CypherSyntaxError from calling get_collection_dataset_uuids(): " + ce.message
+        msg = "CypherSyntaxError from calling get_collection_datasets(): " + ce.message
         logger.error(msg)
         raise CypherSyntaxError(msg)
     except Exception as e:

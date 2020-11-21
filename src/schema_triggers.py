@@ -31,7 +31,7 @@ def get_current_timestamp(combined_data_dict):
     return seconds
 
 """
-Trigger event method of getting the entity class of a given entity
+Trigger event method of setting the entity class of a given entity
 
 Parameters
 ----------
@@ -44,7 +44,7 @@ Returns
 str
     The string of normalized entity class
 """
-def get_entity_class(combined_data_dict):
+def set_entity_class(combined_data_dict):
     return combined_data_dict['normalized_entity_class']
 
 """
@@ -141,25 +141,8 @@ Returns
 str
     The 'name' string
 """
-def get_user_name(combined_data_dict):
+def get_user_displayname(combined_data_dict):
     return combined_data_dict['name']
-
-"""
-Trigger event method of getting source uuid
-
-Parameters
-----------
-combined_data_dict : dict
-    A merged dictionary that contains all possible input data to be used
-    It's fine if a trigger method doesn't use any input data
-
-Returns
--------
-str
-    The uuid string of source entity
-"""
-def get_source_uuids(combined_data_dict):
-    return neo4j_queries.get_source_uuids(combined_data_dict['neo4j_db'], combined_data_dict['uuid'])
 
 """
 Trigger event method of getting uuid
@@ -217,7 +200,7 @@ def create_hubmap_id(combined_data_dict):
 ####################################################################################################
 
 """
-Trigger event method of getting a list of associated dataset uuids for a given collection
+Trigger event method of getting a list of associated datasets for a given collection
 
 Parameters
 ----------
@@ -228,25 +211,83 @@ combined_data_dict : dict
 Returns
 -------
 list
-    A list a associated dataset uuids
+    A list a associated dataset dicts
 """
-def get_dataset_uuids_by_collection(combined_data_dict):
-    return neo4j_queries.get_dataset_uuids_by_collection(combined_data_dict['neo4j_db'], combined_data_dict['uuid'])
+def get_collection_datasets(combined_data_dict):
+    return neo4j_queries.get_collection_datasets(combined_data_dict['neo4j_db'], combined_data_dict['uuid'])
 
+def connect_datasets_to_collection():
+    return "dummy"
 
 ####################################################################################################
 ## Trigger methods specific to Dataset
 ####################################################################################################
 
+"""
+Trigger event method of getting source uuid
+
+Parameters
+----------
+combined_data_dict : dict
+    A merged dictionary that contains all possible input data to be used
+    It's fine if a trigger method doesn't use any input data
+
+Returns
+-------
+str
+    The uuid string of source entity
+"""
+def get_dataset_source_uuids(combined_data_dict):
+    return neo4j_queries.get_source_uuids(combined_data_dict['neo4j_db'], combined_data_dict['uuid'])
+
+def calculate_local_file_path():
+    return "dummy"
+
+def set_group_uuid():
+    return "dummy"
+
+def set_group_name():
+    return "dummy"
 
 ####################################################################################################
 ## Trigger methods specific to Donor
 ####################################################################################################
 
+def create_donor_submission_id():
+    return "dummy"
+
+def set_donor_group_uuid():
+    return "dummy"
 
 ####################################################################################################
 ## Trigger methods specific to Sample
 ####################################################################################################
+
+def create_sample_submission_id():
+    return "dummy"
+
+def connect_sample_to_parent():
+    return "dummy"
+
+def get_sample_ancestor():
+    return "dummy"
+
+"""
+Trigger event method of getting source uuid
+
+Parameters
+----------
+combined_data_dict : dict
+    A merged dictionary that contains all possible input data to be used
+    It's fine if a trigger method doesn't use any input data
+
+Returns
+-------
+str
+    The uuid string of source entity
+"""
+def get_sample_source_uuid(combined_data_dict):
+    return neo4j_queries.get_source_uuids(combined_data_dict['neo4j_db'], combined_data_dict['uuid'])
 
 
 ####################################################################################################

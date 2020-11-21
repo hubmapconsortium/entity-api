@@ -13,19 +13,19 @@ services:
       # Mount the source code to container
       - "../src:/usr/src/app/src"
 
-  # Only used for local development
-  hubmap-neo4j:
-    build: ./hubmap-neo4j
-    # Build the image with name and tag
-    image: hubmap-neo4j:1.1
-    hostname: hubmap-neo4j
-    container_name: hubmap-neo4j
-    # Use the same port mapping for dev and prod
-    ports:
-      - "7474:7474"
-      - "7687:7687"
-    volumes:
-      # Mount the neo4j configuration file to container
-      - "./hubmap-neo4j/neo4j.conf:/usr/src/app/neo4j/conf/neo4j.conf"
-    networks:
-      - gateway_hubmap
+  # # Only used for local development
+  # hubmap-neo4j:
+  #   build: ./hubmap-neo4j
+  #   # Build the image with name and tag
+  #   image: hubmap-neo4j:1.1
+  #   hostname: hubmap-neo4j
+  #   container_name: hubmap-neo4j
+  #   # Use the same port mapping for dev and prod
+  #   ports:
+  #     - "7474:7474"
+  #     - "7687:7687"
+  #   volumes:
+  #     # Mount the neo4j configuration file to container
+  #     - "./hubmap-neo4j/neo4j.conf:/usr/src/app/neo4j/conf/neo4j.conf"
+  #   networks:
+  #     - gateway_hubmap
