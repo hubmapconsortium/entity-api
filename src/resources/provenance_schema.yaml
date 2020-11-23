@@ -22,36 +22,33 @@ shared_properties: &shared_properties
     type: integer
     immutable: true
     description: "The timestamp of when the node was created.  The format is an integer representing milliseconds since midnight Jan 1, 1970"
-    on_create_trigger: get_current_timestamp
+    on_create_trigger: set_timestamp
   created_by_user_displayname:
     type: string
-    on_create_trigger: get_user_name
     immutable: true
     description: "The name of the person or process authenticated when creating the object"
-    on_create_trigger: get_user_displayname
+    on_create_trigger: set_user_displayname
   created_by_user_email:
     type: string
-    on_create_trigger: get_user_email
     immutable: true
     description: "The email address of the person or process authenticated when creating the object."
-    on_create_trigger: get_user_email
+    on_create_trigger: set_user_email
   created_by_user_sub:
     type: string
-    on_create_trigger: get_user_sub
     immutable: true
     description: "The subject id as provided by the authorization mechanism for the person or process authenticated when creating the object."
-    on_create_trigger: get_user_sub
+    on_create_trigger: set_user_sub
   ###### ID properties ######
   uuid:
     type: string
     description: "The HuBMAP unique identifier, intended for internal software use only.  This is a 32 digit hexadecimal uuid e.g. 461bbfdc353a2673e381f632510b0f17"
-    on_create_trigger: create_hubmap_ids
+    on_create_trigger: set_uuid
     immutable: true
   hubmap_id:
     type: string
     description: "E.g., HBM###.XXXX.###.  A HuBMAP specific id "
     immutable: true
-    on_create_trigger: create_hubmap_ids
+    on_create_trigger: set_hubmap_id
 
 
 ####################################################################################################
@@ -221,7 +218,7 @@ ENTITIES:
         type: string
         description: "The path on the local file system, relative to the base data directory, where the data is stored."
         transient: true
-        on_read_trigger: calculate_local_file_path
+        on_read_trigger: set_local_file_path
       # The Dataset.data_access_level is based on Dataset.status and Dataset.contains_human_genetic_sequences
       status:
         type: string
@@ -269,7 +266,7 @@ ENTITIES:
         immutable: true
         description: "The hubmap internal id with embedded semantic information e.g.: VAN0003.  This id is generated at creation time which tracks the lab, donor, organ and sample hierarchy per the following: https://docs.google.com/document/d/1DjHgmqWF1VA5-3mfzLFNfabbzmc8KLSG9xWx1DDLlzo/edit?usp=sharing"
         type: string
-        on_create_trigger: create_donor_submission_id
+        on_create_trigger: set_donor_submission_id
       group_uuid:
         immutable: true
         type: string
@@ -333,14 +330,14 @@ ENTITIES:
         type: string
         description: "The uuid of source entity from which this new entity is derived from. Used on creation or edit to create an action and relationship to the ancestor"
         on_read_trigger: get_sample_source_uuid
-        on_create_trigger: connect_sample_to_parent
+        on_create_trigger: set_sample_to_parent_relationship
       ancestor:
         transient: true
         type: object <sample or donor>
         on_read_trigger: get_sample_ancestor
       submission_id:
         description: "The hubmap internal id with embedded semantic information e.g.: VAN0003-LK-1-10.  This id is generated at creation time which tracks the lab, donor, organ and sample hierarchy per the following: https://docs.google.com/document/d/1DjHgmqWF1VA5-3mfzLFNfabbzmc8KLSG9xWx1DDLlzo/edit?usp=sharing"
-        on_create_trigger: create_sample_submission_id
+        on_create_trigger: set_sample_submission_id
       organ:
         type: string
         description: "Organ code specifier, only set if sample_type == organ.  Valid values found in: https://github.com/hubmapconsortium/search-api/blob/devel/src/search-schema/data/definitions/enums/organ_types.yaml"

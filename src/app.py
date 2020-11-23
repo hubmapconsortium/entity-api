@@ -18,7 +18,6 @@ import neo4j_queries
 import schema_triggers
 
 # HuBMAP commons
-from hubmap_commons.hm_auth import AuthHelper
 from hubmap_commons import string_helper
 from hubmap_commons import file_helper
 
@@ -41,6 +40,9 @@ app.config['SEARCH_API_URL'] = app.config['SEARCH_API_URL'].strip('/')
 # with a per-item time-to-live (TTL) value
 # Here we use two hours, 7200 seconds for ttl
 cache = TTLCache(maxsize=app.config['CACHE_MAXSIZE'], ttl=app.config['CACHE_TTL'])
+
+# Suppress InsecureRequestWarning warning when requesting status on https with ssl cert verify disabled
+requests.packages.urllib3.disable_warnings(category = InsecureRequestWarning)
 
 ####################################################################################################
 ## Provenance yaml schema loading
@@ -287,14 +289,7 @@ def get_entity_by_id(id):
     # Get rid of the entity node properties that are not defined in the yaml schema
     entity_dict = remove_undefined_entity_properties(normalized_entity_class, entity_dict)
 
-    # Dictionaries to be merged and passed to trigger methods
-    normalized_entity_class_dict = {'normalized_entity_class': normalized_entity_class}
-
-    # Merge all the above dictionaries
-    # If the latter dictionary contains the same key as the previous one, it will overwrite the value for that key
-    data_dict = {**entity_dict, **normalized_entity_class_dict}
-
-    generated_on_read_trigger_data_dict = generate_triggered_data('on_read_trigger', 'ENTITIES', data_dict)
+    generated_on_read_trigger_data_dict = generate_triggered_data('on_read_trigger', 'ENTITIES', normalized_entity_class, entity_dict)
 
     # Merge the entity info and the generated on read data into one dictionary
     result_dict = {**entity_dict, **generated_on_read_trigger_data_dict}
@@ -490,15 +485,7 @@ def update_entity(id):
     # Pass in the entity_dict for missing required key check, this is different from creating new entity
     validate_json_data_against_schema(json_data_dict, normalized_entity_class, existing_entity_dict = entity_dict)
 
-    # Dictionaries to be merged and passed to trigger methods
-    normalized_entity_class_dict = {'normalized_entity_class': normalized_entity_class}
-    user_info_dict = get_user_info(request)
-
-    # Merge all the above dictionaries
-    # If the latter dictionary contains the same key as the previous one, it will overwrite the value for that key
-    data_dict = {**normalized_entity_class_dict, **user_info_dict}
-
-    generated_on_update_trigger_data_dict = generate_triggered_data('on_update_trigger', 'ENTITIES', data_dict)
+    generated_on_update_trigger_data_dict = generate_triggered_data('on_update_trigger', 'ENTITIES', normalized_entity_class, entity_dict)
 
     # Merge two dictionaries
     merged_dict = {**json_data_dict, **generated_on_update_trigger_data_dict}
@@ -548,7 +535,9 @@ json
 """
 @app.route('/ancestors/<id>', methods = ['GET'])
 def get_ancestors(id):
-    uuid = get_target_uuid(id)
+    hubmap_ids = schema_triggers.get_hubmap_ids(id)
+    uuid = hubmap_ids['hmuuid']
+
     ancestors_list = neo4j_queries.get_ancestors(get_neo4j_db(), uuid)
 
     # Final result
@@ -592,7 +581,9 @@ json
 """
 @app.route('/descendants/<id>', methods = ['GET'])
 def get_descendants(id):
-    uuid = get_target_uuid(id)
+    hubmap_ids = schema_triggers.get_hubmap_ids(id)
+    uuid = hubmap_ids['hmuuid']
+
     descendants_list = neo4j_queries.get_descendants(get_neo4j_db(), uuid)
 
     # Final result
@@ -636,7 +627,9 @@ json
 """
 @app.route('/parents/<id>', methods = ['GET'])
 def get_parents(id):
-    uuid = get_target_uuid(id)
+    hubmap_ids = schema_triggers.get_hubmap_ids(id)
+    uuid = hubmap_ids['hmuuid']
+
     parents_list = neo4j_queries.get_parents(get_neo4j_db(), uuid)
 
     # Final result
@@ -680,7 +673,9 @@ json
 """
 @app.route('/children/<id>', methods = ['GET'])
 def get_children(id):
-    uuid = get_target_uuid(id)
+    hubmap_ids = schema_triggers.get_hubmap_ids(id)
+    uuid = hubmap_ids['hmuuid']
+
     children_list = neo4j_queries.get_children(get_neo4j_db(), uuid)
 
     # Final result
@@ -795,7 +790,7 @@ def get_dataset_globus_url(id):
     # Get the user information (if available) for the caller
     # getUserDataAccessLevel will return just a "data_access_level" of public
     # if no auth token is found
-    auth_helper = init_auth_helper()
+    auth_helper = schema_triggers.init_auth_helper()
     user_info = auth_helper.getUserDataAccessLevel(request)        
     
     #construct the Globus URL based on the highest level of access that the user has
@@ -933,16 +928,7 @@ def create_new_entity(normalized_entity_class, json_data_dict):
         for collection_uuid in collection_uuids_list:
             collection_dict = query_target_entity(collection_uuid)
 
-    # Dictionaries to be merged and passed to trigger methods
-    normalized_entity_class_dict = {'normalized_entity_class': normalized_entity_class}
-    user_info_dict = get_user_info(request)
-    new_ids_dict = create_new_ids(normalized_entity_class)
-
-    # Merge all the above dictionaries and pass to the trigger methods
-    # If the latter dictionary contains the same key as the previous one, it will overwrite the value for that key
-    data_dict = {**normalized_entity_class_dict, **user_info_dict, **new_ids_dict}
-
-    generated_on_create_trigger_data_dict = generate_triggered_data('on_create_trigger', 'ENTITIES', data_dict)
+    generated_on_create_trigger_data_dict = generate_triggered_data('on_create_trigger', 'ENTITIES', normalized_entity_class, {}, data_dict)
 
     # Merge the user json data and generated trigger data into one dictionary
     merged_dict = {**json_data_dict, **generated_on_create_trigger_data_dict}
@@ -1032,16 +1018,7 @@ def create_derived_entity(normalized_target_entity_class, json_data_dict):
         for collection_uuid in collection_uuids_list:
             collection_dict = query_target_entity(collection_uuid)
 
-    # Dictionaries to be merged and passed to trigger methods
-    normalized_entity_class_dict = {'normalized_entity_class': normalized_target_entity_class}
-    user_info_dict = get_user_info(request)
-    new_ids_dict = create_new_ids(normalized_target_entity_class)
-
-    # Merge all the above dictionaries
-    # If the latter dictionary contains the same key as the previous one, it will overwrite the value for that key
-    data_dict = {**normalized_entity_class_dict, **user_info_dict, **new_ids_dict}
-
-    generated_on_create_trigger_data_dict = generate_triggered_data('on_create_trigger', 'ENTITIES', data_dict)
+    generated_on_create_trigger_data_dict = generate_triggered_data('on_create_trigger', 'ENTITIES', normalized_entity_class, {})
 
     # Merge two dictionaries
     merged_dict = {**json_data_dict, **generated_on_create_trigger_data_dict}
@@ -1062,17 +1039,8 @@ def create_derived_entity(normalized_target_entity_class, json_data_dict):
     # Activity is not an Entity, thus we use "class" for reference
     normalized_activity_class = 'Activity'
 
-    # Dictionaries to be merged and passed to trigger methods
-    normalized_activity_class_dict = {'normalized_activity_class': normalized_activity_class}
-
-    # Create new ids for the Activity node
-    new_ids_dict_for_activity = create_new_ids(normalized_activity_class)
-
-    # Build a merged dict for Activity
-    data_dict_for_activity = {**normalized_activity_class_dict, **user_info_dict, **new_ids_dict_for_activity}
-
     # Get trigger generated data for Activity
-    generated_on_create_trigger_data_dict_for_activity = generate_triggered_data('on_create_trigger', 'ACTIVITIES', data_dict_for_activity)
+    generated_on_create_trigger_data_dict_for_activity = generate_triggered_data('on_create_trigger', 'ACTIVITIES', normalized_activity_class, {})
     
     # `UNWIND` in Cypher expects List<T>
     activity_data_list = [generated_on_create_trigger_data_dict_for_activity]
@@ -1191,159 +1159,6 @@ def validate_source_entity_class_for_derivation(normalized_source_entity_class):
         bad_request_error("Invalid source entity class specified for creating the derived entity. Accepted classes: " + separator.join(accepted_source_entity_classes))
 
 
-"""
-Create a dict of HTTP Authorization header with Bearer token for making calls to uuid-api
-
-Returns
--------
-dict
-    The headers dict to be used by requests
-"""
-def create_request_headers():
-    # Will need this to call getProcessSecret()
-    auth_helper = init_auth_helper()
-
-    auth_header_name = 'Authorization'
-    auth_scheme = 'Bearer'
-
-    headers_dict = {
-        # Don't forget the space between scheme and the token value
-        auth_header_name: auth_scheme + ' ' + auth_helper.getProcessSecret()
-    }
-
-    return headers_dict
-
-
-"""
-Retrive target uuid based on the given id
-
-Parameters
-----------
-id : str
-    Either the uuid or hubmap_id of target entity 
-
-Returns
--------
-str
-    The uuid string from the uuid-api call
-
-    The list returned by uuid-api that contains all the associated ids, e.g.:
-    {
-        "doiSuffix": "456FDTP455",
-        "email": "xxx@pitt.edu",
-        "hmuuid": "461bbfdc353a2673e381f632510b0f17",
-        "hubmapId": "VAN0002",
-        "parentId": null,
-        "timeStamp": "2019-11-01 18:34:24",
-        "type": "{UUID_DATATYPE}",
-        "userId": "83ae233d-6d1d-40eb-baa7-b6f636ab579a"
-    }
-"""
-def get_target_uuid(id):
-    target_url = app.config['UUID_API_URL'] + '/' + id
-    # Suppress InsecureRequestWarning warning when requesting status on https with ssl cert verify disabled
-    requests.packages.urllib3.disable_warnings(category = InsecureRequestWarning)
-
-    # Use modified version of globus app secrect from configuration as the internal token
-    # All API endpoints specified in gateway regardless of auth is required or not, 
-    # will consider this internal token as valid and has the access to HuBMAP-Read group
-    request_headers = create_request_headers()
-
-    # Disable ssl certificate verification
-    response = requests.get(url = target_url, headers = request_headers, verify = False) 
-    
-    if response.status_code == 200:
-        ids_list = response.json()
-
-        if len(ids_list) == 0:
-            not_found_error("Unable to find information via uuid-api on id: " + id)
-        if len(ids_list) > 1:
-            internal_server_error("Found multiple records via uuid-api for id: " + id)
-        
-        return ids_list[0]['hmuuid']
-    else:
-        not_found_error("Could not find the target uuid via uuid-api service associatted with the provided id of " + id)
-
-"""
-Create a set of new ids for the new entity to be created
-Make a POST call to uuid-api with the following json:
-{
-    "entityType":"Dataset",
-    "generateDOI": "true"
-}
-
-The list returned by uuid-api that contains all the associated ids, e.g.:
-{
-    "uuid": "c754a4f878628f3c072d4e8024f707cd",
-    "doi": "479NDDG476",
-    "displayDoi": "HBM479.NDDG.476"
-}
-
-Then map them to the target ids:
-uuid -> uuid
-doi -> doi_suffix_id
-displayDoi -> hubmap_id
-
-Returns
--------
-dict
-    The dictionary of new ids
-
-    {
-        "uuid": "c754a4f878628f3c072d4e8024f707cd",
-        "doi_suffix_id": "479NDDG476",
-        "hubmap_id": "HBM479.NDDG.476"
-    }
-
-"""
-def create_new_ids(normalized_entity_class, generate_doi = True):
-    target_url = app.config['UUID_API_URL']
-
-    # Suppress InsecureRequestWarning warning when requesting status on https with ssl cert verify disabled
-    requests.packages.urllib3.disable_warnings(category = InsecureRequestWarning)
-
-    # Must use "generateDOI": "true" to generate the doi (doi_suffix_id) and displayDoi (hubmap_id)
-    json_to_post = {
-        'entityType': normalized_entity_class, 
-        'generateDOI': str(generate_doi).lower() # Convert python bool to json string "true" or "false"
-    }
-
-    # Use modified version of globus app secrect from configuration as the internal token
-    # All API endpoints specified in gateway regardless of auth is required or not, 
-    # will consider this internal token as valid and has the access to HuBMAP-Read group
-    request_headers = create_request_headers()
-
-    # Disable ssl certificate verification
-    response = requests.post(url = target_url, headers = request_headers, json = json_to_post, verify = False) 
-    
-    if response.status_code == 200:
-        ids_list = response.json()
-        ids_dict = ids_list[0]
-
-        # Create a new dict with desired keys
-        new_ids_dict = {
-            'uuid': ids_dict['uuid']
-        }
-
-        # Add extra fields
-        if generate_doi:
-            new_ids_dict['doi_suffix_id'] = ids_dict['doi']
-            new_ids_dict['hubmap_id'] = ids_dict['displayDoi']
-
-        return new_ids_dict
-    else:
-        msg = "Failed to create new ids via the uuid-api service during the creation of this new " + normalized_entity_class
-        
-        app.logger.error(msg)
-
-        app.logger.debug("======create_new_ids() status code======")
-        app.logger.debug(response.status_code)
-
-        app.logger.debug("======create_new_ids() response text======")
-        app.logger.debug(response.text)
-
-        internal_server_error(msg)
-
 
 """
 Get target entity dict
@@ -1359,8 +1174,9 @@ dict
     A dictionary of entity details returned from neo4j
 """
 def query_target_entity(id):
-    # Make a call to uuid-api to get back the uuid
-    uuid = get_target_uuid(id)
+    hubmap_ids = schema_triggers.get_hubmap_ids(id)
+    uuid = hubmap_ids['hmuuid']
+
     entity_dict = neo4j_queries.get_entity(get_neo4j_db(), uuid)
 
     # Existence check
@@ -1495,29 +1311,15 @@ Returns
 dict
     A dictionary of trigger event methods generated data
 """
-def generate_triggered_data(trigger_type, normalized_schema_section_key, data_dict):
+def generate_triggered_data(trigger_type, normalized_schema_section_key, normalized_class, entity_dict):
     accepted_section_keys = ['ACTIVITIES', 'ENTITIES']
     separator = ', '
-    normalized_class = None
 
     if normalized_schema_section_key not in accepted_section_keys:
         internal_server_error('Unsupported schema section key: ' + normalized_schema_section_key + ". Must be one of the following: " + separator.join(accepted_section_keys))
 
-    # Use normalized_entity_class for all classes under the ENTITIES section
-    if normalized_schema_section_key == 'ENTITIES':
-        normalized_class = data_dict['normalized_entity_class']
-
-    # Use normalized_activity_class for all classes under the ACTIVITIES section
-    # ACTIVITIES section has only one prov class: Activity
-    if normalized_schema_section_key == 'ACTIVITIES':
-        normalized_class = data_dict['normalized_activity_class']
-
     properties = schema[normalized_schema_section_key][normalized_class]['properties']
     schema_keys = properties.keys() 
-
-    # Always pass the `neo4j_db` along with the data_dict to schema_triggers.py module
-    neo4j_db_dict = {'neo4j_db': get_neo4j_db()}
-    combined_data_dict = {**neo4j_db_dict, **data_dict}
 
     # Put all resulting data into a dictionary too
     trigger_generated_data_dict = {}
@@ -1526,75 +1328,10 @@ def generate_triggered_data(trigger_type, normalized_schema_section_key, data_di
             trigger_method_name = properties[key][trigger_type]
             # Call the target trigger method of schema_triggers.py module
             trigger_method_to_call = getattr(schema_triggers, trigger_method_name)
-            trigger_generated_data_dict[key] = trigger_method_to_call(combined_data_dict)
+            trigger_generated_data_dict[key] = trigger_method_to_call(key, entity_dict)
 
     return trigger_generated_data_dict
 
-"""
-Initialize AuthHelper (AuthHelper from HuBMAP commons package)
-HuBMAP commons AuthHelper handles "MAuthorization" or "Authorization"
-
-Returns
--------
-AuthHelper
-    An instnce of AuthHelper
-"""
-def init_auth_helper():
-    if AuthHelper.isInitialized() == False:
-        auth_helper = AuthHelper.create(app.config['APP_CLIENT_ID'], app.config['APP_CLIENT_SECRET'])
-    else:
-        auth_helper = AuthHelper.instance()
-    
-    return auth_helper
-
-"""
-Get user infomation dict based on the http request(headers)
-
-Parameters
-----------
-request : Flask request object
-    The Flask request passed from the API endpoint 
-
-Returns
--------
-dict
-    A dict containing all the user info
-
-    {
-        "scope": "urn:globus:auth:scope:nexus.api.globus.org:groups",
-        "name": "First Last",
-        "iss": "https://auth.globus.org",
-        "client_id": "21f293b0-5fa5-4ee1-9e0e-3cf88bd70114",
-        "active": True,
-        "nbf": 1603761442,
-        "token_type": "Bearer",
-        "aud": ["nexus.api.globus.org", "21f293b0-5fa5-4ee1-9e0e-3cf88bd70114"],
-        "iat": 1603761442,
-        "dependent_tokens_cache_id": "af2d5979090a97536619e8fbad1ebd0afa875c880a0d8058cddf510fc288555c",
-        "exp": 1603934242,
-        "sub": "c0f8907a-ec78-48a7-9c85-7da995b05446",
-        "email": "email@pitt.edu",
-        "username": "username@pitt.edu",
-        "hmscopes": ["urn:globus:auth:scope:nexus.api.globus.org:groups"],
-    }
-"""
-def get_user_info(request):
-    auth_helper = init_auth_helper()
-    # `group_required` is a boolean, when True, 'hmgroupids' is in the output
-    user_info = auth_helper.getUserInfoUsingRequest(request, False)
-
-    app.logger.debug("======get_user_info()======")
-    app.logger.debug(user_info)
-
-    # If returns error response, invalid header or token
-    if isinstance(user_info, Response):
-        msg = "Failed to query the user info with the given globus token"
-
-        app.logger.error(msg)
-
-        bad_request_error(msg)
-
-    return user_info
 
 """
 Always expect a json body from user request
