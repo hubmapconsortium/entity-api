@@ -289,7 +289,7 @@ def get_entity_by_id(id):
     # Get rid of the entity node properties that are not defined in the yaml schema
     entity_dict = remove_undefined_entity_properties(normalized_entity_class, entity_dict)
 
-    generated_on_read_trigger_data_dict = generate_triggered_data('on_read_trigger', 'ENTITIES', normalized_entity_class, entity_dict)
+    generated_on_read_trigger_data_dict = generate_triggered_data('on_read_trigger', 'ENTITIES', normalized_entity_class, entity_dict, {})
 
     # Merge the entity info and the generated on read data into one dictionary
     result_dict = {**entity_dict, **generated_on_read_trigger_data_dict}
@@ -484,8 +484,9 @@ def update_entity(id):
     # Validate request json against the yaml schema
     # Pass in the entity_dict for missing required key check, this is different from creating new entity
     validate_json_data_against_schema(json_data_dict, normalized_entity_class, existing_entity_dict = entity_dict)
-
-    generated_on_update_trigger_data_dict = generate_triggered_data('on_update_trigger', 'ENTITIES', normalized_entity_class, entity_dict)
+ 
+    data_dict = {'request': request}
+    generated_on_update_trigger_data_dict = generate_triggered_data('on_update_trigger', 'ENTITIES', normalized_entity_class, entity_dict, data_dict)
 
     # Merge two dictionaries
     merged_dict = {**json_data_dict, **generated_on_update_trigger_data_dict}
@@ -928,6 +929,7 @@ def create_new_entity(normalized_entity_class, json_data_dict):
         for collection_uuid in collection_uuids_list:
             collection_dict = query_target_entity(collection_uuid)
 
+    data_dict = {'request': request}
     generated_on_create_trigger_data_dict = generate_triggered_data('on_create_trigger', 'ENTITIES', normalized_entity_class, {}, data_dict)
 
     # Merge the user json data and generated trigger data into one dictionary
@@ -1018,7 +1020,8 @@ def create_derived_entity(normalized_target_entity_class, json_data_dict):
         for collection_uuid in collection_uuids_list:
             collection_dict = query_target_entity(collection_uuid)
 
-    generated_on_create_trigger_data_dict = generate_triggered_data('on_create_trigger', 'ENTITIES', normalized_entity_class, {})
+    data_dict = {'request': request}
+    generated_on_create_trigger_data_dict = generate_triggered_data('on_create_trigger', 'ENTITIES', normalized_entity_class, {}, data_dict)
 
     # Merge two dictionaries
     merged_dict = {**json_data_dict, **generated_on_create_trigger_data_dict}
@@ -1040,7 +1043,8 @@ def create_derived_entity(normalized_target_entity_class, json_data_dict):
     normalized_activity_class = 'Activity'
 
     # Get trigger generated data for Activity
-    generated_on_create_trigger_data_dict_for_activity = generate_triggered_data('on_create_trigger', 'ACTIVITIES', normalized_activity_class, {})
+    data_dict = {'request': request}
+    generated_on_create_trigger_data_dict_for_activity = generate_triggered_data('on_create_trigger', 'ACTIVITIES', normalized_activity_class, data_dict)
     
     # `UNWIND` in Cypher expects List<T>
     activity_data_list = [generated_on_create_trigger_data_dict_for_activity]
@@ -1311,7 +1315,7 @@ Returns
 dict
     A dictionary of trigger event methods generated data
 """
-def generate_triggered_data(trigger_type, normalized_schema_section_key, normalized_class, entity_dict):
+def generate_triggered_data(trigger_type, normalized_schema_section_key, normalized_class, entity_dict, data_dict):
     accepted_section_keys = ['ACTIVITIES', 'ENTITIES']
     separator = ', '
 
@@ -1328,7 +1332,7 @@ def generate_triggered_data(trigger_type, normalized_schema_section_key, normali
             trigger_method_name = properties[key][trigger_type]
             # Call the target trigger method of schema_triggers.py module
             trigger_method_to_call = getattr(schema_triggers, trigger_method_name)
-            trigger_generated_data_dict[key] = trigger_method_to_call(key, entity_dict)
+            trigger_generated_data_dict[key] = trigger_method_to_call(key, entity_dict, data_dict)
 
     return trigger_generated_data_dict
 
