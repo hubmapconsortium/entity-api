@@ -220,7 +220,7 @@ def get_entities_by_class(neo4j_db, entity_class, property_key = None):
 ####################################################################################################
 
 """
-Get the source entities uuids of a given derived entity (Dataset/Donor/Sample) by uuid
+Get the source entities uuids of a given dataset by uuid
 
 Parameters
 ----------
@@ -234,15 +234,15 @@ Returns
 list
     A unique list of uuids of source entities
 """
-def get_source_uuids(neo4j_db, uuid):
-    parameterized_query = ("MATCH (s:Entity)-[:ACTIVITY_INPUT]->(a:Activity)-[:ACTIVITY_OUTPUT]->(t:Entity) " + 
+def get_dataset_source_uuids(neo4j_db, uuid):
+    parameterized_query = ("MATCH (s:Dataset)-[:ACTIVITY_INPUT]->(a:Activity)-[:ACTIVITY_OUTPUT]->(t:Entity) " + 
                            "WHERE t.uuid = '{uuid}' " +
                            "RETURN apoc.coll.toSet(COLLECT(s.uuid)) AS {record_field_name}")
 
     query = parameterized_query.format(uuid = uuid, 
                                        record_field_name = record_field_name)
     
-    logger.debug("======get_source_uuids() query======")
+    logger.debug("======get_dataset_source_uuids() query======")
     logger.debug(query)
 
     try:
@@ -251,12 +251,12 @@ def get_source_uuids(neo4j_db, uuid):
         record = result.single()
         source_uuids = record[record_field_name]
 
-        logger.debug("======get_source_uuids() resulting source_uuids list======")
+        logger.debug("======get_dataset_source_uuids() resulting source_uuids list======")
         logger.debug(source_uuids)
 
         return source_uuids
     except CypherSyntaxError as ce:
-        msg = "CypherSyntaxError from calling get_source_uuids(): " + ce.message
+        msg = "CypherSyntaxError from calling get_dataset_source_uuids(): " + ce.message
         logger.error(msg)
         raise CypherSyntaxError(msg)
     except Exception as e:

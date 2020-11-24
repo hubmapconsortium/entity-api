@@ -3,7 +3,6 @@ from neo4j import GraphDatabase
 import sys
 import os
 import re
-import yaml
 import json
 import requests
 from urllib3.exceptions import InsecureRequestWarning
@@ -15,7 +14,7 @@ import urllib
 
 # Local modules
 import neo4j_queries
-import schema_triggers
+import provenance_schema
 
 # HuBMAP commons
 from hubmap_commons import string_helper
@@ -35,46 +34,17 @@ app.config.from_pyfile('app.cfg')
 app.config['UUID_API_URL'] = app.config['UUID_API_URL'].strip('/')
 app.config['SEARCH_API_URL'] = app.config['SEARCH_API_URL'].strip('/')
 
+# Suppress InsecureRequestWarning warning when requesting status on https with ssl cert verify disabled
+requests.packages.urllib3.disable_warnings(category = InsecureRequestWarning)
+
 # LRU Cache implementation with per-item time-to-live (TTL) value
 # with a memoizing callable that saves up to maxsize results based on a Least Frequently Used (LFU) algorithm
 # with a per-item time-to-live (TTL) value
 # Here we use two hours, 7200 seconds for ttl
 cache = TTLCache(maxsize=app.config['CACHE_MAXSIZE'], ttl=app.config['CACHE_TTL'])
 
-# Suppress InsecureRequestWarning warning when requesting status on https with ssl cert verify disabled
-requests.packages.urllib3.disable_warnings(category = InsecureRequestWarning)
-
-####################################################################################################
-## Provenance yaml schema loading
-####################################################################################################
-
-"""
-Load the schema yaml file
-
-Parameters
-----------
-valid_yaml_file : file
-    A valid yaml file
-
-Returns
--------
-dict
-    A dict containing the schema details
-"""
-@cached(cache)
-def load_provenance_schema_yaml_file(valid_yaml_file):
-    with open(valid_yaml_file) as file:
-        schema = yaml.safe_load(file)
-
-        app.logger.info("Schema yaml file loaded successfully")
-
-        app.logger.debug("======schema======")
-        app.logger.debug(schema)
-
-        return schema
-   
 # Have the schema informaiton available in the application context (lifetime of a request)
-schema = load_provenance_schema_yaml_file(app.config['SCHEMA_YAML_FILE'])
+schema = provenance_schema.load_provenance_schema_yaml_file(app.config['SCHEMA_YAML_FILE'])
 
 
 ####################################################################################################
@@ -284,12 +254,12 @@ def get_entity_by_id(id):
     entity_dict = query_target_entity(id)
 
     # Normalize the returned entity_class
-    normalized_entity_class = normalize_entity_class(entity_dict['entity_class'])
+    normalized_entity_class = provenance_schema.normalize_entity_class(entity_dict['entity_class'])
 
     # Get rid of the entity node properties that are not defined in the yaml schema
-    entity_dict = remove_undefined_entity_properties(normalized_entity_class, entity_dict)
+    entity_dict = provenance_schema.remove_undefined_entity_properties(normalized_entity_class, entity_dict)
 
-    generated_on_read_trigger_data_dict = generate_triggered_data('on_read_trigger', 'ENTITIES', normalized_entity_class, entity_dict, {})
+    generated_on_read_trigger_data_dict = provenance_schema.generate_triggered_data('on_read_trigger', schema['ENTITIES'], normalized_entity_class, entity_dict)
 
     # Merge the entity info and the generated on read data into one dictionary
     result_dict = {**entity_dict, **generated_on_read_trigger_data_dict}
@@ -334,7 +304,7 @@ json
 """
 @app.route('/entity_classes', methods = ['GET'])
 def get_entity_classes():
-    return jsonify(get_all_entity_classes())
+    return jsonify(provenance_schema.get_all_entity_classes(schema['ENTITIES']))
 
 """
 Retrive all the entity nodes for a given entity class
@@ -354,10 +324,10 @@ json
 @app.route('/<entity_class>/entities', methods = ['GET'])
 def get_entities_by_class(entity_class):
     # Normalize user provided entity_class
-    normalized_entity_class = normalize_entity_class(entity_class)
+    normalized_entity_class = provenance_schema.normalize_entity_class(entity_class)
 
     # Validate the normalized_entity_class to enure it's one of the accepted classes
-    validate_normalized_entity_class(normalized_entity_class)
+    provenance_schema.validate_normalized_entity_class(schema['ENTITIES'], normalized_entity_class)
 
     # Get back a list of entity dicts for the given entity class
     entities_list = neo4j_queries.get_entities_by_class(get_neo4j_db(), normalized_entity_class)
@@ -422,10 +392,10 @@ json
 @app.route('/entities/<entity_class>', methods = ['POST'])
 def create_entity(entity_class):
     # Normalize user provided entity_class
-    normalized_entity_class = normalize_entity_class(entity_class)
+    normalized_entity_class = provenance_schema.normalize_entity_class(entity_class)
 
     # Validate the normalized_entity_class to make sure it's one of the accepted classes
-    validate_normalized_entity_class(normalized_entity_class)
+    provenance_schema.validate_normalized_entity_class(schema['ENTITIES'], normalized_entity_class)
 
     # Always expect a json body
     require_json(request)
@@ -476,17 +446,19 @@ def update_entity(id):
     entity_dict = query_target_entity(id)
 
     # Normalize user provided entity_class
-    normalized_entity_class = normalize_entity_class(entity_dict['entity_class'])
+    normalized_entity_class = provenance_schema.normalize_entity_class(entity_dict['entity_class'])
 
     # Get the uuid of the entity for later use
     entity_uuid = entity_dict['uuid']
 
     # Validate request json against the yaml schema
     # Pass in the entity_dict for missing required key check, this is different from creating new entity
-    validate_json_data_against_schema(json_data_dict, normalized_entity_class, existing_entity_dict = entity_dict)
+    provenance_schema.validate_json_data_against_schema(schema['ENTITIES'], json_data_dict, normalized_entity_class, existing_entity_dict = entity_dict)
  
-    data_dict = {'request': request}
-    generated_on_update_trigger_data_dict = generate_triggered_data('on_update_trigger', 'ENTITIES', normalized_entity_class, entity_dict, data_dict)
+    # Pass in the flask request object and the entity_dict
+    request_dict = {'request': request}
+    data_dict = {**entity_dict, **request_dict}
+    generated_on_update_trigger_data_dict = provenance_schema.generate_triggered_data('on_update_trigger', schema['ENTITIES'], normalized_entity_class, data_dict)
 
     # Merge two dictionaries
     merged_dict = {**json_data_dict, **generated_on_update_trigger_data_dict}
@@ -511,7 +483,7 @@ def update_entity(id):
     result_dict = neo4j_queries.update_entity(get_neo4j_db(), normalized_entity_class, escaped_json_list_str, entity_uuid)
 
     # Get rid of the entity node properties that are not defined in the yaml schema
-    result_dict = remove_undefined_entity_properties(normalized_entity_class, result_dict)
+    result_dict = provenance_schema.remove_undefined_entity_properties(schema['ENTITIES'], normalized_entity_class, result_dict)
 
     # How to handle reindex collection?
     # Also reindex the updated entity node in elasticsearch via search-api
@@ -536,7 +508,7 @@ json
 """
 @app.route('/ancestors/<id>', methods = ['GET'])
 def get_ancestors(id):
-    hubmap_ids = schema_triggers.get_hubmap_ids(id)
+    hubmap_ids = provenance_schema.get_hubmap_ids(id)
     uuid = hubmap_ids['hmuuid']
 
     ancestors_list = neo4j_queries.get_ancestors(get_neo4j_db(), uuid)
@@ -582,7 +554,7 @@ json
 """
 @app.route('/descendants/<id>', methods = ['GET'])
 def get_descendants(id):
-    hubmap_ids = schema_triggers.get_hubmap_ids(id)
+    hubmap_ids = provenance_schema.get_hubmap_ids(id)
     uuid = hubmap_ids['hmuuid']
 
     descendants_list = neo4j_queries.get_descendants(get_neo4j_db(), uuid)
@@ -628,7 +600,7 @@ json
 """
 @app.route('/parents/<id>', methods = ['GET'])
 def get_parents(id):
-    hubmap_ids = schema_triggers.get_hubmap_ids(id)
+    hubmap_ids = provenance_schema.get_hubmap_ids(id)
     uuid = hubmap_ids['hmuuid']
 
     parents_list = neo4j_queries.get_parents(get_neo4j_db(), uuid)
@@ -674,7 +646,7 @@ json
 """
 @app.route('/children/<id>', methods = ['GET'])
 def get_children(id):
-    hubmap_ids = schema_triggers.get_hubmap_ids(id)
+    hubmap_ids = provenance_schema.get_hubmap_ids(id)
     uuid = hubmap_ids['hmuuid']
 
     children_list = neo4j_queries.get_children(get_neo4j_db(), uuid)
@@ -791,7 +763,7 @@ def get_dataset_globus_url(id):
     # Get the user information (if available) for the caller
     # getUserDataAccessLevel will return just a "data_access_level" of public
     # if no auth token is found
-    auth_helper = schema_triggers.init_auth_helper()
+    auth_helper = provenance_schema.init_auth_helper()
     user_info = auth_helper.getUserDataAccessLevel(request)        
     
     #construct the Globus URL based on the highest level of access that the user has
@@ -887,18 +859,6 @@ err_msg : str
 def internal_server_error(err_msg):
     abort(500, description = err_msg)
 
-"""
-Get a list of all the supported entity classes in the schmea yaml
-
-Returns
--------
-list
-    A list of entity classes
-"""
-def get_all_entity_classes():
-    dict_keys = schema['ENTITIES'].keys()
-    # Need convert the dict_keys object to a list
-    return list(dict_keys)
 
 """
 Create a new entity node of the target class in neo4j
@@ -917,7 +877,7 @@ dict
 """
 def create_new_entity(normalized_entity_class, json_data_dict):
     # Validate request json against the yaml schema
-    validate_json_data_against_schema(json_data_dict, normalized_entity_class)
+    provenance_schema.validate_json_data_against_schema(schema['ENTITIES'], json_data_dict, normalized_entity_class)
 
     # For new dataset to be linked to existing collections
     collection_uuids_list = []
@@ -929,8 +889,15 @@ def create_new_entity(normalized_entity_class, json_data_dict):
         for collection_uuid in collection_uuids_list:
             collection_dict = query_target_entity(collection_uuid)
 
-    data_dict = {'request': request}
-    generated_on_create_trigger_data_dict = generate_triggered_data('on_create_trigger', 'ENTITIES', normalized_entity_class, {}, data_dict)
+    # Dictionaries to be merged and passed to trigger methods
+    user_info_dict = provenance_schema.get_user_info(request)
+    new_ids_dict = provenance_schema.create_hubmap_ids(normalized_entity_class)
+
+    # Merge all the above dictionaries and pass to the trigger methods
+    # If the latter dictionary contains the same key as the previous one, it will overwrite the value for that key
+    data_dict = {**user_info_dict, **new_ids_dict}
+
+    generated_on_create_trigger_data_dict = provenance_schema.generate_triggered_data('on_create_trigger', schema['ENTITIES'], normalized_entity_class, data_dict)
 
     # Merge the user json data and generated trigger data into one dictionary
     merged_dict = {**json_data_dict, **generated_on_create_trigger_data_dict}
@@ -983,7 +950,7 @@ dict
 """
 def create_derived_entity(normalized_target_entity_class, json_data_dict):
     # Donor and Collection can not be the target derived entity classes
-    validate_target_entity_class_for_derivation(normalized_target_entity_class)
+    provenance_schema.validate_target_entity_class_for_derivation(schema['ENTITIES'], normalized_target_entity_class)
 
     # Ensure it's a list
     if not isinstance(json_data_dict['source_entities'], list):
@@ -996,8 +963,8 @@ def create_derived_entity(normalized_target_entity_class, json_data_dict):
             bad_request_error("Each source entity object within the 'source_entities' array must contain 'class' key and 'id' key")
             
         # Also normalize and validate the source entity class
-        normalized_source_entity_class = normalize_entity_class(source_entity['class'])
-        validate_source_entity_class_for_derivation(normalized_source_entity_class)
+        normalized_source_entity_class = provenance_schema.normalize_entity_class(source_entity['class'])
+        provenance_schema.validate_source_entity_class_for_derivation(schema['ENTITIES'], normalized_source_entity_class)
 
         # Query source entity against uuid-api and neo4j and return as a dict if exists
         source_entity_dict = query_target_entity(source_entity['id'])
@@ -1008,7 +975,7 @@ def create_derived_entity(normalized_target_entity_class, json_data_dict):
         del source_entity['id']
 
     # Validate target entity data against the yaml schema
-    validate_json_data_against_schema(json_data_dict['target_entity'], normalized_target_entity_class)
+    provenance_schema.validate_json_data_against_schema(schema['ENTITIES'], json_data_dict['target_entity'], normalized_target_entity_class)
 
     # For derived Dataset to be linked with existing Collections
     collection_uuids_list = []
@@ -1020,8 +987,15 @@ def create_derived_entity(normalized_target_entity_class, json_data_dict):
         for collection_uuid in collection_uuids_list:
             collection_dict = query_target_entity(collection_uuid)
 
-    data_dict = {'request': request}
-    generated_on_create_trigger_data_dict = generate_triggered_data('on_create_trigger', 'ENTITIES', normalized_entity_class, {}, data_dict)
+    # Dictionaries to be merged and passed to trigger methods
+    user_info_dict = provenance_schema.get_user_info(request)
+    new_ids_dict = provenance_schema.create_hubmap_ids(normalized_entity_class)
+
+    # Merge all the above dictionaries and pass to the trigger methods
+    # If the latter dictionary contains the same key as the previous one, it will overwrite the value for that key
+    data_dict = {**user_info_dict, **new_ids_dict}
+
+    generated_on_create_trigger_data_dict = provenance_schema.generate_triggered_data('on_create_trigger', schema['ENTITIES'], normalized_target_entity_class, data_dict)
 
     # Merge two dictionaries
     merged_dict = {**json_data_dict, **generated_on_create_trigger_data_dict}
@@ -1043,8 +1017,15 @@ def create_derived_entity(normalized_target_entity_class, json_data_dict):
     normalized_activity_class = 'Activity'
 
     # Get trigger generated data for Activity
-    data_dict = {'request': request}
-    generated_on_create_trigger_data_dict_for_activity = generate_triggered_data('on_create_trigger', 'ACTIVITIES', normalized_activity_class, data_dict)
+    # Dictionaries to be merged and passed to trigger methods
+    normalized_entity_class_dict = {'normalized_entity_class': normalized_target_entity_class}
+    new_ids_dict_for_activity = provenance_schema.create_hubmap_ids(normalized_entity_class)
+
+    # Merge all the above dictionaries and pass to the trigger methods
+    # Use normalized_entity_class_dict for building `creation_action` in Activity node later
+    data_dict = {**normalized_entity_class_dict, **user_info_dict, **new_ids_dict_for_activity}
+
+    generated_on_create_trigger_data_dict_for_activity = provenance_schema.generate_triggered_data('on_create_trigger', schema['ACTIVITIES'], normalized_activity_class, data_dict)
     
     # `UNWIND` in Cypher expects List<T>
     activity_data_list = [generated_on_create_trigger_data_dict_for_activity]
@@ -1062,107 +1043,6 @@ def create_derived_entity(normalized_target_entity_class, json_data_dict):
 
     return result_dict
 
-"""
-Get a list of entity classes that can be used as derivation source in the schmea yaml
-
-Returns
--------
-list
-    A list of entity classes
-"""
-def get_derivation_source_entity_classes():
-    derivation_source_entity_classes = []
-    entity_classes = get_all_entity_classes()
-    for entity_class in entity_classes:
-        if schema['ENTITIES'][entity_class]['derivation']['source']:
-            derivation_source_entity_classes.append(entity_class)
-
-    return derivation_source_entity_classes
-
-"""
-Get a list of entity classes that can be used as derivation target in the schmea yaml
-
-Returns
--------
-list
-    A list of entity classes
-"""
-def get_derivation_target_entity_classes():
-    derivation_target_entity_classes = []
-    entity_classes = get_all_entity_classes()
-    for entity_class in entity_classes:
-        if schema['ENTITIES'][entity_class]['derivation']['target']:
-            derivation_target_entity_classes.append(entity_class)
-
-    return derivation_target_entity_classes
-
-"""
-Lowercase and captalize the entity type string
-
-Parameters
-----------
-normalized_entity_class : str
-    One of the normalized entity classes: Dataset, Collection, Sample, Donor
-id : str
-    The uuid of target entity 
-
-Returns
--------
-string
-    One of the normalized entity classes: Dataset, Collection, Sample, Donor
-"""
-def normalize_entity_class(entity_class):
-    normalized_entity_class = entity_class.lower().capitalize()
-    return normalized_entity_class
-
-
-"""
-Validate the normalized entity class
-
-Parameters
-----------
-normalized_entity_class : str
-    The normalized entity class
-"""
-def validate_normalized_entity_class(normalized_entity_class):
-    separator = ', '
-    accepted_entity_classes = get_all_entity_classes()
-
-    # Validate provided entity_class
-    if normalized_entity_class not in accepted_entity_classes:
-        bad_request_error("The specified entity class in URL must be one of the following: " + separator.join(accepted_entity_classes))
-
-"""
-Validate the source and target entity classes for creating derived entity
-
-Parameters
-----------
-normalized_target_entity_class : str
-    The normalized target entity class
-"""
-def validate_target_entity_class_for_derivation(normalized_target_entity_class):
-    separator = ', '
-    accepted_target_entity_classes = get_derivation_target_entity_classes()
-
-    if normalized_target_entity_class not in accepted_target_entity_classes:
-        bad_request_error("Invalid target entity class specified for creating the derived entity. Accepted classes: " + separator.join(accepted_target_entity_classes))
-
-"""
-Validate the source and target entity classes for creating derived entity
-
-Parameters
-----------
-normalized_source_entity_class : str
-    The normalized source entity class
-"""
-def validate_source_entity_class_for_derivation(normalized_source_entity_class):
-    separator = ', '
-    accepted_source_entity_classes = get_derivation_source_entity_classes()
-
-    if normalized_source_entity_class not in accepted_source_entity_classes:
-        bad_request_error("Invalid source entity class specified for creating the derived entity. Accepted classes: " + separator.join(accepted_source_entity_classes))
-
-
 
 """
 Get target entity dict
@@ -1178,7 +1058,7 @@ dict
     A dictionary of entity details returned from neo4j
 """
 def query_target_entity(id):
-    hubmap_ids = schema_triggers.get_hubmap_ids(id)
+    hubmap_ids = provenance_schema.get_hubmap_ids(id)
     uuid = hubmap_ids['hmuuid']
 
     entity_dict = neo4j_queries.get_entity(get_neo4j_db(), uuid)
@@ -1189,152 +1069,6 @@ def query_target_entity(id):
 
     return entity_dict
 
-
-"""
-Validate json data from user request against the schema
-
-Parameters
-----------
-json_data_dict : dict
-    The json data dict from user request
-normalized_entity_class : str
-    One of the normalized entity classes: Dataset, Collection, Sample, Donor
-existing_entity_dict : dict
-    Emoty dict for creating new entity, otherwise pass in the existing entity dict
-"""
-def validate_json_data_against_schema(json_data_dict, normalized_entity_class, existing_entity_dict = {}):
-    properties = schema['ENTITIES'][normalized_entity_class]['properties']
-    schema_keys = properties.keys() 
-    json_data_keys = json_data_dict.keys()
-    separator = ', '
-
-    # Check if keys in request json are supported
-    unsupported_keys = []
-    for key in json_data_keys:
-        if key not in schema_keys:
-            unsupported_keys.append(key)
-
-    if len(unsupported_keys) > 0:
-        bad_request_error("Unsupported keys in request json: " + separator.join(unsupported_keys))
-
-    # Check if keys in request json are immutable
-    immutable_keys = []
-    for key in json_data_keys:
-        if 'immutable' in properties[key]:
-            if properties[key]:
-                immutable_keys.append(key)
-
-    if len(immutable_keys) > 0:
-        bad_request_error("Immutable keys are not allowed in request json: " + separator.join(immutable_keys))
-    
-    # Check if keys in request json are generated transient keys
-    transient_keys = []
-    for key in json_data_keys:
-        if 'transient' in properties[key]:
-            if properties[key]:
-                transient_keys.append(key)
-
-    if len(transient_keys) > 0:
-        bad_request_error("Transient keys are not allowed in request json: " + separator.join(transient_keys))
-
-    # Check if any schema keys that are user_input_required but missing from request
-    missing_required_keys = []
-    for key in schema_keys:
-        # Schema rules: 
-        # - By default, the schema treats all entity properties as optional. Use `user_input_required: true` to mark a property as required
-        # - If aproperty is marked as `user_input_required: true`, it can't have `trigger` at the same time
-        # It's reenforced here because we can't guarantee this rule is being followed correctly in the schema yaml
-        if 'user_input_required' in properties[key]:
-            if properties[key]['user_input_required'] and ('trigger' not in properties[key]) and (key not in json_data_keys):
-                # When existing_entity_dict is empty, it means creating new entity
-                # When existing_entity_dict is not empty, it means updating an existing entity
-                if not bool(existing_entity_dict):
-                    missing_required_keys.append(key)
-                else:
-                    # It is a missing key when the existing entity data doesn't have it
-                    if key not in existing_entity_dict:
-                        missing_required_keys.append(key)
-
-    if len(missing_required_keys) > 0:
-        bad_request_error("Missing required keys in request json: " + separator.join(missing_required_keys))
-
-    # By now all the keys in request json have passed the above two checks: existence cehck in schema and required check in schema
-    # Verify data types of keys
-    invalid_data_type_keys = []
-    for key in json_data_keys:
-        # boolean starts with bool, string starts with str, integer starts with int
-        # ??? How to handle other data types?
-        if not properties[key]['type'].startswith(type(json_data_dict[key]).__name__):
-            invalid_data_type_keys.append(key)
-    
-    if len(invalid_data_type_keys) > 0:
-        bad_request_error("Keys in request json with invalid data types: " + separator.join(invalid_data_type_keys))
-
-"""
-Remove entity node properties that are not defined in the yaml schema prior to response
-
-Parameters
-----------
-trigger_type : str
-    One of the trigger types: on_create_trigger, on_update_trigger, on_read_trigger
-
-data_dict : dict
-    A merged dictionary that contains all possible data to be used by the trigger methods
-
-Returns
--------
-dict
-    A entity dictionary with keys that are all defined in schema yaml
-"""
-def remove_undefined_entity_properties(normalized_entity_class, entity_dict):
-    properties = schema['ENTITIES'][normalized_entity_class]['properties']
-    schema_keys = properties.keys() 
-    # In Python 3, entity_dict.keys() returns an iterable, which causes error if deleting keys during the loop
-    # We can use list to force a copy of the keys to be made
-    entity_keys = list(entity_dict)
-
-    for key in entity_keys:
-        if key not in schema_keys:
-            del entity_dict[key]
-
-    return entity_dict
-
-"""
-Generating triggered data based on the target events and methods
-
-Parameters
-----------
-trigger_type : str
-    One of the trigger types: on_create_trigger, on_update_trigger, on_read_trigger
-
-data_dict : dict
-    A merged dictionary that contains all possible data to be used by the trigger methods
-
-Returns
--------
-dict
-    A dictionary of trigger event methods generated data
-"""
-def generate_triggered_data(trigger_type, normalized_schema_section_key, normalized_class, entity_dict, data_dict):
-    accepted_section_keys = ['ACTIVITIES', 'ENTITIES']
-    separator = ', '
-
-    if normalized_schema_section_key not in accepted_section_keys:
-        internal_server_error('Unsupported schema section key: ' + normalized_schema_section_key + ". Must be one of the following: " + separator.join(accepted_section_keys))
-
-    properties = schema[normalized_schema_section_key][normalized_class]['properties']
-    schema_keys = properties.keys() 
-
-    # Put all resulting data into a dictionary too
-    trigger_generated_data_dict = {}
-    for key in schema_keys:
-        if trigger_type in properties[key]:
-            trigger_method_name = properties[key][trigger_type]
-            # Call the target trigger method of schema_triggers.py module
-            trigger_method_to_call = getattr(schema_triggers, trigger_method_name)
-            trigger_generated_data_dict[key] = trigger_method_to_call(key, entity_dict, data_dict)
-
-    return trigger_generated_data_dict
 
 
 """

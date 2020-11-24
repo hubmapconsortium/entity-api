@@ -14,6 +14,9 @@
 
 # Properties that are still stored in neo4j but no longer needed: protocol_file, protocol_info
 
+############################################# TO-DO #############################################
+# Do we want to have both the ancestor and source_uuid at the same time?
+
 
 # Shared properties across ACTIVITIES and ENTITIES
 shared_properties: &shared_properties
@@ -63,7 +66,7 @@ ACTIVITIES:
         type: string
         description: "The activity that was performed."
         immutable: true
-        on_create_trigger: get_activity_creation_action
+        on_create_trigger: set_activity_creation_action
 
 
 ####################################################################################################
@@ -84,19 +87,19 @@ shared_entity_properties: &shared_entity_properties
   ###### Last Modified Properties #######
   last_modified_timestamp:
     type: integer
-    on_update_trigger: get_current_timestamp
+    on_update_trigger: set_timestamp
     description: "The timestamp of when the object was last modified.  The format is an integer representing milliseconds since midnight, Jan 1, 1970"
   last_modified_user_sub:
     type: string
-    on_update_trigger: get_user_sub
+    on_update_trigger: set_user_sub
     description: "The subject id as provided by the authorization mechanism for the person or process authenticated when the object was modified."
   last_modified_user_email:
     type: string
-    on_update_trigger: get_user_email
+    on_update_trigger: set_user_email
     description: "The email address of the person or process authenticated when the object was last modified."
   last_modified_user_displayname:
     type: string
-    on_update_trigger: get_user_displayname
+    on_update_trigger: set_user_displayname
     description: "The name of the person or process authenticated when the object was last modified."
   ###### Shared transient properties ######
   data_access_level:
@@ -187,22 +190,22 @@ ENTITIES:
         type: integer
         description: "The timestamp of when the dataset was published.  The format is an integer representing milliseconds since midnight, Jan 1, 1970.  Cannot be set directly must be set with the /datasets/<id>/publish method."
         immutable: true
-        on_create_trigger: get_current_timestamp
+        on_create_trigger: set_timestamp
       published_user_displayname:
         type: string
         description: "The name of the authenticated user or process that published the data.  Cannot be set directly must be set with the /datasets/<id>/publish method."
         immutable: true
-        on_create_trigger: get_user_displayname
+        on_create_trigger: set_user_displayname
       published_user_sub:
         type: string
         immutable: true
         description: "The subject id as provided by the authorization mechanism for the person or process authenticated when the dataset was publised.  Cannot be set directly must be set with the /datasets/<id>/publish method."
-        on_create_trigger: get_user_sub
+        on_create_trigger: set_user_sub
       published_user_email:
         type: string
         immutable: true
         description: "The email address provided by the authorization mechanism for the person or process authenticated when published.  Cannot be set directly must be set with the /datasets/<id>/publish method."
-        on_create_trigger: get_user_email
+        on_create_trigger: set_user_email
       pipeline_message:
         #todo: where is this attribute sourced from?  Is it stored in the database? <- Not in neo4j
         type: string
@@ -218,7 +221,7 @@ ENTITIES:
         type: string
         description: "The path on the local file system, relative to the base data directory, where the data is stored."
         transient: true
-        on_read_trigger: set_local_file_path
+        on_read_trigger: get_local_file_path
       # The Dataset.data_access_level is based on Dataset.status and Dataset.contains_human_genetic_sequences
       status:
         type: string
@@ -331,6 +334,7 @@ ENTITIES:
         description: "The uuid of source entity from which this new entity is derived from. Used on creation or edit to create an action and relationship to the ancestor"
         on_read_trigger: get_sample_source_uuid
         on_create_trigger: set_sample_to_parent_relationship
+      # Do we want to have both the ancestor and source_uuid at the same time?
       ancestor:
         transient: true
         type: object <sample or donor>
