@@ -1,4 +1,5 @@
 import yaml
+import logging
 import requests
 from cachetools import cached, TTLCache
 import functools
@@ -13,14 +14,17 @@ import schema_triggers
 # HuBMAP commons
 from hubmap_commons.hm_auth import AuthHelper
 
+logger = logging.getLogger(__name__)
+
 # Suppress InsecureRequestWarning warning when requesting status on https with ssl cert verify disabled
 requests.packages.urllib3.disable_warnings(category = InsecureRequestWarning)
 
 # LRU Cache implementation with per-item time-to-live (TTL) value
 # with a memoizing callable that saves up to maxsize results based on a Least Frequently Used (LFU) algorithm
 # with a per-item time-to-live (TTL) value
-# Here we use two hours, 7200 seconds for ttl
-cache = TTLCache(maxsize=app.config['CACHE_MAXSIZE'], ttl=app.config['CACHE_TTL'])
+# The maximum integer number of entries in the cache queue: 128
+# Expire the cache after the time-to-live (seconds): two hours, 7200 seconds
+cache = TTLCache(128, ttl=7200)
 
 
 ####################################################################################################
@@ -45,10 +49,10 @@ def load_provenance_schema_yaml_file(valid_yaml_file):
     with open(valid_yaml_file) as file:
         schema_dict = yaml.safe_load(file)
 
-        app.logger.info("Schema yaml file loaded successfully")
+        logger.info("Schema yaml file loaded successfully")
 
-        app.logger.debug("======schema_dict======")
-        app.logger.debug(schema_dict)
+        logger.debug("======schema_dict======")
+        logger.debug(schema_dict)
 
         return schema_dict
 
@@ -105,7 +109,9 @@ def generate_triggered_data(trigger_type, schema_section, normalized_class, data
     separator = ', '
 
     if trigger_type not in accepted_trigger_types:
-        internal_server_error("Invalid trigger type used: " + trigger_type)
+        msg = "Invalid trigger type used: " + trigger_type
+        logger.error(msg)
+        raise ValueError(msg)
 
     properties = schema_section[normalized_class]['properties']
     class_property_keys = properties.keys() 
@@ -117,7 +123,11 @@ def generate_triggered_data(trigger_type, schema_section, normalized_class, data
             trigger_method_name = properties[key][trigger_type]
             # Call the target trigger method of schema_triggers.py module
             trigger_method_to_call = getattr(schema_triggers, trigger_method_name)
-            trigger_generated_data_dict[key] = trigger_method_to_call(key, normalized_class, data_dict)
+
+            try:
+                trigger_generated_data_dict[key] = trigger_method_to_call(key, normalized_class, data_dict)
+            except KeyError as ke:
+                logger.error(ke)
 
     return trigger_generated_data_dict
 
@@ -356,23 +366,6 @@ def validate_source_entity_class_for_derivation(schema_entities, normalized_sour
 ####################################################################################################
 
 """
-Initialize AuthHelper (AuthHelper from HuBMAP commons package)
-HuBMAP commons AuthHelper handles "MAuthorization" or "Authorization"
-
-Returns
--------
-AuthHelper
-    An instnce of AuthHelper
-"""
-def init_auth_helper():
-    if AuthHelper.isInitialized() == False:
-        auth_helper = AuthHelper.create(app.config['APP_CLIENT_ID'], app.config['APP_CLIENT_SECRET'])
-    else:
-        auth_helper = AuthHelper.instance()
-    
-    return auth_helper
-
-"""
 Get user infomation dict based on the http request(headers)
 The result will be used by the trigger methods
 
@@ -404,8 +397,7 @@ dict
         "hmscopes": ["urn:globus:auth:scope:nexus.api.globus.org:groups"],
     }
 """
-def get_user_info(request):
-    auth_helper = init_auth_helper()
+def get_user_info(auth_helper, request):
     # `group_required` is a boolean, when True, 'hmgroupids' is in the output
     user_info = auth_helper.getUserInfoUsingRequest(request, False)
 
@@ -415,31 +407,31 @@ def get_user_info(request):
     # If returns error response, invalid header or token
     if isinstance(user_info, Response):
         msg = "Failed to query the user info with the given globus token"
-
         logger.error(msg)
-
-        app.bad_request_error(msg)
+        raise Exception(msg)
 
     return user_info
 
 """
 Create a dict of HTTP Authorization header with Bearer token for making calls to uuid-api
 
+Parameters
+----------
+token : str
+    A valid globus nexus token that has access to uuid-api
+
 Returns
 -------
 dict
     The headers dict to be used by requests
 """
-def create_request_headers():
-    # Will need this to call getProcessSecret()
-    auth_helper = init_auth_helper()
-
+def create_request_headers(token):
     auth_header_name = 'Authorization'
     auth_scheme = 'Bearer'
 
     headers_dict = {
         # Don't forget the space between scheme and the token value
-        auth_header_name: auth_scheme + ' ' + auth_helper.getProcessSecret()
+        auth_header_name: auth_scheme + ' ' + token
     }
 
     return headers_dict
@@ -449,9 +441,13 @@ Retrive target uuid based on the given id
 
 Parameters
 ----------
+uuid_api_url : str
+    The target url of uuid-api
 id : str
     Either the uuid or hubmap_id of target entity 
-
+token : str
+    A valid globus nexus token that has access to uuid-api
+    
 Returns
 -------
 dict
@@ -467,13 +463,13 @@ dict
         "userId": "83ae233d-6d1d-40eb-baa7-b6f636ab579a"
     }
 """
-def get_hubmap_ids(id):
-    target_url = app.config['UUID_API_URL'] + '/' + id
+def get_hubmap_ids(uuid_api_url, id, token):
+    target_url = uuid_api_url + '/' + id
 
     # Use modified version of globus app secrect from configuration as the internal token
     # All API endpoints specified in gateway regardless of auth is required or not, 
     # will consider this internal token as valid and has the access to HuBMAP-Read group
-    request_headers = create_request_headers()
+    request_headers = create_request_headers(token)
 
     # Disable ssl certificate verification
     response = requests.get(url = target_url, headers = request_headers, verify = False) 
@@ -482,13 +478,13 @@ def get_hubmap_ids(id):
         ids_list = response.json()
 
         if len(ids_list) == 0:
-            app.not_found_error("Unable to find information via uuid-api on id: " + id)
+            raise Exception("Unable to find information via uuid-api on id: " + id)
         if len(ids_list) > 1:
-            app.internal_server_error("Found multiple records via uuid-api for id: " + id)
+            raise Exception("Found multiple records via uuid-api for id: " + id)
         
         return ids_list[0]
     else:
-        app.not_found_error("Could not find the target uuid via uuid-api service associatted with the provided id of " + id)
+        raise Exception("Could not find the target uuid via uuid-api service associatted with the provided id of " + id)
 
 
 """
@@ -510,6 +506,15 @@ Then map them to the target ids:
 uuid -> uuid
 displayDoi -> hubmap_id
 
+Parameters
+----------
+uuid_api_url : str
+    The target url of uuid-api
+normalized_entity_class : str
+    One of the entity classes defined in the schema yaml: Collection, Donor, Sample, Dataset
+token : str
+    A valid globus token that can make calls to uuis-api
+
 Returns
 -------
 dict
@@ -521,9 +526,7 @@ dict
     }
 
 """
-def create_hubmap_ids(normalized_entity_class):
-    target_url = app.config['UUID_API_URL']
-
+def create_hubmap_ids(uuid_api_url, normalized_entity_class, token):
     # Must use "generateDOI": "true" to generate the doi (doi_suffix_id) and displayDoi (hubmap_id)
     json_to_post = {
         'entityType': normalized_entity_class, 
@@ -533,10 +536,10 @@ def create_hubmap_ids(normalized_entity_class):
     # Use modified version of globus app secrect from configuration as the internal token
     # All API endpoints specified in gateway regardless of auth is required or not, 
     # will consider this internal token as valid and has the access to HuBMAP-Read group
-    request_headers = create_request_headers()
+    request_headers = create_request_headers(token)
 
     # Disable ssl certificate verification
-    response = requests.post(url = target_url, headers = request_headers, json = json_to_post, verify = False) 
+    response = requests.post(url = uuid_api_url, headers = request_headers, json = json_to_post, verify = False) 
     
     if response.status_code == 200:
         ids_list = response.json()
@@ -560,5 +563,5 @@ def create_hubmap_ids(normalized_entity_class):
         logger.debug("======create_new_ids() response text======")
         logger.debug(response.text)
 
-        app.internal_server_error(msg)
+        raise Exception(msg)
 

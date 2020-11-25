@@ -260,7 +260,13 @@ def get_entity_by_id(id):
     # Get rid of the entity node properties that are not defined in the yaml schema
     entity_dict = schema_manager.remove_undefined_entity_properties(normalized_entity_class, entity_dict)
 
-    generated_on_read_trigger_data_dict = schema_manager.generate_triggered_data('on_read_trigger', schema['ENTITIES'], normalized_entity_class, entity_dict)
+    # Always pass the `neo4j_db` along with the data_dict to schema_triggers.py module
+    neo4j_db_dict = {'neo4j_db': get_neo4j_db()}
+
+    # Merge all the above dictionaries and pass to the trigger methods
+    data_dict = {**entity_dict, **neo4j_db_dict}
+
+    generated_on_read_trigger_data_dict = schema_manager.generate_triggered_data('on_read_trigger', schema['ENTITIES'], normalized_entity_class, data_dict)
 
     # Merge the entity info and the generated on read data into one dictionary
     result_dict = {**entity_dict, **generated_on_read_trigger_data_dict}
@@ -456,9 +462,12 @@ def update_entity(id):
     # Pass in the entity_dict for missing required key check, this is different from creating new entity
     schema_manager.validate_json_data_against_schema(schema['ENTITIES'], json_data_dict, normalized_entity_class, existing_entity_dict = entity_dict)
  
-    # Pass in the flask request object and the entity_dict
-    request_dict = {'request': request}
-    data_dict = {**entity_dict, **request_dict}
+    # Always pass the `neo4j_db` along with the data_dict to schema_triggers.py module
+    neo4j_db_dict = {'neo4j_db': get_neo4j_db()}
+
+    # Merge all the above dictionaries and pass to the trigger methods
+    data_dict = {**entity_dict, **neo4j_db_dict}
+
     generated_on_update_trigger_data_dict = schema_manager.generate_triggered_data('on_update_trigger', schema['ENTITIES'], normalized_entity_class, data_dict)
 
     # Merge two dictionaries
@@ -509,7 +518,10 @@ json
 """
 @app.route('/ancestors/<id>', methods = ['GET'])
 def get_ancestors(id):
-    hubmap_ids = schema_manager.get_hubmap_ids(id)
+	auth_helper = init_auth_helper()
+    token = auth_helper.getProcessSecret()
+
+    hubmap_ids = schema_manager.get_hubmap_ids(app.config['UUID_API_URL'], id, token)
     uuid = hubmap_ids['hmuuid']
 
     ancestors_list = neo4j_queries.get_ancestors(get_neo4j_db(), uuid)
@@ -555,7 +567,10 @@ json
 """
 @app.route('/descendants/<id>', methods = ['GET'])
 def get_descendants(id):
-    hubmap_ids = schema_manager.get_hubmap_ids(id)
+	auth_helper = init_auth_helper()
+    token = auth_helper.getProcessSecret()
+
+    hubmap_ids = schema_manager.get_hubmap_ids(app.config['UUID_API_URL'], id, token)
     uuid = hubmap_ids['hmuuid']
 
     descendants_list = neo4j_queries.get_descendants(get_neo4j_db(), uuid)
@@ -601,7 +616,10 @@ json
 """
 @app.route('/parents/<id>', methods = ['GET'])
 def get_parents(id):
-    hubmap_ids = schema_manager.get_hubmap_ids(id)
+	auth_helper = init_auth_helper()
+    token = auth_helper.getProcessSecret()
+
+    hubmap_ids = schema_manager.get_hubmap_ids(app.config['UUID_API_URL'], id, token)
     uuid = hubmap_ids['hmuuid']
 
     parents_list = neo4j_queries.get_parents(get_neo4j_db(), uuid)
@@ -647,7 +665,10 @@ json
 """
 @app.route('/children/<id>', methods = ['GET'])
 def get_children(id):
-    hubmap_ids = schema_manager.get_hubmap_ids(id)
+	auth_helper = init_auth_helper()
+    token = auth_helper.getProcessSecret()
+
+    hubmap_ids = schema_manager.get_hubmap_ids(app.config['UUID_API_URL'], id, token)
     uuid = hubmap_ids['hmuuid']
 
     children_list = neo4j_queries.get_children(get_neo4j_db(), uuid)
@@ -891,12 +912,16 @@ def create_new_entity(normalized_entity_class, json_data_dict):
             collection_dict = query_target_entity(collection_uuid)
 
     # Dictionaries to be merged and passed to trigger methods
-    user_info_dict = schema_manager.get_user_info(request)
-    new_ids_dict = schema_manager.create_hubmap_ids(normalized_entity_class)
+    auth_helper = init_auth_helper()
+    token = auth_helper.getProcessSecret()
+
+    user_info_dict = schema_manager.get_user_info(auth_helper, request)
+    new_ids_dict = schema_manager.create_hubmap_ids(app.config['UUID_API_URL'], normalized_entity_class, token)
+    # Always pass the `neo4j_db` along with the data_dict to schema_triggers.py module
+    neo4j_db_dict = {'neo4j_db': get_neo4j_db()}
 
     # Merge all the above dictionaries and pass to the trigger methods
-    # If the latter dictionary contains the same key as the previous one, it will overwrite the value for that key
-    data_dict = {**user_info_dict, **new_ids_dict}
+    data_dict = {**user_info_dict, **new_ids_dict, **neo4j_db_dict}
 
     generated_on_create_trigger_data_dict = schema_manager.generate_triggered_data('on_create_trigger', schema['ENTITIES'], normalized_entity_class, data_dict)
 
@@ -989,12 +1014,16 @@ def create_derived_entity(normalized_target_entity_class, json_data_dict):
             collection_dict = query_target_entity(collection_uuid)
 
     # Dictionaries to be merged and passed to trigger methods
+    auth_helper = init_auth_helper()
+    token = auth_helper.getProcessSecret()
+
     user_info_dict = schema_manager.get_user_info(request)
-    new_ids_dict = schema_manager.create_hubmap_ids(normalized_entity_class)
+    new_ids_dict = schema_manager.create_hubmap_ids(app.config['UUID_API_URL'], normalized_entity_class, token)
+    # Always pass the `neo4j_db` along with the data_dict to schema_triggers.py module
+    neo4j_db_dict = {'neo4j_db': get_neo4j_db()}
 
     # Merge all the above dictionaries and pass to the trigger methods
-    # If the latter dictionary contains the same key as the previous one, it will overwrite the value for that key
-    data_dict = {**user_info_dict, **new_ids_dict}
+    data_dict = {**user_info_dict, **new_ids_dict, **neo4j_db_dict}
 
     generated_on_create_trigger_data_dict = schema_manager.generate_triggered_data('on_create_trigger', schema['ENTITIES'], normalized_target_entity_class, data_dict)
 
@@ -1020,11 +1049,17 @@ def create_derived_entity(normalized_target_entity_class, json_data_dict):
     # Get trigger generated data for Activity
     # Dictionaries to be merged and passed to trigger methods
     normalized_entity_class_dict = {'normalized_entity_class': normalized_target_entity_class}
-    new_ids_dict_for_activity = schema_manager.create_hubmap_ids(normalized_entity_class)
+
+    auth_helper = init_auth_helper()
+    token = auth_helper.getProcessSecret()
+
+    new_ids_dict_for_activity = schema_manager.create_hubmap_ids(app.config['UUID_API_URL'], normalized_entity_class, token)
+    # Always pass the `neo4j_db` along with the data_dict to schema_triggers.py module
+    neo4j_db_dict = {'neo4j_db': get_neo4j_db()}
 
     # Merge all the above dictionaries and pass to the trigger methods
     # Use normalized_entity_class_dict for building `creation_action` in Activity node later
-    data_dict = {**normalized_entity_class_dict, **user_info_dict, **new_ids_dict_for_activity}
+    data_dict = {**normalized_entity_class_dict, **user_info_dict, **new_ids_dict_for_activity, **neo4j_db_dict}
 
     generated_on_create_trigger_data_dict_for_activity = schema_manager.generate_triggered_data('on_create_trigger', schema['ACTIVITIES'], normalized_activity_class, data_dict)
     
@@ -1059,7 +1094,10 @@ dict
     A dictionary of entity details returned from neo4j
 """
 def query_target_entity(id):
-    hubmap_ids = schema_manager.get_hubmap_ids(id)
+	auth_helper = init_auth_helper()
+    token = auth_helper.getProcessSecret()
+
+    hubmap_ids = schema_manager.get_hubmap_ids(app.config['UUID_API_URL'], id, token)
     uuid = hubmap_ids['hmuuid']
 
     entity_dict = neo4j_queries.get_entity(get_neo4j_db(), uuid)
@@ -1069,7 +1107,6 @@ def query_target_entity(id):
         not_found_error("Could not find the entity of id: " + id)
 
     return entity_dict
-
 
 
 """
@@ -1126,3 +1163,20 @@ def access_level_prefix_dir(dir_name):
         return ''
     else:
         return file_helper.ensureTrailingSlashURL(file_helper.ensureBeginningSlashURL(dir_name))
+
+"""
+Initialize AuthHelper (AuthHelper from HuBMAP commons package)
+HuBMAP commons AuthHelper handles "MAuthorization" or "Authorization"
+
+Returns
+-------
+AuthHelper
+    An instnce of AuthHelper
+"""
+def init_auth_helper():
+    if AuthHelper.isInitialized() == False:
+        auth_helper = AuthHelper.create(app.config['APP_CLIENT_ID'], app.config['APP_CLIENT_SECRET'])
+    else:
+        auth_helper = AuthHelper.instance()
+    
+    return auth_helper
