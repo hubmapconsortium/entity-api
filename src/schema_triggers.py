@@ -1,9 +1,4 @@
-import yaml
 import datetime
-import requests
-from cachetools import cached, TTLCache
-import functools
-from urllib3.exceptions import InsecureRequestWarning
 
 # Use the current_app proxy, which points to the application handling the current activity
 from flask import current_app as app
@@ -11,48 +6,6 @@ from flask import current_app as app
 # Local modules
 import neo4j_queries
 
-# HuBMAP commons
-from hubmap_commons.hm_auth import AuthHelper
-
-# Suppress InsecureRequestWarning warning when requesting status on https with ssl cert verify disabled
-requests.packages.urllib3.disable_warnings(category = InsecureRequestWarning)
-
-# LRU Cache implementation with per-item time-to-live (TTL) value
-# with a memoizing callable that saves up to maxsize results based on a Least Frequently Used (LFU) algorithm
-# with a per-item time-to-live (TTL) value
-# Here we use two hours, 7200 seconds for ttl
-cache = TTLCache(maxsize=app.config['CACHE_MAXSIZE'], ttl=app.config['CACHE_TTL'])
-
-
-####################################################################################################
-## Provenance yaml schema loading
-####################################################################################################
-
-"""
-Load the schema yaml file
-
-Parameters
-----------
-valid_yaml_file : file
-    A valid yaml file
-
-Returns
--------
-dict
-    A dict containing the schema details
-"""
-@cached(cache)
-def load_provenance_schema_yaml_file(valid_yaml_file):
-    with open(valid_yaml_file) as file:
-        schema_dict = yaml.safe_load(file)
-
-        app.logger.info("Schema yaml file loaded successfully")
-
-        app.logger.debug("======schema_dict======")
-        app.logger.debug(schema_dict)
-
-        return schema_dict
-   
 
 ####################################################################################################
 ## Trigger methods shared among Collection, Dataset, Donor, Sample - DO NOT RENAME
