@@ -1,7 +1,7 @@
 import datetime
 
 # Local modules
-import neo4j_queries
+import schema_neo4j_queries
 
 
 ####################################################################################################
@@ -96,7 +96,7 @@ def get_data_access_level(property_key, normalized_class, data_dict):
         if 'neo4j_db' not in data_dict:
             raise KeyError("Missing 'neo4j_db' key in 'data_dict' during calling 'get_data_access_level()' trigger method.")
     
-        count = neo4j_queries.count_attached_published_datasets(data_dict['neo4j_db'], normalized_class, data_dict['uuid'])
+        count = schema_neo4j_queries.count_attached_published_datasets(data_dict['neo4j_db'], normalized_class, data_dict['uuid'])
 
         if count > 0:
             data_access_level = ACCESS_LEVEL_PUBLIC
@@ -249,7 +249,7 @@ def get_collection_datasets(property_key, normalized_class, data_dict):
     if 'neo4j_db' not in data_dict:
         raise KeyError("Missing 'neo4j_db' key in 'data_dict' during calling 'get_collection_datasets()' trigger method.")
     
-    return neo4j_queries.get_collection_datasets(data_dict['neo4j_db'], data_dict['uuid'])
+    return schema_neo4j_queries.get_collection_datasets(data_dict['neo4j_db'], data_dict['uuid'])
 
 def connect_datasets_to_collection():
     return "dummy"
@@ -283,7 +283,7 @@ def get_dataset_source_uuids(property_key, normalized_class, data_dict):
     if 'neo4j_db' not in data_dict:
         raise KeyError("Missing 'neo4j_db' key in 'data_dict' during calling 'get_dataset_source_uuids()' trigger method.")
     
-    return neo4j_queries.get_dataset_source_uuids(data_dict['neo4j_db'], data_dict['uuid'])
+    return schema_neo4j_queries.get_dataset_source_uuids(data_dict['neo4j_db'], data_dict['uuid'])
 
 def get_local_file_path():
     return "dummy"
@@ -342,7 +342,7 @@ def get_sample_source_uuid(property_key, normalized_class, data_dict):
     if 'neo4j_db' not in data_dict:
         raise KeyError("Missing 'neo4j_db' key in 'data_dict' during calling 'get_sample_source_uuid()' trigger method.")
     
-    return neo4j_queries.get_source_uuids(data_dict['neo4j_db'], data_dict['uuid'])
+    return schema_neo4j_queries.get_sample_source_uuid(data_dict['neo4j_db'], data_dict['uuid'])
 
 
 ####################################################################################################

@@ -26,6 +26,14 @@ requests.packages.urllib3.disable_warnings(category = InsecureRequestWarning)
 # Expire the cache after the time-to-live (seconds): two hours, 7200 seconds
 cache = TTLCache(128, ttl=7200)
 
+schema = None
+
+####################################################################################################
+## Provenance yaml schema initialization
+####################################################################################################
+
+def initialize(valid_yaml_file):
+	schema = load_provenance_schema_yaml_file(valid_yaml_file)
 
 ####################################################################################################
 ## Provenance yaml schema loading
@@ -70,18 +78,13 @@ def clear_schema_cache():
 """
 Get a list of all the supported entity classes in the schmea yaml
 
-Parameters
-----------
-schema_entities : dict
-    The dict of ENTITIES section defined in the schema yaml
-
 Returns
 -------
 list
     A list of entity classes
 """
-def get_all_entity_classes(schema_entities):
-    dict_keys = schema_entities.keys()
+def get_all_entity_classes():
+    dict_keys = schema['ENTITIES'].keys()
     # Need convert the dict_keys object to a list
     return list(dict_keys)
 
@@ -92,8 +95,6 @@ Parameters
 ----------
 trigger_type : str
     One of the trigger types: on_create_trigger, on_update_trigger, on_read_trigger
-schema_section : dict
-    One of the sections defined in the schema yaml: ACTIVITIES or ENTITIES
 normalized_class : str
     One of the classes defined in the schema yaml: Activity, Collection, Donor, Sample, Dataset
 data_dict : dict
@@ -104,14 +105,18 @@ Returns
 dict
     A dictionary of trigger event methods generated data
 """
-def generate_triggered_data(trigger_type, schema_section, normalized_class, data_dict):
-    accepted_trigger_types = ['on_read_trigger', 'on_create_trigger', 'on_update_trigger']
-    separator = ', '
+def generate_triggered_data(trigger_type, normalized_class, data_dict):
+	schema_section = None
 
-    if trigger_type not in accepted_trigger_types:
-        msg = "Invalid trigger type used: " + trigger_type
-        logger.error(msg)
-        raise ValueError(msg)
+    # A bit validation
+    validate_trigger_type(trigger_type)
+    validate_normalized_entity_class(normalized_class)
+
+    # Determine the schema section based on class
+    if normalized_class == 'Activity':
+    	schema_section = schema['ACTIVITIES']
+    else:
+    	schema_section = schema['ENTITIES']
 
     properties = schema_section[normalized_class]['properties']
     class_property_keys = properties.keys() 
@@ -137,8 +142,6 @@ Remove entity node properties that are not defined in the yaml schema prior to r
 
 Parameters
 ----------
-schema_entities : dict
-    The dict of ENTITIES section defined in the schema yaml
 normalized_entity_class : str
     One of the entity classes defined in the schema yaml: Collection, Donor, Sample, Dataset
 data_dict : dict
@@ -149,8 +152,8 @@ Returns
 dict
     A entity dictionary with keys that are all defined in schema yaml
 """
-def remove_undefined_entity_properties(schema_entities, normalized_entity_class, entity_dict):
-    properties = schema_entities[normalized_entity_class]['properties']
+def remove_undefined_entity_properties(normalized_entity_class, entity_dict):
+    properties = schema['ENTITIES'][normalized_entity_class]['properties']
     class_property_keys = properties.keys() 
     # In Python 3, entity_dict.keys() returns an iterable, which causes error if deleting keys during the loop
     # We can use list to force a copy of the keys to be made
@@ -167,8 +170,6 @@ Validate json data from user request against the schema
 
 Parameters
 ----------
-schema_entities : dict
-    The dict of ENTITIES section defined in the schema yaml
 json_data_dict : dict
     The json data dict from user request
 normalized_entity_class : str
@@ -176,8 +177,8 @@ normalized_entity_class : str
 existing_entity_dict : dict
     Emoty dict for creating new entity, otherwise pass in the existing entity dict
 """
-def validate_json_data_against_schema(schema_entities, json_data_dict, normalized_entity_class, existing_entity_dict = {}):
-    properties = schema_entities[normalized_entity_class]['properties']
+def validate_json_data_against_schema(json_data_dict, normalized_entity_class, existing_entity_dict = {}):
+    properties = schema['ENTITIES'][normalized_entity_class]['properties']
     schema_keys = properties.keys() 
     json_data_keys = json_data_dict.keys()
     separator = ', '
@@ -248,21 +249,16 @@ def validate_json_data_against_schema(schema_entities, json_data_dict, normalize
 """
 Get a list of entity classes that can be used as derivation source in the schmea yaml
 
-Parameters
-----------
-schema_entities : dict
-    The dict of ENTITIES section defined in the schema yaml
-
 Returns
 -------
 list
     A list of entity classes
 """
-def get_derivation_source_entity_classes(schema_entities):
+def get_derivation_source_entity_classes():
     derivation_source_entity_classes = []
-    entity_classes = get_all_entity_classes(schema_entities)
+    entity_classes = get_all_entity_classes()
     for entity_class in entity_classes:
-        if schema_entities[entity_class]['derivation']['source']:
+        if schema['ENTITIES'][entity_class]['derivation']['source']:
             derivation_source_entity_classes.append(entity_class)
 
     return derivation_source_entity_classes
@@ -270,21 +266,16 @@ def get_derivation_source_entity_classes(schema_entities):
 """
 Get a list of entity classes that can be used as derivation target in the schmea yaml
 
-Parameters
-----------
-schema_entities : dict
-    The dict of ENTITIES section defined in the schema yaml
-
 Returns
 -------
 list
     A list of entity classes
 """
-def get_derivation_target_entity_classes(schema_entities):
+def get_derivation_target_entity_classes():
     derivation_target_entity_classes = []
-    entity_classes = get_all_entity_classes(schema_entities)
+    entity_classes = get_all_entity_classes()
     for entity_class in entity_classes:
-        if schema_entities[entity_class]['derivation']['target']:
+        if schema['ENTITIES'][entity_class]['derivation']['target']:
             derivation_target_entity_classes.append(entity_class)
 
     return derivation_target_entity_classes
@@ -308,38 +299,52 @@ def normalize_entity_class(entity_class):
     normalized_entity_class = entity_class.lower().capitalize()
     return normalized_entity_class
 
+"""
+Validate the provided trigger type
+
+Parameters
+----------
+trigger_type : str
+    One of the trigger types: on_create_trigger, on_update_trigger, on_read_trigger
+"""
+def validate_trigger_type(trigger_type):
+    accepted_trigger_types = ['on_read_trigger', 'on_create_trigger', 'on_update_trigger']
+    separator = ', '
+
+    if trigger_type.lower() not in accepted_trigger_types:
+        msg = "Invalid trigger type: " + trigger_type + ". The trigger type must be one of the following: " + separator.join(accepted_trigger_types)
+        logger.error(msg)
+        raise ValueError(msg)
 
 """
 Validate the normalized entity class
 
 Parameters
 ----------
-schema_entities : dict
-    The dict of ENTITIES section defined in the schema yaml
 normalized_entity_class : str
     The normalized entity class
 """
-def validate_normalized_entity_class(schema_entities, normalized_entity_class):
+def validate_normalized_entity_class(normalized_entity_class):
     separator = ', '
-    accepted_entity_classes = get_all_entity_classes(schema_entities)
+    accepted_entity_classes = get_all_entity_classes()
 
     # Validate provided entity_class
     if normalized_entity_class not in accepted_entity_classes:
-        bad_request_error("The specified entity class in URL must be one of the following: " + separator.join(accepted_entity_classes))
+    	msg = "Invalida entity class " + normalized_entity_class + ". The entity class must be one of the following: " + separator.join(accepted_entity_classes)
+        logger.error(msg)
+        raise ValueError(msg)
 
 """
 Validate the source and target entity classes for creating derived entity
 
 Parameters
 ----------
-schema_entities : dict
-    The dict of ENTITIES section defined in the schema yaml
 normalized_target_entity_class : str
     The normalized target entity class
 """
-def validate_target_entity_class_for_derivation(schema_entities, normalized_target_entity_class):
+def validate_target_entity_class_for_derivation(normalized_target_entity_class):
     separator = ', '
-    accepted_target_entity_classes = get_derivation_target_entity_classes(schema_entities)
+    accepted_target_entity_classes = get_derivation_target_entity_classes()
 
     if normalized_target_entity_class not in accepted_target_entity_classes:
         bad_request_error("Invalid target entity class specified for creating the derived entity. Accepted classes: " + separator.join(accepted_target_entity_classes))
@@ -349,14 +354,12 @@ Validate the source and target entity classes for creating derived entity
 
 Parameters
 ----------
-schema_entities : dict
-    The dict of ENTITIES section defined in the schema yaml
 normalized_source_entity_class : str
     The normalized source entity class
 """
-def validate_source_entity_class_for_derivation(schema_entities, normalized_source_entity_class):
+def validate_source_entity_class_for_derivation(normalized_source_entity_class):
     separator = ', '
-    accepted_source_entity_classes = get_derivation_source_entity_classes(schema_entities)
+    accepted_source_entity_classes = get_derivation_source_entity_classes()
 
     if normalized_source_entity_class not in accepted_source_entity_classes:
         bad_request_error("Invalid source entity class specified for creating the derived entity. Accepted classes: " + separator.join(accepted_source_entity_classes))
