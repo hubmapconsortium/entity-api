@@ -11,7 +11,7 @@ Check neo4j connectivity
 
 Parameters
 ----------
-neo4j_db : neo4j.Session object
+neo4j_session : neo4j.Session object
     The neo4j database session
 
 Returns
@@ -19,12 +19,12 @@ Returns
 bool
     True if is connected, otherwise error
 """
-def check_connection(neo4j_db):
+def check_connection(neo4j_session):
     parameterized_query = ("RETURN 1 AS {record_field_name}")
     query = parameterized_query.format(record_field_name = record_field_name)
 
     try:
-        result = neo4j_db.run(query)
+        result = neo4j_session.run(query)
         record = result.single()
         int_value = record[record_field_name]
         
@@ -51,8 +51,8 @@ Create a new activity node in neo4j
 
 Parameters
 ----------
-tx : neo4j transaction handler
-    The neo4j transaction handler instance
+tx : neo4j.Transaction object
+    The neo4j.Transaction object instance
 json_list_str : str
     The string representation of a list containing only one entity to be created
 
@@ -93,7 +93,7 @@ Get target entity dict
 
 Parameters
 ----------
-neo4j_db : neo4j.Session object
+neo4j_session : neo4j.Session object
     The neo4j database session
 uuid : str
     The uuid of target entity 
@@ -103,7 +103,7 @@ Returns
 dict
     A dictionary of entity details returned from the Cypher query
 """
-def get_entity(neo4j_db, uuid):
+def get_entity(neo4j_session, uuid):
     parameterized_query = ("MATCH (e:Entity) " + 
                            "WHERE e.uuid = '{uuid}' " +
                            "RETURN e AS {record_field_name}")
@@ -118,7 +118,7 @@ def get_entity(neo4j_db, uuid):
         nodes = []
         entity_dict = {}
 
-        results = neo4j_db.run(query)
+        results = neo4j_session.run(query)
 
         # Add all records to the nodes list
         for record in results:
@@ -155,7 +155,7 @@ Get all the entity nodes for the given entity class
 
 Parameters
 ----------
-neo4j_db : neo4j.Session object
+neo4j_session : neo4j.Session object
     The neo4j database session
 entity_class : str
     One of the normalized entity classes: Dataset, Collection, Sample, Donor
@@ -167,7 +167,7 @@ Returns
 list
     A list of entity dicts of the given class returned from the Cypher query
 """
-def get_entities_by_class(neo4j_db, entity_class, property_key = None):
+def get_entities_by_class(neo4j_session, entity_class, property_key = None):
     if property_key:
         parameterized_query = ("MATCH (e:{entity_class}) " + 
                                # COLLECT() returns a list
@@ -190,7 +190,7 @@ def get_entities_by_class(neo4j_db, entity_class, property_key = None):
     logger.info(query)
 
     try:
-        result = neo4j_db.run(query)
+        result = neo4j_session.run(query)
         record = result.single()
         
         result_list = []
@@ -224,8 +224,8 @@ Create a new entity node in neo4j
 
 Parameters
 ----------
-tx : neo4j transaction handler
-    The neo4j transaction handler instance
+tx : neo4j.Transaction object
+    The neo4j.Transaction object instance
 entity_class : str
     One of the normalized entity classes: Dataset, Collection, Sample, Donor
 json_list_str : str
@@ -271,8 +271,8 @@ Create a relationship from the source node to the target node in neo4j
 
 Parameters
 ----------
-tx : neo4j transaction handler
-    The neo4j transaction handler instance
+tx : neo4j.Transaction object
+    The neo4j.Transaction object instance
 source_node_uuid : str
     The uuid of source node
 target_node_uuid : str
@@ -328,8 +328,8 @@ Create relationships between the target Dataset node and Collection nodes in neo
 
 Parameters
 ----------
-tx : neo4j transaction handler
-    The neo4j transaction handler instance
+tx : neo4j.Transaction object
+    The neo4j.Transaction object instance
 entity_dict : dict
     The dictionary of the target Dataset entity
 collection_uuids_list: list
@@ -369,7 +369,7 @@ Create a new entity node (ans also links to existing Collection nodes if provide
 
 Parameters
 ----------
-neo4j_db : neo4j.Session object
+neo4j_session : neo4j.Session object
     The neo4j database session
 entity_class : str
     One of the normalized entity classes: Dataset, Collection, Sample, Donor
@@ -383,11 +383,11 @@ Returns
 dict
     A dictionary of newly created entity details returned from the Cypher query
 """
-def create_entity(neo4j_db, entity_class, entity_json_list_str, collection_uuids_list = None):
+def create_entity(neo4j_session, entity_class, entity_json_list_str, collection_uuids_list = None):
     try:
         entity_dict = {}
 
-        tx = neo4j_db.begin_transaction()
+        tx = neo4j_session.begin_transaction()
 
         entity_node = create_entity_tx(tx, entity_class, entity_json_list_str)
         entity_dict = node_to_dict(entity_node)
@@ -427,7 +427,7 @@ Create a derived entity node and link to source entity node via Activity node an
 
 Parameters
 ----------
-neo4j_db : neo4j.Session object
+neo4j_session : neo4j.Session object
     The neo4j database session
 entity_class : str
     One of the normalized entity classes: Dataset, Collection, Sample, Donor
@@ -450,11 +450,11 @@ Returns
 dict
     A dictionary of newly created derived entity details returned from the Cypher query
 """
-def create_derived_entity(neo4j_db, entity_class, entity_json_list_str, activity_json_list_str, source_entities_list, collection_uuids_list = None):
+def create_derived_entity(neo4j_session, entity_class, entity_json_list_str, activity_json_list_str, source_entities_list, collection_uuids_list = None):
     try:
         entity_dict = {}
 
-        tx = neo4j_db.begin_transaction()
+        tx = neo4j_session.begin_transaction()
 
         entity_node = create_entity_tx(tx, entity_class, entity_json_list_str)
         entity_dict = node_to_dict(entity_node)
@@ -506,8 +506,8 @@ Update the properties of an existing entity node in neo4j
 
 Parameters
 ----------
-tx : neo4j transaction handler
-    The neo4j transaction handler instance
+tx : neo4j.Transaction object
+    The neo4j.Transaction object instance
 entity_class : str
     One of the normalized entity classes: Dataset, Collection, Sample, Donor
 json_list_str : str
@@ -555,7 +555,7 @@ Update the properties of an existing entity node in neo4j
 
 Parameters
 ----------
-neo4j_db : neo4j.Session object
+neo4j_session : neo4j.Session object
     The neo4j database session
 entity_class : str
     One of the normalized entity classes: Dataset, Collection, Sample, Donor
@@ -569,11 +569,11 @@ Returns
 dict
     A dictionary of updated entity details returned from the Cypher query
 """
-def update_entity(neo4j_db, entity_class, json_list_str, uuid):
+def update_entity(neo4j_session, entity_class, json_list_str, uuid):
     try:
         entity_dict = {}
 
-        entity_node = neo4j_db.write_transaction(update_entity_tx, entity_class, json_list_str, uuid)
+        entity_node = neo4j_session.write_transaction(update_entity_tx, entity_class, json_list_str, uuid)
         entity_dict = node_to_dict(entity_node)
 
         logger.debug("======update_entity() resulting entity_dict======")
@@ -593,7 +593,7 @@ Get all ancestors by uuid
 
 Parameters
 ----------
-neo4j_db : neo4j.Session object
+neo4j_session : neo4j.Session object
     The neo4j database session
 uuid : str
     The uuid of target entity 
@@ -605,7 +605,7 @@ Returns
 list
     A list of unique ancestor dictionaries returned from the Cypher query
 """
-def get_ancestors(neo4j_db, uuid, property_key = None):
+def get_ancestors(neo4j_session, uuid, property_key = None):
     if property_key:
         parameterized_query = ("MATCH (e:Entity)<-[r:ACTIVITY_INPUT|:ACTIVITY_OUTPUT*]-(ancestor:Entity) " +
                                "WHERE e.uuid='{uuid}' " +
@@ -630,7 +630,7 @@ def get_ancestors(neo4j_db, uuid, property_key = None):
     logger.debug(query)
 
     try:
-        result = neo4j_db.run(query)
+        result = neo4j_session.run(query)
         record = result.single()
 
         result_list = []
@@ -660,7 +660,7 @@ Get all descendants by uuid
 
 Parameters
 ----------
-neo4j_db : neo4j.Session object
+neo4j_session : neo4j.Session object
     The neo4j database session
 uuid : str
     The uuid of target entity 
@@ -672,7 +672,7 @@ Returns
 dict
     A list of unique desendant dictionaries returned from the Cypher query
 """
-def get_descendants(neo4j_db, uuid, property_key = None):
+def get_descendants(neo4j_session, uuid, property_key = None):
     if property_key:
         parameterized_query = ("MATCH (e:Entity)-[r:ACTIVITY_INPUT|:ACTIVITY_OUTPUT*]->(descendant:Entity) " +
                                "WHERE e.uuid='{uuid}' " +
@@ -696,7 +696,7 @@ def get_descendants(neo4j_db, uuid, property_key = None):
     logger.debug(query)
 
     try:
-        result = neo4j_db.run(query)
+        result = neo4j_session.run(query)
         record = result.single()
 
         result_list = []
@@ -725,7 +725,7 @@ Get all parents by uuid
 
 Parameters
 ----------
-neo4j_db : neo4j.Session object
+neo4j_session : neo4j.Session object
     The neo4j database session
 uuid : str
     The uuid of target entity 
@@ -737,7 +737,7 @@ Returns
 dict
     A list of unique parent dictionaries returned from the Cypher query
 """
-def get_parents(neo4j_db, uuid, property_key = None):
+def get_parents(neo4j_session, uuid, property_key = None):
     if property_key:
         parameterized_query = ("MATCH (e:Entity)<-[:ACTIVITY_OUTPUT]-(:Activity)<-[:ACTIVITY_INPUT]-(parent:Entity) " +
                                "WHERE e.uuid='{uuid}' " +
@@ -762,7 +762,7 @@ def get_parents(neo4j_db, uuid, property_key = None):
     logger.debug(query)
 
     try:
-        result = neo4j_db.run(query)
+        result = neo4j_session.run(query)
         record = result.single()
 
         result_list = []
@@ -791,7 +791,7 @@ Get all children by uuid
 
 Parameters
 ----------
-neo4j_db : neo4j.Session object
+neo4j_session : neo4j.Session object
     The neo4j database session
 uuid : str
     The uuid of target entity 
@@ -803,7 +803,7 @@ Returns
 dict
     A list of unique child dictionaries returned from the Cypher query
 """
-def get_children(neo4j_db, uuid, property_key = None):
+def get_children(neo4j_session, uuid, property_key = None):
     if property_key:
         parameterized_query = ("MATCH (e:Entity)-[:ACTIVITY_INPUT]->(:Activity)-[:ACTIVITY_OUTPUT]->(child:Entity) " +
                                "WHERE e.uuid='{uuid}' " +
@@ -826,7 +826,7 @@ def get_children(neo4j_db, uuid, property_key = None):
     logger.debug(query)
 
     try:
-        result = neo4j_db.run(query)
+        result = neo4j_session.run(query)
         record = result.single()
         result_list = []
 

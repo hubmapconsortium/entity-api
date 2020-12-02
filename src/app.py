@@ -43,9 +43,51 @@ requests.packages.urllib3.disable_warnings(category = InsecureRequestWarning)
 # Here we use two hours, 7200 seconds for ttl
 cache = TTLCache(maxsize=app.config['CACHE_MAXSIZE'], ttl=app.config['CACHE_TTL'])
 
-# Initialize the schema informaiton
-schema_manager.initialize(app.config['SCHEMA_YAML_FILE'])
 
+####################################################################################################
+## Neo4j connection
+####################################################################################################
+
+# Have the neo4j connection available in the application context (lifetime of a request)
+neo4j_driver = GraphDatabase.driver(app.config['NEO4J_URI'], auth = (app.config['NEO4J_USERNAME'], app.config['NEO4J_PASSWORD']))
+
+"""
+Get the current neo4j database connection session if exists
+Otherwise create a new one
+
+Returns
+-------
+neo4j.Session object
+    The neo4j database connection session
+"""
+def get_neo4j_session():
+    if not hasattr(g, 'neo4j_session'):
+        # Once upgrade to neo4j v4, we can specify the target database 
+        #g.neo4j_session = neo4j_driver.session(database = app.config['NEO4J_DB'])
+        g.neo4j_session = neo4j_driver.session()
+    return g.neo4j_session
+
+"""
+Prevent from maxing the connection pool (maximum total number of connections allowed per host)
+by closing the current neo4j connection session at the end of every request
+"""
+@app.teardown_appcontext
+def close_neo4j_session(error):
+    if hasattr(g, 'neo4j_session'):
+        g.neo4j_session.close()
+
+
+####################################################################################################
+## Schema initialization
+####################################################################################################
+
+try:
+    schema_manager.initialize(app.config['SCHEMA_YAML_FILE'], get_neo4j_session())
+except IOError as ioe:
+    internal_server_error("Failed to load the schema yaml file")
+except TypeError as te:
+    internal_server_error(te)
+ 
 
 ####################################################################################################
 ## Globus groups json loading
@@ -118,39 +160,6 @@ def load_globus_groups_json_file(valid_json_file):
 
 # Have the groups informaiton available in the application context (lifetime of a request)
 globus_groups = load_globus_groups_json_file(app.config['GROUPS_JSON_FILE'])
-
-
-####################################################################################################
-## Neo4j connection
-####################################################################################################
-
-# Have the neo4j connection available in the application context (lifetime of a request)
-neo4j_driver = GraphDatabase.driver(app.config['NEO4J_URI'], auth = (app.config['NEO4J_USERNAME'], app.config['NEO4J_PASSWORD']))
-
-"""
-Get the current neo4j database connection session if exists
-Otherwise create a new one
-
-Returns
--------
-neo4j.Session object
-    The neo4j database connection session
-"""
-def get_neo4j_db():
-    if not hasattr(g, 'neo4j_db'):
-        # Once upgrade to neo4j v4, we can specify the target database 
-        #g.neo4j_db = neo4j_driver.session(database = app.config['NEO4J_DB'])
-        g.neo4j_db = neo4j_driver.session()
-    return g.neo4j_db
-
-"""
-Prevent from maxing the connection pool (maximum total number of connections allowed per host)
-by closing the current neo4j connection session at the end of every request
-"""
-@app.teardown_appcontext
-def close_neo4j_db(error):
-    if hasattr(g, 'neo4j_db'):
-        g.neo4j_db.close()
 
 
 ####################################################################################################
@@ -259,13 +268,7 @@ def get_entity_by_id(id):
     # Get rid of the entity node properties that are not defined in the yaml schema
     entity_dict = schema_manager.remove_undefined_entity_properties(normalized_entity_class, entity_dict)
 
-    # Always pass the `neo4j_db` along with the data_dict to schema_manager.py module
-    neo4j_db_dict = {'neo4j_db': get_neo4j_db()}
-
-    # Merge all the above dictionaries and pass to the trigger methods
-    data_dict = {**entity_dict, **neo4j_db_dict}
-
-    generated_on_read_trigger_data_dict = schema_manager.generate_triggered_data('on_read_trigger', normalized_entity_class, data_dict)
+    generated_on_read_trigger_data_dict = schema_manager.generate_triggered_data('on_read_trigger', normalized_entity_class, entity_dict)
 
     # Merge the entity info and the generated on read data into one dictionary
     result_dict = {**entity_dict, **generated_on_read_trigger_data_dict}
@@ -460,14 +463,8 @@ def update_entity(id):
     # Validate request json against the yaml schema
     # Pass in the entity_dict for missing required key check, this is different from creating new entity
     schema_manager.validate_json_data_against_schema(json_data_dict, normalized_entity_class, existing_entity_dict = entity_dict)
- 
-    # Always pass the `neo4j_db` along with the data_dict to schema_manager.py module
-    neo4j_db_dict = {'neo4j_db': get_neo4j_db()}
 
-    # Merge all the above dictionaries and pass to the trigger methods
-    data_dict = {**entity_dict, **neo4j_db_dict}
-
-    generated_on_update_trigger_data_dict = schema_manager.generate_triggered_data('on_update_trigger', normalized_entity_class, data_dict)
+    generated_on_update_trigger_data_dict = schema_manager.generate_triggered_data('on_update_trigger', normalized_entity_class, entity_dict)
 
     # Merge two dictionaries
     merged_dict = {**json_data_dict, **generated_on_update_trigger_data_dict}
@@ -916,11 +913,9 @@ def create_new_entity(normalized_entity_class, json_data_dict):
 
     user_info_dict = schema_manager.get_user_info(auth_helper, request)
     new_ids_dict = schema_manager.create_hubmap_ids(app.config['UUID_API_URL'], normalized_entity_class, token)
-    # Always pass the `neo4j_db` along with the data_dict to schema_manager.py module
-    neo4j_db_dict = {'neo4j_db': get_neo4j_db()}
 
     # Merge all the above dictionaries and pass to the trigger methods
-    data_dict = {**user_info_dict, **new_ids_dict, **neo4j_db_dict}
+    data_dict = {**user_info_dict, **new_ids_dict}
 
     generated_on_create_trigger_data_dict = schema_manager.generate_triggered_data('on_create_trigger', normalized_entity_class, data_dict)
 
@@ -1018,11 +1013,9 @@ def create_derived_entity(normalized_target_entity_class, json_data_dict):
 
     user_info_dict = schema_manager.get_user_info(request)
     new_ids_dict = schema_manager.create_hubmap_ids(app.config['UUID_API_URL'], normalized_entity_class, token)
-    # Always pass the `neo4j_db` along with the data_dict to schema_manager.py module
-    neo4j_db_dict = {'neo4j_db': get_neo4j_db()}
 
     # Merge all the above dictionaries and pass to the trigger methods
-    data_dict = {**user_info_dict, **new_ids_dict, **neo4j_db_dict}
+    data_dict = {**user_info_dict, **new_ids_dict}
 
     generated_on_create_trigger_data_dict = schema_manager.generate_triggered_data('on_create_trigger', normalized_target_entity_class, data_dict)
 
@@ -1053,12 +1046,10 @@ def create_derived_entity(normalized_target_entity_class, json_data_dict):
     token = auth_helper.getProcessSecret()
 
     new_ids_dict_for_activity = schema_manager.create_hubmap_ids(app.config['UUID_API_URL'], normalized_entity_class, token)
-    # Always pass the `neo4j_db` along with the data_dict to schema_manager.py module
-    neo4j_db_dict = {'neo4j_db': get_neo4j_db()}
 
     # Merge all the above dictionaries and pass to the trigger methods
     # Use normalized_entity_class_dict for building `creation_action` in Activity node later
-    data_dict = {**normalized_entity_class_dict, **user_info_dict, **new_ids_dict_for_activity, **neo4j_db_dict}
+    data_dict = {**normalized_entity_class_dict, **user_info_dict, **new_ids_dict_for_activity}
 
     generated_on_create_trigger_data_dict_for_activity = schema_manager.generate_triggered_data('on_create_trigger', normalized_activity_class, data_dict)
     

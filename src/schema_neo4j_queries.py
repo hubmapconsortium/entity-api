@@ -15,7 +15,7 @@ Get the source entities uuids of a given dataset by uuid
 
 Parameters
 ----------
-neo4j_db : neo4j.Session object
+neo4j_session : neo4j.Session object
     The neo4j database session
 uuid : str
     The uuid of target entity 
@@ -25,7 +25,7 @@ Returns
 list
     A unique list of uuids of source entities
 """
-def get_dataset_source_uuids(neo4j_db, uuid):
+def get_dataset_source_uuids(neo4j_session, uuid):
     parameterized_query = ("MATCH (s:Dataset)-[:ACTIVITY_INPUT]->(a:Activity)-[:ACTIVITY_OUTPUT]->(t:Entity) " + 
                            "WHERE t.uuid = '{uuid}' " +
                            "RETURN apoc.coll.toSet(COLLECT(s.uuid)) AS {record_field_name}")
@@ -37,7 +37,7 @@ def get_dataset_source_uuids(neo4j_db, uuid):
     logger.debug(query)
 
     try:
-        result = neo4j_db.run(query)
+        result = neo4j_session.run(query)
 
         record = result.single()
         source_uuids = record[record_field_name]
@@ -58,7 +58,7 @@ Get a list of associated dataset dicts for a given collection
 
 Parameters
 ----------
-neo4j_db : neo4j.Session object
+neo4j_session : neo4j.Session object
     The neo4j database session
 uuid : str
     The uuid of collection
@@ -68,7 +68,7 @@ Returns
 list
     The list comtaining associated dataset dicts
 """
-def get_collection_datasets(neo4j_db, uuid):
+def get_collection_datasets(neo4j_session, uuid):
     parameterized_query = ("MATCH (e:Entity)-[:IN_COLLECTION]->(c:Collection) " + 
                            "WHERE c.uuid = '{uuid}' " +
                            "RETURN apoc.coll.toSet(COLLECT(e)) AS {record_field_name}")
@@ -80,7 +80,7 @@ def get_collection_datasets(neo4j_db, uuid):
     logger.debug(query)
 
     try:
-        result = neo4j_db.run(query)
+        result = neo4j_session.run(query)
         record = result.single()
 
         result_list = []
@@ -106,7 +106,7 @@ Get count of published Dataset in the provenance hierarchy for a given  Collecti
 
 Parameters
 ----------
-neo4j_db : neo4j.Session object
+neo4j_session : neo4j.Session object
     The neo4j database session
 entity_class : str
     One of the normalized entity classes: Collection, Sample, Donor
@@ -119,7 +119,7 @@ int
     The count of published Dataset in the provenance hierarchy 
     below the target entity (Donor, Sample and Collection)
 """
-def count_attached_published_datasets(neo4j_db, entity_class, uuid):
+def count_attached_published_datasets(neo4j_session, entity_class, uuid):
     parameterized_query = ("MATCH (e:{entity_class})-[r:ACTIVITY_INPUT|:ACTIVITY_OUTPUT*]->(d:Dataset) " +
                            "WHERE e.uuid='{uuid}' AND d.status = 'Published' " +
                            # COLLECT() returns a list
@@ -134,7 +134,7 @@ def count_attached_published_datasets(neo4j_db, entity_class, uuid):
     logger.debug(query)
 
     try:
-        result = neo4j_db.run(query)
+        result = neo4j_session.run(query)
         record = result.single()
         count = record[record_field_name]
 

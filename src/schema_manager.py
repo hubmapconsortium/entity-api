@@ -4,6 +4,7 @@ import requests
 from cachetools import cached, TTLCache
 import functools
 from urllib3.exceptions import InsecureRequestWarning
+from neo4j import Session
 
 # Use the current_app proxy, which points to the application handling the current activity
 from flask import current_app as app
@@ -26,14 +27,33 @@ requests.packages.urllib3.disable_warnings(category = InsecureRequestWarning)
 # Expire the cache after the time-to-live (seconds): two hours, 7200 seconds
 cache = TTLCache(128, ttl=7200)
 
+# Make below variables available to all functions
 schema = None
+neo4j_session = None
+
 
 ####################################################################################################
 ## Provenance yaml schema initialization
 ####################################################################################################
 
-def initialize(valid_yaml_file):
-	schema = load_provenance_schema_yaml_file(valid_yaml_file)
+"""
+Initialize the schema_manager module with the schema yaml file and neo4j session
+
+Parameters
+----------
+valid_yaml_file : file
+    A valid yaml file
+neo4j_session_context : neo4j.Session object
+    The neo4j database session
+"""
+def initialize(valid_yaml_file, neo4j_session_context):
+    schema = load_provenance_schema_yaml_file(valid_yaml_file)
+
+    if not isinstance(neo4j_session_context, Session):
+        raise TypeError("The provided 'neo4j_session_context' is not a neo4j.Session object")
+
+    neo4j_session = neo4j_session_context
+    
 
 ####################################################################################################
 ## Provenance yaml schema loading
@@ -63,6 +83,7 @@ def load_provenance_schema_yaml_file(valid_yaml_file):
         logger.debug(schema_dict)
 
         return schema_dict
+
 
 """
 Clear or invalidate the schema cache even before it expires
@@ -106,7 +127,7 @@ dict
     A dictionary of trigger event methods generated data
 """
 def generate_triggered_data(trigger_type, normalized_class, data_dict):
-	schema_section = None
+    schema_section = None
 
     # A bit validation
     validate_trigger_type(trigger_type)
@@ -114,9 +135,9 @@ def generate_triggered_data(trigger_type, normalized_class, data_dict):
 
     # Determine the schema section based on class
     if normalized_class == 'Activity':
-    	schema_section = schema['ACTIVITIES']
+        schema_section = schema['ACTIVITIES']
     else:
-    	schema_section = schema['ENTITIES']
+        schema_section = schema['ENTITIES']
 
     properties = schema_section[normalized_class]['properties']
     class_property_keys = properties.keys() 
@@ -130,7 +151,7 @@ def generate_triggered_data(trigger_type, normalized_class, data_dict):
             trigger_method_to_call = getattr(schema_triggers, trigger_method_name)
 
             try:
-                trigger_generated_data_dict[key] = trigger_method_to_call(key, normalized_class, data_dict)
+                trigger_generated_data_dict[key] = trigger_method_to_call(key, normalized_class, neo4j_session, data_dict)
             except KeyError as ke:
                 logger.error(ke)
 
@@ -330,7 +351,7 @@ def validate_normalized_entity_class(normalized_entity_class):
 
     # Validate provided entity_class
     if normalized_entity_class not in accepted_entity_classes:
-    	msg = "Invalida entity class " + normalized_entity_class + ". The entity class must be one of the following: " + separator.join(accepted_entity_classes)
+        msg = "Invalida entity class " + normalized_entity_class + ". The entity class must be one of the following: " + separator.join(accepted_entity_classes)
         logger.error(msg)
         raise ValueError(msg)
 
