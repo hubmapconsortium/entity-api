@@ -4,16 +4,16 @@ import requests
 from cachetools import cached, TTLCache
 import functools
 from urllib3.exceptions import InsecureRequestWarning
-from neo4j import Session
 
 # Use the current_app proxy, which points to the application handling the current activity
 from flask import current_app as app
 
 # Local modules
-import schema_triggers
+from schema import schema_triggers
 
 # HuBMAP commons
 from hubmap_commons.hm_auth import AuthHelper
+from hubmap_commons import neo4j_driver
 
 logger = logging.getLogger(__name__)
 
@@ -28,8 +28,10 @@ requests.packages.urllib3.disable_warnings(category = InsecureRequestWarning)
 cache = TTLCache(128, ttl=7200)
 
 # Make below variables available to all functions
-schema = None
-neo4j_session = None
+# Two leading underscores signals to Python that 
+# you want the variable to be "private" to the module
+__SCHEMA__ = None
+__NEO4J_DRIVER__ = None
 
 
 ####################################################################################################
@@ -46,13 +48,12 @@ valid_yaml_file : file
 neo4j_session_context : neo4j.Session object
     The neo4j database session
 """
-def initialize(valid_yaml_file, neo4j_session_context):
-    schema = load_provenance_schema_yaml_file(valid_yaml_file)
+def initialize(valid_yaml_file, neo4j_uri, neo4j_username, neo4j_password):
+    global __SCHEMA__
+    global __NEO4J_DRIVER__
 
-    if not isinstance(neo4j_session_context, Session):
-        raise TypeError("The provided 'neo4j_session_context' is not a neo4j.Session object")
-
-    neo4j_session = neo4j_session_context
+    __SCHEMA__ = load_provenance_schema_yaml_file(valid_yaml_file)
+    __NEO4J_DRIVER__ = neo4j_driver.get_instance(neo4j_uri, neo4j_username, neo4j_password)
     
 
 ####################################################################################################
@@ -105,7 +106,9 @@ list
     A list of entity classes
 """
 def get_all_entity_classes():
-    dict_keys = schema['ENTITIES'].keys()
+    global __SCHEMA__
+
+    dict_keys = __SCHEMA__['ENTITIES'].keys()
     # Need convert the dict_keys object to a list
     return list(dict_keys)
 
@@ -127,6 +130,9 @@ dict
     A dictionary of trigger event methods generated data
 """
 def generate_triggered_data(trigger_type, normalized_class, data_dict):
+    global __SCHEMA__
+    global __NEO4J_DRIVER__
+
     schema_section = None
 
     # A bit validation
@@ -135,9 +141,9 @@ def generate_triggered_data(trigger_type, normalized_class, data_dict):
 
     # Determine the schema section based on class
     if normalized_class == 'Activity':
-        schema_section = schema['ACTIVITIES']
+        schema_section = __SCHEMA__['ACTIVITIES']
     else:
-        schema_section = schema['ENTITIES']
+        schema_section = __SCHEMA__['ENTITIES']
 
     properties = schema_section[normalized_class]['properties']
     class_property_keys = properties.keys() 
@@ -147,11 +153,14 @@ def generate_triggered_data(trigger_type, normalized_class, data_dict):
     for key in class_property_keys:
         if trigger_type in properties[key]:
             trigger_method_name = properties[key][trigger_type]
+
+            logger.debug("Calling schema trigger method: " + trigger_method_name)
+
             # Call the target trigger method of schema_triggers.py module
             trigger_method_to_call = getattr(schema_triggers, trigger_method_name)
 
             try:
-                trigger_generated_data_dict[key] = trigger_method_to_call(key, normalized_class, neo4j_session, data_dict)
+                trigger_generated_data_dict[key] = trigger_method_to_call(key, normalized_class, __NEO4J_DRIVER__, data_dict)
             except KeyError as ke:
                 logger.error(ke)
 
@@ -174,7 +183,9 @@ dict
     A entity dictionary with keys that are all defined in schema yaml
 """
 def remove_undefined_entity_properties(normalized_entity_class, entity_dict):
-    properties = schema['ENTITIES'][normalized_entity_class]['properties']
+    global __SCHEMA__
+
+    properties = __SCHEMA__['ENTITIES'][normalized_entity_class]['properties']
     class_property_keys = properties.keys() 
     # In Python 3, entity_dict.keys() returns an iterable, which causes error if deleting keys during the loop
     # We can use list to force a copy of the keys to be made
@@ -199,7 +210,9 @@ existing_entity_dict : dict
     Emoty dict for creating new entity, otherwise pass in the existing entity dict
 """
 def validate_json_data_against_schema(json_data_dict, normalized_entity_class, existing_entity_dict = {}):
-    properties = schema['ENTITIES'][normalized_entity_class]['properties']
+    global __SCHEMA__
+
+    properties = __SCHEMA__['ENTITIES'][normalized_entity_class]['properties']
     schema_keys = properties.keys() 
     json_data_keys = json_data_dict.keys()
     separator = ', '
@@ -276,10 +289,12 @@ list
     A list of entity classes
 """
 def get_derivation_source_entity_classes():
+    global __SCHEMA__
+
     derivation_source_entity_classes = []
     entity_classes = get_all_entity_classes()
     for entity_class in entity_classes:
-        if schema['ENTITIES'][entity_class]['derivation']['source']:
+        if __SCHEMA__['ENTITIES'][entity_class]['derivation']['source']:
             derivation_source_entity_classes.append(entity_class)
 
     return derivation_source_entity_classes
@@ -293,10 +308,12 @@ list
     A list of entity classes
 """
 def get_derivation_target_entity_classes():
+    global __SCHEMA__
+
     derivation_target_entity_classes = []
     entity_classes = get_all_entity_classes()
     for entity_class in entity_classes:
-        if schema['ENTITIES'][entity_class]['derivation']['target']:
+        if __SCHEMA__['ENTITIES'][entity_class]['derivation']['target']:
             derivation_target_entity_classes.append(entity_class)
 
     return derivation_target_entity_classes

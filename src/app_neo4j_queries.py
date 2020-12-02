@@ -11,29 +11,31 @@ Check neo4j connectivity
 
 Parameters
 ----------
-neo4j_session : neo4j.Session object
-    The neo4j database session
+neo4j_driver : neo4j.Driver object
+    The neo4j database connection pool
 
 Returns
 -------
 bool
     True if is connected, otherwise error
 """
-def check_connection(neo4j_session):
+def check_connection(neo4j_driver):
     parameterized_query = ("RETURN 1 AS {record_field_name}")
     query = parameterized_query.format(record_field_name = record_field_name)
 
     try:
-        result = neo4j_session.run(query)
-        record = result.single()
-        int_value = record[record_field_name]
-        
-        if int_value == 1:
-            logger.info("Neo4j is connected :)")
-            return True
+        # Sessions will often be created and destroyed using a with block context
+        with neo4j_driver.session() as session:
+            result = session.run(query)
+            record = result.single()
+            int_value = record[record_field_name]
+            
+            if int_value == 1:
+                logger.info("Neo4j is connected :)")
+                return True
 
-        logger.info("Neo4j is NOT connected :(")
-        return False
+            logger.info("Neo4j is NOT connected :(")
+            return False
     except CypherSyntaxError as ce:
         msg = "CypherSyntaxError from calling check_connection(): " + ce.message
         logger.error(msg)
@@ -93,8 +95,8 @@ Get target entity dict
 
 Parameters
 ----------
-neo4j_session : neo4j.Session object
-    The neo4j database session
+neo4j_driver : neo4j.Driver object
+    The neo4j database connection pool
 uuid : str
     The uuid of target entity 
 
@@ -103,7 +105,7 @@ Returns
 dict
     A dictionary of entity details returned from the Cypher query
 """
-def get_entity(neo4j_session, uuid):
+def get_entity(neo4j_driver, uuid):
     parameterized_query = ("MATCH (e:Entity) " + 
                            "WHERE e.uuid = '{uuid}' " +
                            "RETURN e AS {record_field_name}")
@@ -115,34 +117,35 @@ def get_entity(neo4j_session, uuid):
     logger.debug(query)
 
     try:
-        nodes = []
-        entity_dict = {}
+        with neo4j_driver.session() as session:
+            nodes = []
+            entity_dict = {}
 
-        results = neo4j_session.run(query)
+            results = session.run(query)
 
-        # Add all records to the nodes list
-        for record in results:
-            nodes.append(record.get(record_field_name))
-        
-        logger.debug("======get_entity() resulting nodes======")
-        logger.debug(nodes)
+            # Add all records to the nodes list
+            for record in results:
+                nodes.append(record.get(record_field_name))
+            
+            logger.debug("======get_entity() resulting nodes======")
+            logger.debug(nodes)
 
-        # Return an empty dict if no result
-        if len(nodes) < 1:
+            # Return an empty dict if no result
+            if len(nodes) < 1:
+                return entity_dict
+
+            # Raise an exception if multiple nodes returned
+            if len(nodes) > 1:
+                message = "{num_nodes} entity nodes with same uuid {uuid} found in the Neo4j database."
+                raise Exception(message.format(num_nodes = str(len(nodes)), uuid = uuid))
+            
+            # Convert the neo4j node into Python dict
+            entity_dict = node_to_dict(nodes[0])
+
+            logger.debug("======get_entity() resulting entity_dict======")
+            logger.debug(entity_dict)
+
             return entity_dict
-
-        # Raise an exception if multiple nodes returned
-        if len(nodes) > 1:
-            message = "{num_nodes} entity nodes with same uuid {uuid} found in the Neo4j database."
-            raise Exception(message.format(num_nodes = str(len(nodes)), uuid = uuid))
-        
-        # Convert the neo4j node into Python dict
-        entity_dict = node_to_dict(nodes[0])
-
-        logger.debug("======get_entity() resulting entity_dict======")
-        logger.debug(entity_dict)
-
-        return entity_dict
     except CypherSyntaxError as ce:
         msg = "CypherSyntaxError from calling get_entity(): " + ce.message
         logger.error(msg)
@@ -155,8 +158,8 @@ Get all the entity nodes for the given entity class
 
 Parameters
 ----------
-neo4j_session : neo4j.Session object
-    The neo4j database session
+neo4j_driver : neo4j.Driver object
+    The neo4j database connection pool
 entity_class : str
     One of the normalized entity classes: Dataset, Collection, Sample, Donor
 property_key : str
@@ -167,7 +170,7 @@ Returns
 list
     A list of entity dicts of the given class returned from the Cypher query
 """
-def get_entities_by_class(neo4j_session, entity_class, property_key = None):
+def get_entities_by_class(neo4j_driver, entity_class, property_key = None):
     if property_key:
         parameterized_query = ("MATCH (e:{entity_class}) " + 
                                # COLLECT() returns a list
@@ -190,23 +193,24 @@ def get_entities_by_class(neo4j_session, entity_class, property_key = None):
     logger.info(query)
 
     try:
-        result = neo4j_session.run(query)
-        record = result.single()
-        
-        result_list = []
+        with neo4j_driver.session() as session:
+            result = session.run(query)
+            record = result.single()
+            
+            result_list = []
 
-        if property_key:
-            # Just return the list of property values from each entity node
-            result_list = record[record_field_name]
-        else:
-            # Convert the entity nodes to dicts
-            nodes = record[record_field_name]
+            if property_key:
+                # Just return the list of property values from each entity node
+                result_list = record[record_field_name]
+            else:
+                # Convert the entity nodes to dicts
+                nodes = record[record_field_name]
 
-            for node in nodes:
-                entity_dict = node_to_dict(node)
-                result_list.append(entity_dict)
+                for node in nodes:
+                    entity_dict = node_to_dict(node)
+                    result_list.append(entity_dict)
 
-        return result_list
+            return result_list
     except CypherSyntaxError as ce:
         msg = "CypherSyntaxError from calling get_entities_by_class(): " + ce.message
         logger.error(msg)
@@ -369,8 +373,8 @@ Create a new entity node (ans also links to existing Collection nodes if provide
 
 Parameters
 ----------
-neo4j_session : neo4j.Session object
-    The neo4j database session
+neo4j_driver : neo4j.Driver object
+    The neo4j database connection pool
 entity_class : str
     One of the normalized entity classes: Dataset, Collection, Sample, Donor
 entity_json_list_str : str
@@ -383,27 +387,28 @@ Returns
 dict
     A dictionary of newly created entity details returned from the Cypher query
 """
-def create_entity(neo4j_session, entity_class, entity_json_list_str, collection_uuids_list = None):
+def create_entity(neo4j_driver, entity_class, entity_json_list_str, collection_uuids_list = None):
     try:
-        entity_dict = {}
+        with neo4j_driver.session() as session:
+            entity_dict = {}
 
-        tx = neo4j_session.begin_transaction()
+            tx = session.begin_transaction()
 
-        entity_node = create_entity_tx(tx, entity_class, entity_json_list_str)
-        entity_dict = node_to_dict(entity_node)
+            entity_node = create_entity_tx(tx, entity_class, entity_json_list_str)
+            entity_dict = node_to_dict(entity_node)
 
-        logger.debug("======create_entity() resulting entity_dict======")
-        logger.debug(entity_dict)
+            logger.debug("======create_entity() resulting entity_dict======")
+            logger.debug(entity_dict)
 
-        # For Dataset associated with Collections
-        if collection_uuids_list:
-            logger.info("Create relationships between target dataset and associated collections")
+            # For Dataset associated with Collections
+            if collection_uuids_list:
+                logger.info("Create relationships between target dataset and associated collections")
 
-            create_dataset_collection_relationships_tx(tx, entity_dict, collection_uuids_list)
-        
-        tx.commit()
+                create_dataset_collection_relationships_tx(tx, entity_dict, collection_uuids_list)
+            
+            tx.commit()
 
-        return entity_dict
+            return entity_dict
     except CypherSyntaxError as ce:
         msg = "CypherSyntaxError from calling create_entity(): " + ce.message
         logger.error(msg)
@@ -427,8 +432,8 @@ Create a derived entity node and link to source entity node via Activity node an
 
 Parameters
 ----------
-neo4j_session : neo4j.Session object
-    The neo4j database session
+neo4j_driver : neo4j.Driver object
+    The neo4j database connection pool
 entity_class : str
     One of the normalized entity classes: Dataset, Collection, Sample, Donor
 entity_json_list_str : str
@@ -450,36 +455,37 @@ Returns
 dict
     A dictionary of newly created derived entity details returned from the Cypher query
 """
-def create_derived_entity(neo4j_session, entity_class, entity_json_list_str, activity_json_list_str, source_entities_list, collection_uuids_list = None):
+def create_derived_entity(neo4j_driver, entity_class, entity_json_list_str, activity_json_list_str, source_entities_list, collection_uuids_list = None):
     try:
-        entity_dict = {}
+        with neo4j_driver.session() as session:
+            entity_dict = {}
 
-        tx = neo4j_session.begin_transaction()
+            tx = session.begin_transaction()
 
-        entity_node = create_entity_tx(tx, entity_class, entity_json_list_str)
-        entity_dict = node_to_dict(entity_node)
+            entity_node = create_entity_tx(tx, entity_class, entity_json_list_str)
+            entity_dict = node_to_dict(entity_node)
 
-        logger.debug("======create_derived_entity() resulting entity_dict======")
-        logger.debug(entity_dict)
+            logger.debug("======create_derived_entity() resulting entity_dict======")
+            logger.debug(entity_dict)
 
-        # Create the Acvitity node
-        activity_dict = create_activity_tx(tx, activity_json_list_str)
+            # Create the Acvitity node
+            activity_dict = create_activity_tx(tx, activity_json_list_str)
 
-        # Link each source entity to the newly created Activity node
-        for source_entity in source_entities_list:
-            # Create relationship from source Entity node to this Activity node
-            create_relationship_tx(tx, source_entity['uuid'], activity_dict['uuid'], 'ACTIVITY_INPUT', '->')
+            # Link each source entity to the newly created Activity node
+            for source_entity in source_entities_list:
+                # Create relationship from source Entity node to this Activity node
+                create_relationship_tx(tx, source_entity['uuid'], activity_dict['uuid'], 'ACTIVITY_INPUT', '->')
+                
+            # Create relationship from this Activity node to the derived Enity node
+            create_relationship_tx(tx, activity_dict['uuid'], entity_dict['uuid'], 'ACTIVITY_OUTPUT', '->')
+
+            # For Dataset associated with Collections
+            if collection_uuids_list:
+                create_dataset_collection_relationship_tx(tx, entity_dict, collection_uuids_list)
             
-        # Create relationship from this Activity node to the derived Enity node
-        create_relationship_tx(tx, activity_dict['uuid'], entity_dict['uuid'], 'ACTIVITY_OUTPUT', '->')
+            tx.commit()
 
-        # For Dataset associated with Collections
-        if collection_uuids_list:
-            create_dataset_collection_relationship_tx(tx, entity_dict, collection_uuids_list)
-        
-        tx.commit()
-
-        return entity_dict
+            return entity_dict
     except CypherSyntaxError as ce:
         msg = "CypherSyntaxError from calling create_derived_entity(): " + ce.message
         logger.error(msg)
@@ -555,8 +561,8 @@ Update the properties of an existing entity node in neo4j
 
 Parameters
 ----------
-neo4j_session : neo4j.Session object
-    The neo4j database session
+neo4j_driver : neo4j.Driver object
+    The neo4j database connection pool
 entity_class : str
     One of the normalized entity classes: Dataset, Collection, Sample, Donor
 json_list_str : str
@@ -569,17 +575,18 @@ Returns
 dict
     A dictionary of updated entity details returned from the Cypher query
 """
-def update_entity(neo4j_session, entity_class, json_list_str, uuid):
+def update_entity(neo4j_driver, entity_class, json_list_str, uuid):
     try:
-        entity_dict = {}
+        with neo4j_driver.session() as session:
+            entity_dict = {}
 
-        entity_node = neo4j_session.write_transaction(update_entity_tx, entity_class, json_list_str, uuid)
-        entity_dict = node_to_dict(entity_node)
+            entity_node = session.write_transaction(update_entity_tx, entity_class, json_list_str, uuid)
+            entity_dict = node_to_dict(entity_node)
 
-        logger.debug("======update_entity() resulting entity_dict======")
-        logger.debug(entity_dict)
+            logger.debug("======update_entity() resulting entity_dict======")
+            logger.debug(entity_dict)
 
-        return entity_dict
+            return entity_dict
     except CypherSyntaxError as ce:
         msg = "CypherSyntaxError from calling update_entity()" + ce.message
         logger.error(msg)
@@ -593,8 +600,8 @@ Get all ancestors by uuid
 
 Parameters
 ----------
-neo4j_session : neo4j.Session object
-    The neo4j database session
+neo4j_driver : neo4j.Driver object
+    The neo4j database connection pool
 uuid : str
     The uuid of target entity 
 property_key : str
@@ -605,7 +612,7 @@ Returns
 list
     A list of unique ancestor dictionaries returned from the Cypher query
 """
-def get_ancestors(neo4j_session, uuid, property_key = None):
+def get_ancestors(neo4j_driver, uuid, property_key = None):
     if property_key:
         parameterized_query = ("MATCH (e:Entity)<-[r:ACTIVITY_INPUT|:ACTIVITY_OUTPUT*]-(ancestor:Entity) " +
                                "WHERE e.uuid='{uuid}' " +
@@ -630,23 +637,24 @@ def get_ancestors(neo4j_session, uuid, property_key = None):
     logger.debug(query)
 
     try:
-        result = neo4j_session.run(query)
-        record = result.single()
+        with neo4j_driver.session() as session:
+            result = session.run(query)
+            record = result.single()
 
-        result_list = []
+            result_list = []
 
-        if property_key:
-            # Just return the list of property values from each entity node
-            result_list = record[record_field_name]
-        else:
-            # Convert the entity nodes to dicts
-            nodes = record[record_field_name]
+            if property_key:
+                # Just return the list of property values from each entity node
+                result_list = record[record_field_name]
+            else:
+                # Convert the entity nodes to dicts
+                nodes = record[record_field_name]
 
-            for node in nodes:
-                entity_dict = node_to_dict(node)
-                result_list.append(entity_dict)
+                for node in nodes:
+                    entity_dict = node_to_dict(node)
+                    result_list.append(entity_dict)
 
-        return result_list               
+            return result_list               
     except CypherSyntaxError as ce:
         msg = "CypherSyntaxError from calling get_ancestors()" + ce.message
         logger.error(msg)
@@ -660,8 +668,8 @@ Get all descendants by uuid
 
 Parameters
 ----------
-neo4j_session : neo4j.Session object
-    The neo4j database session
+neo4j_driver : neo4j.Driver object
+    The neo4j database connection pool
 uuid : str
     The uuid of target entity 
 property_key : str
@@ -672,7 +680,7 @@ Returns
 dict
     A list of unique desendant dictionaries returned from the Cypher query
 """
-def get_descendants(neo4j_session, uuid, property_key = None):
+def get_descendants(neo4j_driver, uuid, property_key = None):
     if property_key:
         parameterized_query = ("MATCH (e:Entity)-[r:ACTIVITY_INPUT|:ACTIVITY_OUTPUT*]->(descendant:Entity) " +
                                "WHERE e.uuid='{uuid}' " +
@@ -696,23 +704,24 @@ def get_descendants(neo4j_session, uuid, property_key = None):
     logger.debug(query)
 
     try:
-        result = neo4j_session.run(query)
-        record = result.single()
+        with neo4j_driver.session() as session:
+            result = session.run(query)
+            record = result.single()
 
-        result_list = []
+            result_list = []
 
-        if property_key:
-            # Just return the list of property values from each entity node
-            result_list = record[record_field_name]
-        else:
-            # Convert the entity nodes to dicts
-            nodes = record[record_field_name]
+            if property_key:
+                # Just return the list of property values from each entity node
+                result_list = record[record_field_name]
+            else:
+                # Convert the entity nodes to dicts
+                nodes = record[record_field_name]
 
-            for node in nodes:
-                entity_dict = node_to_dict(node)
-                result_list.append(entity_dict)
+                for node in nodes:
+                    entity_dict = node_to_dict(node)
+                    result_list.append(entity_dict)
 
-        return result_list               
+            return result_list               
     except CypherSyntaxError as ce:
         msg = "CypherSyntaxError from calling get_descendants(): " + ce.message
         logger.error(msg)
@@ -725,8 +734,8 @@ Get all parents by uuid
 
 Parameters
 ----------
-neo4j_session : neo4j.Session object
-    The neo4j database session
+neo4j_driver : neo4j.Driver object
+    The neo4j database connection pool
 uuid : str
     The uuid of target entity 
 property_key : str
@@ -737,7 +746,7 @@ Returns
 dict
     A list of unique parent dictionaries returned from the Cypher query
 """
-def get_parents(neo4j_session, uuid, property_key = None):
+def get_parents(neo4j_driver, uuid, property_key = None):
     if property_key:
         parameterized_query = ("MATCH (e:Entity)<-[:ACTIVITY_OUTPUT]-(:Activity)<-[:ACTIVITY_INPUT]-(parent:Entity) " +
                                "WHERE e.uuid='{uuid}' " +
@@ -762,23 +771,24 @@ def get_parents(neo4j_session, uuid, property_key = None):
     logger.debug(query)
 
     try:
-        result = neo4j_session.run(query)
-        record = result.single()
+        with neo4j_driver.session() as session:
+            result = session.run(query)
+            record = result.single()
 
-        result_list = []
+            result_list = []
 
-        if property_key:
-            # Just return the list of property values from each entity node
-            result_list = record[record_field_name]
-        else:
-            # Convert the entity nodes to dicts
-            nodes = record[record_field_name]
+            if property_key:
+                # Just return the list of property values from each entity node
+                result_list = record[record_field_name]
+            else:
+                # Convert the entity nodes to dicts
+                nodes = record[record_field_name]
 
-            for node in nodes:
-                entity_dict = node_to_dict(node)
-                result_list.append(entity_dict)
+                for node in nodes:
+                    entity_dict = node_to_dict(node)
+                    result_list.append(entity_dict)
 
-        return result_list               
+            return result_list               
     except CypherSyntaxError as ce:
         msg = "CypherSyntaxError from calling get_parents(): " + ce.message
         logger.error(msg)
@@ -791,8 +801,8 @@ Get all children by uuid
 
 Parameters
 ----------
-neo4j_session : neo4j.Session object
-    The neo4j database session
+neo4j_driver : neo4j.Driver object
+    The neo4j database connection pool
 uuid : str
     The uuid of target entity 
 property_key : str
@@ -803,7 +813,7 @@ Returns
 dict
     A list of unique child dictionaries returned from the Cypher query
 """
-def get_children(neo4j_session, uuid, property_key = None):
+def get_children(neo4j_driver, uuid, property_key = None):
     if property_key:
         parameterized_query = ("MATCH (e:Entity)-[:ACTIVITY_INPUT]->(:Activity)-[:ACTIVITY_OUTPUT]->(child:Entity) " +
                                "WHERE e.uuid='{uuid}' " +
@@ -826,22 +836,23 @@ def get_children(neo4j_session, uuid, property_key = None):
     logger.debug(query)
 
     try:
-        result = neo4j_session.run(query)
-        record = result.single()
-        result_list = []
+        with neo4j_driver.session() as session:
+            result = session.run(query)
+            record = result.single()
+            result_list = []
 
-        if property_key:
-            # Just return the list of property values from each entity node
-            result_list = record[record_field_name]
-        else:
-            # Convert the entity nodes to dicts
-            nodes = record[record_field_name]
+            if property_key:
+                # Just return the list of property values from each entity node
+                result_list = record[record_field_name]
+            else:
+                # Convert the entity nodes to dicts
+                nodes = record[record_field_name]
 
-            for node in nodes:
-                entity_dict = node_to_dict(node)
-                result_list.append(entity_dict)
+                for node in nodes:
+                    entity_dict = node_to_dict(node)
+                    result_list.append(entity_dict)
 
-        return result_list             
+            return result_list             
     except CypherSyntaxError as ce:
         msg = "CypherSyntaxError from calling get_children(): " + ce.message
         logger.error(msg)

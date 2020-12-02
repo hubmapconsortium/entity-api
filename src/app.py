@@ -14,11 +14,13 @@ import urllib
 
 # Local modules
 import app_neo4j_queries
-import schema_manager
+from schema import schema_manager
 
 # HuBMAP commons
 from hubmap_commons import string_helper
 from hubmap_commons import file_helper
+from hubmap_commons import neo4j_driver
+from hubmap_commons.hm_auth import AuthHelper
 
 # Set logging fromat and level (default is warning)
 # All the API logging is forwarded to the uWSGI server and gets written into the log file `uwsgo-entity-api.log`
@@ -48,33 +50,16 @@ cache = TTLCache(maxsize=app.config['CACHE_MAXSIZE'], ttl=app.config['CACHE_TTL'
 ## Neo4j connection
 ####################################################################################################
 
-# Have the neo4j connection available in the application context (lifetime of a request)
-neo4j_driver = GraphDatabase.driver(app.config['NEO4J_URI'], auth = (app.config['NEO4J_USERNAME'], app.config['NEO4J_PASSWORD']))
-
-"""
-Get the current neo4j database connection session if exists
-Otherwise create a new one
-
-Returns
--------
-neo4j.Session object
-    The neo4j database connection session
-"""
-def get_neo4j_session():
-    if not hasattr(g, 'neo4j_session'):
-        # Once upgrade to neo4j v4, we can specify the target database 
-        #g.neo4j_session = neo4j_driver.session(database = app.config['NEO4J_DB'])
-        g.neo4j_session = neo4j_driver.session()
-    return g.neo4j_session
+neo4j_driver_instance = neo4j_driver.get_instance(app.config['NEO4J_URI'], app.config['NEO4J_USERNAME'], app.config['NEO4J_PASSWORD'])
 
 """
 Prevent from maxing the connection pool (maximum total number of connections allowed per host)
-by closing the current neo4j connection session at the end of every request
+by closing the current neo4j connection at the end of every request
 """
 @app.teardown_appcontext
-def close_neo4j_session(error):
-    if hasattr(g, 'neo4j_session'):
-        g.neo4j_session.close()
+def close_neo4j_driver(error):
+    if hasattr(g, 'neo4j_driver_instance'):
+        g.neo4j_driver_instance.close()
 
 
 ####################################################################################################
@@ -82,11 +67,9 @@ def close_neo4j_session(error):
 ####################################################################################################
 
 try:
-    schema_manager.initialize(app.config['SCHEMA_YAML_FILE'], get_neo4j_session())
+    schema_manager.initialize(app.config['SCHEMA_YAML_FILE'], app.config['NEO4J_URI'], app.config['NEO4J_USERNAME'], app.config['NEO4J_PASSWORD'])
 except IOError as ioe:
     internal_server_error("Failed to load the schema yaml file")
-except TypeError as te:
-    internal_server_error(te)
  
 
 ####################################################################################################
@@ -220,7 +203,7 @@ def get_status():
         'neo4j_connection': False
     }
 
-    is_connected = app_neo4j_queries.check_connection(get_neo4j_db())
+    is_connected = app_neo4j_queries.check_connection(neo4j_driver_instance)
     
     if is_connected:
         status_data['neo4j_connection'] = True
@@ -339,7 +322,7 @@ def get_entities_by_class(entity_class):
     schema_manager.validate_normalized_entity_class(normalized_entity_class)
 
     # Get back a list of entity dicts for the given entity class
-    entities_list = app_neo4j_queries.get_entities_by_class(get_neo4j_db(), normalized_entity_class)
+    entities_list = app_neo4j_queries.get_entities_by_class(neo4j_driver_instance, normalized_entity_class)
     
     final_result = entities_list
 
@@ -355,7 +338,7 @@ def get_entities_by_class(entity_class):
                 bad_request_error("Only the following property keys are supported in the query string: " + separator.join(result_filtering_accepted_property_keys))
             
             # Only return a list of the filtered property value of each entity
-            property_list = app_neo4j_queries.get_entities_by_class(get_neo4j_db(), normalized_entity_class, property_key)
+            property_list = app_neo4j_queries.get_entities_by_class(neo4j_driver_instance, normalized_entity_class, property_key)
 
             # Final result
             final_result = property_list
@@ -486,7 +469,7 @@ def update_entity(id):
     app.logger.debug(json_list_str)
 
     # Update the exisiting entity
-    result_dict = app_neo4j_queries.update_entity(get_neo4j_db(), normalized_entity_class, escaped_json_list_str, entity_uuid)
+    result_dict = app_neo4j_queries.update_entity(neo4j_driver_instance, normalized_entity_class, escaped_json_list_str, entity_uuid)
 
     # Get rid of the entity node properties that are not defined in the yaml schema
     result_dict = schema_manager.remove_undefined_entity_properties(normalized_entity_class, result_dict)
@@ -514,13 +497,13 @@ json
 """
 @app.route('/ancestors/<id>', methods = ['GET'])
 def get_ancestors(id):
-	auth_helper = init_auth_helper()
+    auth_helper = init_auth_helper()
     token = auth_helper.getProcessSecret()
 
     hubmap_ids = schema_manager.get_hubmap_ids(app.config['UUID_API_URL'], id, token)
     uuid = hubmap_ids['hmuuid']
 
-    ancestors_list = app_neo4j_queries.get_ancestors(get_neo4j_db(), uuid)
+    ancestors_list = app_neo4j_queries.get_ancestors(neo4j_driver_instance, uuid)
 
     # Final result
     final_result = ancestors_list
@@ -537,7 +520,7 @@ def get_ancestors(id):
                 bad_request_error("Only the following property keys are supported in the query string: " + separator.join(result_filtering_accepted_property_keys))
             
             # Only return a list of the filtered property value of each entity
-            property_list = app_neo4j_queries.get_ancestors(get_neo4j_db(), uuid, property_key)
+            property_list = app_neo4j_queries.get_ancestors(neo4j_driver_instance, uuid, property_key)
 
             # Final result
             final_result = property_list
@@ -563,13 +546,13 @@ json
 """
 @app.route('/descendants/<id>', methods = ['GET'])
 def get_descendants(id):
-	auth_helper = init_auth_helper()
+    auth_helper = init_auth_helper()
     token = auth_helper.getProcessSecret()
 
     hubmap_ids = schema_manager.get_hubmap_ids(app.config['UUID_API_URL'], id, token)
     uuid = hubmap_ids['hmuuid']
 
-    descendants_list = app_neo4j_queries.get_descendants(get_neo4j_db(), uuid)
+    descendants_list = app_neo4j_queries.get_descendants(neo4j_driver_instance, uuid)
 
     # Final result
     final_result = descendants_list
@@ -586,7 +569,7 @@ def get_descendants(id):
                 bad_request_error("Only the following property keys are supported in the query string: " + separator.join(result_filtering_accepted_property_keys))
             
             # Only return a list of the filtered property value of each entity
-            property_list = app_neo4j_queries.get_descendants(get_neo4j_db(), uuid, property_key)
+            property_list = app_neo4j_queries.get_descendants(neo4j_driver_instance, uuid, property_key)
 
             # Final result
             final_result = property_list
@@ -612,13 +595,13 @@ json
 """
 @app.route('/parents/<id>', methods = ['GET'])
 def get_parents(id):
-	auth_helper = init_auth_helper()
+    auth_helper = init_auth_helper()
     token = auth_helper.getProcessSecret()
 
     hubmap_ids = schema_manager.get_hubmap_ids(app.config['UUID_API_URL'], id, token)
     uuid = hubmap_ids['hmuuid']
 
-    parents_list = app_neo4j_queries.get_parents(get_neo4j_db(), uuid)
+    parents_list = app_neo4j_queries.get_parents(neo4j_driver_instance, uuid)
 
     # Final result
     final_result = parents_list
@@ -635,7 +618,7 @@ def get_parents(id):
                 bad_request_error("Only the following property keys are supported in the query string: " + separator.join(result_filtering_accepted_property_keys))
             
             # Only return a list of the filtered property value of each entity
-            property_list = app_neo4j_queries.get_parents(get_neo4j_db(), uuid, property_key)
+            property_list = app_neo4j_queries.get_parents(neo4j_driver_instance, uuid, property_key)
 
             # Final result
             final_result = property_list
@@ -661,13 +644,13 @@ json
 """
 @app.route('/children/<id>', methods = ['GET'])
 def get_children(id):
-	auth_helper = init_auth_helper()
+    auth_helper = init_auth_helper()
     token = auth_helper.getProcessSecret()
 
     hubmap_ids = schema_manager.get_hubmap_ids(app.config['UUID_API_URL'], id, token)
     uuid = hubmap_ids['hmuuid']
 
-    children_list = app_neo4j_queries.get_children(get_neo4j_db(), uuid)
+    children_list = app_neo4j_queries.get_children(neo4j_driver_instance, uuid)
 
     # Final result
     final_result = children_list
@@ -684,7 +667,7 @@ def get_children(id):
                 bad_request_error("Only the following property keys are supported in the query string: " + separator.join(result_filtering_accepted_property_keys))
             
             # Only return a list of the filtered property value of each entity
-            property_list = app_neo4j_queries.get_children(get_neo4j_db(), uuid, property_key)
+            property_list = app_neo4j_queries.get_children(neo4j_driver_instance, uuid, property_key)
 
             # Final result
             final_result = property_list
@@ -937,7 +920,7 @@ def create_new_entity(normalized_entity_class, json_data_dict):
     # Create new entity
     # If `collection_uuids_list` is not an empty list, meaning the target entity is Dataset and 
     # we'll be also creating relationships between the new dataset node to the existing collection nodes
-    result_dict = app_neo4j_queries.create_entity(get_neo4j_db(), normalized_entity_class, escaped_json_list_str, collection_uuids_list = collection_uuids_list)
+    result_dict = app_neo4j_queries.create_entity(neo4j_driver_instance, normalized_entity_class, escaped_json_list_str, collection_uuids_list = collection_uuids_list)
 
     return result_dict
 
@@ -1065,7 +1048,7 @@ def create_derived_entity(normalized_target_entity_class, json_data_dict):
     # Create the derived entity alone with the Activity node and relationships
     # If `collection_uuids_list` is not an empty list, meaning the target entity is Dataset and 
     # we'll be also creating relationships between the new dataset node to the existing collection nodes
-    result_dict = app_neo4j_queries.create_derived_entity(get_neo4j_db(), normalized_target_entity_class, escaped_json_list_str, activity_json_list_str, source_entities_list, collection_uuids_list = collection_uuids_list)
+    result_dict = app_neo4j_queries.create_derived_entity(neo4j_driver_instance, normalized_target_entity_class, escaped_json_list_str, activity_json_list_str, source_entities_list, collection_uuids_list = collection_uuids_list)
 
     return result_dict
 
@@ -1084,13 +1067,13 @@ dict
     A dictionary of entity details returned from neo4j
 """
 def query_target_entity(id):
-	auth_helper = init_auth_helper()
+    auth_helper = init_auth_helper()
     token = auth_helper.getProcessSecret()
 
     hubmap_ids = schema_manager.get_hubmap_ids(app.config['UUID_API_URL'], id, token)
     uuid = hubmap_ids['hmuuid']
 
-    entity_dict = app_neo4j_queries.get_entity(get_neo4j_db(), uuid)
+    entity_dict = app_neo4j_queries.get_entity(neo4j_driver_instance, uuid)
 
     # Existence check
     if not bool(entity_dict):

@@ -1,5 +1,5 @@
 # File path of schema yaml file, DO NOT MODIFY
-SCHEMA_YAML_FILE = '/usr/src/app/src/resources/provenance_schema.yaml'
+SCHEMA_YAML_FILE = '/usr/src/app/src/schema/provenance_schema.yaml'
 
 # File path of groups json file, DO NOT MODIFY
 GROUPS_JSON_FILE = '/usr/src/app/src/resources/globus_groups.json'

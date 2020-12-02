@@ -15,8 +15,8 @@ Get the source entities uuids of a given dataset by uuid
 
 Parameters
 ----------
-neo4j_session : neo4j.Session object
-    The neo4j database session
+neo4j_driver : neo4j.Driver object
+    The neo4j database connection pool
 uuid : str
     The uuid of target entity 
 
@@ -25,7 +25,7 @@ Returns
 list
     A unique list of uuids of source entities
 """
-def get_dataset_source_uuids(neo4j_session, uuid):
+def get_dataset_source_uuids(neo4j_driver, uuid):
     parameterized_query = ("MATCH (s:Dataset)-[:ACTIVITY_INPUT]->(a:Activity)-[:ACTIVITY_OUTPUT]->(t:Entity) " + 
                            "WHERE t.uuid = '{uuid}' " +
                            "RETURN apoc.coll.toSet(COLLECT(s.uuid)) AS {record_field_name}")
@@ -37,15 +37,17 @@ def get_dataset_source_uuids(neo4j_session, uuid):
     logger.debug(query)
 
     try:
-        result = neo4j_session.run(query)
+        # Sessions will often be created and destroyed using a with block context
+        with neo4j_driver.session() as session:
+            result = session.run(query)
 
-        record = result.single()
-        source_uuids = record[record_field_name]
+            record = result.single()
+            source_uuids = record[record_field_name]
 
-        logger.debug("======get_dataset_source_uuids() resulting source_uuids list======")
-        logger.debug(source_uuids)
+            logger.debug("======get_dataset_source_uuids() resulting source_uuids list======")
+            logger.debug(source_uuids)
 
-        return source_uuids
+            return source_uuids
     except CypherSyntaxError as ce:
         msg = "CypherSyntaxError from calling get_dataset_source_uuids(): " + ce.message
         logger.error(msg)
@@ -58,8 +60,8 @@ Get a list of associated dataset dicts for a given collection
 
 Parameters
 ----------
-neo4j_session : neo4j.Session object
-    The neo4j database session
+neo4j_driver : neo4j.Driver object
+    The neo4j database connection pool
 uuid : str
     The uuid of collection
 
@@ -68,7 +70,7 @@ Returns
 list
     The list comtaining associated dataset dicts
 """
-def get_collection_datasets(neo4j_session, uuid):
+def get_collection_datasets(neo4j_driver, uuid):
     parameterized_query = ("MATCH (e:Entity)-[:IN_COLLECTION]->(c:Collection) " + 
                            "WHERE c.uuid = '{uuid}' " +
                            "RETURN apoc.coll.toSet(COLLECT(e)) AS {record_field_name}")
@@ -80,19 +82,20 @@ def get_collection_datasets(neo4j_session, uuid):
     logger.debug(query)
 
     try:
-        result = neo4j_session.run(query)
-        record = result.single()
+        with neo4j_driver.session() as session:
+            result = session.run(query)
+            record = result.single()
 
-        result_list = []
+            result_list = []
 
-        # Convert the entity nodes to dicts
-        nodes = record[record_field_name]
+            # Convert the entity nodes to dicts
+            nodes = record[record_field_name]
 
-        for node in nodes:
-            entity_dict = node_to_dict(node)
-            result_list.append(entity_dict)
+            for node in nodes:
+                entity_dict = node_to_dict(node)
+                result_list.append(entity_dict)
 
-        return result_list
+            return result_list
     except CypherSyntaxError as ce:
         msg = "CypherSyntaxError from calling get_collection_datasets(): " + ce.message
         logger.error(msg)
@@ -106,8 +109,8 @@ Get count of published Dataset in the provenance hierarchy for a given  Collecti
 
 Parameters
 ----------
-neo4j_session : neo4j.Session object
-    The neo4j database session
+neo4j_driver : neo4j.Driver object
+    The neo4j database connection pool
 entity_class : str
     One of the normalized entity classes: Collection, Sample, Donor
 uuid : str
@@ -119,7 +122,7 @@ int
     The count of published Dataset in the provenance hierarchy 
     below the target entity (Donor, Sample and Collection)
 """
-def count_attached_published_datasets(neo4j_session, entity_class, uuid):
+def count_attached_published_datasets(neo4j_driver, entity_class, uuid):
     parameterized_query = ("MATCH (e:{entity_class})-[r:ACTIVITY_INPUT|:ACTIVITY_OUTPUT*]->(d:Dataset) " +
                            "WHERE e.uuid='{uuid}' AND d.status = 'Published' " +
                            # COLLECT() returns a list
@@ -134,14 +137,15 @@ def count_attached_published_datasets(neo4j_session, entity_class, uuid):
     logger.debug(query)
 
     try:
-        result = neo4j_session.run(query)
-        record = result.single()
-        count = record[record_field_name]
+        with neo4j_driver.session() as session:
+            result = session.run(query)
+            record = result.single()
+            count = record[record_field_name]
 
-        logger.debug("======count_attached_published_datasets() resulting count======")
-        logger.debug(count)
-        
-        return count               
+            logger.debug("======count_attached_published_datasets() resulting count======")
+            logger.debug(count)
+            
+            return count               
     except CypherSyntaxError as ce:
         msg = "CypherSyntaxError from calling count_attached_published_datasets(): " + ce.message
         logger.error(msg)
