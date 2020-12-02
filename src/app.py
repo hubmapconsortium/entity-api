@@ -3,11 +3,8 @@ from neo4j import GraphDatabase
 import sys
 import os
 import re
-import json
 import requests
 from urllib3.exceptions import InsecureRequestWarning
-from cachetools import cached, TTLCache
-import functools
 from pathlib import Path
 import logging
 import urllib
@@ -20,6 +17,7 @@ from schema import schema_manager
 from hubmap_commons import string_helper
 from hubmap_commons import file_helper
 from hubmap_commons import neo4j_driver
+from hubmap_commons import globus_groups_helper
 from hubmap_commons.hm_auth import AuthHelper
 
 # Set logging fromat and level (default is warning)
@@ -38,12 +36,6 @@ app.config['SEARCH_API_URL'] = app.config['SEARCH_API_URL'].strip('/')
 
 # Suppress InsecureRequestWarning warning when requesting status on https with ssl cert verify disabled
 requests.packages.urllib3.disable_warnings(category = InsecureRequestWarning)
-
-# LRU Cache implementation with per-item time-to-live (TTL) value
-# with a memoizing callable that saves up to maxsize results based on a Least Frequently Used (LFU) algorithm
-# with a per-item time-to-live (TTL) value
-# Here we use two hours, 7200 seconds for ttl
-cache = TTLCache(maxsize=app.config['CACHE_MAXSIZE'], ttl=app.config['CACHE_TTL'])
 
 
 ####################################################################################################
@@ -76,73 +68,8 @@ except IOError as ioe:
 ## Globus groups json loading
 ####################################################################################################
 
-"""
-Load the globus groups information json file
-
-Parameters
-----------
-valid_json_file : file
-    A valid json file
-
-Returns
--------
-dict
-    A dict containing the groups details
-"""
-@cached(cache)
-def load_globus_groups_json_file(valid_json_file):
-    with open(valid_json_file) as file:
-        groups = json.load(file)
-
-        app.logger.info("Globus groups json file loaded successfully")
-
-        groups_by_id = {}
-        groups_by_name = {}
-        groups_by_tmc_prefix = {}
-
-        for group in groups:
-            if 'name' in group and 'uuid' in group and 'generateuuid' in group and 'displayname' in group and not string_helper.isBlank(group['name']) and not string_helper.isBlank(group['uuid']) and not string_helper.isBlank(group['displayname']):
-                group_obj = {
-                    'name' : group['name'].lower().strip(), 
-                    'uuid' : group['uuid'].lower().strip(),
-                    'displayname' : group['displayname'], 
-                    'generateuuid': group['generateuuid']
-                }
-
-                if 'tmc_prefix' in group:
-                    group_obj['tmc_prefix'] = group['tmc_prefix']
-
-                    if 'uuid' in group and 'displayname' in group and not string_helper.isBlank(group['uuid']) and not string_helper.isBlank(group['displayname']):
-                        group_info = {}
-                        group_info['uuid'] = group['uuid']
-                        group_info['displayname'] = group['displayname']
-                        group_info['tmc_prefix'] = group['tmc_prefix']
-                       
-                        groups_by_tmc_prefix[group['tmc_prefix'].upper().strip()] = group_info
-                
-                groups_by_name[group['name'].lower().strip()] = group_obj
-                groups_by_id[group['uuid']] = group_obj
-
-                app.logger.debug("======groups_by_id======")
-                app.logger.debug(groups_by_id)
-
-                app.logger.debug("======groups_by_name======")
-                app.logger.debug(groups_by_name)
-
-                app.logger.debug("======groups_by_tmc_prefix======")
-                app.logger.debug(groups_by_tmc_prefix)
-        
-        # Wrap the final data
-        globus_groups = {
-            'by_id': groups_by_id,
-            'by_name': groups_by_name,
-            'by_tmc_prefix': groups_by_tmc_prefix
-        }
-        
-        return globus_groups
-
 # Have the groups informaiton available in the application context (lifetime of a request)
-globus_groups = load_globus_groups_json_file(app.config['GROUPS_JSON_FILE'])
+globus_groups = globus_groups_helper.get_globus_groups_info()
 
 
 ####################################################################################################
@@ -764,7 +691,7 @@ def get_dataset_globus_url(id):
     # Get the user information (if available) for the caller
     # getUserDataAccessLevel will return just a "data_access_level" of public
     # if no auth token is found
-    auth_helper = schema_manager.init_auth_helper()
+    auth_helper = init_auth_helper()
     user_info = auth_helper.getUserDataAccessLevel(request)        
     
     #construct the Globus URL based on the highest level of access that the user has
