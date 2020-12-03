@@ -825,6 +825,16 @@ def create_new_entity(normalized_entity_class, json_data_dict):
         for collection_uuid in collection_uuids_list:
             collection_dict = query_target_entity(collection_uuid)
 
+    # For new colletion to be linked to existing datasets
+    dataset_uuids_list = []
+    if normalized_entity_class == "Collection":
+        if 'dataset_uuids' in json_data_dict:
+            dataset_uuids_list = json_data_dict['dataset_uuids']
+
+        # Check existence of those datasets
+        for dataset_uuid in dataset_uuids_list:
+            dataset_dict = query_target_entity(dataset_uuid)
+
     # Dictionaries to be merged and passed to trigger methods
     token = auth_helper.getProcessSecret()
     user_info_dict = schema_manager.get_user_info(auth_helper, request)
@@ -853,7 +863,7 @@ def create_new_entity(normalized_entity_class, json_data_dict):
     # Create new entity
     # If `collection_uuids_list` is not an empty list, meaning the target entity is Dataset and 
     # we'll be also creating relationships between the new dataset node to the existing collection nodes
-    result_dict = app_neo4j_queries.create_entity(neo4j_driver_instance, normalized_entity_class, escaped_json_list_str, collection_uuids_list = collection_uuids_list)
+    result_dict = app_neo4j_queries.create_entity(neo4j_driver_instance, normalized_entity_class, escaped_json_list_str, collection_uuids_list = collection_uuids_list, dataset_uuids_list = dataset_uuids_list)
 
     return result_dict
 

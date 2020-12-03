@@ -152,8 +152,8 @@ ENTITIES:
         transient: true
         type: list
         description: "A list of dataset uuids that belong to this collection.  This field is used to pass the set of datasets contained in the collection in on a PUT or POST"
-        on_create_trigger: connect_datasets_to_collection
-        on_update_trigger: connect_datasets_to_collection
+        # on_create_trigger: connect_datasets_to_collection
+        # on_update_trigger: connect_datasets_to_collection
       datasets:
         transient: true
         type: list #list of datasets

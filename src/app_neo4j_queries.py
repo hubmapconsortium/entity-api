@@ -328,6 +328,46 @@ def create_relationship_tx(tx, source_node_uuid, target_node_uuid, relationship,
     return relationship
 
 """
+Create relationships between the target Collection node and Dataset nodes in neo4j
+
+Parameters
+----------
+tx : neo4j.Transaction object
+    The neo4j.Transaction object instance
+dataset_uuids_list: list
+    The list of dataset uuids to be linked
+entity_dict : dict
+    The dictionary of the target Collection entity
+
+Returns
+-------
+str
+    The relationship type name
+"""
+def link_collection_to_datasets_tx(tx, entity_dict, dataset_uuids_list):
+    dataset_uuids_list_str = '[' + ', '.join(dataset_uuids_list) + ']'
+    parameterized_query = ("MATCH (e1:Collection), (e2:Dataset) " +
+                           "WHERE e1.uuid = '{uuid}' AND e2.uuid IN {dataset_uuids_list_str} " +
+                           "CREATE (e1)<-[r:IN_COLLECTION]-(e2) " +
+                           "RETURN type(r) AS {record_field_name}") 
+
+    query = parameterized_query.format(uuid = entity_dict['uuid'],
+                                       dataset_uuids_list_str = dataset_uuids_list_str,
+                                       record_field_name = record_field_name)
+
+    logger.debug("======link_collection_to_datasets_tx() query======")
+    logger.debug(query)
+
+    result = tx.run(query)
+    record = result.single()
+    relationship = record[record_field_name]
+
+    logger.debug("======link_collection_to_datasets_tx() resulting relationship======")
+    logger.debug(relationship)
+
+    return relationship
+
+"""
 Create relationships between the target Dataset node and Collection nodes in neo4j
 
 Parameters
@@ -344,7 +384,7 @@ Returns
 str
     The relationship type name
 """
-def create_dataset_collection_relationships_tx(tx, entity_dict, collection_uuids_list):
+def link_dataset_to_collections_tx(tx, entity_dict, collection_uuids_list):
     collection_uuids_list_str = '[' + ', '.join(collection_uuids_list) + ']'
     parameterized_query = ("MATCH (e1:Dataset), (e2:Collection) " +
                            "WHERE e1.uuid = '{uuid}' AND e2.uuid IN {collection_uuids_list_str} " +
@@ -355,18 +395,17 @@ def create_dataset_collection_relationships_tx(tx, entity_dict, collection_uuids
                                        collection_uuids_list_str = collection_uuids_list_str,
                                        record_field_name = record_field_name)
 
-    logger.debug("======create_dataset_collection_relationships_tx() query======")
+    logger.debug("======link_dataset_to_collections_tx() query======")
     logger.debug(query)
 
     result = tx.run(query)
     record = result.single()
     relationship = record[record_field_name]
 
-    logger.debug("======create_dataset_collection_relationships_tx() resulting relationship======")
+    logger.debug("======link_dataset_to_collections_tx() resulting relationship======")
     logger.debug(relationship)
 
     return relationship
-
 
 """
 Create a new entity node (ans also links to existing Collection nodes if provided) in neo4j
@@ -380,14 +419,16 @@ entity_class : str
 entity_json_list_str : str
     The string representation of a list containing only one Entity node to be created
 collection_uuids_list: list
-    The list of collection uuids to be linked
+    The list of Collection uuids to be linked to the target Dataset
+dataset_uuids_list: list
+    The list of Dataset uuids to be linked to the target Collection
 
 Returns
 -------
 dict
     A dictionary of newly created entity details returned from the Cypher query
 """
-def create_entity(neo4j_driver, entity_class, entity_json_list_str, collection_uuids_list = None):
+def create_entity(neo4j_driver, entity_class, entity_json_list_str, collection_uuids_list = None, dataset_uuids_list = None):
     try:
         with neo4j_driver.session() as session:
             entity_dict = {}
@@ -400,12 +441,18 @@ def create_entity(neo4j_driver, entity_class, entity_json_list_str, collection_u
             logger.debug("======create_entity() resulting entity_dict======")
             logger.debug(entity_dict)
 
-            # For Dataset associated with Collections
+            # For target Dataset associated with existing collections
             if collection_uuids_list:
-                logger.info("Create relationships between target dataset and associated collections")
+                logger.info("Create relationships between the target Dataset and associated Collections")
 
-                create_dataset_collection_relationships_tx(tx, entity_dict, collection_uuids_list)
+                link_dataset_to_collections_tx(tx, entity_dict, collection_uuids_list)
             
+            # For target Collection associated with existing datasets
+            if dataset_uuids_list:
+                logger.info("Create relationships between the target Collection and associated Datasets")
+
+                link_collection_to_datasets_tx(tx, entity_dict, dataset_uuids_list)
+
             tx.commit()
 
             return entity_dict
