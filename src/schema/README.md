@@ -16,6 +16,6 @@ The yaml file `provenance_schema.yaml` contains all the attributes of each entit
 - If a property is marked as `user_input_required: true`, it means this property is required to be provided in the client request JSON
 - If a property is marked as `user_input_required: true`, it can't have `trigger` at the same time
 - If a property is marked as `exposed: flase`, it'll be filtered from the response
-- There are 3 types of triggers: `on_create_trigger`, `on_update_trigger`, and `on_read_trigger`
+- There are 3 types of triggers: `before_create_trigger`, `before_update_trigger`, and `on_read_trigger`
 - If a property has one of the triggers, it can't be used in client request JSON
 - If a property has `on_read_trigger`, it must be transient, meaning it's not stored in neo4j and only available during response

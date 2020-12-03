@@ -549,10 +549,17 @@ dict
 """
 def create_hubmap_ids(uuid_api_url, normalized_entity_class, token):
     # Must use "generateDOI": "true" to generate the doi (doi_suffix_id) and displayDoi (hubmap_id)
+    ##############################
+    # For sample and dataset, pass in the source_uuid
+    # If sample and sample_type == organ, pass in the organ 
+    ##############################
+    
     json_to_post = {
         'entityType': normalized_entity_class, 
         'generateDOI': "true"
     }
+
+
 
     # Use modified version of globus app secrect from configuration as the internal token
     # All API endpoints specified in gateway regardless of auth is required or not, 

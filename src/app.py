@@ -385,10 +385,10 @@ def update_entity(id):
     # Pass in the entity_dict for missing required key check, this is different from creating new entity
     schema_manager.validate_json_data_against_schema(json_data_dict, normalized_entity_class, existing_entity_dict = entity_dict)
 
-    generated_on_update_trigger_data_dict = schema_manager.generate_triggered_data('on_update_trigger', normalized_entity_class, entity_dict)
+    generated_before_update_trigger_data_dict = schema_manager.generate_triggered_data('before_update_trigger', normalized_entity_class, entity_dict)
 
     # Merge two dictionaries
-    merged_dict = {**json_data_dict, **generated_on_update_trigger_data_dict}
+    merged_dict = {**json_data_dict, **generated_before_update_trigger_data_dict}
 
     # By now the merged_dict contains all user updates and all triggered data to be added to the entity node
     # Any properties in merged_dict that are not on the node will be added.
@@ -843,10 +843,10 @@ def create_new_entity(normalized_entity_class, json_data_dict):
     # Merge all the above dictionaries and pass to the trigger methods
     data_dict = {**user_info_dict, **new_ids_dict}
 
-    generated_on_create_trigger_data_dict = schema_manager.generate_triggered_data('on_create_trigger', normalized_entity_class, data_dict)
+    generated_before_create_trigger_data_dict = schema_manager.generate_triggered_data('before_create_trigger', normalized_entity_class, data_dict)
 
     # Merge the user json data and generated trigger data into one dictionary
-    merged_dict = {**json_data_dict, **generated_on_create_trigger_data_dict}
+    merged_dict = {**json_data_dict, **generated_before_create_trigger_data_dict}
 
     # `UNWIND` in Cypher expects List<T>
     data_list = [merged_dict]
@@ -941,10 +941,10 @@ def create_derived_entity(normalized_target_entity_class, json_data_dict):
     # Merge all the above dictionaries and pass to the trigger methods
     data_dict = {**user_info_dict, **new_ids_dict}
 
-    generated_on_create_trigger_data_dict = schema_manager.generate_triggered_data('on_create_trigger', normalized_target_entity_class, data_dict)
+    generated_before_create_trigger_data_dict = schema_manager.generate_triggered_data('before_create_trigger', normalized_target_entity_class, data_dict)
 
     # Merge two dictionaries
-    merged_dict = {**json_data_dict, **generated_on_create_trigger_data_dict}
+    merged_dict = {**json_data_dict, **generated_before_create_trigger_data_dict}
 
     # `UNWIND` in Cypher expects List<T>
     data_list = [merged_dict]
@@ -974,10 +974,10 @@ def create_derived_entity(normalized_target_entity_class, json_data_dict):
     # Use normalized_entity_class_dict for building `creation_action` in Activity node later
     data_dict = {**normalized_entity_class_dict, **user_info_dict, **new_ids_dict_for_activity}
 
-    generated_on_create_trigger_data_dict_for_activity = schema_manager.generate_triggered_data('on_create_trigger', normalized_activity_class, data_dict)
+    generated_before_create_trigger_data_dict_for_activity = schema_manager.generate_triggered_data('before_create_trigger', normalized_activity_class, data_dict)
     
     # `UNWIND` in Cypher expects List<T>
-    activity_data_list = [generated_on_create_trigger_data_dict_for_activity]
+    activity_data_list = [generated_before_create_trigger_data_dict_for_activity]
     
     # Convert the list (only contains one entity) to json list string
     activity_json_list_str = json.dumps(activity_data_list)
