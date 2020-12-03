@@ -17,7 +17,7 @@ from schema import schema_manager
 from hubmap_commons import string_helper
 from hubmap_commons import file_helper
 from hubmap_commons import neo4j_driver
-from hubmap_commons import globus_groups_helper
+from hubmap_commons import globus_groups
 from hubmap_commons.hm_auth import AuthHelper
 
 # Set logging fromat and level (default is warning)
@@ -42,16 +42,20 @@ requests.packages.urllib3.disable_warnings(category = InsecureRequestWarning)
 ## Neo4j connection
 ####################################################################################################
 
-neo4j_driver_instance = neo4j_driver.get_instance(app.config['NEO4J_URI'], app.config['NEO4J_USERNAME'], app.config['NEO4J_PASSWORD'])
+# The neo4j_driver (from commons package) is a singleton module
+# This neo4j_driver_instance will be used for application-specifc neo4j queries
+neo4j_driver_instance = neo4j_driver.instance(app.config['NEO4J_URI'], app.config['NEO4J_USERNAME'], app.config['NEO4J_PASSWORD'])
 
 """
-Prevent from maxing the connection pool (maximum total number of connections allowed per host)
-by closing the current neo4j connection at the end of every request
+Close the current neo4j connection at the end of every request
 """
 @app.teardown_appcontext
 def close_neo4j_driver(error):
     if hasattr(g, 'neo4j_driver_instance'):
-        g.neo4j_driver_instance.close()
+        # Close the driver instance
+        neo4j_driver.close()
+        # Also remove neo4j_driver_instance from Flask's application context
+        g.neo4j_driver_instance = None
 
 
 ####################################################################################################
@@ -59,17 +63,24 @@ def close_neo4j_driver(error):
 ####################################################################################################
 
 try:
+    # Pass in the neo4j connection (uri, username, password) parameters in addition to the schema yaml
+    # Because some of the schema trigger methods may issue queries to the neo4j.
     schema_manager.initialize(app.config['SCHEMA_YAML_FILE'], app.config['NEO4J_URI'], app.config['NEO4J_USERNAME'], app.config['NEO4J_PASSWORD'])
 except IOError as ioe:
     internal_server_error("Failed to load the schema yaml file")
- 
+
 
 ####################################################################################################
-## Globus groups json loading
+## AuthHelper initialization
 ####################################################################################################
 
-# Have the groups informaiton available in the application context (lifetime of a request)
-globus_groups = globus_groups_helper.get_globus_groups_info()
+# Initialize AuthHelper (AuthHelper from HuBMAP commons package)
+# auth_helper will be used to get the globus user info and 
+# the secret token for making calls to other APIs
+if AuthHelper.isInitialized() == False:
+    auth_helper = AuthHelper.create(app.config['APP_CLIENT_ID'], app.config['APP_CLIENT_SECRET'])
+else:
+    auth_helper = AuthHelper.instance()
 
 
 ####################################################################################################
@@ -424,7 +435,6 @@ json
 """
 @app.route('/ancestors/<id>', methods = ['GET'])
 def get_ancestors(id):
-    auth_helper = init_auth_helper()
     token = auth_helper.getProcessSecret()
 
     hubmap_ids = schema_manager.get_hubmap_ids(app.config['UUID_API_URL'], id, token)
@@ -473,7 +483,6 @@ json
 """
 @app.route('/descendants/<id>', methods = ['GET'])
 def get_descendants(id):
-    auth_helper = init_auth_helper()
     token = auth_helper.getProcessSecret()
 
     hubmap_ids = schema_manager.get_hubmap_ids(app.config['UUID_API_URL'], id, token)
@@ -522,7 +531,6 @@ json
 """
 @app.route('/parents/<id>', methods = ['GET'])
 def get_parents(id):
-    auth_helper = init_auth_helper()
     token = auth_helper.getProcessSecret()
 
     hubmap_ids = schema_manager.get_hubmap_ids(app.config['UUID_API_URL'], id, token)
@@ -571,7 +579,6 @@ json
 """
 @app.route('/children/<id>', methods = ['GET'])
 def get_children(id):
-    auth_helper = init_auth_helper()
     token = auth_helper.getProcessSecret()
 
     hubmap_ids = schema_manager.get_hubmap_ids(app.config['UUID_API_URL'], id, token)
@@ -675,7 +682,9 @@ def get_dataset_globus_url(id):
 
     uuid = entity_dict['uuid']
 
-    group_ids = globus_groups['by_id']
+    # Get the globus groups info based on the groups json file in commons package
+    globus_groups_info = globus_groups.get_globus_groups_info()
+    group_ids = globus_groups_info['by_id']
     
     # 'data_access_level' is always available since it's transint property
     data_access_level = entity_dict['data_access_level']
@@ -691,7 +700,6 @@ def get_dataset_globus_url(id):
     # Get the user information (if available) for the caller
     # getUserDataAccessLevel will return just a "data_access_level" of public
     # if no auth token is found
-    auth_helper = init_auth_helper()
     user_info = auth_helper.getUserDataAccessLevel(request)        
     
     #construct the Globus URL based on the highest level of access that the user has
@@ -818,9 +826,7 @@ def create_new_entity(normalized_entity_class, json_data_dict):
             collection_dict = query_target_entity(collection_uuid)
 
     # Dictionaries to be merged and passed to trigger methods
-    auth_helper = init_auth_helper()
     token = auth_helper.getProcessSecret()
-
     user_info_dict = schema_manager.get_user_info(auth_helper, request)
     new_ids_dict = schema_manager.create_hubmap_ids(app.config['UUID_API_URL'], normalized_entity_class, token)
 
@@ -918,10 +924,8 @@ def create_derived_entity(normalized_target_entity_class, json_data_dict):
             collection_dict = query_target_entity(collection_uuid)
 
     # Dictionaries to be merged and passed to trigger methods
-    auth_helper = init_auth_helper()
     token = auth_helper.getProcessSecret()
-
-    user_info_dict = schema_manager.get_user_info(request)
+    user_info_dict = schema_manager.get_user_info(auth_helper, request)
     new_ids_dict = schema_manager.create_hubmap_ids(app.config['UUID_API_URL'], normalized_entity_class, token)
 
     # Merge all the above dictionaries and pass to the trigger methods
@@ -952,7 +956,6 @@ def create_derived_entity(normalized_target_entity_class, json_data_dict):
     # Dictionaries to be merged and passed to trigger methods
     normalized_entity_class_dict = {'normalized_entity_class': normalized_target_entity_class}
 
-    auth_helper = init_auth_helper()
     token = auth_helper.getProcessSecret()
 
     new_ids_dict_for_activity = schema_manager.create_hubmap_ids(app.config['UUID_API_URL'], normalized_entity_class, token)
@@ -994,7 +997,6 @@ dict
     A dictionary of entity details returned from neo4j
 """
 def query_target_entity(id):
-    auth_helper = init_auth_helper()
     token = auth_helper.getProcessSecret()
 
     hubmap_ids = schema_manager.get_hubmap_ids(app.config['UUID_API_URL'], id, token)
@@ -1064,19 +1066,3 @@ def access_level_prefix_dir(dir_name):
     else:
         return file_helper.ensureTrailingSlashURL(file_helper.ensureBeginningSlashURL(dir_name))
 
-"""
-Initialize AuthHelper (AuthHelper from HuBMAP commons package)
-HuBMAP commons AuthHelper handles "MAuthorization" or "Authorization"
-
-Returns
--------
-AuthHelper
-    An instnce of AuthHelper
-"""
-def init_auth_helper():
-    if AuthHelper.isInitialized() == False:
-        auth_helper = AuthHelper.create(app.config['APP_CLIENT_ID'], app.config['APP_CLIENT_SECRET'])
-    else:
-        auth_helper = AuthHelper.instance()
-    
-    return auth_helper

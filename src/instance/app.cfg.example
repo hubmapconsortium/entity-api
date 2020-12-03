@@ -1,14 +1,6 @@
 # File path of schema yaml file, DO NOT MODIFY
 SCHEMA_YAML_FILE = '/usr/src/app/src/schema/provenance_schema.yaml'
 
-# File path of groups json file, DO NOT MODIFY
-GROUPS_JSON_FILE = '/usr/src/app/src/resources/globus_groups.json'
-
-# The maximum integer number of entries in the cache queue
-CACHE_MAXSIZE = 128
-# Expire the cache after the time-to-live (seconds)
-CACHE_TTL = 7200
-
 # Globus App ID and secret
 APP_CLIENT_ID = ''
 APP_CLIENT_SECRET = ''

@@ -228,7 +228,6 @@ def set_hubmap_id(property_key, normalized_class, neo4j_driver, data_dict):
     return data_dict['hubmap_id']
 
 
-
 ####################################################################################################
 ## Trigger methods specific to Collection - DO NOT RENAME
 ####################################################################################################
@@ -261,6 +260,7 @@ def get_collection_datasets(property_key, normalized_class, neo4j_driver, data_d
 
 def connect_datasets_to_collection(property_key, normalized_class, neo4j_driver, data_dict):
     return "dummy"
+
 
 ####################################################################################################
 ## Trigger methods specific to Dataset - DO NOT RENAME

@@ -27,11 +27,10 @@ requests.packages.urllib3.disable_warnings(category = InsecureRequestWarning)
 # Expire the cache after the time-to-live (seconds): two hours, 7200 seconds
 cache = TTLCache(128, ttl=7200)
 
-# Make below variables available to all functions
-# Two leading underscores signals to Python that 
-# you want the variable to be "private" to the module
-__SCHEMA__ = None
-__NEO4J_DRIVER__ = None
+# In Python, "privacy" depends on "consenting adults'" levels of agreement, we can't force it.
+# A single leading underscore means you're not supposed to access it "from the outside"
+_schema = None
+_neo4j_driver = None
 
 
 ####################################################################################################
@@ -39,7 +38,8 @@ __NEO4J_DRIVER__ = None
 ####################################################################################################
 
 """
-Initialize the schema_manager module with the schema yaml file and neo4j session
+Initialize the schema_manager module with loading the schema yaml file 
+and create an neo4j driver instance (some trigger methods query neo4j)
 
 Parameters
 ----------
@@ -49,11 +49,12 @@ neo4j_session_context : neo4j.Session object
     The neo4j database session
 """
 def initialize(valid_yaml_file, neo4j_uri, neo4j_username, neo4j_password):
-    global __SCHEMA__
-    global __NEO4J_DRIVER__
+    # Specify as module-scope variables
+    global _schema
+    global _neo4j_driver
 
-    __SCHEMA__ = load_provenance_schema_yaml_file(valid_yaml_file)
-    __NEO4J_DRIVER__ = neo4j_driver.get_instance(neo4j_uri, neo4j_username, neo4j_password)
+    _schema = load_provenance_schema(valid_yaml_file)
+    _neo4j_driver = neo4j_driver.instance(neo4j_uri, neo4j_username, neo4j_password)
     
 
 ####################################################################################################
@@ -74,7 +75,7 @@ dict
     A dict containing the schema details
 """
 @cached(cache)
-def load_provenance_schema_yaml_file(valid_yaml_file):
+def load_provenance_schema(valid_yaml_file):
     with open(valid_yaml_file) as file:
         schema_dict = yaml.safe_load(file)
 
@@ -90,6 +91,7 @@ def load_provenance_schema_yaml_file(valid_yaml_file):
 Clear or invalidate the schema cache even before it expires
 """
 def clear_schema_cache():
+    logger.info("Schema yaml cache cleared")
     cache.clear()
 
 
@@ -106,9 +108,9 @@ list
     A list of entity classes
 """
 def get_all_entity_classes():
-    global __SCHEMA__
+    global _schema
 
-    dict_keys = __SCHEMA__['ENTITIES'].keys()
+    dict_keys = _schema['ENTITIES'].keys()
     # Need convert the dict_keys object to a list
     return list(dict_keys)
 
@@ -130,8 +132,8 @@ dict
     A dictionary of trigger event methods generated data
 """
 def generate_triggered_data(trigger_type, normalized_class, data_dict):
-    global __SCHEMA__
-    global __NEO4J_DRIVER__
+    global _schema
+    global _neo4j_driver
 
     schema_section = None
 
@@ -141,9 +143,9 @@ def generate_triggered_data(trigger_type, normalized_class, data_dict):
 
     # Determine the schema section based on class
     if normalized_class == 'Activity':
-        schema_section = __SCHEMA__['ACTIVITIES']
+        schema_section = _schema['ACTIVITIES']
     else:
-        schema_section = __SCHEMA__['ENTITIES']
+        schema_section = _schema['ENTITIES']
 
     properties = schema_section[normalized_class]['properties']
     class_property_keys = properties.keys() 
@@ -160,7 +162,7 @@ def generate_triggered_data(trigger_type, normalized_class, data_dict):
             trigger_method_to_call = getattr(schema_triggers, trigger_method_name)
 
             try:
-                trigger_generated_data_dict[key] = trigger_method_to_call(key, normalized_class, __NEO4J_DRIVER__, data_dict)
+                trigger_generated_data_dict[key] = trigger_method_to_call(key, normalized_class, _neo4j_driver, data_dict)
             except KeyError as ke:
                 logger.error(ke)
 
@@ -183,9 +185,9 @@ dict
     A entity dictionary with keys that are all defined in schema yaml
 """
 def remove_undefined_entity_properties(normalized_entity_class, entity_dict):
-    global __SCHEMA__
+    global _schema
 
-    properties = __SCHEMA__['ENTITIES'][normalized_entity_class]['properties']
+    properties = _schema['ENTITIES'][normalized_entity_class]['properties']
     class_property_keys = properties.keys() 
     # In Python 3, entity_dict.keys() returns an iterable, which causes error if deleting keys during the loop
     # We can use list to force a copy of the keys to be made
@@ -210,9 +212,9 @@ existing_entity_dict : dict
     Emoty dict for creating new entity, otherwise pass in the existing entity dict
 """
 def validate_json_data_against_schema(json_data_dict, normalized_entity_class, existing_entity_dict = {}):
-    global __SCHEMA__
+    global _schema
 
-    properties = __SCHEMA__['ENTITIES'][normalized_entity_class]['properties']
+    properties = _schema['ENTITIES'][normalized_entity_class]['properties']
     schema_keys = properties.keys() 
     json_data_keys = json_data_dict.keys()
     separator = ', '
@@ -289,12 +291,12 @@ list
     A list of entity classes
 """
 def get_derivation_source_entity_classes():
-    global __SCHEMA__
+    global _schema
 
     derivation_source_entity_classes = []
     entity_classes = get_all_entity_classes()
     for entity_class in entity_classes:
-        if __SCHEMA__['ENTITIES'][entity_class]['derivation']['source']:
+        if _schema['ENTITIES'][entity_class]['derivation']['source']:
             derivation_source_entity_classes.append(entity_class)
 
     return derivation_source_entity_classes
@@ -308,12 +310,12 @@ list
     A list of entity classes
 """
 def get_derivation_target_entity_classes():
-    global __SCHEMA__
+    global _schema
 
     derivation_target_entity_classes = []
     entity_classes = get_all_entity_classes()
     for entity_class in entity_classes:
-        if __SCHEMA__['ENTITIES'][entity_class]['derivation']['target']:
+        if _schema['ENTITIES'][entity_class]['derivation']['target']:
             derivation_target_entity_classes.append(entity_class)
 
     return derivation_target_entity_classes
@@ -402,6 +404,7 @@ def validate_source_entity_class_for_derivation(normalized_source_entity_class):
     if normalized_source_entity_class not in accepted_source_entity_classes:
         bad_request_error("Invalid source entity class specified for creating the derived entity. Accepted classes: " + separator.join(accepted_source_entity_classes))
 
+
 ####################################################################################################
 ## Other functions used in conjuction with the trigger methods
 ####################################################################################################
@@ -453,29 +456,6 @@ def get_user_info(auth_helper, request):
 
     return user_info
 
-"""
-Create a dict of HTTP Authorization header with Bearer token for making calls to uuid-api
-
-Parameters
-----------
-token : str
-    A valid globus nexus token that has access to uuid-api
-
-Returns
--------
-dict
-    The headers dict to be used by requests
-"""
-def create_request_headers(token):
-    auth_header_name = 'Authorization'
-    auth_scheme = 'Bearer'
-
-    headers_dict = {
-        # Don't forget the space between scheme and the token value
-        auth_header_name: auth_scheme + ' ' + token
-    }
-
-    return headers_dict
 
 """
 Retrive target uuid based on the given id
@@ -510,7 +490,7 @@ def get_hubmap_ids(uuid_api_url, id, token):
     # Use modified version of globus app secrect from configuration as the internal token
     # All API endpoints specified in gateway regardless of auth is required or not, 
     # will consider this internal token as valid and has the access to HuBMAP-Read group
-    request_headers = create_request_headers(token)
+    request_headers = _create_request_headers(token)
 
     # Disable ssl certificate verification
     response = requests.get(url = target_url, headers = request_headers, verify = False) 
@@ -577,7 +557,7 @@ def create_hubmap_ids(uuid_api_url, normalized_entity_class, token):
     # Use modified version of globus app secrect from configuration as the internal token
     # All API endpoints specified in gateway regardless of auth is required or not, 
     # will consider this internal token as valid and has the access to HuBMAP-Read group
-    request_headers = create_request_headers(token)
+    request_headers = _create_request_headers(token)
 
     # Disable ssl certificate verification
     response = requests.post(url = uuid_api_url, headers = request_headers, json = json_to_post, verify = False) 
@@ -606,3 +586,31 @@ def create_hubmap_ids(uuid_api_url, normalized_entity_class, token):
 
         raise Exception(msg)
 
+
+####################################################################################################
+## Internal functions
+####################################################################################################
+
+"""
+Create a dict of HTTP Authorization header with Bearer token for making calls to uuid-api
+
+Parameters
+----------
+token : str
+    A valid globus nexus token that has access to uuid-api
+
+Returns
+-------
+dict
+    The headers dict to be used by requests
+"""
+def _create_request_headers(token):
+    auth_header_name = 'Authorization'
+    auth_scheme = 'Bearer'
+
+    headers_dict = {
+        # Don't forget the space between scheme and the token value
+        auth_header_name: auth_scheme + ' ' + token
+    }
+
+    return headers_dict

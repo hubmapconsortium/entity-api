@@ -8,9 +8,10 @@
 # - If a property is marked as `user_input_required: true`, it means this property is required to be provided in the client request JSON
 # - If a property is marked as `user_input_required: true`, it can't have `trigger` at the same time
 # - If a property is marked as `exposed: flase`, it'll be filtered from the response
-# - If a property has `trigger` metadata, it can't be used in client request JSON
-# - If a property has `on_read` trigger event, it must be transient, meaning it's not stored in neo4j and only available during response
 # - There are 3 types of triggers: `on_create_trigger`, `on_update_trigger`, and `on_read_trigger`
+# - If a property has one of the triggers, it can't be used in client request JSON
+# - If a property has `on_read_trigger`, it must be transient, meaning it's not stored in neo4j and only available during response
+
 
 # Properties that are still stored in neo4j but no longer needed: protocol_file, protocol_info
 
