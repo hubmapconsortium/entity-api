@@ -152,8 +152,8 @@ ENTITIES:
         transient: true
         type: list
         description: "A list of dataset uuids that belong to this collection.  This field is used to pass the set of datasets contained in the collection in on a PUT or POST"
-        after_create_trigger: connect_datasets_to_collection
-        after_update_trigger: connect_datasets_to_collection
+        after_create_trigger: link_collection_to_datasets
+        after_update_trigger: link_collection_to_datasets
       datasets:
         transient: true
         type: list #list of datasets
@@ -181,8 +181,8 @@ ENTITIES:
         transient: true
         type: list
         description: "A list of collection uuids for the collections that this dataset belongs to. This is used to pass the reference"
-        after_create_trigger: connect_collections_to_dataset
-        after_update_trigger: connect_collections_to_dataset
+        after_create_trigger: link_dataset_to_collections
+        after_update_trigger: link_dataset_to_collections
       source_uuids:
         transient: true
         type: list
@@ -360,9 +360,6 @@ ENTITIES:
         transient: true
         type: dict - object <sample or donor>
         on_read_trigger: get_sample_direct_ancestor
-
-
-
       # No submission_id for Dataset nor Collection
       # Only Donor and Sample need this
       submission_id:

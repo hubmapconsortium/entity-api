@@ -227,6 +227,21 @@ def set_hubmap_id(property_key, normalized_class, neo4j_driver, data_dict):
         raise KeyError("Missing 'hubmap_id' key in 'data_dict' during calling 'set_hubmap_id()' trigger method.")
     return data_dict['hubmap_id']
 
+def set_group_uuid(property_key, normalized_class, neo4j_driver, data_dict):
+    return "dummy"
+
+def set_group_name(property_key, normalized_class, neo4j_driver, data_dict):
+    return "dummy"
+
+####################################################################################################
+## Trigger methods shared by Donor and Sample - DO NOT RENAME
+####################################################################################################
+
+def set_submission_id(property_key, normalized_class, neo4j_driver, data_dict):
+    if 'submission_id' not in data_dict:
+        raise KeyError("Missing 'submission_id' key in 'data_dict' during calling 'set_submission_id()' trigger method.")
+    return data_dict['submission_id']
+
 
 ####################################################################################################
 ## Trigger methods specific to Collection - DO NOT RENAME
@@ -258,8 +273,34 @@ def get_collection_datasets(property_key, normalized_class, neo4j_driver, data_d
 
     return schema_neo4j_queries.get_collection_datasets(neo4j_driver, data_dict['uuid'])
 
-def connect_datasets_to_collection(property_key, normalized_class, neo4j_driver, data_dict):
-    return "dummy"
+"""
+Trigger event method of getting a list of associated datasets for a given collection
+
+Parameters
+----------
+property_key : str
+    The target property key of the value to be generated
+normalized_class : str
+    One of the classes defined in the schema yaml: Activity, Collection, Donor, Sample, Dataset
+neo4j_driver : neo4j.Driver object
+    The neo4j database connection pool
+data_dict : dict
+    A merged dictionary that contains all possible input data to be used
+    It's fine if a trigger method doesn't use any input data
+
+Returns
+-------
+str
+    The name of relationship
+"""
+def link_collection_to_datasets(property_key, normalized_class, neo4j_driver, data_dict):
+    if 'uuid' not in data_dict:
+        raise KeyError("Missing 'uuid' key in 'data_dict' during calling 'link_collection_to_datasets()' trigger method.")
+
+    if 'uuids_list' not in data_dict:
+        raise KeyError("Missing 'uuids_list' key in 'data_dict' during calling 'link_collection_to_datasets()' trigger method.")
+
+    return schema_neo4j_queries.link_collection_to_datasets(neo4j_driver, data_dict['uuid'], data_dict['uuids_list'])
 
 
 ####################################################################################################
@@ -295,33 +336,53 @@ def get_dataset_source_uuids(property_key, normalized_class, neo4j_driver, data_
 def get_local_file_path(property_key, normalized_class, neo4j_driver, data_dict):
     return "dummy"
 
-def set_group_uuid(property_key, normalized_class, neo4j_driver, data_dict):
-    return "dummy"
+"""
+Trigger event method of getting a list of associated datasets for a given collection
 
-def set_group_name(property_key, normalized_class, neo4j_driver, data_dict):
-    return "dummy"
+Parameters
+----------
+property_key : str
+    The target property key of the value to be generated
+normalized_class : str
+    One of the classes defined in the schema yaml: Activity, Collection, Donor, Sample, Dataset
+neo4j_driver : neo4j.Driver object
+    The neo4j database connection pool
+data_dict : dict
+    A merged dictionary that contains all possible input data to be used
+    It's fine if a trigger method doesn't use any input data
+
+Returns
+-------
+str
+    The name of relationship
+"""
+def link_dataset_to_collectionss(property_key, normalized_class, neo4j_driver, data_dict):
+    if 'uuid' not in data_dict:
+        raise KeyError("Missing 'uuid' key in 'data_dict' during calling 'link_collection_to_datasets()' trigger method.")
+
+    if 'uuids_list' not in data_dict:
+        raise KeyError("Missing 'uuids_list' key in 'data_dict' during calling 'link_collection_to_datasets()' trigger method.")
+
+    return schema_neo4j_queries.link_dataset_to_collectionss(neo4j_driver, data_dict['uuid'], data_dict['uuids_list'])
+
 
 ####################################################################################################
 ## Trigger methods specific to Donor - DO NOT RENAME
 ####################################################################################################
 
-def set_donor_submission_id(property_key, normalized_class, neo4j_driver, data_dict):
-    return "dummy"
-
-def set_donor_group_uuid(property_key, normalized_class, neo4j_driver, data_dict):
-    return "dummy"
+def set_submission_id(property_key, normalized_class, neo4j_driver, data_dict):
+    if 'submission_id' not in data_dict:
+        raise KeyError("Missing 'submission_id' key in 'data_dict' during calling 'set_submission_id()' trigger method.")
+    return data_dict['submission_id']
 
 ####################################################################################################
 ## Trigger methods specific to Sample - DO NOT RENAME
 ####################################################################################################
 
-def set_sample_submission_id(property_key, normalized_class, neo4j_driver, data_dict):
-    return "dummy"
-
 def set_sample_to_parent_relationship(property_key, normalized_class, neo4j_driver, data_dict):
     return "dummy"
 
-def get_sample_ancestor(property_key, normalized_class, neo4j_driver, data_dict):
+def get_sample_direct_ancestor(property_key, normalized_class, neo4j_driver, data_dict):
     return "dummy"
 
 """

@@ -815,26 +815,6 @@ def create_new_entity(normalized_entity_class, json_data_dict):
     # Validate request json against the yaml schema
     schema_manager.validate_json_data_against_schema(json_data_dict, normalized_entity_class)
 
-    # For new dataset to be linked to existing collections
-    collection_uuids_list = []
-    if normalized_entity_class == "Dataset":
-        if 'collection_uuids' in json_data_dict:
-            collection_uuids_list = json_data_dict['collection_uuids']
-
-        # Check existence of those collections
-        for collection_uuid in collection_uuids_list:
-            collection_dict = query_target_entity(collection_uuid)
-
-    # For new colletion to be linked to existing datasets
-    dataset_uuids_list = []
-    if normalized_entity_class == "Collection":
-        if 'dataset_uuids' in json_data_dict:
-            dataset_uuids_list = json_data_dict['dataset_uuids']
-
-        # Check existence of those datasets
-        for dataset_uuid in dataset_uuids_list:
-            dataset_dict = query_target_entity(dataset_uuid)
-
     # Dictionaries to be merged and passed to trigger methods
     token = auth_helper.getProcessSecret()
     user_info_dict = schema_manager.get_user_info(auth_helper, request)
@@ -863,7 +843,37 @@ def create_new_entity(normalized_entity_class, json_data_dict):
     # Create new entity
     # If `collection_uuids_list` is not an empty list, meaning the target entity is Dataset and 
     # we'll be also creating relationships between the new dataset node to the existing collection nodes
-    result_dict = app_neo4j_queries.create_entity(neo4j_driver_instance, normalized_entity_class, escaped_json_list_str, collection_uuids_list = collection_uuids_list, dataset_uuids_list = dataset_uuids_list)
+    result_dict = app_neo4j_queries.create_entity(neo4j_driver_instance, normalized_entity_class, escaped_json_list_str)
+
+    # Handling after_create_trigger methods
+    
+    # For new dataset to be linked to existing collections
+    uuids_list = []
+
+    if normalized_entity_class == "Dataset":
+        if 'collection_uuids' in json_data_dict:
+            uuids_list = json_data_dict['collection_uuids']
+
+        # Check existence of those collections
+        for collection_uuid in uuids_list:
+            collection_dict = query_target_entity(collection_uuid)
+
+    # For new colletion to be linked to existing datasets
+    if normalized_entity_class == "Collection":
+        if 'dataset_uuids' in json_data_dict:
+            uuids_list = json_data_dict['dataset_uuids']
+
+        # Check existence of those datasets
+        for dataset_uuid in uuids_list:
+            dataset_dict = query_target_entity(dataset_uuid)
+
+    # Dictionaries to be used for after_create_trigger methods
+    uuids_list_dict = {'uuids_list': uuids_list}
+
+    after_create_data_dict = {**merged_dict, **uuids_list_dict}
+
+    generated_after_create_trigger_data_dict = schema_manager.generate_triggered_data('after_create_trigger', normalized_entity_class, after_create_data_dict)
+
 
     return result_dict
 
