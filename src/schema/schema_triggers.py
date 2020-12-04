@@ -227,11 +227,73 @@ def set_hubmap_id(property_key, normalized_class, neo4j_driver, data_dict):
         raise KeyError("Missing 'hubmap_id' key in 'data_dict' during calling 'set_hubmap_id()' trigger method.")
     return data_dict['hubmap_id']
 
+
+####################################################################################################
+## Trigger methods shared by Sample, Donor, Dataset - DO NOT RENAME
+####################################################################################################
+
 def set_group_uuid(property_key, normalized_class, neo4j_driver, data_dict):
-    return "dummy"
+    if 'hmgroupids' not in data_dict:
+        raise KeyError("Missing 'hmgroupids' key in 'data_dict' during calling 'set_group_uuid()' trigger method.")
+    
+    # Get the globus groups info based on the groups json file in commons package
+    globus_groups_info = globus_groups.get_globus_groups_info()
+    groups_by_id_dict = globus_groups_info['by_id']
+
+    # A list of data provider uuids
+    data_provider_uuids = []
+    for uuid_key in groups_by_id_dict:
+        if 'data_provider' in groups_by_id_dict[uuid_key] and groups_by_id_dict[uuid_key]['data_provider']:
+            data_provider_uuids.append(uuid_key)
+
+    data_provider_groups = []
+    for group_uuid in data_dict['hmgroupids']:
+        if group_uuid in data_provider_uuids:
+            data_provider_groups.append(group_uuid)
+
+    if len(data_provider_groups) == 0:
+        raise ValueError("No data_provider groups found for this user. Can't continue.")
+
+    if len(data_provider_groups) > 1:
+        raise ValueError("More than one data_provider groups found for this user. Can't continue.")
+
+    # By now only one data provider group found, this is what we want
+    uuid = data_provider_groups[0]
+
+    return uuid
+
 
 def set_group_name(property_key, normalized_class, neo4j_driver, data_dict):
-    return "dummy"
+    if 'hmgroupids' not in data_dict:
+        raise KeyError("Missing 'hmgroupids' key in 'data_dict' during calling 'set_group_name()' trigger method.")
+    
+    # Get the globus groups info based on the groups json file in commons package
+    globus_groups_info = globus_groups.get_globus_groups_info()
+    groups_by_id_dict = globus_groups_info['by_id']
+
+    # A list of data provider uuids
+    data_provider_uuids = []
+    for uuid_key in groups_by_id_dict:
+        if 'data_provider' in groups_by_id_dict[uuid_key] and groups_by_id_dict[uuid_key]['data_provider']:
+            data_provider_uuids.append(uuid_key)
+
+    data_provider_groups = []
+    for group_uuid in data_dict['hmgroupids']:
+        if group_uuid in data_provider_uuids:
+            data_provider_groups.append(group_uuid)
+
+    if len(data_provider_groups) == 0:
+        raise ValueError("No data_provider groups found for this user. Can't continue.")
+
+    if len(data_provider_groups) > 1:
+        raise ValueError("More than one data_provider groups found for this user. Can't continue.")
+
+    # By now only one data provider group found, this is what we want
+    uuid = data_provider_groups[0]
+    group_name = groups_by_id_dict[uuid]['displayname']
+
+    return group_name
+
 
 ####################################################################################################
 ## Trigger methods shared by Donor and Sample - DO NOT RENAME
@@ -333,6 +395,26 @@ def get_dataset_source_uuids(property_key, normalized_class, neo4j_driver, data_
 
     return schema_neo4j_queries.get_dataset_source_uuids(neo4j_driver, data_dict['uuid'])
 
+"""
+Trigger event method of getting the relative directory path of a given uuid
+
+Parameters
+----------
+property_key : str
+    The target property key of the value to be generated
+normalized_class : str
+    One of the classes defined in the schema yaml: Activity, Collection, Donor, Sample, Dataset
+neo4j_driver : neo4j.Driver object
+    The neo4j database connection pool
+data_dict : dict
+    A merged dictionary that contains all possible input data to be used
+    It's fine if a trigger method doesn't use any input data
+
+Returns
+-------
+str
+    The relative directory path
+"""
 def get_local_file_path(property_key, normalized_class, neo4j_driver, data_dict):
     return "dummy"
 
@@ -382,8 +464,31 @@ def set_submission_id(property_key, normalized_class, neo4j_driver, data_dict):
 def set_sample_to_parent_relationship(property_key, normalized_class, neo4j_driver, data_dict):
     return "dummy"
 
+"""
+Trigger event method of getting the parent of a Sample
+
+Parameters
+----------
+property_key : str
+    The target property key of the value to be generated
+normalized_class : str
+    One of the classes defined in the schema yaml: Activity, Collection, Donor, Sample, Dataset
+neo4j_driver : neo4j.Driver object
+    The neo4j database connection pool
+data_dict : dict
+    A merged dictionary that contains all possible input data to be used
+    It's fine if a trigger method doesn't use any input data
+
+Returns
+-------
+dict
+    The parent entity, either another Sample or a Donor
+"""
 def get_sample_direct_ancestor(property_key, normalized_class, neo4j_driver, data_dict):
-    return "dummy"
+    if 'uuid' not in data_dict:
+        raise KeyError("Missing 'uuid' key in 'data_dict' during calling 'get_sample_direct_ancestor()' trigger method.")
+
+    return schema_neo4j_queries.get_sample_direct_ancestor(neo4j_driver, data_dict['uuid'])
 
 """
 Trigger event method of getting source uuid

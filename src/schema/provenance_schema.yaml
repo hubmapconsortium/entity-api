@@ -332,8 +332,6 @@ ENTITIES:
         #todo: migrate to new attribute set as above portal_metadata_upload files
         type: json_string
         description: "A list of uploaded image files and descriptions of the files."
-      
-
       # Must set in neo4j
       group_uuid:
         immutable: true
@@ -361,7 +359,7 @@ ENTITIES:
         type: dict - object <sample or donor>
         on_read_trigger: get_sample_direct_ancestor
       # No submission_id for Dataset nor Collection
-      # Only Donor and Sample need this
+      # Only Donor and Sample have this property
       submission_id:
         description: "The hubmap internal id with embedded semantic information e.g.: VAN0003-LK-1-10.  This id is generated at creation time which tracks the lab, donor, organ and sample hierarchy per the following: https://docs.google.com/document/d/1DjHgmqWF1VA5-3mfzLFNfabbzmc8KLSG9xWx1DDLlzo/edit?usp=sharing"
         before_create_trigger: set_submission_id

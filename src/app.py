@@ -684,7 +684,7 @@ def get_dataset_globus_url(id):
 
     # Get the globus groups info based on the groups json file in commons package
     globus_groups_info = globus_groups.get_globus_groups_info()
-    group_ids = globus_groups_info['by_id']
+    groups_by_id_dict = globus_groups_info['by_id']
     
     # 'data_access_level' is always available since it's transint property
     data_access_level = entity_dict['data_access_level']
@@ -694,7 +694,7 @@ def get_dataset_globus_url(id):
 
     #look up the Component's group ID, return an error if not found
     data_group_id = entity_dict['group_uuid']
-    if not data_group_id in group_ids:
+    if not data_group_id in groups_by_id_dict:
         internal_server_error("Can not find dataset group: " + data_group_id + " for id: " + id)
 
     # Get the user information (if available) for the caller
@@ -818,6 +818,15 @@ def create_new_entity(normalized_entity_class, json_data_dict):
     # Dictionaries to be merged and passed to trigger methods
     token = auth_helper.getProcessSecret()
     user_info_dict = schema_manager.get_user_info(auth_helper, request)
+
+    # Make sure the group information is available
+    # Trigger method will need this to set group_uuid and group_name
+    if 'hmgroupids' not in user_info_dict:
+        internal_server_error("Missing 'hmgroupids' key from user_info_dict")
+
+    if len(user_info_dict['hmgroupids']) == 0:
+        internal_server_error("Key 'hmgroupids' presents but an empty list")
+
     new_ids_dict = schema_manager.create_hubmap_ids(app.config['UUID_API_URL'], normalized_entity_class, token)
 
     # Merge all the above dictionaries and pass to the trigger methods

@@ -374,3 +374,49 @@ def link_dataset_to_collections(neo4j_driver, dataset_uuid, collection_uuids_lis
         raise TransactionError(msg)
     except Exception as e:
         raise e
+
+
+"""
+Get the parent of a given Sample entity
+
+Parameters
+----------
+neo4j_driver : neo4j.Driver object
+    The neo4j database connection pool
+uuid : str
+    The uuid of target entity 
+
+Returns
+-------
+dict
+    The parent dict, can either be a Sample or Donor
+"""
+def get_sample_direct_ancestor(neo4j_driver, uuid):
+    parameterized_query = ("MATCH (e:Entity)<-[:ACTIVITY_OUTPUT]-(:Activity)<-[:ACTIVITY_INPUT]-(parent:Entity) " +
+                           "WHERE e.uuid='{uuid}' " +
+                           # COLLECT() returns a list
+                           # apoc.coll.toSet() reruns a set containing unique nodes
+                           "RETURN parent AS {record_field_name}")
+
+    query = parameterized_query.format(uuid = uuid, 
+                                       record_field_name = record_field_name)
+
+    logger.debug("======get_sample_direct_ancestor() query======")
+    logger.debug(query)
+
+    try:
+        with neo4j_driver.session() as session:
+            result = session.run(query)
+            record = result.single()
+
+            # Convert the entity node to dict
+            node = record[record_field_name]
+            entity_dict = node_to_dict(node)
+    
+            return entity_dict               
+    except CypherSyntaxError as ce:
+        msg = "CypherSyntaxError from calling get_sample_direct_ancestor(): " + ce.message
+        logger.error(msg)
+        raise CypherSyntaxError(msg)
+    except Exception as e:
+        raise e

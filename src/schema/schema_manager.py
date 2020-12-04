@@ -14,6 +14,7 @@ from schema import schema_triggers
 # HuBMAP commons
 from hubmap_commons.hm_auth import AuthHelper
 from hubmap_commons import neo4j_driver
+from hubmap_commons import globus_groups
 
 logger = logging.getLogger(__name__)
 
@@ -443,7 +444,7 @@ dict
 """
 def get_user_info(auth_helper, request):
     # `group_required` is a boolean, when True, 'hmgroupids' is in the output
-    user_info = auth_helper.getUserInfoUsingRequest(request, False)
+    user_info = auth_helper.getUserInfoUsingRequest(request, True)
 
     logger.debug("======get_user_info()======")
     logger.debug(user_info)
