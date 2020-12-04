@@ -227,7 +227,7 @@ def validate_json_data_against_schema(json_data_dict, normalized_entity_class, e
             unsupported_keys.append(key)
 
     if len(unsupported_keys) > 0:
-        bad_request_error("Unsupported keys in request json: " + separator.join(unsupported_keys))
+        raise KeyError("Unsupported keys in request json: " + separator.join(unsupported_keys))
 
     # Check if keys in request json are immutable
     immutable_keys = []
@@ -237,7 +237,7 @@ def validate_json_data_against_schema(json_data_dict, normalized_entity_class, e
                 immutable_keys.append(key)
 
     if len(immutable_keys) > 0:
-        bad_request_error("Immutable keys are not allowed in request json: " + separator.join(immutable_keys))
+        raise KeyError("Immutable keys are not allowed in request json: " + separator.join(immutable_keys))
     
     # Check if keys in request json are generated transient keys
     transient_keys = []
@@ -247,7 +247,7 @@ def validate_json_data_against_schema(json_data_dict, normalized_entity_class, e
                 transient_keys.append(key)
 
     if len(transient_keys) > 0:
-        bad_request_error("Transient keys are not allowed in request json: " + separator.join(transient_keys))
+        rise KeyError("Transient keys are not allowed in request json: " + separator.join(transient_keys))
 
     # Check if any schema keys that are user_input_required but missing from request
     missing_required_keys = []
@@ -268,7 +268,7 @@ def validate_json_data_against_schema(json_data_dict, normalized_entity_class, e
                         missing_required_keys.append(key)
 
     if len(missing_required_keys) > 0:
-        bad_request_error("Missing required keys in request json: " + separator.join(missing_required_keys))
+        raise KeyError("Missing required keys in request json: " + separator.join(missing_required_keys))
 
     # By now all the keys in request json have passed the above two checks: existence cehck in schema and required check in schema
     # Verify data types of keys
@@ -280,7 +280,7 @@ def validate_json_data_against_schema(json_data_dict, normalized_entity_class, e
             invalid_data_type_keys.append(key)
     
     if len(invalid_data_type_keys) > 0:
-        bad_request_error("Keys in request json with invalid data types: " + separator.join(invalid_data_type_keys))
+        raise TypeError("Keys in request json with invalid data types: " + separator.join(invalid_data_type_keys))
 
 
 """
@@ -500,13 +500,13 @@ def get_hubmap_ids(uuid_api_url, id, token):
         ids_list = response.json()
 
         if len(ids_list) == 0:
-            raise Exception("Unable to find information via uuid-api on id: " + id)
+            raise Exception("Could not find the target uuid via uuid-api: " + id)
         if len(ids_list) > 1:
             raise Exception("Found multiple records via uuid-api for id: " + id)
         
         return ids_list[0]
     else:
-        raise Exception("Could not find the target uuid via uuid-api service associatted with the provided id of " + id)
+        raise requests.exceptions.RequestException("Failed to make a request to the target uuid via uuid-api: " + id)
 
 
 """
@@ -592,7 +592,7 @@ def create_hubmap_ids(uuid_api_url, normalized_entity_class, token):
         logger.debug("======create_new_ids() response text======")
         logger.debug(response.text)
 
-        raise Exception(msg)
+        raise requests.exceptions.RequestException(msg)
 
 
 ####################################################################################################
