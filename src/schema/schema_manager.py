@@ -197,6 +197,10 @@ def remove_undefined_entity_properties(normalized_entity_class, entity_dict):
     for key in entity_keys:
         if key not in class_property_keys:
             del entity_dict[key]
+        else:
+            # Also remove the properties that are marked as `exposed: false`
+            if ('exposed' in properties[key]) and (not properties[key]['exposed']):
+                del entity_dict[key]
 
     return entity_dict
 
@@ -210,7 +214,7 @@ json_data_dict : dict
 normalized_entity_class : str
     One of the normalized entity classes: Dataset, Collection, Sample, Donor
 existing_entity_dict : dict
-    Emoty dict for creating new entity, otherwise pass in the existing entity dict
+    Entity dict for creating new entity, otherwise pass in the existing entity dict for update validation
 """
 def validate_json_data_against_schema(json_data_dict, normalized_entity_class, existing_entity_dict = {}):
     global _schema
@@ -229,20 +233,31 @@ def validate_json_data_against_schema(json_data_dict, normalized_entity_class, e
     if len(unsupported_keys) > 0:
         raise KeyError("Unsupported keys in request json: " + separator.join(unsupported_keys))
 
-    # Check if keys in request json are immutable
-    immutable_keys = []
+    # Check if keys in request json are the ones to be auto generated
+    generated_keys = []
     for key in json_data_keys:
-        if 'immutable' in properties[key]:
+        if ('generated' in properties[key]) and properties[key]['generated']:
             if properties[key]:
-                immutable_keys.append(key)
+                generated_keys.append(key)
 
-    if len(immutable_keys) > 0:
-        raise KeyError("Immutable keys are not allowed in request json: " + separator.join(immutable_keys))
-    
+    if len(generated_keys) > 0:
+        raise KeyError("Auto generated keys are not allowed in request json: " + separator.join(generated_keys))
+
+    # Only check if keys in request json are immutable during entity update
+    if not bool(existing_entity_dict):
+        immutable_keys = []
+        for key in json_data_keys:
+            if ('immutable' in properties[key]) and properties[key]['immutable']:
+                if properties[key]:
+                    immutable_keys.append(key)
+
+        if len(immutable_keys) > 0:
+            raise KeyError("Immutable keys are not allowed in request json: " + separator.join(immutable_keys))
+        
     # Check if keys in request json are generated transient keys
     transient_keys = []
     for key in json_data_keys:
-        if 'transient' in properties[key]:
+        if ('transient' in properties[key]) and properties[key]['transient']:
             if properties[key]:
                 transient_keys.append(key)
 
@@ -274,9 +289,12 @@ def validate_json_data_against_schema(json_data_dict, normalized_entity_class, e
     # Verify data types of keys
     invalid_data_type_keys = []
     for key in json_data_keys:
-        # boolean starts with bool, string starts with str, integer starts with int
-        # ??? How to handle other data types?
+        # boolean starts with bool, string starts with str, integer starts with int, list is list
         if not properties[key]['type'].startswith(type(json_data_dict[key]).__name__):
+            invalid_data_type_keys.append(key)
+
+        # Handling json_string as dict
+        if (properties[key]['type'] == 'json_string') and (not isinstance(json_data_dict[key], dict)): 
             invalid_data_type_keys.append(key)
     
     if len(invalid_data_type_keys) > 0:

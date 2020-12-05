@@ -410,7 +410,9 @@ ENTITIES:
         immutable: true # disallow update if this property presents
       
       ancestor:
+        generated: true
         transient: true
+        # To-DO, use one of the valida types: string, integer, boolean, list, json_string
         type: dict - object <sample or donor>
         on_read_trigger: get_sample_direct_ancestor
       # No submission_id for Dataset nor Collection
