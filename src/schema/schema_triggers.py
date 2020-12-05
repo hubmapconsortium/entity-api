@@ -415,7 +415,7 @@ Returns
 str
     The relative directory path
 """
-def get_local_file_path(property_key, normalized_class, neo4j_driver, data_dict):
+def get_local_directory_rel_path(property_key, normalized_class, neo4j_driver, data_dict):
     return "dummy"
 
 """

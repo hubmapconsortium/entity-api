@@ -883,7 +883,6 @@ def create_new_entity(normalized_entity_class, json_data_dict):
 
     generated_after_create_trigger_data_dict = schema_manager.generate_triggered_data('after_create_trigger', normalized_entity_class, after_create_data_dict)
 
-
     return result_dict
 
 """

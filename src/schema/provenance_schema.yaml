@@ -3,10 +3,13 @@
 # - By default, the schema treats all entity properties as mutable. Use `immutable: true` to mark a property as immutable
 # - By default, the schema treats all entity properties as persistent. Use `transient: true` to mark a property as transient
 # - By default, the schema treats all entity properties as they have no triggers. Specify the trigger methods if needed
+
 # - By default, the schema treats all entity properties as `exposed: true`. 
+# - By default, the schema treats all entity properties as `generated: false`, meaning they need to be provided by user from input
 
 # - If a property is marked as `user_input_required: true`, it means this property is required to be provided in the client request JSON
 # - If a property is marked as `user_input_required: true`, it can't have `trigger` at the same time
+# - If a property is marked as `generated: true`, user input is not allowed since it'll be generated
 # - If a property is marked as `exposed: flase`, it'll be filtered from the response
 # - There are 3 types of triggers: `before_create_trigger`, `before_update_trigger`, and `on_read_trigger`
 # - If a property has one of the triggers, it can't be used in client request JSON
@@ -24,32 +27,38 @@ shared_properties: &shared_properties
   ###### Creation info properties ######
   created_timestamp:
     type: integer
+    generated: true # disallow user input from request
     immutable: true
     description: "The timestamp of when the node was created.  The format is an integer representing milliseconds since midnight Jan 1, 1970"
     before_create_trigger: set_timestamp
   created_by_user_displayname:
     type: string
+    generated: true
     immutable: true
     description: "The name of the person or process authenticated when creating the object"
     before_create_trigger: set_user_displayname
   created_by_user_email:
     type: string
+    generated: true
     immutable: true
     description: "The email address of the person or process authenticated when creating the object."
     before_create_trigger: set_user_email
   created_by_user_sub:
     type: string
+    generated: true
     immutable: true
     description: "The subject id as provided by the authorization mechanism for the person or process authenticated when creating the object."
     before_create_trigger: set_user_sub
   ###### ID properties ######
   uuid:
     type: string
+    generated: true
     description: "The HuBMAP unique identifier, intended for internal software use only.  This is a 32 digit hexadecimal uuid e.g. 461bbfdc353a2673e381f632510b0f17"
     before_create_trigger: set_uuid
     immutable: true
   hubmap_id:
     type: string
+    generated: true
     description: "E.g., HBM###.XXXX.###.  A HuBMAP specific id "
     immutable: true
     before_create_trigger: set_hubmap_id
@@ -65,6 +74,7 @@ ACTIVITIES:
       <<: *shared_properties
       creation_action:
         type: string
+        generated: true
         description: "The activity that was performed."
         immutable: true
         before_create_trigger: set_activity_creation_action
@@ -88,29 +98,35 @@ shared_entity_properties: &shared_entity_properties
   ###### Last Modified Properties #######
   last_modified_timestamp:
     type: integer
+    generated: true
     before_update_trigger: set_timestamp
     description: "The timestamp of when the object was last modified.  The format is an integer representing milliseconds since midnight, Jan 1, 1970"
   last_modified_user_sub:
     type: string
+    generated: true
     before_update_trigger: set_user_sub
     description: "The subject id as provided by the authorization mechanism for the person or process authenticated when the object was modified."
   last_modified_user_email:
     type: string
+    generated: true
     before_update_trigger: set_user_email
     description: "The email address of the person or process authenticated when the object was last modified."
   last_modified_user_displayname:
     type: string
+    generated: true
     before_update_trigger: set_user_displayname
     description: "The name of the person or process authenticated when the object was last modified."
   ###### Shared transient properties ######
   data_access_level:
     transient: true
     type: string
+    generated: true
     description: "One of the values: public, consortium, protected. Only Dataset may have protected value"
     on_read_trigger: get_data_access_level
   ###### All other shared properties ######
   entity_class:
     type: string
+    generated: true
     description: "One of the normalized entity types: Dataset, Collection, Sample, Donor"
     immutable: true
     before_create_trigger: set_entity_class 
@@ -154,8 +170,11 @@ ENTITIES:
         description: "A list of dataset uuids that belong to this collection.  This field is used to pass the set of datasets contained in the collection in on a PUT or POST"
         after_create_trigger: link_collection_to_datasets
         after_update_trigger: link_collection_to_datasets
+        # Joe added
+        on_read_trigger: get_collection_dataset_uuids
       datasets:
         transient: true
+        generated: true
         type: list #list of datasets
         description: "The datasets that are contained in the collection."
         on_read_trigger: get_collection_datasets
@@ -177,34 +196,55 @@ ENTITIES:
         user_input_required: true
         type: json_string
         description: "The data or assay types contained in this dataset as a json array of strings.  Each is an assay code from https://github.com/hubmapconsortium/search-api/blob/devel/src/search-schema/data/definitions/enums/assay_types.yaml."
+      
+      # Do we expose the collection_uuids or use the below collections property?
       collection_uuids:
         transient: true
         type: list
         description: "A list of collection uuids for the collections that this dataset belongs to. This is used to pass the reference"
-        after_create_trigger: link_dataset_to_collections
-        after_update_trigger: link_dataset_to_collections
+        after_create_trigger: link_to_collections
+        after_update_trigger: relink_to_collections
+        # Joe added
+        on_read_trigger: get_dataset_collection_uuids
+      # Do we also need the below?
+      collections:
+        transient: true
+        generated: true
+        type: list
+        on_read_trigger: get_dataset_collections
+
       source_uuids:
         transient: true
         type: list
         description: "The uuids of source entities from which this new entity is derived.  Used to pass source entity ids in on POST or PUT calls used to create the linkages."
         on_read_trigger: get_dataset_source_uuids
+        # Joe added
+        immutable: true # disallow entity update if this property presents
+        # Joe added
+        after_create_trigger: link_to_ancestors
+
+
       published_timestamp:
         type: integer
         description: "The timestamp of when the dataset was published.  The format is an integer representing milliseconds since midnight, Jan 1, 1970.  Cannot be set directly must be set with the /datasets/<id>/publish method."
         immutable: true
+        generated: true
         before_create_trigger: set_timestamp
       published_user_displayname:
         type: string
+        generated: true
         description: "The name of the authenticated user or process that published the data.  Cannot be set directly must be set with the /datasets/<id>/publish method."
         immutable: true
         before_create_trigger: set_user_displayname
       published_user_sub:
         type: string
+        generated: true
         immutable: true
         description: "The subject id as provided by the authorization mechanism for the person or process authenticated when the dataset was publised.  Cannot be set directly must be set with the /datasets/<id>/publish method."
         before_create_trigger: set_user_sub
       published_user_email:
         type: string
+        generated: true
         immutable: true
         description: "The email address provided by the authorization mechanism for the person or process authenticated when published.  Cannot be set directly must be set with the /datasets/<id>/publish method."
         before_create_trigger: set_user_email
@@ -219,13 +259,15 @@ ENTITIES:
         ingest_metadata:
         type: json_string
         description: "The metadata returned from the processing at data submission time."
+      
       local_directory_rel_path:
         # Example: protected/<TMC>/<uuid>
         # Refer to the globus-url call
         type: string
+        generated: true
         description: "The path on the local file system, relative to the base data directory, where the data is stored."
         transient: true
-        on_read_trigger: get_local_file_path
+        on_read_trigger: get_local_directory_rel_path
       # The Dataset.data_access_level is based on Dataset.status and Dataset.contains_human_genetic_sequences
       status:
         type: string
@@ -238,11 +280,13 @@ ENTITIES:
       # Must set in neo4j
       group_uuid:
         type: string
+        generated: true
         before_create_trigger: set_group_uuid #method that, if group_uuid is not already set looks for membership in a single "data provider" group and sets to that. Otherwise if not set and no single "provider group" membership throws error
       # Must set in neo4j
       group_name:
         # It's not being mapped in the current version, do we want to map it?
         type: string
+        generated: true
         before_create_trigger: set_group_name #same as group_uuid, except set group_name
 
 
@@ -274,17 +318,20 @@ ENTITIES:
       # Will come back from uuid-api together with the uuid and hubmap_id
       submission_id:
         immutable: true
+        generated: true
         description: "The hubmap internal id with embedded semantic information e.g.: VAN0003.  This id is generated at creation time which tracks the lab, donor, organ and sample hierarchy per the following: https://docs.google.com/document/d/1DjHgmqWF1VA5-3mfzLFNfabbzmc8KLSG9xWx1DDLlzo/edit?usp=sharing"
         type: string
         before_create_trigger: set_submission_id
       # Must set in neo4j
       group_uuid:
         immutable: true
+        generated: true
         type: string
         before_create_trigger: set_group_uuid #method that, if group_uuid is not already set looks for membership in a single "data provider" group and sets to that. Otherwise if not set and no single "provider group" membership throws error.  This field is also used to link (Neo4j relationship) to the correct Lab node on creation.
       # Must set in neo4j
       group_name:
         immutable: true
+        generated: true
         type: string
         before_create_trigger: set_group_name
         #todo: map to provenance_group_name in ES - ? In the current version it's not mapped
@@ -296,7 +343,7 @@ ENTITIES:
         type: string
         immutable: true
         description: "Internal count of child samples, used for generating the submission id of the children. This field is not exposed via the api."
-        # Do not expose to API result
+        # Do not expose to API result via response
         exposed: false
         #todo: add new yaml attribute, exposed that defaults to true.  When false the attribute is not returned in ws response
       label:
@@ -335,11 +382,13 @@ ENTITIES:
       # Must set in neo4j
       group_uuid:
         immutable: true
+        generated: true
         type: string
         before_create_trigger: set_group_uuid #method that, if group_uuid is not already set looks for membership in a single "data provider" group and sets to that. Otherwise if not set and no single "provider group" membership throws error.  This field is also used to link (Neo4j relationship) to the correct Lab node on creation.
       # Must set in neo4j
       group_name:
         immutable: true
+        generated: true
         type: string
         before_create_trigger: set_group_name
       sample_count:
@@ -347,13 +396,19 @@ ENTITIES:
       organ_other:
         type: string
         description: The organ type provided by the user if "other" organ type is selected
+      
+      # If source entity provided from user input, why we would want to response 
+      # the source_uuid and the ancestor at the same time?
+      # ancestor['uuid'] would be the source_uuid, isn't it?
       source_uuid:
         transient: true
         type: string
         description: "The uuid of source entity from which this new entity is derived from. Used on creation or edit to create an action and relationship to the ancestor"
+        after_create_trigger: link_to_direct_ancestor
         on_read_trigger: get_sample_source_uuid
-        after_create_trigger: set_sample_to_parent_relationship
-      # Do we want to have both the ancestor and source_uuid at the same time?
+        # Joe added
+        immutable: true # disallow update if this property presents
+      
       ancestor:
         transient: true
         type: dict - object <sample or donor>
@@ -361,6 +416,8 @@ ENTITIES:
       # No submission_id for Dataset nor Collection
       # Only Donor and Sample have this property
       submission_id:
+        immutable: true
+        generated: true
         description: "The hubmap internal id with embedded semantic information e.g.: VAN0003-LK-1-10.  This id is generated at creation time which tracks the lab, donor, organ and sample hierarchy per the following: https://docs.google.com/document/d/1DjHgmqWF1VA5-3mfzLFNfabbzmc8KLSG9xWx1DDLlzo/edit?usp=sharing"
         before_create_trigger: set_submission_id
       organ:
@@ -373,6 +430,7 @@ ENTITIES:
         type: string
         immutable: true
         description: "Internal count of child samples, used for generating the submission id of the children. This field is not exposed via the api."
+        # For internal use only
         exposed: false
         #todo: add new yaml attribute, exposed that defaults to true.  When false the attribute is not returned in ws response
       metadata:
