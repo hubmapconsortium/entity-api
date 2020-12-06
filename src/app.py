@@ -333,19 +333,17 @@ def create_entity(entity_class):
     # Parse incoming json string into json data(python dict object)
     json_data_dict = request.get_json()
 
-    # When 'source_entities' appears in request json, it means to create a derived entity
-    # from the source entities
-    if ('source_entities' not in json_data_dict) or ('target_entity' not in json_data_dict):
-        bad_request_error("Incorrect json structure. The json request must contain 'source_entities' and 'target_entity'.")
-    
-    if len(json_data_dict) > 2:
-        bad_request_error("Incorrect json structure. The json request must not contain keys other than 'source_entities' and 'target_entity'.")
-    
-    if json_data_dict['source_entities'] is None:
-        # Only pass in the target entity dict
-        entity_dict = create_new_entity(normalized_entity_class, json_data_dict['target_entity'])
-    else:
-        entity_dict = create_derived_entity(normalized_entity_class, json_data_dict)
+    # Validate request json against the yaml schema
+    schema_manager.validate_json_data_against_schema(json_data_dict, normalized_entity_class)
+
+    if normalized_entity_class == 'Collection':
+        entity_dict = create_collection(normalized_entity_class, json_data_dict)
+    elif normalized_entity_class == 'Donor':
+        entity_dict = create_donor(normalized_entity_class, json_data_dict)
+    elif normalized_entity_class == 'Sample':
+        entity_dict = create_sample(normalized_entity_class, json_data_dict)
+    elif normalized_entity_class == 'Dataset':
+        entity_dict = create_dataset(normalized_entity_class, json_data_dict)
 
     return jsonify(entity_dict)
 
@@ -797,7 +795,7 @@ def internal_server_error(err_msg):
 
 
 """
-Create a new entity node of the target class in neo4j
+Create a new Collection entity node of the target class in neo4j
 
 Parameters
 ----------
@@ -809,24 +807,14 @@ json_data_dict: dict
 Returns
 -------
 dict
-    A dict of the newly created entity
+    A dict of the newly created collection entity
 """
-def create_new_entity(normalized_entity_class, json_data_dict):
-    # Validate request json against the yaml schema
-    schema_manager.validate_json_data_against_schema(json_data_dict, normalized_entity_class)
-
-    # Dictionaries to be merged and passed to trigger methods
-    token = auth_helper.getProcessSecret()
+def create_collection(normalized_entity_class, json_data_dict):
+    # Get user info based on request
     user_info_dict = schema_manager.get_user_info(auth_helper, request)
 
-    # Make sure the group information is available
-    # Trigger method will need this to set group_uuid and group_name
-    if 'hmgroupids' not in user_info_dict:
-        internal_server_error("Missing 'hmgroupids' key from user_info_dict")
-
-    if len(user_info_dict['hmgroupids']) == 0:
-        internal_server_error("Key 'hmgroupids' presents but an empty list")
-
+    # Create new ids for the new entity
+    token = auth_helper.getProcessSecret()
     new_ids_dict = schema_manager.create_hubmap_ids(app.config['UUID_API_URL'], normalized_entity_class, token)
 
     # Merge all the above dictionaries and pass to the trigger methods
@@ -846,7 +834,7 @@ def create_new_entity(normalized_entity_class, json_data_dict):
     # Must also escape single quotes in the json string to build a valid Cypher query later
     escaped_json_list_str = json_list_str.replace("'", r"\'")
 
-    app.logger.debug("======create_new_entity() with escaped_json_list_str======")
+    app.logger.debug("======create_collection() with escaped_json_list_str======")
     app.logger.debug(escaped_json_list_str)
 
     # Create new entity
@@ -854,36 +842,230 @@ def create_new_entity(normalized_entity_class, json_data_dict):
     # we'll be also creating relationships between the new dataset node to the existing collection nodes
     result_dict = app_neo4j_queries.create_entity(neo4j_driver_instance, normalized_entity_class, escaped_json_list_str)
 
-    # Handling after_create_trigger methods
-    
-    # For new dataset to be linked to existing collections
-    uuids_list = []
-
-    if normalized_entity_class == "Dataset":
-        if 'collection_uuids' in json_data_dict:
-            uuids_list = json_data_dict['collection_uuids']
-
-        # Check existence of those collections
-        for collection_uuid in uuids_list:
-            collection_dict = query_target_entity(collection_uuid)
-
     # For new colletion to be linked to existing datasets
-    if normalized_entity_class == "Collection":
-        if 'dataset_uuids' in json_data_dict:
-            uuids_list = json_data_dict['dataset_uuids']
+    dataset_uuids_list = []
+    if 'dataset_uuids' in json_data_dict:
+        dataset_uuids_list = json_data_dict['dataset_uuids']
 
-        # Check existence of those datasets
-        for dataset_uuid in uuids_list:
-            dataset_dict = query_target_entity(dataset_uuid)
+    # Check existence of those datasets
+    for dataset_uuid in dataset_uuids_list:
+        dataset_dict = query_target_entity(dataset_uuid)
 
     # Dictionaries to be used for after_create_trigger methods
-    uuids_list_dict = {'uuids_list': uuids_list}
+    dataset_uuids_list_dict = {'dataset_uuids_list': dataset_uuids_list}
 
-    after_create_data_dict = {**merged_dict, **uuids_list_dict}
+    after_create_data_dict = {**merged_dict, **dataset_uuids_list_dict}
 
+    # Handling after_create_trigger methods
     generated_after_create_trigger_data_dict = schema_manager.generate_triggered_data('after_create_trigger', normalized_entity_class, after_create_data_dict)
 
     return result_dict
+
+
+"""
+Create a new Donor entity node of the target class in neo4j
+
+Parameters
+----------
+entity_class : str
+    One of the normalized entity classes: Dataset, Collection, Sample, Donor
+json_data_dict: dict
+    The json request dict of "target_entity" key
+
+Returns
+-------
+dict
+    A dict of the newly created Donor entity
+"""
+def create_donor(normalized_entity_class, json_data_dict):
+    # Get user info based on request
+    user_info_dict = schema_manager.get_user_info(auth_helper, request)
+
+    # Make sure the group information is available
+    # Trigger method will need this to set group_uuid and group_name
+    if 'hmgroupids' not in user_info_dict:
+        internal_server_error("Missing 'hmgroupids' key from user_info_dict")
+
+    if len(user_info_dict['hmgroupids']) == 0:
+        internal_server_error("Key 'hmgroupids' presents but an empty list")
+
+    # Create new ids for the new entity
+    token = auth_helper.getProcessSecret()
+    new_ids_dict = schema_manager.create_hubmap_ids(app.config['UUID_API_URL'], normalized_entity_class, token)
+
+    # Merge all the above dictionaries and pass to the trigger methods
+    data_dict = {**user_info_dict, **new_ids_dict}
+
+    generated_before_create_trigger_data_dict = schema_manager.generate_triggered_data('before_create_trigger', normalized_entity_class, data_dict)
+
+    # Merge the user json data and generated trigger data into one dictionary
+    merged_dict = {**json_data_dict, **generated_before_create_trigger_data_dict}
+
+    # `UNWIND` in Cypher expects List<T>
+    data_list = [merged_dict]
+    
+    # Convert the list (only contains one entity) to json list string
+    json_list_str = json.dumps(data_list)
+
+    # Must also escape single quotes in the json string to build a valid Cypher query later
+    escaped_json_list_str = json_list_str.replace("'", r"\'")
+
+    app.logger.debug("======create_donor() with escaped_json_list_str======")
+    app.logger.debug(escaped_json_list_str)
+
+    # Create new entity
+    # If `collection_uuids_list` is not an empty list, meaning the target entity is Dataset and 
+    # we'll be also creating relationships between the new dataset node to the existing collection nodes
+    result_dict = app_neo4j_queries.create_entity(neo4j_driver_instance, normalized_entity_class, escaped_json_list_str)
+
+    return result_dict
+
+
+
+"""
+Create a new Sample entity node of the target class in neo4j
+
+Parameters
+----------
+entity_class : str
+    One of the normalized entity classes: Dataset, Collection, Sample, Donor
+json_data_dict: dict
+    The json request dict of "target_entity" key
+
+Returns
+-------
+dict
+    A dict of the newly created Sample entity
+"""
+def create_sample(normalized_entity_class, json_data_dict):
+    # Get user info based on request
+    user_info_dict = schema_manager.get_user_info(auth_helper, request)
+
+    # Create new ids for the new entity
+    token = auth_helper.getProcessSecret()
+    new_ids_dict = schema_manager.create_hubmap_ids(app.config['UUID_API_URL'], normalized_entity_class, token)
+
+    # Merge all the above dictionaries and pass to the trigger methods
+    data_dict = {**user_info_dict, **new_ids_dict}
+
+    generated_before_create_trigger_data_dict = schema_manager.generate_triggered_data('before_create_trigger', normalized_entity_class, data_dict)
+
+    # Merge the user json data and generated trigger data into one dictionary
+    merged_dict = {**json_data_dict, **generated_before_create_trigger_data_dict}
+
+    # `UNWIND` in Cypher expects List<T>
+    data_list = [merged_dict]
+    
+    # Convert the list (only contains one entity) to json list string
+    json_list_str = json.dumps(data_list)
+
+    # Must also escape single quotes in the json string to build a valid Cypher query later
+    escaped_json_list_str = json_list_str.replace("'", r"\'")
+
+    app.logger.debug("======create_collection() with escaped_json_list_str======")
+    app.logger.debug(escaped_json_list_str)
+
+    # Create new entity
+    # If `collection_uuids_list` is not an empty list, meaning the target entity is Dataset and 
+    # we'll be also creating relationships between the new dataset node to the existing collection nodes
+    result_dict = app_neo4j_queries.create_entity(neo4j_driver_instance, normalized_entity_class, escaped_json_list_str)
+
+    # For new colletion to be linked to existing datasets
+    source_uuid = None
+    if 'source_uuid' in json_data_dict:
+        source_uuid = json_data_dict['source_uuid']
+
+    # Check existence of the source entity (either another Sample or Donor)
+    source_dict = query_target_entity(source_uuid)
+
+    after_create_data_dict = {**merged_dict, **source_dict}
+
+    # Handling after_create_trigger methods
+    generated_after_create_trigger_data_dict = schema_manager.generate_triggered_data('after_create_trigger', normalized_entity_class, after_create_data_dict)
+
+    return result_dict
+
+"""
+Create a new Collection entity node of the target class in neo4j
+
+Parameters
+----------
+entity_class : str
+    One of the normalized entity classes: Dataset, Collection, Sample, Donor
+json_data_dict: dict
+    The json request dict of "target_entity" key
+
+Returns
+-------
+dict
+    A dict of the newly created collection entity
+"""
+def create_dataset(normalized_entity_class, json_data_dict):
+    # Get user info based on request
+    user_info_dict = schema_manager.get_user_info(auth_helper, request)
+
+    # Create new ids for the new entity
+    token = auth_helper.getProcessSecret()
+    new_ids_dict = schema_manager.create_hubmap_ids(app.config['UUID_API_URL'], normalized_entity_class, token)
+
+    # Merge all the above dictionaries and pass to the trigger methods
+    data_dict = {**user_info_dict, **new_ids_dict}
+
+    generated_before_create_trigger_data_dict = schema_manager.generate_triggered_data('before_create_trigger', normalized_entity_class, data_dict)
+
+    # Merge the user json data and generated trigger data into one dictionary
+    merged_dict = {**json_data_dict, **generated_before_create_trigger_data_dict}
+
+    # `UNWIND` in Cypher expects List<T>
+    data_list = [merged_dict]
+    
+    # Convert the list (only contains one entity) to json list string
+    json_list_str = json.dumps(data_list)
+
+    # Must also escape single quotes in the json string to build a valid Cypher query later
+    escaped_json_list_str = json_list_str.replace("'", r"\'")
+
+    app.logger.debug("======create_dataset() with escaped_json_list_str======")
+    app.logger.debug(escaped_json_list_str)
+
+    # Create new entity
+    # If `collection_uuids_list` is not an empty list, meaning the target entity is Dataset and 
+    # we'll be also creating relationships between the new dataset node to the existing collection nodes
+    result_dict = app_neo4j_queries.create_entity(neo4j_driver_instance, normalized_entity_class, escaped_json_list_str)
+
+    # For new dataset to be linked to existing Collections
+    collection_uuids_list = []
+    if 'collection_uuids' in json_data_dict:
+        collection_uuids_list = json_data_dict['collection_uuids']
+
+    # Check existence of those collections
+    for collection_uuid in collection_uuids_list:
+        collection_dict = query_target_entity(collection_uuid)
+
+    collection_uuids_list_dict = {'collection_uuids_list': collection_uuids_list}
+
+    # Handling source_uuids
+    source_uuids_list = []
+    if 'source_uuids' in json_data_dict:
+        source_uuids_list = json_data_dict['source_uuids']
+
+        # Check existence of those source entities
+        for source_uuid in source_uuids_list:
+            source_dict = query_target_entity(source_uuid)
+
+        # TO-DO
+        # build linkages via Activity to source entities
+
+        source_uuids_list_dict = {'source_uuids_list': source_uuids_list}
+
+    # Dictionaries to be used for after_create_trigger methods
+    after_create_data_dict = {**merged_dict, **collection_uuids_list_dict, **source_uuids_list_dict}
+
+    # Handling after_create_trigger methods
+    generated_after_create_trigger_data_dict = schema_manager.generate_triggered_data('after_create_trigger', normalized_entity_class, after_create_data_dict)
+
+    return result_dict
+
 
 """
 Create a derived entity from the given source entity in neo4j

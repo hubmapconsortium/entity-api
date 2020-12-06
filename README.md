@@ -108,7 +108,7 @@ GET https://entity-api.refactor.hubmapconsortium.org/<entity_class>/entities?pro
 
 This returns a list of UUIDs of the resulting entities instead of all the properties of each entity.
 
-### Create an entity (new or derived) of the target class
+### Create an entity of the target class
 
 ````
 POST https://entity-api.refactor.hubmapconsortium.org/entities/<entity_class>
@@ -131,29 +131,9 @@ Create a new entity:
 
 ````
 {
-    "source_entities": null or [],
-    "target_entity": {
-        all the standard properties defined in schema yaml for the target class...
-    }
+    all the standard properties defined in schema yaml for the target class...
 }
 ````
-
-Create a derived entity:
-
-````
-{
-    "source_entities": [
-        {"class": "Sample", "id": "44324234"},
-        {"class": "Sample", "id": "6adsd230"},
-        ...
-    ],
-    "target_entity": {
-        all the standard properties defined in schema yaml for the target class...
-    }
-}
-````
-
-Note: The `id` of each source entity can be either a HuBMAP ID (e.g. HBM123.ABCD.456) or UUID of target entity
 
 ### Update the properties of a given entity (except for Collection)
 

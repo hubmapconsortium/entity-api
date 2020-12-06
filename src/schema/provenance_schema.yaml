@@ -408,10 +408,6 @@ ENTITIES:
       organ_other:
         type: string
         description: The organ type provided by the user if "other" organ type is selected
-      
-      # If source entity provided from user input, why we would want to response 
-      # the source_uuid and the ancestor at the same time?
-      # ancestor['uuid'] would be the source_uuid, isn't it?
       source_uuid:
         type: string
         transient: true
@@ -420,6 +416,7 @@ ENTITIES:
         description: "The uuid of source entity from which this new entity is derived from. Used on creation or edit to create an action and relationship to the ancestor"
         after_create_trigger: link_to_direct_ancestor
         on_read_trigger: get_sample_source_uuid
+      # Why do we want this? Dataset has source_uuids but no such ancestors at the same time - Joe
       ancestor:
         type: json_string
         generated: true

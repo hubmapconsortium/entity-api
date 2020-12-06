@@ -369,6 +369,34 @@ def link_collection_to_datasets(property_key, normalized_class, neo4j_driver, da
 ## Trigger methods specific to Dataset - DO NOT RENAME
 ####################################################################################################
 
+
+"""
+Trigger event method of building linkages between this new eneity and its source entities
+
+Parameters
+----------
+property_key : str
+    The target property key of the value to be generated
+normalized_class : str
+    One of the classes defined in the schema yaml: Activity, Collection, Donor, Sample, Dataset
+neo4j_driver : neo4j.Driver object
+    The neo4j database connection pool
+data_dict : dict
+    A merged dictionary that contains all possible input data to be used
+    It's fine if a trigger method doesn't use any input data
+
+Returns
+-------
+str
+    The uuid string of source entity
+"""
+def link_to_ancestors(property_key, normalized_class, neo4j_driver, data_dict):
+    if 'uuid' not in data_dict:
+        raise KeyError("Missing 'uuid' key in 'data_dict' during calling 'get_dataset_source_uuids()' trigger method.")
+
+    return schema_neo4j_queries.get_dataset_source_uuids(neo4j_driver, data_dict['uuid'])
+
+
 """
 Trigger event method of getting source uuid
 
