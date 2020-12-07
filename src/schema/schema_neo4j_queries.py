@@ -56,6 +56,58 @@ def get_dataset_source_uuids(neo4j_driver, uuid):
         raise e
 
 """
+Create a linkage (via Activity node) between the dataset node and the source entity node in neo4j
+
+Parameters
+----------
+neo4j_driver : neo4j.Driver object
+    The neo4j database connection pool
+dataset_uuid : str
+    The uuid of target dataset
+source_uuid : str
+    The uuid of source entity
+activity_json_list_str : str
+    The string representation of a list containing only one Activity node to be created
+
+Returns
+-------
+boolean
+    True if everything goes well
+"""
+def link_dataset_to_source_entity(neo4j_driver, dataset_uuid, source_uuid, activity_json_list_str):
+    try:
+        with neo4j_driver.session() as session:
+            tx = session.begin_transaction()
+
+            # Create the Acvitity node
+            activity_dict = create_activity_tx(tx, activity_json_list_str)
+
+            # Create relationship from source Entity node to this Activity node
+            create_relationship_tx(tx, source_uuid, activity_dict['uuid'], 'ACTIVITY_INPUT', '->')
+                
+            # Create relationship from this Activity node to the dataset node
+            create_relationship_tx(tx, activity_dict['uuid'], dataset_uuid, 'ACTIVITY_OUTPUT', '->')
+
+            tx.commit()
+
+            return True
+    except CypherSyntaxError as ce:
+        msg = "CypherSyntaxError from calling link_dataset_to_source_entity(): " + ce.message
+        logger.error(msg)
+        raise CypherSyntaxError(msg)
+    except TransactionError as te:
+        msg = "TransactionError from calling link_dataset_to_source_entity(): " + te.value
+        logger.error(msg)
+
+        if tx.closed() == False:
+            logger.error("Failed to commit link_dataset_to_source_entity() transaction, rollback")
+            tx.rollback()
+
+        raise TransactionError(msg)
+    except Exception as e:
+        raise e
+
+"""
 Get a list of associated dataset dicts for a given collection
 
 Parameters
@@ -307,15 +359,27 @@ def link_dataset_to_collections_tx(tx, dataset_uuid, collection_uuids_list):
 
     return relationship
 
+"""
+Create relationships between the target Collection node and containing Datasets nodes in neo4j
 
+Parameters
+----------
+neo4j_driver : neo4j.Driver object
+    The neo4j database connection pool
+collection_uuid : str
+    The uuid of target collection
+dataset_uuids_list: list
+    The list of dataset uuids to be linked
+
+Returns
+-------
+str
+    The relationship type name
+"""
 def link_collection_to_datasets(neo4j_driver, collection_uuid, dataset_uuids_list):
     try:
         with neo4j_driver.session() as session:
             tx = session.begin_transaction()
-
-            logger.info("Delete relationships between the target Collection and associated Datasets")
-
-            count_deleted = unlink_collection_to_datasets_tx(tx, collection_uuid)
 
             logger.info("Create relationships between the target Collection and associated Datasets")
 
@@ -341,16 +405,79 @@ def link_collection_to_datasets(neo4j_driver, collection_uuid, dataset_uuids_lis
     except Exception as e:
         raise e
 
+"""
+Recreate relationships between the target Collection node and containing Datasets nodes in neo4j
 
+Parameters
+----------
+neo4j_driver : neo4j.Driver object
+    The neo4j database connection pool
+collection_uuid : str
+    The uuid of target collection
+dataset_uuids_list: list
+    The list of dataset uuids to be linked
+
+Returns
+-------
+str
+    The relationship type name
+"""
+def relink_collection_to_datasets(neo4j_driver, collection_uuid, dataset_uuids_list):
+    try:
+        with neo4j_driver.session() as session:
+            tx = session.begin_transaction()
+
+            logger.info("Delete relationships between the target Collection and associated Datasets")
+
+            count_deleted = unlink_collection_to_datasets_tx(tx, collection_uuid)
+
+            logger.info("Create relationships between the target Collection and associated Datasets")
+
+            relationship = link_collection_to_datasets_tx(tx, collection_uuid, dataset_uuids_list)
+
+            tx.commit()
+
+            return relationship
+    except CypherSyntaxError as ce:
+        msg = "CypherSyntaxError from calling relink_collection_to_datasets(): " + ce.message
+        logger.error(msg)
+        raise CypherSyntaxError(msg)
+    except TransactionError as te:
+        msg = "TransactionError from calling relink_collection_to_datasets(): " + te.value
+        logger.error(msg)
+
+        if tx.closed() == False:
+            logger.info("Failed to commit relink_collection_to_datasets() transaction, rollback")
+
+            tx.rollback()
+
+        raise TransactionError(msg)
+    except Exception as e:
+        raise e
+
+
+"""
+Create relationships between the target dataset node and collection nodes in neo4j
+
+Parameters
+----------
+neo4j_driver : neo4j.Driver object
+    The neo4j database connection pool
+dataset_uuid : str
+    The uuid of target dataset
+collection_uuids_list: list
+    The list of collection uuids to be linked
+
+Returns
+-------
+str
+    The relationship type name
+"""
 def link_dataset_to_collections(neo4j_driver, dataset_uuid, collection_uuids_list):
     try:
         with neo4j_driver.session() as session:
             tx = session.begin_transaction()
-            
-            logger.info("Delete relationships between the target Dataset and associated Collections")
-
-            count_deleted = unlink_collection_to_datasets_tx(tx, dataset_uuid)
-
+   
             logger.info("Create relationships between the target Dataset and associated Collections")
 
             relationship = create_relationships_tx(tx, dataset_uuid, collection_uuids_list)
@@ -375,6 +502,55 @@ def link_dataset_to_collections(neo4j_driver, dataset_uuid, collection_uuids_lis
     except Exception as e:
         raise e
 
+"""
+Recreate relationships between the target dataset node and collection nodes in neo4j
+
+Parameters
+----------
+neo4j_driver : neo4j.Driver object
+    The neo4j database connection pool
+dataset_uuid : str
+    The uuid of target dataset
+collection_uuids_list: list
+    The list of collection uuids to be linked
+
+Returns
+-------
+str
+    The relationship type name
+"""
+def relink_dataset_to_collections(neo4j_driver, dataset_uuid, collection_uuids_list):
+    try:
+        with neo4j_driver.session() as session:
+            tx = session.begin_transaction()
+            
+            logger.info("Delete relationships between the target Dataset and associated Collections")
+
+            count_deleted = unlink_collection_to_datasets_tx(tx, dataset_uuid)
+
+            logger.info("Create relationships between the target Dataset and associated Collections")
+
+            relationship = create_relationships_tx(tx, dataset_uuid, collection_uuids_list)
+
+            tx.commit()
+
+            return relationship
+    except CypherSyntaxError as ce:
+        msg = "CypherSyntaxError from calling relink_dataset_to_collections(): " + ce.message
+        logger.error(msg)
+        raise CypherSyntaxError(msg)
+    except TransactionError as te:
+        msg = "TransactionError from calling relink_dataset_to_collections(): " + te.value
+        logger.error(msg)
+
+        if tx.closed() == False:
+            logger.info("Failed to commit relink_dataset_to_collections() transaction, rollback")
+
+            tx.rollback()
+
+        raise TransactionError(msg)
+    except Exception as e:
+        raise e
 
 """
 Get the parent of a given Sample entity
@@ -420,3 +596,46 @@ def get_sample_direct_ancestor(neo4j_driver, uuid):
         raise CypherSyntaxError(msg)
     except Exception as e:
         raise e
+
+
+####################################################################################################
+## Activity creation
+####################################################################################################
+
+"""
+Create a new activity node in neo4j
+
+Parameters
+----------
+tx : neo4j.Transaction object
+    The neo4j.Transaction object instance
+json_list_str : str
+    The string representation of a list containing only one entity to be created
+
+Returns
+-------
+neo4j.node
+    A neo4j node instance of the newly created entity node
+"""
+def create_activity_tx(tx, json_list_str):
+    # UNWIND expects json.entities to be List<T>
+    parameterized_query = ("WITH apoc.convert.fromJsonList('{json_list_str}') AS activities_list " +
+                           "UNWIND activities_list AS data " +
+                           "CREATE (a:Activity) " +
+                           "SET a = data " +
+                           "RETURN a AS {record_field_name}")
+
+    query = parameterized_query.format(json_list_str = json_list_str,
+                                       record_field_name = record_field_name)
+
+    logger.debug("======create_activity_tx() query======")
+    logger.debug(query)
+
+    result = tx.run(query)
+    record = result.single()
+    node = record[record_field_name]
+
+    logger.debug("======create_activity_tx() resulting node======")
+    logger.debug(node)
+
+    return node

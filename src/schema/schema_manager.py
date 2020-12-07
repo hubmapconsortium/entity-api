@@ -1,4 +1,5 @@
 import yaml
+import traceback
 import logging
 import requests
 from cachetools import cached, TTLCache
@@ -32,7 +33,8 @@ cache = TTLCache(128, ttl=7200)
 # A single leading underscore means you're not supposed to access it "from the outside"
 _schema = None
 _neo4j_driver = None
-
+_uuid_api_url = None
+_auth_helper = None
 
 ####################################################################################################
 ## Provenance yaml schema initialization
@@ -49,13 +51,21 @@ valid_yaml_file : file
 neo4j_session_context : neo4j.Session object
     The neo4j database session
 """
-def initialize(valid_yaml_file, neo4j_uri, neo4j_username, neo4j_password):
+def initialize(valid_yaml_file, neo4j_uri, neo4j_username, neo4j_password, uuid_api_url, globus_app_client_id, globus_app_client_secret):
     # Specify as module-scope variables
     global _schema
     global _neo4j_driver
+    global _uuid_api_url
+    global _auth_helper
 
     _schema = load_provenance_schema(valid_yaml_file)
     _neo4j_driver = neo4j_driver.instance(neo4j_uri, neo4j_username, neo4j_password)
+    _uuid_api_url = uuid_api_url
+
+    # Initialize AuthHelper (AuthHelper from HuBMAP commons package)
+    # auth_helper will be used to get the globus user info and 
+    # the secret token for making calls to other APIs
+    _auth_helper = AuthHelper.create(globus_app_client_id, globus_app_client_secret)
     
 
 ####################################################################################################
@@ -155,19 +165,49 @@ def generate_triggered_data(trigger_type, normalized_class, data_dict):
     trigger_generated_data_dict = {}
     for key in class_property_keys:
         if trigger_type in properties[key]:
-            trigger_method_name = properties[key][trigger_type]
 
-            logger.debug("Calling schema trigger method: " + trigger_method_name)
+            if trigger_type in ['after_create_trigger', 'after_update_trigger']:
+                # Only call the triggers if the propery key presents from the incoming data
+                # E.g., 'source_uuid' for Sample, 'dataset_uuids' for Collection
+                if key in data_dict:
+                    trigger_method_name = properties[key][trigger_type]
 
-            # Call the target trigger method of schema_triggers.py module
-            trigger_method_to_call = getattr(schema_triggers, trigger_method_name)
+                    logger.debug("Calling schema " + trigger_type + ": " + trigger_method_name + " defined for " + normalized_class)
 
-            try:
-                trigger_generated_data_dict[key] = trigger_method_to_call(key, normalized_class, _neo4j_driver, data_dict)
-            except KeyError as ke:
-                logger.error(ke)
+                    # Call the target trigger method of schema_triggers.py module
+                    trigger_method_to_call = getattr(schema_triggers, trigger_method_name)
 
-    return trigger_generated_data_dict
+                    try:
+                        # No return values for 'after_create_trigger' and 'after_update_trigger'
+                        # because the property value is already set in `data_dict`
+                        # normally it's building linkages between entity nodes
+                        trigger_method_to_call(key, normalized_class, _neo4j_driver, data_dict)
+                    except KeyError as ke:
+                        logger.error(ke)
+                    except Exception as e:
+                        logger.error(traceback.format_exc())
+
+                    # True to indicate success
+                    return True
+            else:
+                # Handling of all other trigger types:
+                # before_create_trigger|before_update_trigger|on_read_trigger
+                trigger_method_name = properties[key][trigger_type]
+
+                logger.debug("Calling schema " + trigger_type + ": " + trigger_method_name + " defined for " + normalized_class)
+
+                # Call the target trigger method of schema_triggers.py module
+                trigger_method_to_call = getattr(schema_triggers, trigger_method_name)
+
+                try:
+                    # Will set the trigger return value as the property value
+                    trigger_generated_data_dict[key] = trigger_method_to_call(key, normalized_class, _neo4j_driver, data_dict)
+                except KeyError as ke:
+                    logger.error(ke)
+                except Exception as e:
+                    logger.error(traceback.format_exc())
+
+                return trigger_generated_data_dict
 
 
 """
@@ -460,16 +500,18 @@ dict
         "hmscopes": ["urn:globus:auth:scope:nexus.api.globus.org:groups"],
     }
 """
-def get_user_info(auth_helper, request):
+def get_user_info(request):
+    global _auth_helper
+
     # `group_required` is a boolean, when True, 'hmgroupids' is in the output
-    user_info = auth_helper.getUserInfoUsingRequest(request, True)
+    user_info = _auth_helper.getUserInfoUsingRequest(request, True)
 
     logger.debug("======get_user_info()======")
     logger.debug(user_info)
 
     # If returns error response, invalid header or token
     if isinstance(user_info, Response):
-        msg = "Failed to query the user info with the given globus token"
+        msg = "Failed to query the user info with the given globus token from the http request"
         logger.error(msg)
         raise Exception(msg)
 
@@ -481,13 +523,9 @@ Retrive target uuid based on the given id
 
 Parameters
 ----------
-uuid_api_url : str
-    The target url of uuid-api
 id : str
     Either the uuid or hubmap_id of target entity 
-token : str
-    A valid globus nexus token that has access to uuid-api
-    
+ 
 Returns
 -------
 dict
@@ -503,13 +541,11 @@ dict
         "userId": "83ae233d-6d1d-40eb-baa7-b6f636ab579a"
     }
 """
-def get_hubmap_ids(uuid_api_url, id, token):
-    target_url = uuid_api_url + '/' + id
+def get_hubmap_ids(id):
+    global _uuid_api_url
 
-    # Use modified version of globus app secrect from configuration as the internal token
-    # All API endpoints specified in gateway regardless of auth is required or not, 
-    # will consider this internal token as valid and has the access to HuBMAP-Read group
-    request_headers = _create_request_headers(token)
+    target_url = _uuid_api_url + '/' + id
+    request_headers = _create_request_headers()
 
     # Disable ssl certificate verification
     response = requests.get(url = target_url, headers = request_headers, verify = False) 
@@ -548,12 +584,8 @@ displayDoi -> hubmap_id
 
 Parameters
 ----------
-uuid_api_url : str
-    The target url of uuid-api
-normalized_entity_class : str
-    One of the entity classes defined in the schema yaml: Collection, Donor, Sample, Dataset
-token : str
-    A valid globus token that can make calls to uuis-api
+normalized_class : str
+    One of the classes defined in the schema yaml: Activity, Collection, Donor, Sample, Dataset
 
 Returns
 -------
@@ -566,7 +598,9 @@ dict
     }
 
 """
-def create_hubmap_ids(uuid_api_url, normalized_entity_class, token):
+def create_hubmap_ids(normalized_class):
+    global _uuid_api_url
+
     # Must use "generateDOI": "true" to generate the doi (doi_suffix_id) and displayDoi (hubmap_id)
     ##############################
     # For sample and dataset, pass in the source_uuid
@@ -574,19 +608,14 @@ def create_hubmap_ids(uuid_api_url, normalized_entity_class, token):
     ##############################
     
     json_to_post = {
-        'entityType': normalized_entity_class, 
+        'entityType': normalized_class, 
         'generateDOI': "true"
     }
 
-
-
-    # Use modified version of globus app secrect from configuration as the internal token
-    # All API endpoints specified in gateway regardless of auth is required or not, 
-    # will consider this internal token as valid and has the access to HuBMAP-Read group
-    request_headers = _create_request_headers(token)
+    request_headers = _create_request_headers()
 
     # Disable ssl certificate verification
-    response = requests.post(url = uuid_api_url, headers = request_headers, json = json_to_post, verify = False) 
+    response = requests.post(url = _uuid_api_url, headers = request_headers, json = json_to_post, verify = False) 
     
     if response.status_code == 200:
         ids_list = response.json()
@@ -600,7 +629,7 @@ def create_hubmap_ids(uuid_api_url, normalized_entity_class, token):
 
         return new_ids_dict
     else:
-        msg = "Failed to create new ids via the uuid-api service during the creation of this new " + normalized_entity_class
+        msg = "Failed to create new ids via the uuid-api service during the creation of this new " + normalized_class
         
         logger.error(msg)
 
@@ -620,19 +649,17 @@ def create_hubmap_ids(uuid_api_url, normalized_entity_class, token):
 """
 Create a dict of HTTP Authorization header with Bearer token for making calls to uuid-api
 
-Parameters
-----------
-token : str
-    A valid globus nexus token that has access to uuid-api
-
 Returns
 -------
 dict
     The headers dict to be used by requests
 """
-def _create_request_headers(token):
+def _create_request_headers():
+    global _auth_helper
+
     auth_header_name = 'Authorization'
     auth_scheme = 'Bearer'
+    token = _auth_helper.getProcessSecret()
 
     headers_dict = {
         # Don't forget the space between scheme and the token value

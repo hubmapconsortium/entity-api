@@ -1,6 +1,8 @@
+import json
 import datetime
 
 # Local modules
+from schema import schema_manager
 from schema import schema_neo4j_queries
 
 
@@ -304,6 +306,13 @@ def set_submission_id(property_key, normalized_class, neo4j_driver, data_dict):
         raise KeyError("Missing 'submission_id' key in 'data_dict' during calling 'set_submission_id()' trigger method.")
     return data_dict['submission_id']
 
+def link_sample_to_direct_ancestor(property_key, normalized_class, neo4j_driver, data_dict):
+    if 'uuid' not in data_dict:
+        raise KeyError("Missing 'uuid' key in 'data_dict' during calling 'link_sample_to_direct_ancestor()' trigger method.")
+ 
+    if 'source_uuid' not in data_dict:
+        raise KeyError("Missing 'source_uuid' key in 'data_dict' during calling 'link_sample_to_direct_ancestor()' trigger method.")
+
 
 ####################################################################################################
 ## Trigger methods specific to Collection - DO NOT RENAME
@@ -336,7 +345,7 @@ def get_collection_datasets(property_key, normalized_class, neo4j_driver, data_d
     return schema_neo4j_queries.get_collection_datasets(neo4j_driver, data_dict['uuid'])
 
 """
-Trigger event method of getting a list of associated datasets for a given collection
+Trigger event method of creating relationships between the target collection and datasets
 
 Parameters
 ----------
@@ -359,19 +368,14 @@ def link_collection_to_datasets(property_key, normalized_class, neo4j_driver, da
     if 'uuid' not in data_dict:
         raise KeyError("Missing 'uuid' key in 'data_dict' during calling 'link_collection_to_datasets()' trigger method.")
 
-    if 'uuids_list' not in data_dict:
-        raise KeyError("Missing 'uuids_list' key in 'data_dict' during calling 'link_collection_to_datasets()' trigger method.")
+    if 'dataset_uuids' not in data_dict:
+        raise KeyError("Missing 'dataset_uuids' key in 'data_dict' during calling 'link_collection_to_datasets()' trigger method.")
 
-    return schema_neo4j_queries.link_collection_to_datasets(neo4j_driver, data_dict['uuid'], data_dict['uuids_list'])
-
-
-####################################################################################################
-## Trigger methods specific to Dataset - DO NOT RENAME
-####################################################################################################
+    return schema_neo4j_queries.link_collection_to_datasets(neo4j_driver, data_dict['uuid'], data_dict['dataset_uuids'])
 
 
 """
-Trigger event method of building linkages between this new eneity and its source entities
+Trigger event method of recreating the linkages between target collection and datasets
 
 Parameters
 ----------
@@ -388,13 +392,88 @@ data_dict : dict
 Returns
 -------
 str
+    The name of relationship
+"""
+def relink_collection_to_datasets(property_key, normalized_class, neo4j_driver, data_dict):
+    if 'uuid' not in data_dict:
+        raise KeyError("Missing 'uuid' key in 'data_dict' during calling 'link_collection_to_datasets()' trigger method.")
+
+    if 'dataset_uuids' not in data_dict:
+        raise KeyError("Missing 'dataset_uuids' key in 'data_dict' during calling 'link_collection_to_datasets()' trigger method.")
+
+    return schema_neo4j_queries.relink_collection_to_datasets(neo4j_driver, data_dict['uuid'], data_dict['dataset_uuids'])
+
+
+####################################################################################################
+## Trigger methods specific to Dataset - DO NOT RENAME
+####################################################################################################
+
+"""
+Trigger event method of building linkages between this new Dtaset and its source entities
+
+Parameters
+----------
+property_key : str
+    The target property key
+normalized_class : str
+    One of the classes defined in the schema yaml: Activity, Collection, Donor, Sample, Dataset
+neo4j_driver : neo4j.Driver object
+    The neo4j database connection pool
+data_dict : dict
+    A merged dictionary that contains all possible input data to be used
+    It's fine if a trigger method doesn't use any input data
+
+Returns
+-------
+str
     The uuid string of source entity
 """
-def link_to_ancestors(property_key, normalized_class, neo4j_driver, data_dict):
+def link_dataset_to_source_entities(property_key, normalized_class, neo4j_driver, data_dict):
     if 'uuid' not in data_dict:
-        raise KeyError("Missing 'uuid' key in 'data_dict' during calling 'get_dataset_source_uuids()' trigger method.")
+        raise KeyError("Missing 'uuid' key in 'data_dict' during calling 'link_dataset_to_source_entities()' trigger method.")
 
-    return schema_neo4j_queries.get_dataset_source_uuids(neo4j_driver, data_dict['uuid'])
+    if 'source_uuids' not in data_dict:
+        raise KeyError("Missing 'source_uuids' key in 'data_dict' during calling 'link_dataset_to_source_entities()' trigger method.")
+
+    if 'user_info' not in data_dict:
+        raise KeyError("Missing 'user_info' key in 'data_dict' during calling 'link_dataset_to_source_entities()' trigger method.")
+
+    # For each source entity, create a linkage (via Activity node) 
+    # between the dataset node and the source entity node in neo4j
+    for source_uuid in data_dict['source_uuids']:
+        # Activity is not an Entity, thus we use "class" for reference
+        normalized_activity_class = 'Activity'
+
+        # Target entity class dict
+        # Will be used when calling set_activity_creation_action() trigger method
+        normalized_entity_class_dict = {'normalized_entity_class': normalized_class}
+
+        # Create new ids for the new Activity
+        new_ids_dict_for_activity = schema_manager.create_hubmap_ids(normalized_activity_class)
+
+        # The `data_dict` should already have user_info
+        data_dict_for_activity = {**data_dict, **normalized_entity_class_dict, **new_ids_dict_for_activity}
+
+        # Generate property values for Activity
+        generated_before_create_trigger_data_dict_for_activity = schema_manager.generate_triggered_data('before_create_trigger', normalized_activity_class, data_dict_for_activity)
+
+        # `UNWIND` in Cypher expects List<T>
+        activity_data_list = [generated_before_create_trigger_data_dict_for_activity]
+
+        # Convert the list (only contains one entity) to json list string
+        activity_json_list_str = json.dumps(activity_data_list)
+
+        logger.debug("======link_dataset_to_source_entities() create activity with activity_json_list_str======")
+        logger.debug(activity_json_list_str)
+
+        success = schema_neo4j_queries.link_dataset_to_source_entity(neo4j_driver, data_dict['uuid'], source_uuid, activity_json_list_str)
+ 
+        if not success:
+            msg = "Failed to execute 'schema_neo4j_queries.link_dataset_to_source_entity()' for dataset with uuid" + data_dict['uuid']
+            app.logger.error(msg)
+            raise RuntimeError(msg)
+
+    return True
 
 
 """
@@ -466,14 +545,44 @@ Returns
 str
     The name of relationship
 """
-def link_dataset_to_collectionss(property_key, normalized_class, neo4j_driver, data_dict):
+def link_dataset_to_collections(property_key, normalized_class, neo4j_driver, data_dict):
     if 'uuid' not in data_dict:
-        raise KeyError("Missing 'uuid' key in 'data_dict' during calling 'link_collection_to_datasets()' trigger method.")
+        raise KeyError("Missing 'uuid' key in 'data_dict' during calling 'link_dataset_to_collections()' trigger method.")
 
-    if 'uuids_list' not in data_dict:
-        raise KeyError("Missing 'uuids_list' key in 'data_dict' during calling 'link_collection_to_datasets()' trigger method.")
+    if 'collection_uuids' not in data_dict:
+        raise KeyError("Missing 'collection_uuids' key in 'data_dict' during calling 'link_dataset_to_collections()' trigger method.")
 
-    return schema_neo4j_queries.link_dataset_to_collectionss(neo4j_driver, data_dict['uuid'], data_dict['uuids_list'])
+    return schema_neo4j_queries.link_dataset_to_collectionss(neo4j_driver, data_dict['uuid'], data_dict['collection_uuids'])
+
+"""
+Trigger event method of getting a list of associated datasets for a given collection
+
+Parameters
+----------
+property_key : str
+    The target property key of the value to be generated
+normalized_class : str
+    One of the classes defined in the schema yaml: Activity, Collection, Donor, Sample, Dataset
+neo4j_driver : neo4j.Driver object
+    The neo4j database connection pool
+data_dict : dict
+    A merged dictionary that contains all possible input data to be used
+    It's fine if a trigger method doesn't use any input data
+
+Returns
+-------
+str
+    The name of relationship
+"""
+def relink_dataset_to_collections(property_key, normalized_class, neo4j_driver, data_dict):
+    if 'uuid' not in data_dict:
+        raise KeyError("Missing 'uuid' key in 'data_dict' during calling 'link_dataset_to_collections()' trigger method.")
+
+    if 'collection_uuids' not in data_dict:
+        raise KeyError("Missing 'collection_uuids' key in 'data_dict' during calling 'link_dataset_to_collections()' trigger method.")
+
+    return schema_neo4j_queries.relink_dataset_to_collections(neo4j_driver, data_dict['uuid'], data_dict['collection_uuids'])
+
 
 
 ####################################################################################################
@@ -489,8 +598,71 @@ def set_submission_id(property_key, normalized_class, neo4j_driver, data_dict):
 ## Trigger methods specific to Sample - DO NOT RENAME
 ####################################################################################################
 
-def set_sample_to_parent_relationship(property_key, normalized_class, neo4j_driver, data_dict):
-    return "dummy"
+"""
+Trigger event method of building linkages between this new Dtaset and its source entities
+
+Parameters
+----------
+property_key : str
+    The target property key
+normalized_class : str
+    One of the classes defined in the schema yaml: Activity, Collection, Donor, Sample, Dataset
+neo4j_driver : neo4j.Driver object
+    The neo4j database connection pool
+data_dict : dict
+    A merged dictionary that contains all possible input data to be used
+    It's fine if a trigger method doesn't use any input data
+
+Returns
+-------
+str
+    The uuid string of source entity
+"""
+def link_sample_to_direct_ancestor(property_key, normalized_class, neo4j_driver, data_dict):
+    if 'uuid' not in data_dict:
+        raise KeyError("Missing 'uuid' key in 'data_dict' during calling 'link_sample_to_direct_ancestor()' trigger method.")
+
+    if 'source_uuid' not in data_dict:
+        raise KeyError("Missing 'source_uuid' key in 'data_dict' during calling 'link_sample_to_direct_ancestor()' trigger method.")
+    
+    if 'user_info' not in data_dict:
+        raise KeyError("Missing 'user_info' key in 'data_dict' during calling 'link_dataset_to_source_entities()' trigger method.")
+
+    # Create a linkage (via Activity node) 
+    # between the dataset node and the source entity node in neo4j
+    # Activity is not an Entity, thus we use "class" for reference
+    normalized_activity_class = 'Activity'
+
+    # Target entity class dict
+    # Will be used when calling set_activity_creation_action() trigger method
+    normalized_entity_class_dict = {'normalized_entity_class': normalized_class}
+
+    # Create new ids for the new Activity
+    new_ids_dict_for_activity = schema_manager.create_hubmap_ids(normalized_activity_class)
+
+    # The `data_dict` should already have user_info
+    data_dict_for_activity = {**data_dict, **normalized_entity_class_dict, **new_ids_dict_for_activity}
+    
+    # Generate property values for Activity
+    generated_before_create_trigger_data_dict_for_activity = schema_manager.generate_triggered_data('before_create_trigger', normalized_activity_class, data_dict_for_activity)
+
+    # `UNWIND` in Cypher expects List<T>
+    activity_data_list = [generated_before_create_trigger_data_dict_for_activity]
+
+    # Convert the list (only contains one entity) to json list string
+    activity_json_list_str = json.dumps(activity_data_list)
+
+    logger.debug("======link_dataset_to_source_entities() create activity with activity_json_list_str======")
+    logger.debug(activity_json_list_str)
+
+    success = schema_neo4j_queries.link_dataset_to_source_entity(neo4j_driver, data_dict['uuid'], source_uuid, activity_json_list_str)
+
+    if not success:
+        msg = "Failed to execute 'schema_neo4j_queries.link_dataset_to_source_entity()' for dataset with uuid" + data_dict['uuid']
+        app.logger.error(msg)
+        raise RuntimeError(msg)
+
+    return True
 
 """
 Trigger event method of getting the parent of a Sample
@@ -581,5 +753,6 @@ str
 def set_activity_creation_action(property_key, normalized_class, neo4j_driver, data_dict):
     if 'normalized_entity_class' not in data_dict:
         raise KeyError("Missing 'normalized_entity_class' key in 'data_dict' during calling 'set_activity_creation_action()' trigger method.")
+    
     return "Create {normalized_entity_class} Activity".format(normalized_entity_class = data_dict['normalized_entity_class'])
 
