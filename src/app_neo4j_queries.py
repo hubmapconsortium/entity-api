@@ -528,7 +528,8 @@ list
 def get_ancestors(neo4j_driver, uuid, property_key = None):
     if property_key:
         parameterized_query = ("MATCH (e:Entity)<-[r:ACTIVITY_INPUT|:ACTIVITY_OUTPUT*]-(ancestor:Entity) " +
-                               "WHERE e.uuid='{uuid}' " +
+                               # Filter out the Lab entities
+                               "WHERE e.uuid='{uuid}' AND ancestor.entity_class <> 'Lab' " +
                                # COLLECT() returns a list
                                # apoc.coll.toSet() reruns a set containing unique nodes
                                "RETURN apoc.coll.toSet(COLLECT(ancestor.{property_key})) AS {record_field_name}")
@@ -538,7 +539,8 @@ def get_ancestors(neo4j_driver, uuid, property_key = None):
                                            record_field_name = record_field_name)
     else:
         parameterized_query = ("MATCH (e:Entity)<-[r:ACTIVITY_INPUT|:ACTIVITY_OUTPUT*]-(ancestor:Entity) " +
-                               "WHERE e.uuid='{uuid}' " +
+                               # Filter out the Lab entities
+                               "WHERE e.uuid='{uuid}' AND ancestor.entity_class <> 'Lab' " +
                                # COLLECT() returns a list
                                # apoc.coll.toSet() reruns a set containing unique nodes
                                "RETURN apoc.coll.toSet(COLLECT(ancestor)) AS {record_field_name}")
@@ -596,7 +598,8 @@ dict
 def get_descendants(neo4j_driver, uuid, property_key = None):
     if property_key:
         parameterized_query = ("MATCH (e:Entity)-[r:ACTIVITY_INPUT|:ACTIVITY_OUTPUT*]->(descendant:Entity) " +
-                               "WHERE e.uuid='{uuid}' " +
+                               # Filter out the Lab entities
+                               "WHERE e.uuid='{uuid}' AND desendant.entity_class <> 'Lab' " +
                                # COLLECT() returns a list
                                # apoc.coll.toSet() reruns a set containing unique nodes
                                "RETURN apoc.coll.toSet(COLLECT(descendant.{property_key})) AS {record_field_name}")
@@ -662,7 +665,8 @@ dict
 def get_parents(neo4j_driver, uuid, property_key = None):
     if property_key:
         parameterized_query = ("MATCH (e:Entity)<-[:ACTIVITY_OUTPUT]-(:Activity)<-[:ACTIVITY_INPUT]-(parent:Entity) " +
-                               "WHERE e.uuid='{uuid}' " +
+                               # Filter out the Lab entities
+                               "WHERE e.uuid='{uuid}' AND parent.entity_class <> 'Lab' " +
                                # COLLECT() returns a list
                                # apoc.coll.toSet() reruns a set containing unique nodes
                                "RETURN apoc.coll.toSet(COLLECT(parent.{property_key})) AS {record_field_name}")
@@ -672,7 +676,8 @@ def get_parents(neo4j_driver, uuid, property_key = None):
                                            record_field_name = record_field_name)
     else:
         parameterized_query = ("MATCH (e:Entity)<-[:ACTIVITY_OUTPUT]-(:Activity)<-[:ACTIVITY_INPUT]-(parent:Entity) " +
-                               "WHERE e.uuid='{uuid}' " +
+                               # Filter out the Lab entities
+                               "WHERE e.uuid='{uuid}' AND parent.entity_class <> 'Lab' " +
                                # COLLECT() returns a list
                                # apoc.coll.toSet() reruns a set containing unique nodes
                                "RETURN apoc.coll.toSet(COLLECT(parent)) AS {record_field_name}")
@@ -729,7 +734,8 @@ dict
 def get_children(neo4j_driver, uuid, property_key = None):
     if property_key:
         parameterized_query = ("MATCH (e:Entity)-[:ACTIVITY_INPUT]->(:Activity)-[:ACTIVITY_OUTPUT]->(child:Entity) " +
-                               "WHERE e.uuid='{uuid}' " +
+                               # Filter out the Lab entities
+                               "WHERE e.uuid='{uuid}' AND child.entity_class <> 'Lab' " +
                                # COLLECT() returns a list
                                # apoc.coll.toSet() reruns a set containing unique nodes
                                "RETURN apoc.coll.toSet(COLLECT(child.{property_key})) AS {record_field_name}")
@@ -738,7 +744,8 @@ def get_children(neo4j_driver, uuid, property_key = None):
                                            record_field_name = record_field_name)
     else:
         parameterized_query = ("MATCH (e:Entity)-[:ACTIVITY_INPUT]->(:Activity)-[:ACTIVITY_OUTPUT]->(child:Entity) " +
-                               "WHERE e.uuid='{uuid}' " +
+                               # Filter out the Lab entities
+                               "WHERE e.uuid='{uuid}' AND child.entity_class <> 'Lab' " +
                                # COLLECT() returns a list
                                # apoc.coll.toSet() reruns a set containing unique nodes
                                "RETURN apoc.coll.toSet(COLLECT(child)) AS {record_field_name}")

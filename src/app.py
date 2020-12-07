@@ -255,7 +255,10 @@ def get_entities_by_class(entity_class):
     normalized_entity_class = schema_manager.normalize_entity_class(entity_class)
 
     # Validate the normalized_entity_class to enure it's one of the accepted classes
-    schema_manager.validate_normalized_entity_class(normalized_entity_class)
+    try:
+        schema_manager.validate_normalized_entity_class(normalized_entity_class)
+    except ValueError as e:
+        bad_request_error("Invalid entity class provided: " + entity_class)
 
     # Get back a list of entity dicts for the given entity class
     entities_list = app_neo4j_queries.get_entities_by_class(neo4j_driver_instance, normalized_entity_class)
@@ -303,7 +306,10 @@ def create_entity(entity_class):
     normalized_entity_class = schema_manager.normalize_entity_class(entity_class)
 
     # Validate the normalized_entity_class to make sure it's one of the accepted classes
-    schema_manager.validate_normalized_entity_class(normalized_entity_class)
+    try:
+        schema_manager.validate_normalized_entity_class(normalized_entity_class)
+    except ValueError as e:
+        bad_request_error("Invalid entity class provided: " + entity_class)
 
     # Always expect a json body
     require_json(request)
@@ -413,8 +419,10 @@ json
 """
 @app.route('/ancestors/<id>', methods = ['GET'])
 def get_ancestors(id):
-    hubmap_ids = schema_manager.get_hubmap_ids(id)
-    uuid = hubmap_ids['hmuuid']
+    # Make sure the id exists in uuid-api and 
+    # the corresponding entity also exists in neo4j
+    entity_dict = query_target_entity(id)
+    uuid = entity_dict['uuid']
 
     ancestors_list = app_neo4j_queries.get_ancestors(neo4j_driver_instance, uuid)
 
@@ -460,8 +468,10 @@ json
 """
 @app.route('/descendants/<id>', methods = ['GET'])
 def get_descendants(id):
-    hubmap_ids = schema_manager.get_hubmap_ids(id)
-    uuid = hubmap_ids['hmuuid']
+    # Make sure the id exists in uuid-api and 
+    # the corresponding entity also exists in neo4j
+    entity_dict = query_target_entity(id)
+    uuid = entity_dict['uuid']
 
     descendants_list = app_neo4j_queries.get_descendants(neo4j_driver_instance, uuid)
 
@@ -506,8 +516,10 @@ json
 """
 @app.route('/parents/<id>', methods = ['GET'])
 def get_parents(id):
-    hubmap_ids = schema_manager.get_hubmap_ids(id)
-    uuid = hubmap_ids['hmuuid']
+    # Make sure the id exists in uuid-api and 
+    # the corresponding entity also exists in neo4j
+    entity_dict = query_target_entity(id)
+    uuid = entity_dict['uuid']
 
     parents_list = app_neo4j_queries.get_parents(neo4j_driver_instance, uuid)
 
@@ -552,8 +564,10 @@ json
 """
 @app.route('/children/<id>', methods = ['GET'])
 def get_children(id):
-    hubmap_ids = schema_manager.get_hubmap_ids(id)
-    uuid = hubmap_ids['hmuuid']
+    # Make sure the id exists in uuid-api and 
+    # the corresponding entity also exists in neo4j
+    entity_dict = query_target_entity(id)
+    uuid = entity_dict['uuid']
 
     children_list = app_neo4j_queries.get_children(neo4j_driver_instance, uuid)
 
@@ -1066,16 +1080,23 @@ dict
     A dictionary of entity details returned from neo4j
 """
 def query_target_entity(id):
-    hubmap_ids = schema_manager.get_hubmap_ids(id)
-    uuid = hubmap_ids['hmuuid']
+    try:
+        hubmap_ids = schema_manager.get_hubmap_ids(id)
 
-    entity_dict = app_neo4j_queries.get_entity(neo4j_driver_instance, uuid)
+        # Get the target uuid if all good
+        uuid = hubmap_ids['hmuuid']
+        entity_dict = app_neo4j_queries.get_entity(neo4j_driver_instance, uuid)
 
-    # Existence check
-    if not bool(entity_dict):
-        not_found_error("Could not find the entity of id: " + id)
+        # The uuid exists via uuid-api doesn't mean it's also in Neo4j
+        if not bool(entity_dict):
+            not_found_error("Entity of id: " + id + " not found in Neo4j")
 
-    return entity_dict
+        return entity_dict
+    except requests.exceptions.HTTPError as e:
+        not_found_error(e)
+    except requests.exceptions.RequestException as e:
+        # Something wrong with the request to uuid-api
+        internal_server_error(e)
 
 """
 Generate the complete entity record as well as result filtering for response

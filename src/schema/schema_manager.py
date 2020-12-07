@@ -302,7 +302,7 @@ def validate_json_data_against_schema(json_data_dict, normalized_entity_class, e
                 transient_keys.append(key)
 
     if len(transient_keys) > 0:
-        rise KeyError("Transient keys are not allowed in request json: " + separator.join(transient_keys))
+        raise KeyError("Transient keys are not allowed in request json: " + separator.join(transient_keys))
 
     # Check if any schema keys that are user_input_required but missing from request
     missing_required_keys = []
@@ -429,7 +429,7 @@ def validate_normalized_entity_class(normalized_entity_class):
 
     # Validate provided entity_class
     if normalized_entity_class not in accepted_entity_classes:
-        msg = "Invalida entity class " + normalized_entity_class + ". The entity class must be one of the following: " + separator.join(accepted_entity_classes)
+        msg = "Invalid entity class: " + normalized_entity_class + ". The entity class must be one of the following: " + separator.join(accepted_entity_classes)
         logger.error(msg)
         raise ValueError(msg)
 
@@ -552,15 +552,17 @@ def get_hubmap_ids(id):
     
     if response.status_code == 200:
         ids_list = response.json()
-
-        if len(ids_list) == 0:
-            raise Exception("Could not find the target uuid via uuid-api: " + id)
-        if len(ids_list) > 1:
-            raise Exception("Found multiple records via uuid-api for id: " + id)
-        
         return ids_list[0]
+    elif response.status_code == 404:
+        msg = "Could not find the target id via uuid-api: " + id
+        logger.error(msg)
+        raise requests.exceptions.HTTPError(msg)
     else:
-        raise requests.exceptions.RequestException("Failed to make a request to the target uuid via uuid-api: " + id)
+        # uuid-api will also return 400 if the gien id is invalid
+        # We'll just hanle that and all other cases all together here
+        msg = "Failed to make a request to query the id via uuid-api: " + id
+        logger.error(msg)
+        raise requests.exceptions.RequestException(msg)
 
 
 """
