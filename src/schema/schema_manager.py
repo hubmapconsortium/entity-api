@@ -225,7 +225,7 @@ Returns
 dict
     A entity dictionary with keys that are all defined in schema yaml
 """
-def remove_undefined_entity_properties(normalized_entity_class, entity_dict):
+def filter_entity_result(normalized_entity_class, entity_dict):
     global _schema
 
     properties = _schema['ENTITIES'][normalized_entity_class]['properties']

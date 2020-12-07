@@ -1121,7 +1121,7 @@ def get_complete_entity_result(normalized_entity_class, entity_dict):
 
     # Get rid of the entity node properties that are not defined in the yaml schema
     # as well as the ones defined as `exposed: false` in the yaml schema
-    result_dict = schema_manager.remove_undefined_entity_properties(normalized_entity_class, merged_dict)
+    result_dict = schema_manager.filter_entity_result(normalized_entity_class, merged_dict)
 
     return result_dict
 

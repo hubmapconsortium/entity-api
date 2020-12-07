@@ -569,7 +569,8 @@ dict
 """
 def get_sample_direct_ancestor(neo4j_driver, uuid):
     parameterized_query = ("MATCH (e:Entity)<-[:ACTIVITY_OUTPUT]-(:Activity)<-[:ACTIVITY_INPUT]-(parent:Entity) " +
-                           "WHERE e.uuid='{uuid}' " +
+                           # Filter out the Lab entity if it's the ancestor
+                           "WHERE e.uuid='{uuid}' AND parent.entity_class <> 'Lab' " +
                            # COLLECT() returns a list
                            # apoc.coll.toSet() reruns a set containing unique nodes
                            "RETURN parent AS {record_field_name}")
