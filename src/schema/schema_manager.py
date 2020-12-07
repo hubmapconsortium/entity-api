@@ -165,7 +165,8 @@ def generate_triggered_data(trigger_type, normalized_class, data_dict):
     trigger_generated_data_dict = {}
     for key in class_property_keys:
         if trigger_type in properties[key]:
-
+            # 'after_create_trigger' and 'after_update_trigger' don't generate property values
+            # E.g., create relationships between nodes in neo4j
             if trigger_type in ['after_create_trigger', 'after_update_trigger']:
                 # Only call the triggers if the propery key presents from the incoming data
                 # E.g., 'source_uuid' for Sample, 'dataset_uuids' for Collection
@@ -211,7 +212,8 @@ def generate_triggered_data(trigger_type, normalized_class, data_dict):
 
 
 """
-Remove entity node properties that are not defined in the yaml schema prior to response
+Normalize the entity result by removing properties that are not defined in the yaml schema
+and filter out the ones that are marked as `exposed: false` prior to sending the response
 
 Parameters
 ----------
@@ -225,7 +227,7 @@ Returns
 dict
     A entity dictionary with keys that are all defined in schema yaml
 """
-def filter_entity_result(normalized_entity_class, entity_dict):
+def normalize_entity_result(normalized_entity_class, entity_dict):
     global _schema
 
     properties = _schema['ENTITIES'][normalized_entity_class]['properties']
