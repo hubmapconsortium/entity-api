@@ -428,15 +428,15 @@ Returns
 str
     The uuid string of source entity
 """
-def link_dataset_to_source_entities(property_key, normalized_class, neo4j_driver, data_dict):
+def link_dataset_to_direct_ancestora(property_key, normalized_class, neo4j_driver, data_dict):
     if 'uuid' not in data_dict:
-        raise KeyError("Missing 'uuid' key in 'data_dict' during calling 'link_dataset_to_source_entities()' trigger method.")
+        raise KeyError("Missing 'uuid' key in 'data_dict' during calling 'link_dataset_to_direct_ancestora()' trigger method.")
 
     if 'source_uuids' not in data_dict:
-        raise KeyError("Missing 'source_uuids' key in 'data_dict' during calling 'link_dataset_to_source_entities()' trigger method.")
+        raise KeyError("Missing 'source_uuids' key in 'data_dict' during calling 'link_dataset_to_direct_ancestora()' trigger method.")
 
     if 'user_info' not in data_dict:
-        raise KeyError("Missing 'user_info' key in 'data_dict' during calling 'link_dataset_to_source_entities()' trigger method.")
+        raise KeyError("Missing 'user_info' key in 'data_dict' during calling 'link_dataset_to_direct_ancestora()' trigger method.")
 
     # For each source entity, create a linkage (via Activity node) 
     # between the dataset node and the source entity node in neo4j
@@ -496,9 +496,9 @@ Returns
 str
     The uuid string of source entity
 """
-def get_dataset_source_uuids(property_key, normalized_class, neo4j_driver, data_dict):
+def get_dataset_direct_ancestors(property_key, normalized_class, neo4j_driver, data_dict):
     if 'uuid' not in data_dict:
-        raise KeyError("Missing 'uuid' key in 'data_dict' during calling 'get_dataset_source_uuids()' trigger method.")
+        raise KeyError("Missing 'uuid' key in 'data_dict' during calling 'get_dataset_direct_ancestors()' trigger method.")
 
     return schema_neo4j_queries.get_dataset_source_uuids(neo4j_driver, data_dict['uuid'])
 
@@ -710,7 +710,7 @@ Returns
 str
     The uuid string of source entity
 """
-def get_sample_source_uuid(property_key, normalized_class, neo4j_driver, data_dict):
+def get_sample_direct_ancestor_uuid(property_key, normalized_class, neo4j_driver, data_dict):
     if 'uuid' not in data_dict:
         raise KeyError("Missing 'uuid' key in 'data_dict' during calling 'get_sample_source_uuid()' trigger method.")
 
