@@ -932,13 +932,13 @@ dict
 """
 def create_sample(normalized_entity_class, json_data_dict):
     # A bit more validation for new sample to be linked to existing source entity
-    has_source_uuid = False
-    if 'source_uuid' in json_data_dict:
+    has_direct_ancestor_uuid = False
+    if ('direct_ancestor_uuid' in json_data_dict) and json_data_dict['direct_ancestor_uuid']:
         has_source_uuid = True
 
-        source_uuid = json_data_dict['source_uuid']
+        direct_ancestor_uuid = json_data_dict['direct_ancestor_uuid']
         # Check existence of the source entity (either another Sample or Donor)
-        source_dict = query_target_entity(source_uuid)
+        source_dict = query_target_entity(direct_ancestor_uuid)
 
     # Get user info based on request
     user_info_dict = schema_manager.get_user_info(request)
@@ -970,7 +970,7 @@ def create_sample(normalized_entity_class, json_data_dict):
     entity_dict = app_neo4j_queries.create_entity(neo4j_driver_instance, normalized_entity_class, escaped_json_list_str)
 
     # For new sample to be linked to existing source entity
-    if has_source_uuid:
+    if has_direct_ancestor_uuid:
         # The `generate_triggered_data()` only returns True 
         # if everything goes well with calling after_create_trigger methods
         success = schema_manager.generate_triggered_data('after_create_trigger', normalized_entity_class, merged_dict)
@@ -1010,14 +1010,14 @@ def create_dataset(normalized_entity_class, json_data_dict):
         for collection_uuid in json_data_dict['collection_uuids']:
             collection_dict = query_target_entity(collection_uuid)
 
-    # A bit more validation if `source_uuids` provided
-    has_source_uuids = False
-    if ('source_uuids' in json_data_dict) and (json_data_dict['source_uuids']):
-        has_source_uuids = True
+    # A bit more validation if `direct_ancestor_uuids` provided
+    has_direct_ancestor_uuids = False
+    if ('direct_ancestor_uuids' in json_data_dict) and (json_data_dict['direct_ancestor_uuids']):
+        has_direct_ancestor_uuids = True
 
         # Check existence of those source entities
-        for source_uuid in json_data_dict['source_uuids']:
-            source_dict = query_target_entity(source_uuid)
+        for direct_ancestor_uuid in json_data_dict['direct_ancestor_uuids']:
+            direct_ancestor_dict = query_target_entity(direct_ancestor_uuid)
 
     # Get user info based on request
     user_info_dict = schema_manager.get_user_info(request)
@@ -1050,7 +1050,7 @@ def create_dataset(normalized_entity_class, json_data_dict):
 
     # Handling collection_uuids or source_uuids via `after_create_trigger` methods 
     # if at least one of them presents
-    if has_collection_uuids or has_source_uuids:
+    if has_collection_uuids or has_direct_ancestor_uuids:
         # The `generate_triggered_data()` only returns True 
         # if everything goes well with calling `after_create_trigger` methods
         success = schema_manager.generate_triggered_data('after_create_trigger', normalized_entity_class, merged_dict)

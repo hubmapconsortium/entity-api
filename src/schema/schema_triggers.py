@@ -306,13 +306,6 @@ def set_submission_id(property_key, normalized_class, neo4j_driver, data_dict):
         raise KeyError("Missing 'submission_id' key in 'data_dict' during calling 'set_submission_id()' trigger method.")
     return data_dict['submission_id']
 
-def link_sample_to_direct_ancestor(property_key, normalized_class, neo4j_driver, data_dict):
-    if 'uuid' not in data_dict:
-        raise KeyError("Missing 'uuid' key in 'data_dict' during calling 'link_sample_to_direct_ancestor()' trigger method.")
- 
-    if 'source_uuid' not in data_dict:
-        raise KeyError("Missing 'source_uuid' key in 'data_dict' during calling 'link_sample_to_direct_ancestor()' trigger method.")
-
 
 ####################################################################################################
 ## Trigger methods specific to Collection - DO NOT RENAME
@@ -428,19 +421,16 @@ Returns
 str
     The uuid string of source entity
 """
-def link_dataset_to_direct_ancestora(property_key, normalized_class, neo4j_driver, data_dict):
+def link_dataset_to_direct_ancestors(property_key, normalized_class, neo4j_driver, data_dict):
     if 'uuid' not in data_dict:
-        raise KeyError("Missing 'uuid' key in 'data_dict' during calling 'link_dataset_to_direct_ancestora()' trigger method.")
+        raise KeyError("Missing 'uuid' key in 'data_dict' during calling 'link_dataset_to_direct_ancestors()' trigger method.")
 
-    if 'source_uuids' not in data_dict:
-        raise KeyError("Missing 'source_uuids' key in 'data_dict' during calling 'link_dataset_to_direct_ancestora()' trigger method.")
-
-    if 'user_info' not in data_dict:
-        raise KeyError("Missing 'user_info' key in 'data_dict' during calling 'link_dataset_to_direct_ancestora()' trigger method.")
+    if 'direct_ancestor_uuids' not in data_dict:
+        raise KeyError("Missing 'direct_ancestor_uuids' key in 'data_dict' during calling 'link_dataset_to_direct_ancestors()' trigger method.")
 
     # For each source entity, create a linkage (via Activity node) 
     # between the dataset node and the source entity node in neo4j
-    for source_uuid in data_dict['source_uuids']:
+    for direct_ancestor_uuid in data_dict['direct_ancestor_uuids']:
         # Activity is not an Entity, thus we use "class" for reference
         normalized_activity_class = 'Activity'
 
@@ -466,7 +456,7 @@ def link_dataset_to_direct_ancestora(property_key, normalized_class, neo4j_drive
         logger.debug("======link_dataset_to_source_entities() create activity with activity_json_list_str======")
         logger.debug(activity_json_list_str)
 
-        success = schema_neo4j_queries.link_dataset_to_source_entity(neo4j_driver, data_dict['uuid'], source_uuid, activity_json_list_str)
+        success = schema_neo4j_queries.link_dataset_to_source_entity(neo4j_driver, data_dict['uuid'], direct_ancestor_uuid, activity_json_list_str)
  
         if not success:
             msg = "Failed to execute 'schema_neo4j_queries.link_dataset_to_source_entity()' for dataset with uuid" + data_dict['uuid']
@@ -622,11 +612,8 @@ def link_sample_to_direct_ancestor(property_key, normalized_class, neo4j_driver,
     if 'uuid' not in data_dict:
         raise KeyError("Missing 'uuid' key in 'data_dict' during calling 'link_sample_to_direct_ancestor()' trigger method.")
 
-    if 'source_uuid' not in data_dict:
-        raise KeyError("Missing 'source_uuid' key in 'data_dict' during calling 'link_sample_to_direct_ancestor()' trigger method.")
-    
-    if 'user_info' not in data_dict:
-        raise KeyError("Missing 'user_info' key in 'data_dict' during calling 'link_dataset_to_source_entities()' trigger method.")
+    if 'direct_ancestor_uuid' not in data_dict:
+        raise KeyError("Missing 'direct_ancestor_uuid' key in 'data_dict' during calling 'link_sample_to_direct_ancestor()' trigger method.")
 
     # Create a linkage (via Activity node) 
     # between the dataset node and the source entity node in neo4j
