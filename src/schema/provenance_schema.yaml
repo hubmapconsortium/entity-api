@@ -34,6 +34,11 @@
 # For Dataset, do we want to expose collection_uuids and collections at the same time?
 # For Collection, do we want to expose dataset_uuids and datasets at the same time?
 
+# Should we make direct_ancestor_uuid `immutable: true` to disallow update?
+# Should we make direct_ancestor_uuids `immutable: true` to disallow update?
+# Should we make collection_uuids `immutable: true` to disallow update?
+# Should we make dataset_uuids `immutable: true` to disallow update?
+
 
 ############################################# Schema #############################################
 # Shared properties across ACTIVITIES and ENTITIES
@@ -177,6 +182,7 @@ ENTITIES:
         type: boolean
         description: "True if the entity has a doi registered for it, false otherwise."
       ###### Transient properties ######
+      # Should we make dataset_uuids `immutable: true` to disallow update?
       dataset_uuids:  #used only to pass the reference to linked datasets in on a PUT/POST 
         type: list
         transient: true
@@ -208,6 +214,7 @@ ENTITIES:
         type: json_string
         user_input_required: true
         description: "The data or assay types contained in this dataset as a json array of strings.  Each is an assay code from https://github.com/hubmapconsortium/search-api/blob/devel/src/search-schema/data/definitions/enums/assay_types.yaml."
+      # Should we make collection_uuids `immutable: true` to disallow update?
       collection_uuids:
         type: list
         transient: true
@@ -222,6 +229,7 @@ ENTITIES:
         description: "A list of collections that this dataset belongs to. Will be returned in response"
         on_read_trigger: get_dataset_collections
       # Do we want to expose direct_ancestor_uuids and direct_ancestors at the same time?
+      # Should we make direct_ancestor_uuids `immutable: true` to disallow update?
       direct_ancestor_uuids:
         type: list
         transient: true
@@ -413,6 +421,7 @@ ENTITIES:
         type: string
         description: The organ type provided by the user if "other" organ type is selected
       # Do we want to expose direct_ancestor_uuid and direct_ancestor at the same time?
+      # Should we make direct_ancestor_uuid `immutable: true` to disallow update?
       direct_ancestor_uuid:
         type: string
         transient: true
