@@ -402,6 +402,62 @@ def relink_collection_to_datasets(property_key, normalized_class, neo4j_driver, 
 ####################################################################################################
 
 """
+Trigger event method of getting a list of collection uuids for this new Dtaset
+
+Parameters
+----------
+property_key : str
+    The target property key
+normalized_class : str
+    One of the classes defined in the schema yaml: Activity, Collection, Donor, Sample, Dataset
+neo4j_driver : neo4j.Driver object
+    The neo4j database connection pool
+data_dict : dict
+    A merged dictionary that contains all possible input data to be used
+    It's fine if a trigger method doesn't use any input data
+
+Returns
+-------
+str
+    The uuid string of source entity
+"""
+def get_dataset_collection_uuids(property_key, normalized_class, neo4j_driver, data_dict):
+    if 'uuid' not in data_dict:
+        raise KeyError("Missing 'uuid' key in 'data_dict' during calling 'get_dataset_collection_uuids()' trigger method.")
+
+    # Pass in the property key 'uuid' to filter the result
+    # Only get back a list of collection uuids instead of the whole dict
+    return schema_neo4j_queries.get_dataset_collections(neo4j_driver, data_dict['uuid'], 'uuid')
+
+"""
+Trigger event method of getting a list of collections for this new Dtaset
+
+Parameters
+----------
+property_key : str
+    The target property key
+normalized_class : str
+    One of the classes defined in the schema yaml: Activity, Collection, Donor, Sample, Dataset
+neo4j_driver : neo4j.Driver object
+    The neo4j database connection pool
+data_dict : dict
+    A merged dictionary that contains all possible input data to be used
+    It's fine if a trigger method doesn't use any input data
+
+Returns
+-------
+str
+    The uuid string of source entity
+"""
+def get_dataset_collections(property_key, normalized_class, neo4j_driver, data_dict):
+    if 'uuid' not in data_dict:
+        raise KeyError("Missing 'uuid' key in 'data_dict' during calling 'get_dataset_collections()' trigger method.")
+
+    # No property key needs to filter the result
+    # Get back the list of collection dicts
+    return schema_neo4j_queries.get_dataset_collections(neo4j_driver, data_dict['uuid'])
+
+"""
 Trigger event method of building linkages between this new Dtaset and its source entities
 
 Parameters
@@ -453,13 +509,13 @@ def link_dataset_to_direct_ancestors(property_key, normalized_class, neo4j_drive
         # Convert the list (only contains one entity) to json list string
         activity_json_list_str = json.dumps(activity_data_list)
 
-        logger.debug("======link_dataset_to_source_entities() create activity with activity_json_list_str======")
+        logger.debug("======link_dataset_to_direct_ancestors() create activity with activity_json_list_str======")
         logger.debug(activity_json_list_str)
 
-        success = schema_neo4j_queries.link_dataset_to_source_entity(neo4j_driver, data_dict['uuid'], direct_ancestor_uuid, activity_json_list_str)
+        success = schema_neo4j_queries.link_entity_to_direct_ancestor(neo4j_driver, data_dict['uuid'], direct_ancestor_uuid, activity_json_list_str)
  
         if not success:
-            msg = "Failed to execute 'schema_neo4j_queries.link_dataset_to_source_entity()' for dataset with uuid" + data_dict['uuid']
+            msg = "Failed to execute 'schema_neo4j_queries.link_entity_to_direct_ancestor()' for dataset with uuid" + data_dict['uuid']
             app.logger.error(msg)
             raise RuntimeError(msg)
 
@@ -490,7 +546,38 @@ def get_dataset_direct_ancestors(property_key, normalized_class, neo4j_driver, d
     if 'uuid' not in data_dict:
         raise KeyError("Missing 'uuid' key in 'data_dict' during calling 'get_dataset_direct_ancestors()' trigger method.")
 
-    return schema_neo4j_queries.get_dataset_source_uuids(neo4j_driver, data_dict['uuid'])
+    # No property key needs to filter the result
+    # Get back the list of ancestor dicts
+    return schema_neo4j_queries.get_dataset_direct_ancestors(neo4j_driver, data_dict['uuid'])
+
+"""
+Trigger event method of getting source uuid
+
+Parameters
+----------
+property_key : str
+    The target property key of the value to be generated
+normalized_class : str
+    One of the classes defined in the schema yaml: Activity, Collection, Donor, Sample, Dataset
+neo4j_driver : neo4j.Driver object
+    The neo4j database connection pool
+data_dict : dict
+    A merged dictionary that contains all possible input data to be used
+    It's fine if a trigger method doesn't use any input data
+
+Returns
+-------
+str
+    The uuid string of source entity
+"""
+def get_dataset_direct_ancestor_uuids(property_key, normalized_class, neo4j_driver, data_dict):
+    if 'uuid' not in data_dict:
+        raise KeyError("Missing 'uuid' key in 'data_dict' during calling 'get_dataset_direct_ancestors()' trigger method.")
+
+    # Pass in the property key 'uuid' to filter the result
+    # Only get back a list of collection uuids instead of the whole dict
+    return schema_neo4j_queries.get_dataset_direct_ancestors(neo4j_driver, data_dict['uuid'], 'uuid')
+
 
 """
 Trigger event method of getting the relative directory path of a given uuid
@@ -639,13 +726,13 @@ def link_sample_to_direct_ancestor(property_key, normalized_class, neo4j_driver,
     # Convert the list (only contains one entity) to json list string
     activity_json_list_str = json.dumps(activity_data_list)
 
-    logger.debug("======link_dataset_to_source_entities() create activity with activity_json_list_str======")
+    logger.debug("======link_sample_to_direct_ancestor() create activity with activity_json_list_str======")
     logger.debug(activity_json_list_str)
 
-    success = schema_neo4j_queries.link_dataset_to_source_entity(neo4j_driver, data_dict['uuid'], source_uuid, activity_json_list_str)
+    success = schema_neo4j_queries.link_entity_to_direct_ancestor(neo4j_driver, data_dict['uuid'], direct_ancestor_uuid, activity_json_list_str)
 
     if not success:
-        msg = "Failed to execute 'schema_neo4j_queries.link_dataset_to_source_entity()' for dataset with uuid" + data_dict['uuid']
+        msg = "Failed to execute 'schema_neo4j_queries.link_entity_to_direct_ancestor()' for sample with uuid" + data_dict['uuid']
         app.logger.error(msg)
         raise RuntimeError(msg)
 
@@ -699,9 +786,9 @@ str
 """
 def get_sample_direct_ancestor_uuid(property_key, normalized_class, neo4j_driver, data_dict):
     if 'uuid' not in data_dict:
-        raise KeyError("Missing 'uuid' key in 'data_dict' during calling 'get_sample_source_uuid()' trigger method.")
+        raise KeyError("Missing 'uuid' key in 'data_dict' during calling 'get_sample_direct_ancestor_uuid()' trigger method.")
 
-    return schema_neo4j_queries.get_sample_source_uuid(neo4j_driver, data_dict['uuid'])
+    return schema_neo4j_queries.get_sample_direct_ancestor(neo4j_driver, data_dict['uuid'], 'uuid')
 
 
 ####################################################################################################

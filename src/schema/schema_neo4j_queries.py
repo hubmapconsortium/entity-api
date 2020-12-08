@@ -11,7 +11,7 @@ record_field_name = 'result'
 ####################################################################################################
 
 """
-Get the source entities uuids of a given dataset by uuid
+Get the direct ancestors uuids of a given dataset by uuid
 
 Parameters
 ----------
@@ -19,53 +19,67 @@ neo4j_driver : neo4j.Driver object
     The neo4j database connection pool
 uuid : str
     The uuid of target entity 
+property_key : str
+    A target property key for result filtering
 
 Returns
 -------
 list
     A unique list of uuids of source entities
 """
-def get_dataset_source_uuids(neo4j_driver, uuid):
-    parameterized_query = ("MATCH (s:Dataset)-[:ACTIVITY_INPUT]->(a:Activity)-[:ACTIVITY_OUTPUT]->(t:Entity) " + 
-                           "WHERE t.uuid = '{uuid}' " +
-                           "RETURN apoc.coll.toSet(COLLECT(s.uuid)) AS {record_field_name}")
+def get_dataset_direct_ancestors(neo4j_driver, uuid, property_key = None):
+    if property_key:
+        parameterized_query = ("MATCH (s:Dataset)-[:ACTIVITY_INPUT]->(a:Activity)-[:ACTIVITY_OUTPUT]->(t:Entity) " + 
+                               "WHERE t.uuid = '{uuid}' " +
+                               "RETURN apoc.coll.toSet(COLLECT(s.{property_key})) AS {record_field_name}")
 
-    query = parameterized_query.format(uuid = uuid, 
-                                       record_field_name = record_field_name)
-    
-    logger.debug("======get_dataset_source_uuids() query======")
+        query = parameterized_query.format(uuid = uuid, 
+                                           property_key = property_key,
+                                           record_field_name = record_field_name)
+    else:
+        parameterized_query = ("MATCH (s:Dataset)-[:ACTIVITY_INPUT]->(a:Activity)-[:ACTIVITY_OUTPUT]->(t:Entity) " + 
+                               "WHERE t.uuid = '{uuid}' " +
+                               "RETURN apoc.coll.toSet(COLLECT(s)) AS {record_field_name}")
+
+        query = parameterized_query.format(uuid = uuid, 
+                                           record_field_name = record_field_name)
+
+    logger.debug("======get_dataset_direct_ancestors() query======")
     logger.debug(query)
 
     try:
         # Sessions will often be created and destroyed using a with block context
         with neo4j_driver.session() as session:
             result = session.run(query)
-
             record = result.single()
-            source_uuids = record[record_field_name]
+            result_list = []
 
-            logger.debug("======get_dataset_source_uuids() resulting source_uuids list======")
-            logger.debug(source_uuids)
+            # Convert the entity nodes to dicts
+            nodes = record[record_field_name]
 
-            return source_uuids
+            for node in nodes:
+                entity_dict = node_to_dict(node)
+                result_list.append(entity_dict)
+
+            return result_list
     except CypherSyntaxError as ce:
-        msg = "CypherSyntaxError from calling get_dataset_source_uuids(): " + ce.message
+        msg = "CypherSyntaxError from calling get_dataset_direct_ancestors(): " + ce.message
         logger.error(msg)
         raise CypherSyntaxError(msg)
     except Exception as e:
         raise e
 
 """
-Create a linkage (via Activity node) between the dataset node and the source entity node in neo4j
+Create a linkage (via Activity node) between the target entity node and the ancestor entity node in neo4j
 
 Parameters
 ----------
 neo4j_driver : neo4j.Driver object
     The neo4j database connection pool
-dataset_uuid : str
-    The uuid of target dataset
-source_uuid : str
-    The uuid of source entity
+entity_uuid : str
+    The uuid of target entity
+ancestor_uuid : str
+    The uuid of ancestor entity
 activity_json_list_str : str
     The string representation of a list containing only one Activity node to be created
 
@@ -74,7 +88,7 @@ Returns
 boolean
     True if everything goes well
 """
-def link_dataset_to_source_entity(neo4j_driver, dataset_uuid, source_uuid, activity_json_list_str):
+def link_entity_to_direct_ancestor(neo4j_driver, entity_uuid, ancestor_uuid, activity_json_list_str):
     try:
         with neo4j_driver.session() as session:
             tx = session.begin_transaction()
@@ -82,28 +96,86 @@ def link_dataset_to_source_entity(neo4j_driver, dataset_uuid, source_uuid, activ
             # Create the Acvitity node
             activity_dict = create_activity_tx(tx, activity_json_list_str)
 
-            # Create relationship from source Entity node to this Activity node
-            create_relationship_tx(tx, source_uuid, activity_dict['uuid'], 'ACTIVITY_INPUT', '->')
+            # Create relationship from ancestor entity node to this Activity node
+            create_relationship_tx(tx, ancestor_uuid, activity_dict['uuid'], 'ACTIVITY_INPUT', '->')
                 
-            # Create relationship from this Activity node to the dataset node
-            create_relationship_tx(tx, activity_dict['uuid'], dataset_uuid, 'ACTIVITY_OUTPUT', '->')
+            # Create relationship from this Activity node to the target entity node
+            create_relationship_tx(tx, activity_dict['uuid'], entity_uuid, 'ACTIVITY_OUTPUT', '->')
 
             tx.commit()
 
             return True
     except CypherSyntaxError as ce:
-        msg = "CypherSyntaxError from calling link_dataset_to_source_entity(): " + ce.message
+        msg = "CypherSyntaxError from calling link_entity_to_direct_ancestor(): " + ce.message
         logger.error(msg)
         raise CypherSyntaxError(msg)
     except TransactionError as te:
-        msg = "TransactionError from calling link_dataset_to_source_entity(): " + te.value
+        msg = "TransactionError from calling link_entity_to_direct_ancestor(): " + te.value
         logger.error(msg)
 
         if tx.closed() == False:
-            logger.error("Failed to commit link_dataset_to_source_entity() transaction, rollback")
+            logger.error("Failed to commit link_entity_to_direct_ancestor() transaction, rollback")
             tx.rollback()
 
         raise TransactionError(msg)
+    except Exception as e:
+        raise e
+
+"""
+Get a list of associated collection uuids for a given dataset
+
+Parameters
+----------
+neo4j_driver : neo4j.Driver object
+    The neo4j database connection pool
+uuid : str
+    The uuid of dataset
+property_key : str
+    A target property key for result filtering
+
+Returns
+-------
+list
+    A list of collection uuids
+"""
+def get_dataset_collections(neo4j_driver, uuid, property_key = None):
+    if property_key:
+        parameterized_query = ("MATCH (e:Entity)-[:IN_COLLECTION]->(c:Collection) " + 
+                               "WHERE e.uuid = '{uuid}' " +
+                               "RETURN apoc.coll.toSet(COLLECT(c.{property_key})) AS {record_field_name}")
+
+        query = parameterized_query.format(uuid = uuid, 
+                                           property_key = property_key,
+                                           record_field_name = record_field_name)
+    else:
+        parameterized_query = ("MATCH (e:Entity)-[:IN_COLLECTION]->(c:Collection) " + 
+                               "WHERE e.uuid = '{uuid}' " +
+                               "RETURN apoc.coll.toSet(COLLECT(c)) AS {record_field_name}")
+
+        query = parameterized_query.format(uuid = uuid, 
+                                           record_field_name = record_field_name)
+
+    logger.debug("======get_dataset_collection_uuids() query======")
+    logger.debug(query)
+
+    try:
+        with neo4j_driver.session() as session:
+            result = session.run(query)
+            record = result.single()
+            result_list = []
+
+            # Convert the entity nodes to dicts
+            nodes = record[record_field_name]
+
+            for node in nodes:
+                entity_dict = node_to_dict(node)
+                result_list.append(entity_dict)
+
+            return result_list
+    except CypherSyntaxError as ce:
+        msg = "CypherSyntaxError from calling get_dataset_collections(): " + ce.message
+        logger.error(msg)
+        raise CypherSyntaxError(msg)
     except Exception as e:
         raise e
 
@@ -137,7 +209,6 @@ def get_collection_datasets(neo4j_driver, uuid):
         with neo4j_driver.session() as session:
             result = session.run(query)
             record = result.single()
-
             result_list = []
 
             # Convert the entity nodes to dicts
@@ -561,22 +632,36 @@ neo4j_driver : neo4j.Driver object
     The neo4j database connection pool
 uuid : str
     The uuid of target entity 
+property_key : str
+    A target property key for result filtering
 
 Returns
 -------
 dict
     The parent dict, can either be a Sample or Donor
 """
-def get_sample_direct_ancestor(neo4j_driver, uuid):
-    parameterized_query = ("MATCH (e:Entity)<-[:ACTIVITY_OUTPUT]-(:Activity)<-[:ACTIVITY_INPUT]-(parent:Entity) " +
-                           # Filter out the Lab entity if it's the ancestor
-                           "WHERE e.uuid='{uuid}' AND parent.entity_class <> 'Lab' " +
-                           # COLLECT() returns a list
-                           # apoc.coll.toSet() reruns a set containing unique nodes
-                           "RETURN parent AS {record_field_name}")
+def get_sample_direct_ancestor(neo4j_driver, uuid, property_key = None):
+    if property_key:
+        parameterized_query = ("MATCH (e:Entity)<-[:ACTIVITY_OUTPUT]-(:Activity)<-[:ACTIVITY_INPUT]-(parent:Entity) " +
+                               # Filter out the Lab entity if it's the ancestor
+                               "WHERE e.uuid='{uuid}' AND parent.entity_class <> 'Lab' " +
+                               # COLLECT() returns a list
+                               # apoc.coll.toSet() reruns a set containing unique nodes
+                               "RETURN parent.{property_key} AS {record_field_name}")
 
-    query = parameterized_query.format(uuid = uuid, 
-                                       record_field_name = record_field_name)
+        query = parameterized_query.format(uuid = uuid, 
+                                           property_key = property_key,
+                                           record_field_name = record_field_name)
+    else:
+        parameterized_query = ("MATCH (e:Entity)<-[:ACTIVITY_OUTPUT]-(:Activity)<-[:ACTIVITY_INPUT]-(parent:Entity) " +
+                               # Filter out the Lab entity if it's the ancestor
+                               "WHERE e.uuid='{uuid}' AND parent.entity_class <> 'Lab' " +
+                               # COLLECT() returns a list
+                               # apoc.coll.toSet() reruns a set containing unique nodes
+                               "RETURN parent AS {record_field_name}")
+
+        query = parameterized_query.format(uuid = uuid, 
+                                           record_field_name = record_field_name)
 
     logger.debug("======get_sample_direct_ancestor() query======")
     logger.debug(query)
@@ -586,11 +671,13 @@ def get_sample_direct_ancestor(neo4j_driver, uuid):
             result = session.run(query)
             record = result.single()
 
-            # Convert the entity node to dict
-            node = record[record_field_name]
-            entity_dict = node_to_dict(node)
-    
-            return entity_dict               
+            if property_key:
+                return record[record_field_name]
+            else:
+                # Convert the entity node to dict
+                node = record[record_field_name]
+                entity_dict = node_to_dict(node)
+                return entity_dict               
     except CypherSyntaxError as ce:
         msg = "CypherSyntaxError from calling get_sample_direct_ancestor(): " + ce.message
         logger.error(msg)
@@ -640,3 +727,28 @@ def create_activity_tx(tx, json_list_str):
     logger.debug(node)
 
     return node
+
+####################################################################################################
+## Internal Functions
+####################################################################################################
+
+"""
+Convert the neo4j node into Python dict
+
+Parameters
+----------
+entity_node : neo4j.node
+    The target neo4j node to be converted
+
+Returns
+-------
+dict
+    A dictionary of target entity containing all property key/value pairs
+"""
+def node_to_dict(entity_node):
+    entity_dict = {}
+
+    for key, value in entity_node._properties.items():
+        entity_dict.setdefault(key, value)
+
+    return entity_dict

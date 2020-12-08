@@ -159,17 +159,20 @@ def generate_triggered_data(trigger_type, normalized_class, data_dict):
         schema_section = _schema['ENTITIES']
 
     properties = schema_section[normalized_class]['properties']
-    class_property_keys = properties.keys() 
-
-    # Put all resulting data into a dictionary too
+    # A list of property keys
+    class_property_keys = list(properties) 
+    
+    # Set each property value and put all resulting data into a dictionary for:
+    # before_create_trigger|before_update_trigger|on_read_trigger
+    # No property value to be set for: after_create_trigger|after_update_trigger
     trigger_generated_data_dict = {}
     for key in class_property_keys:
-        if trigger_type in properties[key]:
+        if trigger_type in list(properties[key]):
             # 'after_create_trigger' and 'after_update_trigger' don't generate property values
             # E.g., create relationships between nodes in neo4j
             if trigger_type in ['after_create_trigger', 'after_update_trigger']:
                 # Only call the triggers if the propery key presents from the incoming data
-                # E.g., 'source_uuid' for Sample, 'dataset_uuids' for Collection
+                # E.g., 'direct_ancestor_uuid' for Sample, 'dataset_uuids' for Collection
                 if key in data_dict:
                     trigger_method_name = properties[key][trigger_type]
 
@@ -178,18 +181,22 @@ def generate_triggered_data(trigger_type, normalized_class, data_dict):
                     # Call the target trigger method of schema_triggers.py module
                     trigger_method_to_call = getattr(schema_triggers, trigger_method_name)
 
+                    # Assume the trigger method failed by default
+                    # Overwrite if everything goes well
+                    trigger_generated_data_dict[trigger_method_name] = False
+
                     try:
                         # No return values for 'after_create_trigger' and 'after_update_trigger'
                         # because the property value is already set in `data_dict`
                         # normally it's building linkages between entity nodes
                         trigger_method_to_call(key, normalized_class, _neo4j_driver, data_dict)
+                        
+                        # Overwrite if the trigger method gets executed successfully
+                        trigger_generated_data_dict[trigger_method_name] = True
                     except KeyError as ke:
                         logger.error(ke)
                     except Exception as e:
                         logger.error(traceback.format_exc())
-
-                    # True to indicate success
-                    return True
             else:
                 # Handling of all other trigger types:
                 # before_create_trigger|before_update_trigger|on_read_trigger
@@ -207,8 +214,10 @@ def generate_triggered_data(trigger_type, normalized_class, data_dict):
                     logger.error(ke)
                 except Exception as e:
                     logger.error(traceback.format_exc())
-
-                return trigger_generated_data_dict
+    
+    # Return after for loop
+    return trigger_generated_data_dict
+                
 
 
 """

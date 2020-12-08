@@ -108,7 +108,6 @@ shared_entity_properties: &shared_entity_properties
     type: string
     immutable: true
     description: "The url from the doi registry for this entity. e.g. https://doi.org/10.35079/hbm289.pcbm.487"
-
   ###### Last Modified Properties #######
   last_modified_timestamp:
     type: integer
@@ -164,7 +163,7 @@ shared_entity_properties: &shared_entity_properties
 ENTITIES:
   ############################################# Collection #############################################
   Collection:
-    # Collection can not be derivation source nor target
+    # Collection can not be derivation source but not target
     derivation:
       source: false
       target: false
