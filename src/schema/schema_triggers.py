@@ -761,7 +761,7 @@ def set_submission_id(property_key, normalized_class, neo4j_driver, data_dict):
 ####################################################################################################
 
 """
-Trigger event method of building linkages between this new Dtaset and its source entities
+Trigger event method of building linkages between this new Sample and its ancestor
 
 Parameters
 ----------
@@ -777,8 +777,8 @@ data_dict : dict
 
 Returns
 -------
-str
-    The uuid string of source entity
+bool
+    True if everything goes well, otherwise False
 """
 def link_sample_to_direct_ancestor(property_key, normalized_class, neo4j_driver, data_dict):
     if 'uuid' not in data_dict:
@@ -822,6 +822,72 @@ def link_sample_to_direct_ancestor(property_key, normalized_class, neo4j_driver,
         raise RuntimeError(msg)
 
     return True
+
+
+"""
+Trigger event method of rebuilding linkages between this Sample and its direct ancestors 
+
+Parameters
+----------
+property_key : str
+    The target property key
+normalized_class : str
+    One of the classes defined in the schema yaml: Activity, Collection, Donor, Sample, Dataset
+neo4j_driver : neo4j.Driver object
+    The neo4j database connection pool
+data_dict : dict
+    A merged dictionary that contains all possible input data to be used
+    It's fine if a trigger method doesn't use any input data
+
+Returns
+-------
+bool
+    True if everything goes well, otherwise False
+"""
+def relink_sample_to_direct_ancestor(property_key, normalized_class, neo4j_driver, data_dict):
+    if 'uuid' not in data_dict:
+        raise KeyError("Missing 'uuid' key in 'data_dict' during calling 'relink_sample_to_direct_ancestor()' trigger method.")
+
+    if 'direct_ancestor_uuid' not in data_dict:
+        raise KeyError("Missing 'direct_ancestor_uuid' key in 'data_dict' during calling 'relink_sample_to_direct_ancestor()' trigger method.")
+
+    # Create a linkage (via Activity node) 
+    # between the dataset node and the source entity node in neo4j
+    # Activity is not an Entity, thus we use "class" for reference
+    normalized_activity_class = 'Activity'
+
+    # Target entity class dict
+    # Will be used when calling set_activity_creation_action() trigger method
+    normalized_entity_class_dict = {'normalized_entity_class': normalized_class}
+
+    # Create new ids for the new Activity
+    new_ids_dict_for_activity = schema_manager.create_hubmap_ids(normalized_activity_class)
+
+    # The `data_dict` should already have user_info
+    data_dict_for_activity = {**data_dict, **normalized_entity_class_dict, **new_ids_dict_for_activity}
+    
+    # Generate property values for Activity
+    generated_before_create_trigger_data_dict_for_activity = schema_manager.generate_triggered_data('before_create_trigger', normalized_activity_class, data_dict_for_activity)
+
+    # `UNWIND` in Cypher expects List<T>
+    activity_data_list = [generated_before_create_trigger_data_dict_for_activity]
+
+    # Convert the list (only contains one entity) to json list string
+    activity_json_list_str = json.dumps(activity_data_list)
+
+    logger.debug("======relink_sample_to_direct_ancestor() create activity with activity_json_list_str======")
+    logger.debug(activity_json_list_str)
+ 
+    # Specify relink = True
+    success = schema_neo4j_queries.link_entity_to_direct_ancestor(neo4j_driver, data_dict['uuid'], direct_ancestor_uuid, activity_json_list_str, True)
+
+    if not success:
+        msg = "Failed to execute 'schema_neo4j_queries.link_entity_to_direct_ancestor(relink = True)' for sample with uuid" + data_dict['uuid']
+        app.logger.error(msg)
+        raise RuntimeError(msg)
+
+    return True
+
 
 """
 Trigger event method of getting the parent of a Sample

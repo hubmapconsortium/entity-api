@@ -82,13 +82,14 @@ ancestor_uuid : str
     The uuid of ancestor entity
 activity_json_list_str : str
     The string representation of a list containing only one Activity node to be created
-
+relink : bool
+    A flag to indicate if recreating the linkages
 Returns
 -------
 boolean
     True if everything goes well
 """
-def link_entity_to_direct_ancestor(neo4j_driver, entity_uuid, ancestor_uuid, activity_json_list_str):
+def link_entity_to_direct_ancestor(neo4j_driver, entity_uuid, ancestor_uuid, activity_json_list_str, relink = False):
     try:
         with neo4j_driver.session() as session:
             tx = session.begin_transaction()

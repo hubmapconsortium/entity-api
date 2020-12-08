@@ -315,26 +315,19 @@ def validate_json_data_against_schema(json_data_dict, normalized_entity_class, e
     if len(transient_keys) > 0:
         raise KeyError("Transient keys are not allowed in request json: " + separator.join(transient_keys))
 
-    # Check if any schema keys that are user_input_required but missing from request
-    missing_required_keys = []
-    for key in schema_keys:
-        # Schema rules: 
-        # - By default, the schema treats all entity properties as optional. Use `user_input_required: true` to mark a property as required
-        # - If aproperty is marked as `user_input_required: true`, it can't have `trigger` at the same time
-        # It's reenforced here because we can't guarantee this rule is being followed correctly in the schema yaml
-        if 'user_input_required' in properties[key]:
-            if properties[key]['user_input_required'] and ('trigger' not in properties[key]) and (key not in json_data_keys):
-                # When existing_entity_dict is empty, it means creating new entity
-                # When existing_entity_dict is not empty, it means updating an existing entity
-                if not bool(existing_entity_dict):
-                    missing_required_keys.append(key)
-                else:
-                    # It is a missing key when the existing entity data doesn't have it
-                    if key not in existing_entity_dict:
-                        missing_required_keys.append(key)
+    # Check if any schema keys that are required_on_create but missing from POST request on creating new entity
+    # No need to check on entity update
+    if not bool(existing_entity_dict):    
+        missing_required_keys_on_create = []
+        for key in schema_keys:
+            # By default, the schema treats all entity properties as optional no creation. 
+            # Use `required_on_create: true` to mark a property as required for creating a new entity
+            if 'required_on_create' in properties[key]:
+                if properties[key]['required_on_create'] and ('trigger' not in properties[key]) and (key not in json_data_keys):
+                    missing_required_keys_on_create.append(key)
 
-    if len(missing_required_keys) > 0:
-        raise KeyError("Missing required keys in request json: " + separator.join(missing_required_keys))
+        if len(missing_required_keys_on_create) > 0:
+            raise KeyError("Missing required keys in request json: " + separator.join(missing_required_keys_on_create))
 
     # By now all the keys in request json have passed the above two checks: existence cehck in schema and required check in schema
     # Verify data types of keys
