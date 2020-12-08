@@ -5,6 +5,9 @@ import datetime
 from schema import schema_manager
 from schema import schema_neo4j_queries
 
+# HuBMAP commons
+from hubmap_commons import globus_groups
+
 
 ####################################################################################################
 ## Trigger methods shared among Collection, Dataset, Donor, Sample - DO NOT RENAME
@@ -234,6 +237,26 @@ def set_hubmap_id(property_key, normalized_class, neo4j_driver, data_dict):
 ## Trigger methods shared by Sample, Donor, Dataset - DO NOT RENAME
 ####################################################################################################
 
+"""
+Trigger event method of getting the group_uuid
+
+Parameters
+----------
+property_key : str
+    The target property key of the value to be generated
+normalized_class : str
+    One of the classes defined in the schema yaml: Activity, Collection, Donor, Sample, Dataset
+neo4j_driver : neo4j.Driver object
+    The neo4j database connection pool
+data_dict : dict
+    A merged dictionary that contains all possible input data to be used
+    It's fine if a trigger method doesn't use any input data
+
+Returns
+-------
+str
+    The group uuid
+"""
 def set_group_uuid(property_key, normalized_class, neo4j_driver, data_dict):
     if 'hmgroupids' not in data_dict:
         raise KeyError("Missing 'hmgroupids' key in 'data_dict' during calling 'set_group_uuid()' trigger method.")
@@ -264,7 +287,26 @@ def set_group_uuid(property_key, normalized_class, neo4j_driver, data_dict):
 
     return uuid
 
+"""
+Trigger event method of getting the group_name
 
+Parameters
+----------
+property_key : str
+    The target property key of the value to be generated
+normalized_class : str
+    One of the classes defined in the schema yaml: Activity, Collection, Donor, Sample, Dataset
+neo4j_driver : neo4j.Driver object
+    The neo4j database connection pool
+data_dict : dict
+    A merged dictionary that contains all possible input data to be used
+    It's fine if a trigger method doesn't use any input data
+
+Returns
+-------
+str
+    The group name
+"""
 def set_group_name(property_key, normalized_class, neo4j_driver, data_dict):
     if 'hmgroupids' not in data_dict:
         raise KeyError("Missing 'hmgroupids' key in 'data_dict' during calling 'set_group_name()' trigger method.")
@@ -301,6 +343,26 @@ def set_group_name(property_key, normalized_class, neo4j_driver, data_dict):
 ## Trigger methods shared by Donor and Sample - DO NOT RENAME
 ####################################################################################################
 
+"""
+Trigger event method of getting the submission_id
+
+Parameters
+----------
+property_key : str
+    The target property key of the value to be generated
+normalized_class : str
+    One of the classes defined in the schema yaml: Activity, Collection, Donor, Sample, Dataset
+neo4j_driver : neo4j.Driver object
+    The neo4j database connection pool
+data_dict : dict
+    A merged dictionary that contains all possible input data to be used
+    It's fine if a trigger method doesn't use any input data
+
+Returns
+-------
+str
+    The submission_id
+"""
 def set_submission_id(property_key, normalized_class, neo4j_driver, data_dict):
     if 'submission_id' not in data_dict:
         raise KeyError("Missing 'submission_id' key in 'data_dict' during calling 'set_submission_id()' trigger method.")
@@ -580,7 +642,7 @@ def get_dataset_direct_ancestor_uuids(property_key, normalized_class, neo4j_driv
 
 
 """
-Trigger event method of getting the relative directory path of a given uuid
+Trigger event method of getting the relative directory path of a given dataset
 
 Parameters
 ----------
@@ -600,7 +662,30 @@ str
     The relative directory path
 """
 def get_local_directory_rel_path(property_key, normalized_class, neo4j_driver, data_dict):
-    return "dummy"
+    if 'uuid' not in data_dict:
+        raise KeyError("Missing 'uuid' key in 'data_dict' during calling 'get_local_directory_rel_path()' trigger method.")
+    
+    uuid = data_dict['uuid']
+
+    if (not 'group_uuid' in data_dict) or (not data_dict['group_uuid']):
+        raise KeyError("Group uuid not set for dataset with uuid: " + uuid)
+
+    # Get the globus groups info based on the groups json file in commons package
+    globus_groups_info = globus_groups.get_globus_groups_info()
+    groups_by_id_dict = globus_groups_info['by_id']
+    
+    # Get the data_acess_level by calling another trigger method
+    data_access_level = get_data_access_level(property_key, normalized_class, neo4j_driver, data_dict)
+    print("-------------------")
+    print(data_access_level)
+    #look up the Component's group ID, return an error if not found
+    data_group_id = data_dict['group_uuid']
+    if not data_group_id in groups_by_id_dict:
+        raise KeyError("Can not find dataset group: " + data_group_id + " for uuid: " + uuid)
+
+    dir_path = data_access_level + "/" + groups_by_id_dict[data_group_id]['displayname'] + "/" + uuid + "/"
+
+    return dir_path
 
 """
 Trigger event method of getting a list of associated datasets for a given collection
