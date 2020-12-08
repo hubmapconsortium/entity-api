@@ -430,7 +430,7 @@ def get_ancestors(id):
     ancestors_list = app_neo4j_queries.get_ancestors(neo4j_driver_instance, uuid)
 
     # Final result
-    final_result = get_complete_entities_list(ancestors_list)
+    final_result = schema_manager.get_complete_entities_list(ancestors_list)
 
     # Result filtering based on query string
     result_filtering_accepted_property_keys = ['uuid']
@@ -479,7 +479,7 @@ def get_descendants(id):
     descendants_list = app_neo4j_queries.get_descendants(neo4j_driver_instance, uuid)
 
     # Final result
-    final_result = get_complete_entities_list(descendants_list)
+    final_result = schema_manager.get_complete_entities_list(descendants_list)
 
     # Result filtering based on query string
     result_filtering_accepted_property_keys = ['uuid']
@@ -527,7 +527,7 @@ def get_parents(id):
     parents_list = app_neo4j_queries.get_parents(neo4j_driver_instance, uuid)
 
     # Final result
-    final_result = get_complete_entities_list(parents_list)
+    final_result = schema_manager.get_complete_entities_list(parents_list)
 
     # Result filtering based on query string
     result_filtering_accepted_property_keys = ['uuid']
@@ -575,7 +575,7 @@ def get_children(id):
     children_list = app_neo4j_queries.get_children(neo4j_driver_instance, uuid)
 
     # Final result
-    final_result = get_complete_entities_list(children_list)
+    final_result = schema_manager.get_complete_entities_list(children_list)
 
     # Result filtering based on query string
     result_filtering_accepted_property_keys = ['uuid']
@@ -1103,56 +1103,6 @@ def query_target_entity(id):
     except requests.exceptions.RequestException as e:
         # Something wrong with the request to uuid-api
         internal_server_error(e)
-
-"""
-Generate the complete entity record as well as result filtering for response
-
-Parameters
-----------
-normalized_class : str
-    One of the classes defined in the schema yaml: Collection, Donor, Sample, Dataset
-entity_dict : dict
-    The entity dict based on neo4j record
-
-Returns
--------
-dict
-    A dictionary of complete entity details
-"""
-def get_complete_entity_result(normalized_entity_class, entity_dict):
-    generated_on_read_trigger_data_dict = schema_manager.generate_triggered_data('on_read_trigger', normalized_entity_class, entity_dict)
-
-    # Merge the entity info and the generated on read data into one dictionary
-    merged_dict = {**entity_dict, **generated_on_read_trigger_data_dict}
-
-    # Get rid of the entity node properties that are not defined in the yaml schema
-    # as well as the ones defined as `exposed: false` in the yaml schema
-    result_dict = schema_manager.normalize_entity_result(normalized_entity_class, merged_dict)
-
-    return result_dict
-
-"""
-Generate the complete entity records as well as result filtering for response
-
-Parameters
-----------
-entities_list : list
-    A list a entity dictionaries 
-
-Returns
--------
-list
-    A list a complete entity dictionaries
-"""
-def get_complete_entities_list(entities_list):
-    complete_entities_list = []
-
-    for entity_dict in entities_list:
-        normalized_entity_class = entity_dict['entity_class']
-        complete_entity_dict = get_complete_entity_result(normalized_entity_class, entity_dict)
-        complete_entities_list.append(complete_entity_dict)
-
-    return complete_entities_list
 
 """
 Always expect a json body from user request

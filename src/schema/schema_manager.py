@@ -219,6 +219,61 @@ def generate_triggered_data(trigger_type, normalized_class, data_dict):
     return trigger_generated_data_dict
                 
 
+"""
+Generate the complete entity record as well as result filtering for response
+
+Parameters
+----------
+normalized_class : str
+    One of the classes defined in the schema yaml: Collection, Donor, Sample, Dataset
+entity_dict : dict
+    The entity dict based on neo4j record
+properties_to_exclude : list
+    Any additional properties to exclude from the response
+
+Returns
+-------
+dict
+    A dictionary of complete entity with all the normalized information
+"""
+def get_complete_entity_result(normalized_entity_class, entity_dict, properties_to_exclude = []):
+    generated_on_read_trigger_data_dict = generate_triggered_data('on_read_trigger', normalized_entity_class, entity_dict)
+
+    # Merge the entity info and the generated on read data into one dictionary
+    merged_dict = {**entity_dict, **generated_on_read_trigger_data_dict}
+
+    # Get rid of the entity node properties that are not defined in the yaml schema
+    # as well as the ones defined as `exposed: false` in the yaml schema
+    complete_result_dict = normalize_entity_result_for_response(normalized_entity_class, merged_dict, properties_to_exclude)
+
+    return complete_result_dict
+
+
+"""
+Generate the complete entity records as well as result filtering for response
+
+Parameters
+----------
+entities_list : list
+    A list of entity dictionaries 
+properties_to_exclude : list
+    Any additional properties to exclude from the response
+
+Returns
+-------
+list
+    A list a complete entity dictionaries with all the normalized information
+"""
+def get_complete_entities_list(entities_list, properties_to_exclude = []):
+    complete_entities_list = []
+
+    for entity_dict in entities_list:
+        normalized_entity_class = entity_dict['entity_class']
+        complete_entity_dict = get_complete_entity_result(normalized_entity_class, entity_dict, properties_to_exclude)
+        complete_entities_list.append(complete_entity_dict)
+
+    return complete_entities_list
+
 
 """
 Normalize the entity result by removing properties that are not defined in the yaml schema
@@ -230,13 +285,15 @@ normalized_entity_class : str
     One of the entity classes defined in the schema yaml: Collection, Donor, Sample, Dataset
 data_dict : dict
     A merged dictionary that contains all possible data to be used by the trigger methods
+properties_to_exclude : list
+    Any additional properties to exclude from the response
 
 Returns
 -------
 dict
     A entity dictionary with keys that are all defined in schema yaml
 """
-def normalize_entity_result(normalized_entity_class, entity_dict):
+def normalize_entity_result_for_response(normalized_entity_class, entity_dict, properties_to_exclude = []):
     global _schema
 
     properties = _schema['ENTITIES'][normalized_entity_class]['properties']
@@ -251,6 +308,10 @@ def normalize_entity_result(normalized_entity_class, entity_dict):
         else:
             # Also remove the properties that are marked as `exposed: false`
             if ('exposed' in properties[key]) and (not properties[key]['exposed']):
+                del entity_dict[key]
+
+            # Exclude additional properties if specified
+            if key in properties_to_exclude:
                 del entity_dict[key]
 
     return entity_dict

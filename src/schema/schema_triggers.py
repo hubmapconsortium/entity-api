@@ -391,13 +391,19 @@ data_dict : dict
 Returns
 -------
 list
-    A list a associated dataset dicts
+    A list of associated dataset dicts with all the normalized information
 """
 def get_collection_datasets(property_key, normalized_class, neo4j_driver, data_dict):
     if 'uuid' not in data_dict:
         raise KeyError("Missing 'uuid' key in 'data_dict' during calling 'get_collection_datasets()' trigger method.")
 
-    return schema_neo4j_queries.get_collection_datasets(neo4j_driver, data_dict['uuid'])
+    datasets_list = schema_neo4j_queries.get_collection_datasets(neo4j_driver, data_dict['uuid'])
+
+    # Additional properties of the datasets to exclude 
+    # We don't want to show too much nested information
+    properties_to_exclude = ['direct_ancestors', 'collections']
+
+    return schema_manager.get_complete_entities_list(datasets_list, properties_to_exclude)
 
 """
 Trigger event method of creating relationships between the target collection and datasets
@@ -508,8 +514,8 @@ data_dict : dict
 
 Returns
 -------
-str
-    The uuid string of source entity
+list 
+    A list of associated collections with all the normalized information
 """
 def get_dataset_collections(property_key, normalized_class, neo4j_driver, data_dict):
     if 'uuid' not in data_dict:
@@ -517,7 +523,13 @@ def get_dataset_collections(property_key, normalized_class, neo4j_driver, data_d
 
     # No property key needs to filter the result
     # Get back the list of collection dicts
-    return schema_neo4j_queries.get_dataset_collections(neo4j_driver, data_dict['uuid'])
+    collections_list = schema_neo4j_queries.get_dataset_collections(neo4j_driver, data_dict['uuid'])
+
+    # Additional properties of the datasets to exclude 
+    # We don't want to show too much nested information
+    properties_to_exclude = ['datasets']
+
+    return schema_manager.get_complete_entities_list(collections_list)
 
 """
 Trigger event method of building linkages between this new Dataset and its direct ancestors
@@ -668,8 +680,8 @@ data_dict : dict
 
 Returns
 -------
-str
-    The uuid string of source entity
+list
+    A list of associated direct ancestors with all the normalized information
 """
 def get_dataset_direct_ancestors(property_key, normalized_class, neo4j_driver, data_dict):
     if 'uuid' not in data_dict:
@@ -677,7 +689,16 @@ def get_dataset_direct_ancestors(property_key, normalized_class, neo4j_driver, d
 
     # No property key needs to filter the result
     # Get back the list of ancestor dicts
-    return schema_neo4j_queries.get_dataset_direct_ancestors(neo4j_driver, data_dict['uuid'])
+    direct_ancestors_list = schema_neo4j_queries.get_dataset_direct_ancestors(neo4j_driver, data_dict['uuid'])
+
+    # Additional properties of the datasets to exclude 
+    # We don't want to show too much nested information
+    # The direct ancestor of a Dataset could be: Dataset or Sample
+    # To exclude 'direct_ancestors' and 'collections' if the direct ancestor is Dataset
+    # To exclude 'direct_ancestor' is the direct ancestor is Sample
+    properties_to_exclude = ['direct_ancestors', 'collections', 'direct_ancestor']
+
+    return schema_manager.get_complete_entities_list(direct_ancestors_list, properties_to_exclude)
 
 """
 Trigger event method of getting source uuid
@@ -819,10 +840,6 @@ def relink_dataset_to_collections(property_key, normalized_class, neo4j_driver, 
 ## Trigger methods specific to Donor - DO NOT RENAME
 ####################################################################################################
 
-def set_submission_id(property_key, normalized_class, neo4j_driver, data_dict):
-    if 'submission_id' not in data_dict:
-        raise KeyError("Missing 'submission_id' key in 'data_dict' during calling 'set_submission_id()' trigger method.")
-    return data_dict['submission_id']
 
 ####################################################################################################
 ## Trigger methods specific to Sample - DO NOT RENAME
@@ -974,13 +991,22 @@ data_dict : dict
 Returns
 -------
 dict
-    The parent entity, either another Sample or a Donor
+    The direct ancestor entity (either another Sample or a Donor) with all the normalized information
 """
 def get_sample_direct_ancestor(property_key, normalized_class, neo4j_driver, data_dict):
     if 'uuid' not in data_dict:
         raise KeyError("Missing 'uuid' key in 'data_dict' during calling 'get_sample_direct_ancestor()' trigger method.")
 
-    return schema_neo4j_queries.get_sample_direct_ancestor(neo4j_driver, data_dict['uuid'])
+    direct_ancestor_dict = schema_neo4j_queries.get_sample_direct_ancestor(neo4j_driver, data_dict['uuid'])
+    
+    if 'entity_class' not in direct_ancestor_dict:
+        raise KeyError("The 'entity_class' property in the resulting 'direct_ancestor_dict' is not set during calling 'get_sample_direct_ancestor()' trigger method.")
+
+    # Additional properties to exclude form response
+    # We don't want to show too much nested information
+    properties_to_exclude = ['direct_ancestor']
+
+    return schema_manager.get_complete_entity_result(direct_ancestor_dict['entity_class'], direct_ancestor_dict, properties_to_exclude)
 
 """
 Trigger event method of getting source uuid
