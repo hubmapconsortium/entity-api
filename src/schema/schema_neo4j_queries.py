@@ -11,6 +11,47 @@ record_field_name = 'result'
 ####################################################################################################
 
 """
+Unlink the linkages between the target entity and its direct ancestors
+
+Parameters
+----------
+neo4j_driver : neo4j.Driver object
+    The neo4j database connection pool
+uuid : str
+    The uuid of target entity 
+
+Returns
+-------
+integer
+    The number of Activity nodes deleted
+"""
+def unlink_entity_to_direct_ancestors(neo4j_driver, uuid):
+    parameterized_query = ("MATCH (s:Entity)-[in:ACTIVITY_INPUT]->(a:Activity)-[out:ACTIVITY_OUTPUT]->(t:Entity) " + 
+                           "WHERE t.uuid = '{uuid}' " +
+                           # Delete the Activity node and in input/out relationships
+                           "DELETE in, a, out" +
+                           "RETURN COUNT(a) AS {record_field_name}")
+
+    query = parameterized_query.format(uuid = uuid, 
+                                       record_field_name = record_field_name)
+
+    logger.debug("======unlink_entity_to_direct_ancestors() query======")
+    logger.debug(query)
+
+    try:
+        # Sessions will often be created and destroyed using a with block context
+        with neo4j_driver.session() as session:
+            result = session.run(query)
+            record = result.single()
+            return record[record_field_name]
+    except CypherSyntaxError as ce:
+        msg = "CypherSyntaxError from calling unlink_entity_to_direct_ancestors(): " + ce.message
+        logger.error(msg)
+        raise CypherSyntaxError(msg)
+    except Exception as e:
+        raise e
+
+"""
 Get the direct ancestors uuids of a given dataset by uuid
 
 Parameters
@@ -82,14 +123,13 @@ ancestor_uuid : str
     The uuid of ancestor entity
 activity_json_list_str : str
     The string representation of a list containing only one Activity node to be created
-relink : bool
-    A flag to indicate if recreating the linkages
+
 Returns
 -------
 boolean
     True if everything goes well
 """
-def link_entity_to_direct_ancestor(neo4j_driver, entity_uuid, ancestor_uuid, activity_json_list_str, relink = False):
+def link_entity_to_direct_ancestor(neo4j_driver, entity_uuid, ancestor_uuid, activity_json_list_str):
     try:
         with neo4j_driver.session() as session:
             tx = session.begin_transaction()
@@ -539,19 +579,25 @@ dataset_uuid : str
     The uuid of target dataset
 collection_uuids_list: list
     The list of collection uuids to be linked
+relink : bool
+    A flag to indicate if recreating the linkages
 
 Returns
 -------
 str
     The relationship type name
 """
-def link_dataset_to_collections(neo4j_driver, dataset_uuid, collection_uuids_list):
+def link_dataset_to_collections(neo4j_driver, dataset_uuid, collection_uuids_list, relink = False):
     try:
         with neo4j_driver.session() as session:
             tx = session.begin_transaction()
-   
-            logger.info("Create relationships between the target Dataset and associated Collections")
+            
+            if relink:
+                logger.info("Delete relationships between the target Dataset and associated Collections")
+                count_deleted = unlink_dataset_to_collections_tx(tx, dataset_uuid)
 
+            # Recreate new linkages
+            logger.info("Create relationships between the target Dataset and associated Collections")
             relationship = create_relationships_tx(tx, dataset_uuid, collection_uuids_list)
 
             tx.commit()
@@ -574,55 +620,6 @@ def link_dataset_to_collections(neo4j_driver, dataset_uuid, collection_uuids_lis
     except Exception as e:
         raise e
 
-"""
-Recreate relationships between the target dataset node and collection nodes in neo4j
-
-Parameters
-----------
-neo4j_driver : neo4j.Driver object
-    The neo4j database connection pool
-dataset_uuid : str
-    The uuid of target dataset
-collection_uuids_list: list
-    The list of collection uuids to be linked
-
-Returns
--------
-str
-    The relationship type name
-"""
-def relink_dataset_to_collections(neo4j_driver, dataset_uuid, collection_uuids_list):
-    try:
-        with neo4j_driver.session() as session:
-            tx = session.begin_transaction()
-            
-            logger.info("Delete relationships between the target Dataset and associated Collections")
-
-            count_deleted = unlink_collection_to_datasets_tx(tx, dataset_uuid)
-
-            logger.info("Create relationships between the target Dataset and associated Collections")
-
-            relationship = create_relationships_tx(tx, dataset_uuid, collection_uuids_list)
-
-            tx.commit()
-
-            return relationship
-    except CypherSyntaxError as ce:
-        msg = "CypherSyntaxError from calling relink_dataset_to_collections(): " + ce.message
-        logger.error(msg)
-        raise CypherSyntaxError(msg)
-    except TransactionError as te:
-        msg = "TransactionError from calling relink_dataset_to_collections(): " + te.value
-        logger.error(msg)
-
-        if tx.closed() == False:
-            logger.info("Failed to commit relink_dataset_to_collections() transaction, rollback")
-
-            tx.rollback()
-
-        raise TransactionError(msg)
-    except Exception as e:
-        raise e
 
 """
 Get the parent of a given Sample entity
