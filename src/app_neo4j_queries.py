@@ -780,6 +780,70 @@ def get_children(neo4j_driver, uuid, property_key = None):
     except Exception as e:
         raise e
 
+"""
+Link the datasets to the target collection
+
+Parameters
+----------
+neo4j_driver : neo4j.Driver object
+    The neo4j database connection pool
+collection_uuid : str
+    The uuid of target collection 
+dataset_uuids_list : list
+    A list of dataset uuids to be linked to collection
+"""
+def add_datasets_to_collection(neo4j_driver, collection_uuid, dataset_uuids_list):
+    dataset_uuids_list_str = '[' + ', '.join(dataset_uuids_list) + ']'
+
+    try:
+        with neo4j_driver.session() as session:
+            tx = session.begin_transaction()
+
+            logger.info("Create relationships between the target Collection and the given Datasets")
+
+            parameterized_query = ("MATCH (c:Collection), (d:Dataset) " +
+                                   "WHERE c.uuid = '{uuid}' AND d.uuid IN {dataset_uuids_list_str} " +
+                                   "CREATE (c)<-[r:IN_COLLECTION]-(d) " +
+                                   "RETURN count(r) AS {record_field_name}") 
+
+            query = parameterized_query.format(uuid = collection_uuid,
+                                               dataset_uuids_list_str = dataset_uuids_list_str,
+                                               record_field_name = record_field_name)
+
+            logger.debug("======add_datasets_to_collection() query======")
+            logger.debug(query)
+
+            result = tx.run(query)
+            record = result.single()
+            count = record[record_field_name]
+
+            logger.debug("======add_datasets_to_collection() number of relationships created======")
+            logger.debug(count)
+
+            if count == len(dataset_uuids_list):
+                logger.info("Successfully created all relationships via add_datasets_to_collection(), commit transaction")
+                tx.commit()
+            else:
+                msg = "The number of relationships created by add_datasets_to_collection() does not match the number of datasets, rollback transaction"
+                logger.error(msg)
+                raise TransactionError(msg)
+    except CypherSyntaxError as ce:
+        msg = "CypherSyntaxError from calling add_datasets_to_collection(): " + ce.message
+        logger.error(msg)
+        raise CypherSyntaxError(msg)
+    except TransactionError as te:
+        msg = "TransactionError from calling add_datasets_to_collection(): " + te.value
+        logger.error(msg)
+
+        if tx.closed() == False:
+            logger.info("Failed to commit add_datasets_to_collection() transaction, rollback")
+
+            tx.rollback()
+
+        raise TransactionError(msg)
+    except Exception as e:
+        raise e
+
 ####################################################################################################
 ## Internal Functions
 ####################################################################################################

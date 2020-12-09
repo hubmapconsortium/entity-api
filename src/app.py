@@ -1,5 +1,6 @@
 from flask import Flask, g, jsonify, abort, request, Response, redirect
 from neo4j import GraphDatabase
+from neo4j.exceptions import CypherSyntaxError, TransactionError
 import sys
 import os
 import re
@@ -597,6 +598,67 @@ def get_children(id):
             bad_request_error("The specified query string is not supported. Use '?property=<key>' to filter the result")
 
     return jsonify(final_result)
+
+
+
+"""
+Link the list of datasets to the target collection
+
+JSON request body example:
+{
+    "dataset_uuids": [
+        "fb6757b606ac35be7fa85062fde9c2e1",
+        "81a9fa68b2b4ea3e5f7cb17554149473",
+        "3ac0768d61c6c84f0ec59d766e123e05",
+        "0576b972e074074b4c51a61c3d17a6e3"
+    ]
+}
+
+Parameters
+----------
+collection_uuid : str
+    The UUID of target collection 
+
+Returns
+-------
+json
+    All the updated properties of the target entity
+"""
+@app.route('/add_datasets_to_collection/<collection_uuid>', methods = ['PUT'])
+def add_datasets_to_collection(collection_uuid):
+    # Query target entity against uuid-api and neo4j and return as a dict if exists
+    entity_dict = query_target_entity(collection_uuid)
+    if entity_dict['entity_class'] != 'Collection':
+        bad_request_error("The UUID provided in URL is not a Collection: " + collection_uuid)
+
+    # Always expect a json body
+    require_json(request)
+
+    # Parse incoming json string into json data(python list object)
+    json_data_dict = request.get_json()
+
+    if 'dataset_uuids' not in json_data_dict:
+        bad_request_error("Missing 'dataset_uuids' key in the request JSON.")
+
+    if not json_data_dict['dataset_uuids']:
+        bad_request_error("JSON field 'dataset_uuids' can not be empty list.")
+
+    # Now we have a list of uuids
+    dataset_uuids_list = json_data_dict['dataset_uuids']
+
+    # Make sure all the given uuids are datasets
+    for dataset_uuid in dataset_uuids_list:
+        entity_dict = query_target_entity(dataset_uuid)
+        if entity_dict['entity_class'] != 'Dataset':
+            bad_request_error("The UUID provided in JSON is not a Dataset: " + dataset_uuid)
+
+    try:
+        app_neo4j_queries.add_datasets_to_collection(neo4j_driver_instance, collection_uuid, dataset_uuids_list)
+    except (CypherSyntaxError, TransactionError):
+        msg = "Failed to create the linkage between the given datasets and the target collection"
+        app.logger.error(msg)
+        internal_server_error(msg)
+
 
 """
 Redirect a request from a doi service for a collection of data
