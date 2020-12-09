@@ -260,32 +260,12 @@ str
 def set_group_uuid(property_key, normalized_class, neo4j_driver, data_dict):
     if 'hmgroupids' not in data_dict:
         raise KeyError("Missing 'hmgroupids' key in 'data_dict' during calling 'set_group_uuid()' trigger method.")
-    
-    # Get the globus groups info based on the groups json file in commons package
-    globus_groups_info = globus_groups.get_globus_groups_info()
-    groups_by_id_dict = globus_groups_info['by_id']
 
-    # A list of data provider uuids
-    data_provider_uuids = []
-    for uuid_key in groups_by_id_dict:
-        if 'data_provider' in groups_by_id_dict[uuid_key] and groups_by_id_dict[uuid_key]['data_provider']:
-            data_provider_uuids.append(uuid_key)
-
-    data_provider_groups = []
-    for group_uuid in data_dict['hmgroupids']:
-        if group_uuid in data_provider_uuids:
-            data_provider_groups.append(group_uuid)
-
-    if len(data_provider_groups) == 0:
-        raise ValueError("No data_provider groups found for this user. Can't continue.")
-
-    if len(data_provider_groups) > 1:
-        raise ValueError("More than one data_provider groups found for this user. Can't continue.")
-
-    # By now only one data provider group found, this is what we want
-    uuid = data_provider_groups[0]
-
-    return uuid
+    try:
+        group_info = schema_manager.get_entity_group_info(data_dict['hmgroupids'])
+        return group_info['uuid']
+    except ValueError as e:
+        raise ValueError(e)
 
 """
 Trigger event method of getting the group_name
@@ -311,33 +291,12 @@ def set_group_name(property_key, normalized_class, neo4j_driver, data_dict):
     if 'hmgroupids' not in data_dict:
         raise KeyError("Missing 'hmgroupids' key in 'data_dict' during calling 'set_group_name()' trigger method.")
     
-    # Get the globus groups info based on the groups json file in commons package
-    globus_groups_info = globus_groups.get_globus_groups_info()
-    groups_by_id_dict = globus_groups_info['by_id']
-
-    # A list of data provider uuids
-    data_provider_uuids = []
-    for uuid_key in groups_by_id_dict:
-        if 'data_provider' in groups_by_id_dict[uuid_key] and groups_by_id_dict[uuid_key]['data_provider']:
-            data_provider_uuids.append(uuid_key)
-
-    data_provider_groups = []
-    for group_uuid in data_dict['hmgroupids']:
-        if group_uuid in data_provider_uuids:
-            data_provider_groups.append(group_uuid)
-
-    if len(data_provider_groups) == 0:
-        raise ValueError("No data_provider groups found for this user. Can't continue.")
-
-    if len(data_provider_groups) > 1:
-        raise ValueError("More than one data_provider groups found for this user. Can't continue.")
-
-    # By now only one data provider group found, this is what we want
-    uuid = data_provider_groups[0]
-    group_name = groups_by_id_dict[uuid]['displayname']
-
-    return group_name
-
+    try:
+        group_info = schema_manager.get_entity_group_info(data_dict['hmgroupids'])
+        return group_info['name']
+    except ValueError as e:
+        raise ValueError(e)
+    
 
 ####################################################################################################
 ## Trigger methods shared by Donor and Sample - DO NOT RENAME
@@ -764,8 +723,7 @@ def get_local_directory_rel_path(property_key, normalized_class, neo4j_driver, d
     
     # Get the data_acess_level by calling another trigger method
     data_access_level = get_data_access_level(property_key, normalized_class, neo4j_driver, data_dict)
-    print("-------------------")
-    print(data_access_level)
+
     #look up the Component's group ID, return an error if not found
     data_group_id = data_dict['group_uuid']
     if not data_group_id in groups_by_id_dict:

@@ -708,6 +708,56 @@ def create_hubmap_ids(normalized_class):
 
         raise requests.exceptions.RequestException(msg)
 
+"""
+Get the group info (group_uuid and group_name) based on user's hmgroupids list
+
+Parameters
+----------
+user_hmgroupids_list : list
+    A list of globus group uuids that the user has access to
+
+Returns
+-------
+dict
+    The group info (group_uuid and group_name)
+"""
+def get_entity_group_info(user_hmgroupids_list):
+    # Default
+    group_info = {
+        'uuid': '',
+        'name': ''
+    }
+
+    # Get the globus groups info based on the groups json file in commons package
+    globus_groups_info = globus_groups.get_globus_groups_info()
+    groups_by_id_dict = globus_groups_info['by_id']
+
+    # A list of data provider uuids
+    data_provider_uuids = []
+    for uuid_key in groups_by_id_dict:
+        if 'data_provider' in groups_by_id_dict[uuid_key] and groups_by_id_dict[uuid_key]['data_provider']:
+            data_provider_uuids.append(uuid_key)
+
+    data_provider_groups = []
+    for group_uuid in user_hmgroupids_list:
+        if group_uuid in data_provider_uuids:
+            data_provider_groups.append(group_uuid)
+
+    if len(data_provider_groups) == 0:
+        msg = "No data_provider groups found for this user. Can't continue."
+        logger.error(msg)
+        raise ValueError(msg)
+
+    if len(data_provider_groups) > 1:
+        msg = "More than one data_provider groups found for this user. Can't continue."
+        logger.error(msg)
+        raise ValueError(msg)
+
+    # By now only one data provider group found, this is what we want
+    group_info['uuid'] = data_provider_groups[0]
+    group_info['name'] = groups_by_id_dict[uuid]['displayname']
+    
+    return group_info
 
 ####################################################################################################
 ## Internal functions
