@@ -170,15 +170,6 @@ ENTITIES:
         type: boolean
         description: "True if the entity has a doi registered for it, false otherwise."
       ###### Transient properties ######
-      # Should we make dataset_uuids `immutable: true` to disallow update?
-      dataset_uuids:  #used only to pass the reference to linked datasets in on a PUT/POST 
-        type: list
-        transient: true
-        exposed: false
-        description: "A list of dataset uuids that belong to this collection.  This field is used to pass the set of datasets contained in the collection in on a PUT or POST"
-        after_create_trigger: link_collection_to_datasets
-        after_update_trigger: relink_collection_to_datasets
-        on_read_trigger: get_collection_dataset_uuids
       datasets:
         type: list
         transient: true
@@ -203,23 +194,12 @@ ENTITIES:
         type: json_string
         required_on_create: true # Only required for create via POST, not update via PUT
         description: "The data or assay types contained in this dataset as a json array of strings.  Each is an assay code from https://github.com/hubmapconsortium/search-api/blob/devel/src/search-schema/data/definitions/enums/assay_types.yaml."
-      # Should we make collection_uuids `immutable: true` to disallow update?
-      collection_uuids:
-        type: list
-        transient: true
-        exposed: false
-        description: "A list of collection uuids for the collections that this dataset belongs to. This is used to pass the reference"
-        after_create_trigger: link_dataset_to_collections
-        after_update_trigger: relink_dataset_to_collections
-        on_read_trigger: get_dataset_collection_uuids
       collections:
         type: list
         transient: true
         generated: true
         description: "A list of collections that this dataset belongs to. Will be returned in response"
         on_read_trigger: get_dataset_collections
-      # Do we want to expose direct_ancestor_uuids and direct_ancestors at the same time?
-      # Should we make direct_ancestor_uuids `immutable: true` to disallow update?
       direct_ancestor_uuids:
         required_on_create: true # Only required for create via POST, not update via PUT
         type: list

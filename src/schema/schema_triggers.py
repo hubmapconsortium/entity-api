@@ -364,97 +364,10 @@ def get_collection_datasets(property_key, normalized_class, neo4j_driver, data_d
 
     return schema_manager.get_complete_entities_list(datasets_list, properties_to_exclude)
 
-"""
-Trigger event method of creating relationships between the target collection and datasets
-
-Parameters
-----------
-property_key : str
-    The target property key of the value to be generated
-normalized_class : str
-    One of the classes defined in the schema yaml: Activity, Collection, Donor, Sample, Dataset
-neo4j_driver : neo4j.Driver object
-    The neo4j database connection pool
-data_dict : dict
-    A merged dictionary that contains all possible input data to be used
-    It's fine if a trigger method doesn't use any input data
-
-Returns
--------
-str
-    The name of relationship
-"""
-def link_collection_to_datasets(property_key, normalized_class, neo4j_driver, data_dict):
-    if 'uuid' not in data_dict:
-        raise KeyError("Missing 'uuid' key in 'data_dict' during calling 'link_collection_to_datasets()' trigger method.")
-
-    if 'dataset_uuids' not in data_dict:
-        raise KeyError("Missing 'dataset_uuids' key in 'data_dict' during calling 'link_collection_to_datasets()' trigger method.")
-
-    return schema_neo4j_queries.link_collection_to_datasets(neo4j_driver, data_dict['uuid'], data_dict['dataset_uuids'])
-
-
-"""
-Trigger event method of recreating the linkages between target collection and datasets
-
-Parameters
-----------
-property_key : str
-    The target property key of the value to be generated
-normalized_class : str
-    One of the classes defined in the schema yaml: Activity, Collection, Donor, Sample, Dataset
-neo4j_driver : neo4j.Driver object
-    The neo4j database connection pool
-data_dict : dict
-    A merged dictionary that contains all possible input data to be used
-    It's fine if a trigger method doesn't use any input data
-
-Returns
--------
-str
-    The name of relationship
-"""
-def relink_collection_to_datasets(property_key, normalized_class, neo4j_driver, data_dict):
-    if 'uuid' not in data_dict:
-        raise KeyError("Missing 'uuid' key in 'data_dict' during calling 'link_collection_to_datasets()' trigger method.")
-
-    if 'dataset_uuids' not in data_dict:
-        raise KeyError("Missing 'dataset_uuids' key in 'data_dict' during calling 'link_collection_to_datasets()' trigger method.")
-
-    return schema_neo4j_queries.relink_collection_to_datasets(neo4j_driver, data_dict['uuid'], data_dict['dataset_uuids'])
-
 
 ####################################################################################################
 ## Trigger methods specific to Dataset - DO NOT RENAME
 ####################################################################################################
-
-"""
-Trigger event method of getting a list of collection uuids for this new Dtaset
-
-Parameters
-----------
-property_key : str
-    The target property key
-normalized_class : str
-    One of the classes defined in the schema yaml: Activity, Collection, Donor, Sample, Dataset
-neo4j_driver : neo4j.Driver object
-    The neo4j database connection pool
-data_dict : dict
-    A merged dictionary that contains all possible input data to be used
-    It's fine if a trigger method doesn't use any input data
-
-Returns
--------
-str
-    The uuid string of source entity
-"""
-def get_dataset_collection_uuids(property_key, normalized_class, neo4j_driver, data_dict):
-    if 'uuid' not in data_dict:
-        raise KeyError("Missing 'uuid' key in 'data_dict' during calling 'get_dataset_collection_uuids()' trigger method.")
-
-    # Pass in the property key 'uuid' to filter the result
-    # Only get back a list of collection uuids instead of the whole dict
-    return schema_neo4j_queries.get_dataset_collections(neo4j_driver, data_dict['uuid'], 'uuid')
 
 """
 Trigger event method of getting a list of collections for this new Dtaset
@@ -732,66 +645,6 @@ def get_local_directory_rel_path(property_key, normalized_class, neo4j_driver, d
     dir_path = data_access_level + "/" + groups_by_id_dict[data_group_id]['displayname'] + "/" + uuid + "/"
 
     return dir_path
-
-"""
-Trigger event method of getting a list of associated datasets for a given collection
-
-Parameters
-----------
-property_key : str
-    The target property key of the value to be generated
-normalized_class : str
-    One of the classes defined in the schema yaml: Activity, Collection, Donor, Sample, Dataset
-neo4j_driver : neo4j.Driver object
-    The neo4j database connection pool
-data_dict : dict
-    A merged dictionary that contains all possible input data to be used
-    It's fine if a trigger method doesn't use any input data
-
-Returns
--------
-str
-    The name of relationship
-"""
-def link_dataset_to_collections(property_key, normalized_class, neo4j_driver, data_dict):
-    if 'uuid' not in data_dict:
-        raise KeyError("Missing 'uuid' key in 'data_dict' during calling 'link_dataset_to_collections()' trigger method.")
-
-    if 'collection_uuids' not in data_dict:
-        raise KeyError("Missing 'collection_uuids' key in 'data_dict' during calling 'link_dataset_to_collections()' trigger method.")
-
-    return schema_neo4j_queries.link_dataset_to_collections(neo4j_driver, data_dict['uuid'], data_dict['collection_uuids'])
-
-"""
-Trigger event method of getting a list of associated datasets for a given collection
-
-Parameters
-----------
-property_key : str
-    The target property key of the value to be generated
-normalized_class : str
-    One of the classes defined in the schema yaml: Activity, Collection, Donor, Sample, Dataset
-neo4j_driver : neo4j.Driver object
-    The neo4j database connection pool
-data_dict : dict
-    A merged dictionary that contains all possible input data to be used
-    It's fine if a trigger method doesn't use any input data
-
-Returns
--------
-str
-    The name of relationship
-"""
-def relink_dataset_to_collections(property_key, normalized_class, neo4j_driver, data_dict):
-    if 'uuid' not in data_dict:
-        raise KeyError("Missing 'uuid' key in 'data_dict' during calling 'link_dataset_to_collections()' trigger method.")
-
-    if 'collection_uuids' not in data_dict:
-        raise KeyError("Missing 'collection_uuids' key in 'data_dict' during calling 'link_dataset_to_collections()' trigger method.")
-    
-    # Specify relink = True to delete the old linkages and recreate
-    return schema_neo4j_queries.link_dataset_to_collections(neo4j_driver, data_dict['uuid'], data_dict['collection_uuids'], True)
-
 
 
 ####################################################################################################
