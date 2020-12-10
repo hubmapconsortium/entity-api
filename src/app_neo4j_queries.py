@@ -714,7 +714,11 @@ dataset_uuids_list : list
     A list of dataset uuids to be linked to collection
 """
 def add_datasets_to_collection(neo4j_driver, collection_uuid, dataset_uuids_list):
-    dataset_uuids_list_str = '[' + ', '.join(dataset_uuids_list) + ']'
+    # Join the list of uuids and wrap each string in single quote
+    joined_str = ', '.join("'{0}'".format(dataset_uuid) for dataset_uuid in dataset_uuids_list)
+    # Format a string to be used in Cypher query.
+    # E.g., ['fb6757b606ac35be7fa85062fde9c2e1', 'ku0gd44535be7fa85062fde98gt5']
+    dataset_uuids_list_str = '[' + joined_str + ']'
 
     try:
         with neo4j_driver.session() as session:
@@ -724,7 +728,9 @@ def add_datasets_to_collection(neo4j_driver, collection_uuid, dataset_uuids_list
 
             parameterized_query = ("MATCH (c:Collection), (d:Dataset) " +
                                    "WHERE c.uuid = '{uuid}' AND d.uuid IN {dataset_uuids_list_str} " +
-                                   "CREATE (c)<-[r:IN_COLLECTION]-(d) " +
+                                   # Use MERGE instead of CREATE to avoid creating the relationship multiple times
+                                   # MERGE creates the relationship only if there is no existing relationship
+                                   "MERGE (c)<-[r:IN_COLLECTION]-(d) " +
                                    "RETURN count(r) AS {record_field_name}") 
 
             query = parameterized_query.format(uuid = collection_uuid,

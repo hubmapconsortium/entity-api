@@ -659,6 +659,8 @@ def add_datasets_to_collection(collection_uuid):
         app.logger.error(msg)
         internal_server_error(msg)
 
+    # Send response with success message
+    return jsonify(message = "Successfully added all the specified datasets to the target collection")
 
 """
 Redirect a request from a doi service for a collection of data
