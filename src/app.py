@@ -147,7 +147,8 @@ def get_status():
         'build': (Path(__file__).parent / 'BUILD').read_text().strip(),
         'neo4j_connection': False
     }
-
+    
+    # Don't use try/except here
     is_connected = app_neo4j_queries.check_connection(neo4j_driver_instance)
     
     if is_connected:
@@ -262,8 +263,13 @@ def get_entities_by_class(entity_class):
         bad_request_error("Invalid entity class provided: " + entity_class)
 
     # Get back a list of entity dicts for the given entity class
-    entities_list = app_neo4j_queries.get_entities_by_class(neo4j_driver_instance, normalized_entity_class)
-    
+    try:
+        entities_list = app_neo4j_queries.get_entities_by_class(neo4j_driver_instance, normalized_entity_class)
+    except (CypherSyntaxError, TransactionError):
+        msg = "Failed to query Neo4j"
+        app.logger.error(msg)
+        internal_server_error(msg)
+
     final_result = entities_list
 
     # Result filtering based on query string
@@ -278,7 +284,12 @@ def get_entities_by_class(entity_class):
                 bad_request_error("Only the following property keys are supported in the query string: " + separator.join(result_filtering_accepted_property_keys))
             
             # Only return a list of the filtered property value of each entity
-            property_list = app_neo4j_queries.get_entities_by_class(neo4j_driver_instance, normalized_entity_class, property_key)
+            try:
+                property_list = app_neo4j_queries.get_entities_by_class(neo4j_driver_instance, normalized_entity_class, property_key)
+            except (CypherSyntaxError, TransactionError):
+                msg = "Failed to query Neo4j"
+                app.logger.error(msg)
+                internal_server_error(msg)
 
             # Final result
             final_result = property_list
@@ -390,7 +401,12 @@ def update_entity(id):
     app.logger.debug(json_list_str)
 
     # Update the exisiting entity
-    updated_entity_dict = app_neo4j_queries.update_entity(neo4j_driver_instance, normalized_entity_class, escaped_json_list_str, entity_uuid)
+    try:
+        updated_entity_dict = app_neo4j_queries.update_entity(neo4j_driver_instance, normalized_entity_class, escaped_json_list_str, entity_uuid)
+    except (CypherSyntaxError, TransactionError):
+        msg = "Failed to update the entity with id " + id
+        app.logger.error(msg)
+        internal_server_error(msg)
 
     # TO-DO
     success = schema_manager.generate_triggered_data('after_update_trigger', normalized_entity_class, merged_dict)
@@ -427,8 +443,13 @@ def get_ancestors(id):
     # the corresponding entity also exists in neo4j
     entity_dict = query_target_entity(id)
     uuid = entity_dict['uuid']
-
-    ancestors_list = app_neo4j_queries.get_ancestors(neo4j_driver_instance, uuid)
+    
+    try:
+        ancestors_list = app_neo4j_queries.get_ancestors(neo4j_driver_instance, uuid)
+    except (CypherSyntaxError, TransactionError):
+        msg = "Failed to query Neo4j to get back the ancestors of entity with id: " + id
+        app.logger.error(msg)
+        internal_server_error(msg)
 
     # Final result
     final_result = schema_manager.get_complete_entities_list(ancestors_list)
@@ -445,7 +466,12 @@ def get_ancestors(id):
                 bad_request_error("Only the following property keys are supported in the query string: " + separator.join(result_filtering_accepted_property_keys))
             
             # Only return a list of the filtered property value of each entity
-            property_list = app_neo4j_queries.get_ancestors(neo4j_driver_instance, uuid, property_key)
+            try:
+                property_list = app_neo4j_queries.get_ancestors(neo4j_driver_instance, uuid, property_key)
+            except (CypherSyntaxError, TransactionError):
+                msg = "Failed to query Neo4j to get back the ancestors of entity with id: " + id
+                app.logger.error(msg)
+                internal_server_error(msg)
 
             # Final result
             final_result = property_list
@@ -477,7 +503,12 @@ def get_descendants(id):
     entity_dict = query_target_entity(id)
     uuid = entity_dict['uuid']
 
-    descendants_list = app_neo4j_queries.get_descendants(neo4j_driver_instance, uuid)
+    try:
+        descendants_list = app_neo4j_queries.get_descendants(neo4j_driver_instance, uuid)
+    except (CypherSyntaxError, TransactionError):
+        msg = "Failed to query Neo4j to get back the descendants of entity with id: " + id
+        app.logger.error(msg)
+        internal_server_error(msg)
 
     # Final result
     final_result = schema_manager.get_complete_entities_list(descendants_list)
@@ -494,7 +525,12 @@ def get_descendants(id):
                 bad_request_error("Only the following property keys are supported in the query string: " + separator.join(result_filtering_accepted_property_keys))
             
             # Only return a list of the filtered property value of each entity
-            property_list = app_neo4j_queries.get_descendants(neo4j_driver_instance, uuid, property_key)
+            try:
+                property_list = app_neo4j_queries.get_descendants(neo4j_driver_instance, uuid, property_key)
+            except (CypherSyntaxError, TransactionError):
+                msg = "Failed to query Neo4j to get back the descendants of entity with id: " + id
+                app.logger.error(msg)
+                internal_server_error(msg)
 
             # Final result
             final_result = property_list
@@ -524,8 +560,13 @@ def get_parents(id):
     # the corresponding entity also exists in neo4j
     entity_dict = query_target_entity(id)
     uuid = entity_dict['uuid']
-
-    parents_list = app_neo4j_queries.get_parents(neo4j_driver_instance, uuid)
+ 
+    try:
+        parents_list = app_neo4j_queries.get_parents(neo4j_driver_instance, uuid)
+    except (CypherSyntaxError, TransactionError):
+        msg = "Failed to query Neo4j to get back the parents of entity with id: " + id
+        app.logger.error(msg)
+        internal_server_error(msg)
 
     # Final result
     final_result = schema_manager.get_complete_entities_list(parents_list)
@@ -542,7 +583,12 @@ def get_parents(id):
                 bad_request_error("Only the following property keys are supported in the query string: " + separator.join(result_filtering_accepted_property_keys))
             
             # Only return a list of the filtered property value of each entity
-            property_list = app_neo4j_queries.get_parents(neo4j_driver_instance, uuid, property_key)
+            try:
+                property_list = app_neo4j_queries.get_parents(neo4j_driver_instance, uuid, property_key)
+            except (CypherSyntaxError, TransactionError):
+                msg = "Failed to query Neo4j to get back the parents of entity with id: " + id
+                app.logger.error(msg)
+                internal_server_error(msg)
 
             # Final result
             final_result = property_list
@@ -573,7 +619,12 @@ def get_children(id):
     entity_dict = query_target_entity(id)
     uuid = entity_dict['uuid']
 
-    children_list = app_neo4j_queries.get_children(neo4j_driver_instance, uuid)
+    try:
+        children_list = app_neo4j_queries.get_children(neo4j_driver_instance, uuid)
+    except (CypherSyntaxError, TransactionError):
+        msg = "Failed to query Neo4j to get back the children of entity with id: " + id
+        app.logger.error(msg)
+        internal_server_error(msg)
 
     # Final result
     final_result = schema_manager.get_complete_entities_list(children_list)
@@ -590,7 +641,12 @@ def get_children(id):
                 bad_request_error("Only the following property keys are supported in the query string: " + separator.join(result_filtering_accepted_property_keys))
             
             # Only return a list of the filtered property value of each entity
-            property_list = app_neo4j_queries.get_children(neo4j_driver_instance, uuid, property_key)
+            try:
+                property_list = app_neo4j_queries.get_children(neo4j_driver_instance, uuid, property_key)
+            except (CypherSyntaxError, TransactionError):
+                msg = "Failed to query Neo4j to get back the children of entity with id: " + id
+                app.logger.error(msg)
+                internal_server_error(msg)
 
             # Final result
             final_result = property_list
@@ -901,7 +957,12 @@ def create_collection(normalized_entity_class, json_data_dict):
     app.logger.debug(escaped_json_list_str)
 
     # Create new entity
-    entity_dict = app_neo4j_queries.create_entity(neo4j_driver_instance, normalized_entity_class, escaped_json_list_str)
+    try:
+        entity_dict = app_neo4j_queries.create_entity(neo4j_driver_instance, normalized_entity_class, escaped_json_list_str)
+    except (CypherSyntaxError, TransactionError):
+        msg = "Failed to create the new " + normalized_entity_class
+        app.logger.error(msg)
+        internal_server_error(msg)
 
     # For new colletion to be linked to existing datasets
     # `dataset_uuids` is the only Collection property that has `after_create_trigger`
@@ -973,14 +1034,18 @@ def create_donor(normalized_entity_class, json_data_dict):
     app.logger.debug(escaped_json_list_str)
 
     # Create new entity
-    entity_dict = app_neo4j_queries.create_entity(neo4j_driver_instance, normalized_entity_class, escaped_json_list_str)
+    try:
+        entity_dict = app_neo4j_queries.create_entity(neo4j_driver_instance, normalized_entity_class, escaped_json_list_str)
+    except (CypherSyntaxError, TransactionError):
+        msg = "Failed to create the new " + normalized_entity_class
+        app.logger.error(msg)
+        internal_server_error(msg)
 
     # None of the Donor properties has `after_create_trigger` 
     # We'll need to return all the properties including those 
     # generated by `on_read_trigger` to have a complete result
     # Will also filter the result based on schema
     return get_complete_entity_result(normalized_entity_class, entity_dict)
-
 
 
 """
@@ -1035,7 +1100,12 @@ def create_sample(normalized_entity_class, json_data_dict):
     app.logger.debug(escaped_json_list_str)
 
     # Create new entity
-    entity_dict = app_neo4j_queries.create_entity(neo4j_driver_instance, normalized_entity_class, escaped_json_list_str)
+    try:
+        entity_dict = app_neo4j_queries.create_entity(neo4j_driver_instance, normalized_entity_class, escaped_json_list_str)
+    except (CypherSyntaxError, TransactionError):
+        msg = "Failed to create the new " + normalized_entity_class
+        app.logger.error(msg)
+        internal_server_error(msg)
 
     # For new sample to be linked to existing source entity
     if has_direct_ancestor_uuid:
@@ -1115,7 +1185,12 @@ def create_dataset(normalized_entity_class, json_data_dict):
     app.logger.debug(escaped_json_list_str)
 
     # Create new entity
-    entity_dict = app_neo4j_queries.create_entity(neo4j_driver_instance, normalized_entity_class, escaped_json_list_str)
+    try:
+        entity_dict = app_neo4j_queries.create_entity(neo4j_driver_instance, normalized_entity_class, escaped_json_list_str)
+    except (CypherSyntaxError, TransactionError):
+        msg = "Failed to create the new " + normalized_entity_class
+        app.logger.error(msg)
+        internal_server_error(msg)
 
     # Handling collection_uuids or source_uuids via `after_create_trigger` methods 
     # if at least one of them presents
@@ -1155,7 +1230,12 @@ def query_target_entity(id):
 
         # Get the target uuid if all good
         uuid = hubmap_ids['hmuuid']
-        entity_dict = app_neo4j_queries.get_entity(neo4j_driver_instance, uuid)
+        try:
+            entity_dict = app_neo4j_queries.get_entity(neo4j_driver_instance, uuid)
+        except (CypherSyntaxError, TransactionError):
+            msg = "Failed to query the target entity from Neo4j: " + id
+            app.logger.error(msg)
+            internal_server_error(msg)
 
         # The uuid exists via uuid-api doesn't mean it's also in Neo4j
         if not bool(entity_dict):
