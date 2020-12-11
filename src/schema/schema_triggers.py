@@ -1,4 +1,5 @@
 import json
+import logging
 import datetime
 
 # Local modules
@@ -8,6 +9,7 @@ from schema import schema_neo4j_queries
 # HuBMAP commons
 from hubmap_commons import globus_groups
 
+logger = logging.getLogger(__name__)
 
 ####################################################################################################
 ## Trigger methods shared among Collection, Dataset, Donor, Sample - DO NOT RENAME
@@ -265,6 +267,8 @@ def set_group_uuid(property_key, normalized_class, neo4j_driver, data_dict):
         group_info = schema_manager.get_entity_group_info(data_dict['hmgroupids'])
         return group_info['uuid']
     except ValueError as e:
+        # Log the full stack trace, prepend a line with our message
+        logger.exception(str(e))
         raise ValueError(e)
 
 """
@@ -458,13 +462,13 @@ def link_dataset_to_direct_ancestors(property_key, normalized_class, neo4j_drive
         logger.debug("======link_dataset_to_direct_ancestors() create activity with activity_json_list_str======")
         logger.debug(activity_json_list_str)
 
-        success = schema_neo4j_queries.link_entity_to_direct_ancestor(neo4j_driver, data_dict['uuid'], direct_ancestor_uuid, activity_json_list_str)
- 
-        if not success:
+        try:
+            success = schema_neo4j_queries.link_entity_to_direct_ancestor(neo4j_driver, data_dict['uuid'], direct_ancestor_uuid, activity_json_list_str)
+        except Exception:
             msg = "Failed to execute 'schema_neo4j_queries.link_entity_to_direct_ancestor()' for dataset with uuid" + data_dict['uuid']
             # Log the full stack trace, prepend a line with our message
             logger.exception(msg)
-            raise RuntimeError(msg)
+            raise Exception(msg)
 
     return True
 
@@ -497,7 +501,13 @@ def relink_dataset_to_direct_ancestors(property_key, normalized_class, neo4j_dri
         raise KeyError("Missing 'direct_ancestor_uuids' key in 'data_dict' during calling 'relink_dataset_to_direct_ancestors()' trigger method.")
 
     # Delete old linkages before recreating new ones
-    num_activity_deleted = schema_neo4j_queries.unlink_entity_to_direct_ancestors(neo4j_driver, data_dict['uuid'])
+    try:
+        num_activity_deleted = schema_neo4j_queries.unlink_entity_to_direct_ancestors(neo4j_driver, data_dict['uuid'])
+    except Exception:
+        msg = "Failed to execute 'schema_neo4j_queries.unlink_entity_to_direct_ancestors()' for dataset with uuid" + data_dict['uuid']
+        # Log the full stack trace, prepend a line with our message
+        logger.exception(msg)
+        raise Exception(msg)
 
     # For each source entity, create a linkage (via Activity node) 
     # between the dataset node and the source entity node in neo4j
@@ -527,13 +537,13 @@ def relink_dataset_to_direct_ancestors(property_key, normalized_class, neo4j_dri
         logger.debug("======relink_dataset_to_direct_ancestors() create activity with activity_json_list_str======")
         logger.debug(activity_json_list_str)
 
-        success = schema_neo4j_queries.link_entity_to_direct_ancestor(neo4j_driver, data_dict['uuid'], direct_ancestor_uuid, activity_json_list_str)
- 
-        if not success:
+        try:
+            success = schema_neo4j_queries.link_entity_to_direct_ancestor(neo4j_driver, data_dict['uuid'], direct_ancestor_uuid, activity_json_list_str)
+        except Exception:
             msg = "Failed to execute 'schema_neo4j_queries.link_entity_to_direct_ancestor()' for dataset with uuid" + data_dict['uuid']
             # Log the full stack trace, prepend a line with our message
             logger.exception(msg)
-            raise RuntimeError(msg)
+            raise Exception(msg)
 
     return True
 
@@ -712,13 +722,13 @@ def link_sample_to_direct_ancestor(property_key, normalized_class, neo4j_driver,
     logger.debug("======link_sample_to_direct_ancestor() create activity with activity_json_list_str======")
     logger.debug(activity_json_list_str)
 
-    success = schema_neo4j_queries.link_entity_to_direct_ancestor(neo4j_driver, data_dict['uuid'], direct_ancestor_uuid, activity_json_list_str)
-
-    if not success:
+    try:
+        success = schema_neo4j_queries.link_entity_to_direct_ancestor(neo4j_driver, data_dict['uuid'], direct_ancestor_uuid, activity_json_list_str)
+    except Exception:
         msg = "Failed to execute 'schema_neo4j_queries.link_entity_to_direct_ancestor()' for sample with uuid" + data_dict['uuid']
         # Log the full stack trace, prepend a line with our message
         logger.exception(msg)
-        raise RuntimeError(msg)
+        raise Exception(msg)
 
     return True
 
@@ -777,13 +787,13 @@ def relink_sample_to_direct_ancestor(property_key, normalized_class, neo4j_drive
     logger.debug("======relink_sample_to_direct_ancestor() create activity with activity_json_list_str======")
     logger.debug(activity_json_list_str)
  
-    success = schema_neo4j_queries.link_entity_to_direct_ancestor(neo4j_driver, data_dict['uuid'], direct_ancestor_uuid, activity_json_list_str)
-
-    if not success:
+    try:
+        success = schema_neo4j_queries.link_entity_to_direct_ancestor(neo4j_driver, data_dict['uuid'], direct_ancestor_uuid, activity_json_list_str)
+    except Exception:
         msg = "Failed to execute 'schema_neo4j_queries.link_entity_to_direct_ancestor(relink = True)' for sample with uuid" + data_dict['uuid']
         # Log the full stack trace, prepend a line with our message
         logger.exception(msg)
-        raise RuntimeError(msg)
+        raise Exception(msg)
 
     return True
 
