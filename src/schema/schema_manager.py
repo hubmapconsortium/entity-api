@@ -1,5 +1,4 @@
 import yaml
-import traceback
 import logging
 import requests
 from cachetools import cached, TTLCache
@@ -193,10 +192,9 @@ def generate_triggered_data(trigger_type, normalized_class, data_dict):
                         
                         # Overwrite if the trigger method gets executed successfully
                         trigger_generated_data_dict[trigger_method_name] = True
-                    except KeyError as ke:
-                        logger.error(ke)
-                    except Exception as e:
-                        logger.error(traceback.format_exc())
+                    except Exception:
+                        # Log the full stack trace, prepend a line with our message
+                        logger.exception("Failed to call the trigger method " + trigger_method_name)
             else:
                 # Handling of all other trigger types:
                 # before_create_trigger|before_update_trigger|on_read_trigger
@@ -210,10 +208,9 @@ def generate_triggered_data(trigger_type, normalized_class, data_dict):
                 try:
                     # Will set the trigger return value as the property value
                     trigger_generated_data_dict[key] = trigger_method_to_call(key, normalized_class, _neo4j_driver, data_dict)
-                except KeyError as ke:
-                    logger.error(ke)
                 except Exception as e:
-                    logger.error(traceback.format_exc())
+                    # Log the full stack trace, prepend a line with our message
+                    logger.exception("Failed to call the trigger method " + trigger_method_name)
     
     # Return after for loop
     return trigger_generated_data_dict
@@ -477,7 +474,8 @@ def validate_trigger_type(trigger_type):
 
     if trigger_type.lower() not in accepted_trigger_types:
         msg = "Invalid trigger type: " + trigger_type + ". The trigger type must be one of the following: " + separator.join(accepted_trigger_types)
-        logger.error(msg)
+        # Log the full stack trace, prepend a line with our message
+        logger.exception(msg)
         raise ValueError(msg)
 
 """
@@ -495,7 +493,8 @@ def validate_normalized_entity_class(normalized_entity_class):
     # Validate provided entity_class
     if normalized_entity_class not in accepted_entity_classes:
         msg = "Invalid entity class: " + normalized_entity_class + ". The entity class must be one of the following: " + separator.join(accepted_entity_classes)
-        logger.error(msg)
+        # Log the full stack trace, prepend a line with our message
+        logger.exception(msg)
         raise ValueError(msg)
 
 """
@@ -577,7 +576,8 @@ def get_user_info(request):
     # If returns error response, invalid header or token
     if isinstance(user_info, Response):
         msg = "Failed to query the user info with the given globus token from the http request"
-        logger.error(msg)
+        # Log the full stack trace, prepend a line with our message
+        logger.exception(msg)
         raise Exception(msg)
 
     return user_info
@@ -620,13 +620,15 @@ def get_hubmap_ids(id):
         return ids_list[0]
     elif response.status_code == 404:
         msg = "Could not find the target id via uuid-api: " + id
-        logger.error(msg)
+        # Log the full stack trace, prepend a line with our message
+        logger.exception(msg)
         raise requests.exceptions.HTTPError(msg)
     else:
         # uuid-api will also return 400 if the gien id is invalid
         # We'll just hanle that and all other cases all together here
         msg = "Failed to make a request to query the id via uuid-api: " + id
-        logger.error(msg)
+        # Log the full stack trace, prepend a line with our message
+        logger.exception(msg)
         raise requests.exceptions.RequestException(msg)
 
 
@@ -698,7 +700,8 @@ def create_hubmap_ids(normalized_class):
     else:
         msg = "Failed to create new ids via the uuid-api service during the creation of this new " + normalized_class
         
-        logger.error(msg)
+        # Log the full stack trace, prepend a line with our message
+        logger.exception(msg)
 
         logger.debug("======create_new_ids() status code======")
         logger.debug(response.status_code)
@@ -745,12 +748,14 @@ def get_entity_group_info(user_hmgroupids_list):
 
     if len(data_provider_groups) == 0:
         msg = "No data_provider groups found for this user. Can't continue."
-        logger.error(msg)
+        # Log the full stack trace, prepend a line with our message
+        logger.exception(msg)
         raise ValueError(msg)
 
     if len(data_provider_groups) > 1:
         msg = "More than one data_provider groups found for this user. Can't continue."
-        logger.error(msg)
+        # Log the full stack trace, prepend a line with our message
+        logger.exception(msg)
         raise ValueError(msg)
 
     # By now only one data provider group found, this is what we want

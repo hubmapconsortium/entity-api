@@ -73,8 +73,13 @@ try:
                               app.config['UUID_API_URL'],
                               app.config['APP_CLIENT_ID'], 
                               app.config['APP_CLIENT_SECRET'])
-except IOError as ioe:
-    internal_server_error("Failed to load the schema yaml file")
+# Use a broad catch-all here
+except Exception:
+    msg = "Failed to initialize the schema_manager module"
+    # Log the full stack trace, prepend a line with our message
+    app.logger.exception(msg)
+    # Terminate and let the users know
+    internal_server_error(msg)
 
 
 ####################################################################################################
@@ -267,7 +272,9 @@ def get_entities_by_class(entity_class):
         entities_list = app_neo4j_queries.get_entities_by_class(neo4j_driver_instance, normalized_entity_class)
     except (CypherSyntaxError, TransactionError):
         msg = "Failed to query Neo4j"
-        app.logger.error(msg)
+        # Log the full stack trace, prepend a line with our message
+        app.logger.exception(msg)
+        # Terminate and let the users know
         internal_server_error(msg)
 
     final_result = entities_list
@@ -288,7 +295,9 @@ def get_entities_by_class(entity_class):
                 property_list = app_neo4j_queries.get_entities_by_class(neo4j_driver_instance, normalized_entity_class, property_key)
             except (CypherSyntaxError, TransactionError):
                 msg = "Failed to query Neo4j"
-                app.logger.error(msg)
+                # Log the full stack trace, prepend a line with our message
+                app.logger.exception(msg)
+                # Terminate and let the users know
                 internal_server_error(msg)
 
             # Final result
@@ -405,7 +414,9 @@ def update_entity(id):
         updated_entity_dict = app_neo4j_queries.update_entity(neo4j_driver_instance, normalized_entity_class, escaped_json_list_str, entity_uuid)
     except (CypherSyntaxError, TransactionError):
         msg = "Failed to update the entity with id " + id
-        app.logger.error(msg)
+        # Log the full stack trace, prepend a line with our message
+        app.logger.exception(msg)
+        # Terminate and let the users know
         internal_server_error(msg)
 
     # TO-DO
@@ -448,7 +459,9 @@ def get_ancestors(id):
         ancestors_list = app_neo4j_queries.get_ancestors(neo4j_driver_instance, uuid)
     except (CypherSyntaxError, TransactionError):
         msg = "Failed to query Neo4j to get back the ancestors of entity with id: " + id
-        app.logger.error(msg)
+        # Log the full stack trace, prepend a line with our message
+        app.logger.exception(msg)
+        # Terminate and let the users know
         internal_server_error(msg)
 
     # Final result
@@ -470,7 +483,9 @@ def get_ancestors(id):
                 property_list = app_neo4j_queries.get_ancestors(neo4j_driver_instance, uuid, property_key)
             except (CypherSyntaxError, TransactionError):
                 msg = "Failed to query Neo4j to get back the ancestors of entity with id: " + id
-                app.logger.error(msg)
+                # Log the full stack trace, prepend a line with our message
+                app.logger.exception(msg)
+                # Terminate and let the users know
                 internal_server_error(msg)
 
             # Final result
@@ -507,7 +522,9 @@ def get_descendants(id):
         descendants_list = app_neo4j_queries.get_descendants(neo4j_driver_instance, uuid)
     except (CypherSyntaxError, TransactionError):
         msg = "Failed to query Neo4j to get back the descendants of entity with id: " + id
-        app.logger.error(msg)
+        # Log the full stack trace, prepend a line with our message
+        app.logger.exception(msg)
+        # Terminate and let the users know
         internal_server_error(msg)
 
     # Final result
@@ -529,7 +546,9 @@ def get_descendants(id):
                 property_list = app_neo4j_queries.get_descendants(neo4j_driver_instance, uuid, property_key)
             except (CypherSyntaxError, TransactionError):
                 msg = "Failed to query Neo4j to get back the descendants of entity with id: " + id
-                app.logger.error(msg)
+                # Log the full stack trace, prepend a line with our message
+                app.logger.exception(msg)
+                # Terminate and let the users know
                 internal_server_error(msg)
 
             # Final result
@@ -565,7 +584,9 @@ def get_parents(id):
         parents_list = app_neo4j_queries.get_parents(neo4j_driver_instance, uuid)
     except (CypherSyntaxError, TransactionError):
         msg = "Failed to query Neo4j to get back the parents of entity with id: " + id
-        app.logger.error(msg)
+        # Log the full stack trace, prepend a line with our message
+        app.logger.exception(msg)
+        # Terminate and let the users know
         internal_server_error(msg)
 
     # Final result
@@ -587,7 +608,9 @@ def get_parents(id):
                 property_list = app_neo4j_queries.get_parents(neo4j_driver_instance, uuid, property_key)
             except (CypherSyntaxError, TransactionError):
                 msg = "Failed to query Neo4j to get back the parents of entity with id: " + id
-                app.logger.error(msg)
+                # Log the full stack trace, prepend a line with our message
+                app.logger.exception(msg)
+                # Terminate and let the users know
                 internal_server_error(msg)
 
             # Final result
@@ -623,7 +646,9 @@ def get_children(id):
         children_list = app_neo4j_queries.get_children(neo4j_driver_instance, uuid)
     except (CypherSyntaxError, TransactionError):
         msg = "Failed to query Neo4j to get back the children of entity with id: " + id
-        app.logger.error(msg)
+        # Log the full stack trace, prepend a line with our message
+        app.logger.exception(msg)
+        # Terminate and let the users know
         internal_server_error(msg)
 
     # Final result
@@ -645,7 +670,9 @@ def get_children(id):
                 property_list = app_neo4j_queries.get_children(neo4j_driver_instance, uuid, property_key)
             except (CypherSyntaxError, TransactionError):
                 msg = "Failed to query Neo4j to get back the children of entity with id: " + id
-                app.logger.error(msg)
+                # Log the full stack trace, prepend a line with our message
+                app.logger.exception(msg)
+                # Terminate and let the users know
                 internal_server_error(msg)
 
             # Final result
@@ -712,7 +739,9 @@ def add_datasets_to_collection(collection_uuid):
         app_neo4j_queries.add_datasets_to_collection(neo4j_driver_instance, collection_uuid, dataset_uuids_list)
     except (CypherSyntaxError, TransactionError):
         msg = "Failed to create the linkage between the given datasets and the target collection"
-        app.logger.error(msg)
+        # Log the full stack trace, prepend a line with our message
+        app.logger.exception(msg)
+        # Terminate and let the users know
         internal_server_error(msg)
 
     # Send response with success message
@@ -961,7 +990,9 @@ def create_collection(normalized_entity_class, json_data_dict):
         entity_dict = app_neo4j_queries.create_entity(neo4j_driver_instance, normalized_entity_class, escaped_json_list_str)
     except (CypherSyntaxError, TransactionError):
         msg = "Failed to create the new " + normalized_entity_class
-        app.logger.error(msg)
+        # Log the full stack trace, prepend a line with our message
+        app.logger.exception(msg)
+        # Terminate and let the users know
         internal_server_error(msg)
 
     # For new colletion to be linked to existing datasets
@@ -974,7 +1005,9 @@ def create_collection(normalized_entity_class, json_data_dict):
 
         if not success:
             msg = "Failed to execute one or more 'after_create_trigger' methods for the newly created " + normalized_entity_class + " of uuid: " + entity_dict['uuid']    
-            app.logger.error(msg)
+            # Log the full stack trace, prepend a line with our message
+            app.logger.exception(msg)
+            # Terminate and let the users know
             internal_server_error(msg)
 
     # We'll need to return all the properties including those 
@@ -1038,7 +1071,9 @@ def create_donor(normalized_entity_class, json_data_dict):
         entity_dict = app_neo4j_queries.create_entity(neo4j_driver_instance, normalized_entity_class, escaped_json_list_str)
     except (CypherSyntaxError, TransactionError):
         msg = "Failed to create the new " + normalized_entity_class
-        app.logger.error(msg)
+        # Log the full stack trace, prepend a line with our message
+        app.logger.exception(msg)
+        # Terminate and let the users know
         internal_server_error(msg)
 
     # None of the Donor properties has `after_create_trigger` 
@@ -1104,7 +1139,9 @@ def create_sample(normalized_entity_class, json_data_dict):
         entity_dict = app_neo4j_queries.create_entity(neo4j_driver_instance, normalized_entity_class, escaped_json_list_str)
     except (CypherSyntaxError, TransactionError):
         msg = "Failed to create the new " + normalized_entity_class
-        app.logger.error(msg)
+        # Log the full stack trace, prepend a line with our message
+        app.logger.exception(msg)
+        # Terminate and let the users know
         internal_server_error(msg)
 
     # For new sample to be linked to existing source entity
@@ -1116,7 +1153,9 @@ def create_sample(normalized_entity_class, json_data_dict):
 
         if not success:
             msg = "Failed to execute one or more 'after_create_trigger' methods for the newly created " + normalized_entity_class + " of uuid: " + entity_dict['uuid']    
-            app.logger.error(msg)
+            # Log the full stack trace, prepend a line with our message
+            app.logger.exception(msg)
+            # Terminate and let the users know
             internal_server_error(msg)
 
     # We'll need to return all the properties including those 
@@ -1189,7 +1228,9 @@ def create_dataset(normalized_entity_class, json_data_dict):
         entity_dict = app_neo4j_queries.create_entity(neo4j_driver_instance, normalized_entity_class, escaped_json_list_str)
     except (CypherSyntaxError, TransactionError):
         msg = "Failed to create the new " + normalized_entity_class
-        app.logger.error(msg)
+        # Log the full stack trace, prepend a line with our message
+        app.logger.exception(msg)
+        # Terminate and let the users know
         internal_server_error(msg)
 
     # Handling collection_uuids or source_uuids via `after_create_trigger` methods 
@@ -1202,7 +1243,9 @@ def create_dataset(normalized_entity_class, json_data_dict):
         
         if not success:
             msg = "Failed to execute one or more 'after_create_trigger' methods for the newly created " + normalized_entity_class + " of uuid: " + entity_dict['uuid']    
-            app.logger.error(msg)
+            # Log the full stack trace, prepend a line with our message
+            app.logger.exception(msg)
+            # Terminate and let the users know
             internal_server_error(msg)
 
     # We'll need to return all the properties including those 
@@ -1234,7 +1277,9 @@ def query_target_entity(id):
             entity_dict = app_neo4j_queries.get_entity(neo4j_driver_instance, uuid)
         except (CypherSyntaxError, TransactionError):
             msg = "Failed to query the target entity from Neo4j: " + id
-            app.logger.error(msg)
+            # Log the full stack trace, prepend a line with our message
+            app.logger.exception(msg)
+            # Terminate and let the users know
             internal_server_error(msg)
 
         # The uuid exists via uuid-api doesn't mean it's also in Neo4j
@@ -1281,9 +1326,9 @@ def reindex_entity(uuid):
             app.logger.error("The search-api failed to initialize the reindex for uuid: " + uuid)
     except:
         msg = "Failed to send the reindex request to search-api for entity with uuid: " + uuid
-
-        app.logger.error(msg)
-
+        # Log the full stack trace, prepend a line with our message
+        app.logger.exception(msg)
+        # Terminate and let the users know
         internal_server_error(msg)
 
 """

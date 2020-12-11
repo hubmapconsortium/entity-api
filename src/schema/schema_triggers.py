@@ -462,7 +462,8 @@ def link_dataset_to_direct_ancestors(property_key, normalized_class, neo4j_drive
  
         if not success:
             msg = "Failed to execute 'schema_neo4j_queries.link_entity_to_direct_ancestor()' for dataset with uuid" + data_dict['uuid']
-            app.logger.error(msg)
+            # Log the full stack trace, prepend a line with our message
+            logger.exception(msg)
             raise RuntimeError(msg)
 
     return True
@@ -530,7 +531,8 @@ def relink_dataset_to_direct_ancestors(property_key, normalized_class, neo4j_dri
  
         if not success:
             msg = "Failed to execute 'schema_neo4j_queries.link_entity_to_direct_ancestor()' for dataset with uuid" + data_dict['uuid']
-            app.logger.error(msg)
+            # Log the full stack trace, prepend a line with our message
+            logger.exception(msg)
             raise RuntimeError(msg)
 
     return True
@@ -714,7 +716,8 @@ def link_sample_to_direct_ancestor(property_key, normalized_class, neo4j_driver,
 
     if not success:
         msg = "Failed to execute 'schema_neo4j_queries.link_entity_to_direct_ancestor()' for sample with uuid" + data_dict['uuid']
-        app.logger.error(msg)
+        # Log the full stack trace, prepend a line with our message
+        logger.exception(msg)
         raise RuntimeError(msg)
 
     return True
@@ -778,7 +781,8 @@ def relink_sample_to_direct_ancestor(property_key, normalized_class, neo4j_drive
 
     if not success:
         msg = "Failed to execute 'schema_neo4j_queries.link_entity_to_direct_ancestor(relink = True)' for sample with uuid" + data_dict['uuid']
-        app.logger.error(msg)
+        # Log the full stack trace, prepend a line with our message
+        logger.exception(msg)
         raise RuntimeError(msg)
 
     return True

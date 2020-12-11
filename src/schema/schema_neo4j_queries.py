@@ -46,9 +46,12 @@ def unlink_entity_to_direct_ancestors(neo4j_driver, uuid):
             return record[record_field_name]
     except CypherSyntaxError as ce:
         msg = "CypherSyntaxError from calling unlink_entity_to_direct_ancestors(): " + ce.message
-        logger.error(msg)
+        # Log the full stack trace, prepend a line with our message
+        logger.exception(msg)
         raise CypherSyntaxError(msg)
     except Exception as e:
+    	# Log the full stack trace, prepend a line with our message
+        logger.exception(str(e))
         raise e
 
 """
@@ -105,9 +108,12 @@ def get_dataset_direct_ancestors(neo4j_driver, uuid, property_key = None):
             return result_list
     except CypherSyntaxError as ce:
         msg = "CypherSyntaxError from calling get_dataset_direct_ancestors(): " + ce.message
-        logger.error(msg)
+        # Log the full stack trace, prepend a line with our message
+        logger.exception(msg)
         raise CypherSyntaxError(msg)
     except Exception as e:
+    	# Log the full stack trace, prepend a line with our message
+        logger.exception(str(e))
         raise e
 
 """
@@ -148,18 +154,23 @@ def link_entity_to_direct_ancestor(neo4j_driver, entity_uuid, ancestor_uuid, act
             return True
     except CypherSyntaxError as ce:
         msg = "CypherSyntaxError from calling link_entity_to_direct_ancestor(): " + ce.message
-        logger.error(msg)
+        # Log the full stack trace, prepend a line with our message
+        logger.exception(msg)
         raise CypherSyntaxError(msg)
     except TransactionError as te:
-        msg = "TransactionError from calling link_entity_to_direct_ancestor(): " + te.value
-        logger.error(msg)
+        msg = "TransactionError from calling link_entity_to_direct_ancestor(): "
+        # Log the full stack trace, prepend a line with our message
+        logger.exception(msg)
 
         if tx.closed() == False:
-            logger.error("Failed to commit link_entity_to_direct_ancestor() transaction, rollback")
+        	# Log the full stack trace, prepend a line with our message
+            logger.info("Failed to commit link_entity_to_direct_ancestor() transaction, rollback")
             tx.rollback()
 
         raise TransactionError(msg)
     except Exception as e:
+    	# Log the full stack trace, prepend a line with our message
+        logger.exception(str(e))
         raise e
 
 """
@@ -215,9 +226,12 @@ def get_dataset_collections(neo4j_driver, uuid, property_key = None):
             return result_list
     except CypherSyntaxError as ce:
         msg = "CypherSyntaxError from calling get_dataset_collections(): " + ce.message
-        logger.error(msg)
+        # Log the full stack trace, prepend a line with our message
+        logger.exception(msg)
         raise CypherSyntaxError(msg)
     except Exception as e:
+    	# Log the full stack trace, prepend a line with our message
+        logger.exception(str(e))
         raise e
 
 """
@@ -262,9 +276,12 @@ def get_collection_datasets(neo4j_driver, uuid):
             return result_list
     except CypherSyntaxError as ce:
         msg = "CypherSyntaxError from calling get_collection_datasets(): " + ce.message
-        logger.error(msg)
+        # Log the full stack trace, prepend a line with our message
+        logger.exception(msg)
         raise CypherSyntaxError(msg)
     except Exception as e:
+    	# Log the full stack trace, prepend a line with our message
+        logger.exception(str(e))
         raise e
 
 
@@ -312,9 +329,12 @@ def count_attached_published_datasets(neo4j_driver, entity_class, uuid):
             return count               
     except CypherSyntaxError as ce:
         msg = "CypherSyntaxError from calling count_attached_published_datasets(): " + ce.message
-        logger.error(msg)
+        # Log the full stack trace, prepend a line with our message
+        logger.exception(msg)
         raise CypherSyntaxError(msg)
     except Exception as e:
+    	# Log the full stack trace, prepend a line with our message
+        logger.exception(str(e))
         raise e
 
 
@@ -375,9 +395,12 @@ def get_sample_direct_ancestor(neo4j_driver, uuid, property_key = None):
                 return entity_dict               
     except CypherSyntaxError as ce:
         msg = "CypherSyntaxError from calling get_sample_direct_ancestor(): " + ce.message
-        logger.error(msg)
+        # Log the full stack trace, prepend a line with our message
+        logger.exception(msg)
         raise CypherSyntaxError(msg)
     except Exception as e:
+    	# Log the full stack trace, prepend a line with our message
+        logger.exception(str(e))
         raise e
 
 

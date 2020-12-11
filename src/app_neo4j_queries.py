@@ -38,9 +38,12 @@ def check_connection(neo4j_driver):
             return False
     except CypherSyntaxError as ce:
         msg = "CypherSyntaxError from calling check_connection(): " + ce.message
-        logger.error(msg)
+        # Log the full stack trace, prepend a line with our message
+        logger.exception(msg)
         raise CypherSyntaxError(msg)
     except Exception as e:
+        # Log the full stack trace, prepend a line with our message
+        logger.exception(str(e))
         raise e
 
 
@@ -106,9 +109,12 @@ def get_entity(neo4j_driver, uuid):
             return entity_dict
     except CypherSyntaxError as ce:
         msg = "CypherSyntaxError from calling get_entity(): " + ce.message
-        logger.error(msg)
+        # Log the full stack trace, prepend a line with our message
+        logger.exception(msg)
         raise CypherSyntaxError(msg)
     except Exception as e:
+        # Log the full stack trace, prepend a line with our message
+        logger.exception(str(e))
         raise e
 
 """
@@ -171,9 +177,12 @@ def get_entities_by_class(neo4j_driver, entity_class, property_key = None):
             return result_list
     except CypherSyntaxError as ce:
         msg = "CypherSyntaxError from calling get_entities_by_class(): " + ce.message
-        logger.error(msg)
+        # Log the full stack trace, prepend a line with our message
+        logger.exception(msg)
         raise CypherSyntaxError(msg)
     except Exception as e:
+        # Log the full stack trace, prepend a line with our message
+        logger.exception(str(e))
         raise e
 
 
@@ -321,11 +330,13 @@ def create_entity(neo4j_driver, entity_class, entity_json_list_str):
             return entity_dict
     except CypherSyntaxError as ce:
         msg = "CypherSyntaxError from calling create_entity(): " + ce.message
-        logger.error(msg)
+        # Log the full stack trace, prepend a line with our message
+        logger.exception(msg)
         raise CypherSyntaxError(msg)
     except TransactionError as te:
         msg = "TransactionError from calling create_entity(): " + te.value
-        logger.error(msg)
+        # Log the full stack trace, prepend a line with our message
+        logger.exception(msg)
 
         if tx.closed() == False:
             logger.info("Failed to commit create_entity() transaction, rollback")
@@ -334,6 +345,8 @@ def create_entity(neo4j_driver, entity_class, entity_json_list_str):
 
         raise TransactionError(msg)
     except Exception as e:
+        # Log the full stack trace, prepend a line with our message
+        logger.exception(str(e))
         raise e
 
 
@@ -423,9 +436,12 @@ def update_entity(neo4j_driver, entity_class, json_list_str, uuid):
             return entity_dict
     except CypherSyntaxError as ce:
         msg = "CypherSyntaxError from calling update_entity()" + ce.message
-        logger.error(msg)
+        # Log the full stack trace, prepend a line with our message
+        logger.exception(msg)
         raise CypherSyntaxError(msg)
     except Exception as e:
+        # Log the full stack trace, prepend a line with our message
+        logger.exception(str(e))
         raise e
 
 
@@ -493,9 +509,12 @@ def get_ancestors(neo4j_driver, uuid, property_key = None):
             return result_list               
     except CypherSyntaxError as ce:
         msg = "CypherSyntaxError from calling get_ancestors()" + ce.message
-        logger.error(msg)
+        # Log the full stack trace, prepend a line with our message
+        logger.exception(msg)
         raise CypherSyntaxError(msg)
     except Exception as e:
+        # Log the full stack trace, prepend a line with our message
+        logger.exception(str(e))
         raise e
 
 
@@ -561,9 +580,12 @@ def get_descendants(neo4j_driver, uuid, property_key = None):
             return result_list               
     except CypherSyntaxError as ce:
         msg = "CypherSyntaxError from calling get_descendants(): " + ce.message
-        logger.error(msg)
+        # Log the full stack trace, prepend a line with our message
+        logger.exception(msg)
         raise CypherSyntaxError(msg)
     except Exception as e:
+        # Log the full stack trace, prepend a line with our message
+        logger.exception(str(e))
         raise e
 
 """
@@ -630,9 +652,12 @@ def get_parents(neo4j_driver, uuid, property_key = None):
             return result_list               
     except CypherSyntaxError as ce:
         msg = "CypherSyntaxError from calling get_parents(): " + ce.message
-        logger.error(msg)
+        # Log the full stack trace, prepend a line with our message
+        logger.exception(msg)
         raise CypherSyntaxError(msg)
     except Exception as e:
+        # Log the full stack trace, prepend a line with our message
+        logger.exception(str(e))
         raise e
 
 """
@@ -696,9 +721,12 @@ def get_children(neo4j_driver, uuid, property_key = None):
             return result_list             
     except CypherSyntaxError as ce:
         msg = "CypherSyntaxError from calling get_children(): " + ce.message
-        logger.error(msg)
+        # Log the full stack trace, prepend a line with our message
+        logger.exception(msg)
         raise CypherSyntaxError(msg)
     except Exception as e:
+        # Log the full stack trace, prepend a line with our message
+        logger.exception(str(e))
         raise e
 
 """
@@ -752,15 +780,18 @@ def add_datasets_to_collection(neo4j_driver, collection_uuid, dataset_uuids_list
                 tx.commit()
             else:
                 msg = "The number of relationships created by add_datasets_to_collection() does not match the number of datasets, rollback transaction"
-                logger.error(msg)
+                # Log the full stack trace, prepend a line with our message
+                logger.exception(msg)
                 raise TransactionError(msg)
     except CypherSyntaxError as ce:
         msg = "CypherSyntaxError from calling add_datasets_to_collection(): " + ce.message
-        logger.error(msg)
+        # Log the full stack trace, prepend a line with our message
+        logger.exception(msg)
         raise CypherSyntaxError(msg)
     except TransactionError as te:
         msg = "TransactionError from calling add_datasets_to_collection(): " + te.value
-        logger.error(msg)
+        # Log the full stack trace, prepend a line with our message
+        logger.exception(msg)
 
         if tx.closed() == False:
             logger.info("Failed to commit add_datasets_to_collection() transaction, rollback")
@@ -769,6 +800,8 @@ def add_datasets_to_collection(neo4j_driver, collection_uuid, dataset_uuids_list
 
         raise TransactionError(msg)
     except Exception as e:
+        # Log the full stack trace, prepend a line with our message
+        logger.exception(str(e))
         raise e
 
 ####################################################################################################
