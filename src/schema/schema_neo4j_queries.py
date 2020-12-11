@@ -1,4 +1,4 @@
-from neo4j.exceptions import CypherSyntaxError, TransactionError
+from neo4j.exceptions import TransactionError
 import logging
 
 logger = logging.getLogger(__name__)
@@ -19,21 +19,14 @@ neo4j_driver : neo4j.Driver object
     The neo4j database connection pool
 uuid : str
     The uuid of target entity 
-
-Returns
--------
-integer
-    The number of Activity nodes deleted
 """
 def unlink_entity_to_direct_ancestors(neo4j_driver, uuid):
     parameterized_query = ("MATCH (s:Entity)-[in:ACTIVITY_INPUT]->(a:Activity)-[out:ACTIVITY_OUTPUT]->(t:Entity) " + 
                            "WHERE t.uuid = '{uuid}' " +
                            # Delete the Activity node and in input/out relationships
-                           "DELETE in, a, out" +
-                           "RETURN COUNT(a) AS {record_field_name}")
+                           "DELETE in, a, out")
 
-    query = parameterized_query.format(uuid = uuid, 
-                                       record_field_name = record_field_name)
+    query = parameterized_query.format(uuid = uuid)
 
     logger.debug("======unlink_entity_to_direct_ancestors() query======")
     logger.debug(query)
@@ -41,18 +34,22 @@ def unlink_entity_to_direct_ancestors(neo4j_driver, uuid):
     try:
         # Sessions will often be created and destroyed using a with block context
         with neo4j_driver.session() as session:
-            result = session.run(query)
-            record = result.single()
-            return record[record_field_name]
-    except CypherSyntaxError as ce:
-        msg = "CypherSyntaxError from calling unlink_entity_to_direct_ancestors(): " + ce.message
+            tx = session.begin_transaction()
+
+            tx.run(query)
+            tx.commit()
+    except TransactionError:
+        msg = "TransactionError from calling unlink_entity_to_direct_ancestors(): "
         # Log the full stack trace, prepend a line with our message
         logger.exception(msg)
-        raise CypherSyntaxError(msg)
-    except Exception as e:
-    	# Log the full stack trace, prepend a line with our message
-        logger.exception(str(e))
-        raise e
+
+        if tx.closed() == False:
+            # Log the full stack trace, prepend a line with our message
+            logger.info("Failed to commit unlink_entity_to_direct_ancestors() transaction, rollback")
+            tx.rollback()
+
+        raise TransactionError(msg)
+
 
 """
 Get the direct ancestors uuids of a given dataset by uuid
@@ -91,30 +88,21 @@ def get_dataset_direct_ancestors(neo4j_driver, uuid, property_key = None):
     logger.debug("======get_dataset_direct_ancestors() query======")
     logger.debug(query)
 
-    try:
-        # Sessions will often be created and destroyed using a with block context
-        with neo4j_driver.session() as session:
-            result = session.run(query)
-            record = result.single()
-            result_list = []
+    # Sessions will often be created and destroyed using a with block context
+    with neo4j_driver.session() as session:
+        result = session.run(query)
+        record = result.single()
+        result_list = []
 
-            # Convert the entity nodes to dicts
-            nodes = record[record_field_name]
+        # Convert the entity nodes to dicts
+        nodes = record[record_field_name]
 
-            for node in nodes:
-                entity_dict = node_to_dict(node)
-                result_list.append(entity_dict)
+        for node in nodes:
+            entity_dict = node_to_dict(node)
+            result_list.append(entity_dict)
 
-            return result_list
-    except CypherSyntaxError as ce:
-        msg = "CypherSyntaxError from calling get_dataset_direct_ancestors(): " + ce.message
-        # Log the full stack trace, prepend a line with our message
-        logger.exception(msg)
-        raise CypherSyntaxError(msg)
-    except Exception as e:
-    	# Log the full stack trace, prepend a line with our message
-        logger.exception(str(e))
-        raise e
+        return result_list
+
 
 """
 Create a linkage (via Activity node) between the target entity node and the ancestor entity node in neo4j
@@ -129,11 +117,6 @@ ancestor_uuid : str
     The uuid of ancestor entity
 activity_json_list_str : str
     The string representation of a list containing only one Activity node to be created
-
-Returns
--------
-boolean
-    True if everything goes well
 """
 def link_entity_to_direct_ancestor(neo4j_driver, entity_uuid, ancestor_uuid, activity_json_list_str):
     try:
@@ -150,28 +133,18 @@ def link_entity_to_direct_ancestor(neo4j_driver, entity_uuid, ancestor_uuid, act
             create_relationship_tx(tx, activity_dict['uuid'], entity_uuid, 'ACTIVITY_OUTPUT', '->')
 
             tx.commit()
-
-            return True
-    except CypherSyntaxError as ce:
-        msg = "CypherSyntaxError from calling link_entity_to_direct_ancestor(): " + ce.message
-        # Log the full stack trace, prepend a line with our message
-        logger.exception(msg)
-        raise CypherSyntaxError(msg)
     except TransactionError as te:
         msg = "TransactionError from calling link_entity_to_direct_ancestor(): "
         # Log the full stack trace, prepend a line with our message
         logger.exception(msg)
 
         if tx.closed() == False:
-        	# Log the full stack trace, prepend a line with our message
+            # Log the full stack trace, prepend a line with our message
             logger.info("Failed to commit link_entity_to_direct_ancestor() transaction, rollback")
             tx.rollback()
 
         raise TransactionError(msg)
-    except Exception as e:
-    	# Log the full stack trace, prepend a line with our message
-        logger.exception(str(e))
-        raise e
+
 
 """
 Get a list of associated collection uuids for a given dataset
@@ -210,29 +183,19 @@ def get_dataset_collections(neo4j_driver, uuid, property_key = None):
     logger.debug("======get_dataset_collection_uuids() query======")
     logger.debug(query)
 
-    try:
-        with neo4j_driver.session() as session:
-            result = session.run(query)
-            record = result.single()
-            result_list = []
+    with neo4j_driver.session() as session:
+        result = session.run(query)
+        record = result.single()
+        result_list = []
 
-            # Convert the entity nodes to dicts
-            nodes = record[record_field_name]
+        # Convert the entity nodes to dicts
+        nodes = record[record_field_name]
 
-            for node in nodes:
-                entity_dict = node_to_dict(node)
-                result_list.append(entity_dict)
+        for node in nodes:
+            entity_dict = node_to_dict(node)
+            result_list.append(entity_dict)
 
-            return result_list
-    except CypherSyntaxError as ce:
-        msg = "CypherSyntaxError from calling get_dataset_collections(): " + ce.message
-        # Log the full stack trace, prepend a line with our message
-        logger.exception(msg)
-        raise CypherSyntaxError(msg)
-    except Exception as e:
-    	# Log the full stack trace, prepend a line with our message
-        logger.exception(str(e))
-        raise e
+        return result_list
 
 """
 Get a list of associated dataset dicts for a given collection
@@ -260,29 +223,19 @@ def get_collection_datasets(neo4j_driver, uuid):
     logger.debug("======get_collection_datasets() query======")
     logger.debug(query)
 
-    try:
-        with neo4j_driver.session() as session:
-            result = session.run(query)
-            record = result.single()
-            result_list = []
+    with neo4j_driver.session() as session:
+        result = session.run(query)
+        record = result.single()
+        result_list = []
 
-            # Convert the entity nodes to dicts
-            nodes = record[record_field_name]
+        # Convert the entity nodes to dicts
+        nodes = record[record_field_name]
 
-            for node in nodes:
-                entity_dict = node_to_dict(node)
-                result_list.append(entity_dict)
+        for node in nodes:
+            entity_dict = node_to_dict(node)
+            result_list.append(entity_dict)
 
-            return result_list
-    except CypherSyntaxError as ce:
-        msg = "CypherSyntaxError from calling get_collection_datasets(): " + ce.message
-        # Log the full stack trace, prepend a line with our message
-        logger.exception(msg)
-        raise CypherSyntaxError(msg)
-    except Exception as e:
-    	# Log the full stack trace, prepend a line with our message
-        logger.exception(str(e))
-        raise e
+        return result_list
 
 
 """
@@ -311,31 +264,21 @@ def count_attached_published_datasets(neo4j_driver, entity_class, uuid):
                            "RETURN COUNT(d) AS {record_field_name}")
 
     query = parameterized_query.format(entity_class = entity_class,
-    	                               uuid = uuid, 
+                                       uuid = uuid, 
                                        record_field_name = record_field_name)
 
     logger.debug("======count_attached_published_datasets() query======")
     logger.debug(query)
 
-    try:
-        with neo4j_driver.session() as session:
-            result = session.run(query)
-            record = result.single()
-            count = record[record_field_name]
+    with neo4j_driver.session() as session:
+        result = session.run(query)
+        record = result.single()
+        count = record[record_field_name]
 
-            logger.debug("======count_attached_published_datasets() resulting count======")
-            logger.debug(count)
-            
-            return count               
-    except CypherSyntaxError as ce:
-        msg = "CypherSyntaxError from calling count_attached_published_datasets(): " + ce.message
-        # Log the full stack trace, prepend a line with our message
-        logger.exception(msg)
-        raise CypherSyntaxError(msg)
-    except Exception as e:
-    	# Log the full stack trace, prepend a line with our message
-        logger.exception(str(e))
-        raise e
+        logger.debug("======count_attached_published_datasets() resulting count======")
+        logger.debug(count)
+        
+        return count               
 
 
 """
@@ -381,27 +324,17 @@ def get_sample_direct_ancestor(neo4j_driver, uuid, property_key = None):
     logger.debug("======get_sample_direct_ancestor() query======")
     logger.debug(query)
 
-    try:
-        with neo4j_driver.session() as session:
-            result = session.run(query)
-            record = result.single()
+    with neo4j_driver.session() as session:
+        result = session.run(query)
+        record = result.single()
 
-            if property_key:
-                return record[record_field_name]
-            else:
-                # Convert the entity node to dict
-                node = record[record_field_name]
-                entity_dict = node_to_dict(node)
-                return entity_dict               
-    except CypherSyntaxError as ce:
-        msg = "CypherSyntaxError from calling get_sample_direct_ancestor(): " + ce.message
-        # Log the full stack trace, prepend a line with our message
-        logger.exception(msg)
-        raise CypherSyntaxError(msg)
-    except Exception as e:
-    	# Log the full stack trace, prepend a line with our message
-        logger.exception(str(e))
-        raise e
+        if property_key:
+            return record[record_field_name]
+        else:
+            # Convert the entity node to dict
+            node = record[record_field_name]
+            entity_dict = node_to_dict(node)
+            return entity_dict               
 
 
 ####################################################################################################

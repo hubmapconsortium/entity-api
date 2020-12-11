@@ -135,13 +135,15 @@ normalized_class : str
     One of the classes defined in the schema yaml: Activity, Collection, Donor, Sample, Dataset
 data_dict : dict
     A dictionary that contains data to be used by the trigger methods
+properties_to_skip : list
+    Any properties to skip running triggers
 
 Returns
 -------
 dict
     A dictionary of trigger event methods generated data
 """
-def generate_triggered_data(trigger_type, normalized_class, data_dict):
+def generate_triggered_data(trigger_type, normalized_class, data_dict, properties_to_skip = []):
     global _schema
     global _neo4j_driver
 
@@ -166,7 +168,9 @@ def generate_triggered_data(trigger_type, normalized_class, data_dict):
     # No property value to be set for: after_create_trigger|after_update_trigger
     trigger_generated_data_dict = {}
     for key in class_property_keys:
-        if trigger_type in list(properties[key]):
+        # Among those properties that have the target trigger type,
+        # we can skip the ones specified in the `properties_to_skip` by not running their triggers
+        if (trigger_type in list(properties[key])) and (key not in properties_to_skip):
             # 'after_create_trigger' and 'after_update_trigger' don't generate property values
             # E.g., create relationships between nodes in neo4j
             if trigger_type in ['after_create_trigger', 'after_update_trigger']:
@@ -225,25 +229,21 @@ normalized_class : str
     One of the classes defined in the schema yaml: Collection, Donor, Sample, Dataset
 entity_dict : dict
     The entity dict based on neo4j record
-properties_to_exclude : list
-    Any additional properties to exclude from the response
+properties_to_skip : list
+    Any properties to skip running triggers
 
 Returns
 -------
 dict
-    A dictionary of complete entity with all the normalized information
+    A dictionary of complete entity with all all generated 'on_read_trigger' data
 """
-def get_complete_entity_result(normalized_entity_class, entity_dict, properties_to_exclude = []):
-    generated_on_read_trigger_data_dict = generate_triggered_data('on_read_trigger', normalized_entity_class, entity_dict)
+def get_complete_entity_result(entity_dict, properties_to_skip = []):
+    generated_on_read_trigger_data_dict = generate_triggered_data('on_read_trigger', entity_dict['entity_class'], entity_dict, properties_to_skip)
 
     # Merge the entity info and the generated on read data into one dictionary
-    merged_dict = {**entity_dict, **generated_on_read_trigger_data_dict}
+    complete_entity_dict = {**entity_dict, **generated_on_read_trigger_data_dict}
 
-    # Get rid of the entity node properties that are not defined in the yaml schema
-    # as well as the ones defined as `exposed: false` in the yaml schema
-    complete_result_dict = normalize_entity_result_for_response(normalized_entity_class, merged_dict, properties_to_exclude)
-
-    return complete_result_dict
+    return complete_entity_dict
 
 
 """
@@ -253,20 +253,19 @@ Parameters
 ----------
 entities_list : list
     A list of entity dictionaries 
-properties_to_exclude : list
-    Any additional properties to exclude from the response
+properties_to_skip : list
+    Any properties to skip running triggers
 
 Returns
 -------
 list
     A list a complete entity dictionaries with all the normalized information
 """
-def get_complete_entities_list(entities_list, properties_to_exclude = []):
+def get_complete_entities_list(entities_list, properties_to_skip = []):
     complete_entities_list = []
 
     for entity_dict in entities_list:
-        normalized_entity_class = entity_dict['entity_class']
-        complete_entity_dict = get_complete_entity_result(normalized_entity_class, entity_dict, properties_to_exclude)
+        complete_entity_dict = get_complete_entity_result(entity_dict, properties_to_skip)
         complete_entities_list.append(complete_entity_dict)
 
     return complete_entities_list
@@ -278,8 +277,6 @@ and filter out the ones that are marked as `exposed: false` prior to sending the
 
 Parameters
 ----------
-normalized_entity_class : str
-    One of the entity classes defined in the schema yaml: Collection, Donor, Sample, Dataset
 data_dict : dict
     A merged dictionary that contains all possible data to be used by the trigger methods
 properties_to_exclude : list
@@ -288,11 +285,12 @@ properties_to_exclude : list
 Returns
 -------
 dict
-    A entity dictionary with keys that are all defined in schema yaml
+    A entity dictionary with keys that are all normalized
 """
-def normalize_entity_result_for_response(normalized_entity_class, entity_dict, properties_to_exclude = []):
+def normalize_entity_result_for_response(entity_dict, properties_to_exclude = []):
     global _schema
 
+    normalized_entity_class = entity_dict['entity_class']
     properties = _schema['ENTITIES'][normalized_entity_class]['properties']
     class_property_keys = properties.keys() 
     # In Python 3, entity_dict.keys() returns an iterable, which causes error if deleting keys during the loop
@@ -312,6 +310,33 @@ def normalize_entity_result_for_response(normalized_entity_class, entity_dict, p
                 del entity_dict[key]
 
     return entity_dict
+
+
+"""
+Normalize the given list of complete entity results by removing properties that are not defined in the yaml schema
+and filter out the ones that are marked as `exposed: false` prior to sending the response
+
+Parameters
+----------
+entities_list : dict
+    A merged dictionary that contains all possible data to be used by the trigger methods
+properties_to_exclude : list
+    Any additional properties to exclude from the response
+
+Returns
+-------
+list
+    A list of normalzied entity dictionaries
+"""
+def normalize_entities_list_for_response(entities_list, properties_to_exclude = []):
+    normalized_entities_list = []
+
+    for entity_dict in entities_list:
+        normalized_entity_dict = normalize_entity_result_for_response(entity_dict, properties_to_exclude)
+        normalized_entities_list.append(normalized_entity_dict)
+
+    return normalized_entities_list
+
 
 """
 Validate json data from user request against the schema
@@ -340,6 +365,7 @@ def validate_json_data_against_schema(json_data_dict, normalized_entity_class, e
             unsupported_keys.append(key)
 
     if len(unsupported_keys) > 0:
+        # No need to log the validation errors
         raise KeyError("Unsupported keys in request json: " + separator.join(unsupported_keys))
 
     # Check if keys in request json are the ones to be auto generated
@@ -350,6 +376,7 @@ def validate_json_data_against_schema(json_data_dict, normalized_entity_class, e
                 generated_keys.append(key)
 
     if len(generated_keys) > 0:
+        # No need to log the validation errors
         raise KeyError("Auto generated keys are not allowed in request json: " + separator.join(generated_keys))
 
     # Only check if keys in request json are immutable during entity update
@@ -361,18 +388,9 @@ def validate_json_data_against_schema(json_data_dict, normalized_entity_class, e
                     immutable_keys.append(key)
 
         if len(immutable_keys) > 0:
+            # No need to log the validation errors
             raise KeyError("Immutable keys are not allowed in request json: " + separator.join(immutable_keys))
         
-    # Check if keys in request json are generated transient keys
-    transient_keys = []
-    for key in json_data_keys:
-        if ('transient' in properties[key]) and properties[key]['transient']:
-            if properties[key]:
-                transient_keys.append(key)
-
-    if len(transient_keys) > 0:
-        raise KeyError("Transient keys are not allowed in request json: " + separator.join(transient_keys))
-
     # Check if any schema keys that are required_on_create but missing from POST request on creating new entity
     # No need to check on entity update
     if not bool(existing_entity_dict):    
@@ -385,6 +403,7 @@ def validate_json_data_against_schema(json_data_dict, normalized_entity_class, e
                     missing_required_keys_on_create.append(key)
 
         if len(missing_required_keys_on_create) > 0:
+            # No need to log the validation errors
             raise KeyError("Missing required keys in request json: " + separator.join(missing_required_keys_on_create))
 
     # By now all the keys in request json have passed the above two checks: existence cehck in schema and required check in schema
@@ -400,6 +419,7 @@ def validate_json_data_against_schema(json_data_dict, normalized_entity_class, e
             invalid_data_type_keys.append(key)
     
     if len(invalid_data_type_keys) > 0:
+        # No need to log the validation errors
         raise TypeError("Keys in request json with invalid data types: " + separator.join(invalid_data_type_keys))
 
 
@@ -469,7 +489,11 @@ trigger_type : str
     One of the trigger types: on_create_trigger, on_update_trigger, on_read_trigger
 """
 def validate_trigger_type(trigger_type):
-    accepted_trigger_types = ['on_read_trigger', 'on_create_trigger', 'on_update_trigger']
+    accepted_trigger_types = ['on_read_trigger', 
+                              'before_create_trigger', 
+                              'before_update_trigger', 
+                              'after_create_trigger', 
+                              'after_update_trigger']
     separator = ', '
 
     if trigger_type.lower() not in accepted_trigger_types:

@@ -1,4 +1,4 @@
-from neo4j.exceptions import CypherSyntaxError, TransactionError
+from neo4j.exceptions import TransactionError
 import logging
 
 logger = logging.getLogger(__name__)
@@ -23,28 +23,18 @@ def check_connection(neo4j_driver):
     parameterized_query = ("RETURN 1 AS {record_field_name}")
     query = parameterized_query.format(record_field_name = record_field_name)
 
-    try:
-        # Sessions will often be created and destroyed using a with block context
-        with neo4j_driver.session() as session:
-            result = session.run(query)
-            record = result.single()
-            int_value = record[record_field_name]
-            
-            if int_value == 1:
-                logger.info("Neo4j is connected :)")
-                return True
+    # Sessions will often be created and destroyed using a with block context
+    with neo4j_driver.session() as session:
+        result = session.run(query)
+        record = result.single()
+        int_value = record[record_field_name]
+        
+        if int_value == 1:
+            logger.info("Neo4j is connected :)")
+            return True
 
-            logger.info("Neo4j is NOT connected :(")
-            return False
-    except CypherSyntaxError as ce:
-        msg = "CypherSyntaxError from calling check_connection(): " + ce.message
-        # Log the full stack trace, prepend a line with our message
-        logger.exception(msg)
-        raise CypherSyntaxError(msg)
-    except Exception as e:
-        # Log the full stack trace, prepend a line with our message
-        logger.exception(str(e))
-        raise e
+        logger.info("Neo4j is NOT connected :(")
+        return False
 
 
 ####################################################################################################
@@ -77,45 +67,36 @@ def get_entity(neo4j_driver, uuid):
     logger.debug("======get_entity() query======")
     logger.debug(query)
 
-    try:
-        with neo4j_driver.session() as session:
-            nodes = []
-            entity_dict = {}
+    with neo4j_driver.session() as session:
+        nodes = []
+        entity_dict = {}
 
-            results = session.run(query)
+        results = session.run(query)
 
-            # Add all records to the nodes list
-            for record in results:
-                nodes.append(record.get(record_field_name))
-            
-            logger.debug("======get_entity() resulting nodes======")
-            logger.debug(nodes)
+        # Add all records to the nodes list
+        for record in results:
+            nodes.append(record.get(record_field_name))
+        
+        logger.debug("======get_entity() resulting nodes======")
+        logger.debug(nodes)
 
-            # Return an empty dict if no result
-            if len(nodes) < 1:
-                return entity_dict
-
-            # Raise an exception if multiple nodes returned
-            if len(nodes) > 1:
-                message = "{num_nodes} entity nodes with same uuid {uuid} found in the Neo4j database."
-                raise Exception(message.format(num_nodes = str(len(nodes)), uuid = uuid))
-            
-            # Convert the neo4j node into Python dict
-            entity_dict = node_to_dict(nodes[0])
-
-            logger.debug("======get_entity() resulting entity_dict======")
-            logger.debug(entity_dict)
-
+        # Return an empty dict if no result
+        if len(nodes) < 1:
             return entity_dict
-    except CypherSyntaxError as ce:
-        msg = "CypherSyntaxError from calling get_entity(): " + ce.message
-        # Log the full stack trace, prepend a line with our message
-        logger.exception(msg)
-        raise CypherSyntaxError(msg)
-    except Exception as e:
-        # Log the full stack trace, prepend a line with our message
-        logger.exception(str(e))
-        raise e
+
+        # Raise an exception if multiple nodes returned
+        if len(nodes) > 1:
+            message = "{num_nodes} entity nodes with same uuid {uuid} found in the Neo4j database."
+            raise Exception(message.format(num_nodes = str(len(nodes)), uuid = uuid))
+        
+        # Convert the neo4j node into Python dict
+        entity_dict = node_to_dict(nodes[0])
+
+        logger.debug("======get_entity() resulting entity_dict======")
+        logger.debug(entity_dict)
+
+        return entity_dict
+
 
 """
 Get all the entity nodes for the given entity class
@@ -156,34 +137,25 @@ def get_entities_by_class(neo4j_driver, entity_class, property_key = None):
     logger.info("======get_entities_by_class() query======")
     logger.info(query)
 
-    try:
-        with neo4j_driver.session() as session:
-            result = session.run(query)
-            record = result.single()
-            
-            result_list = []
+    with neo4j_driver.session() as session:
+        result = session.run(query)
+        record = result.single()
+        
+        result_list = []
 
-            if property_key:
-                # Just return the list of property values from each entity node
-                result_list = record[record_field_name]
-            else:
-                # Convert the entity nodes to dicts
-                nodes = record[record_field_name]
+        if property_key:
+            # Just return the list of property values from each entity node
+            result_list = record[record_field_name]
+        else:
+            # Convert the entity nodes to dicts
+            nodes = record[record_field_name]
 
-                for node in nodes:
-                    entity_dict = node_to_dict(node)
-                    result_list.append(entity_dict)
+            for node in nodes:
+                entity_dict = node_to_dict(node)
+                result_list.append(entity_dict)
 
-            return result_list
-    except CypherSyntaxError as ce:
-        msg = "CypherSyntaxError from calling get_entities_by_class(): " + ce.message
-        # Log the full stack trace, prepend a line with our message
-        logger.exception(msg)
-        raise CypherSyntaxError(msg)
-    except Exception as e:
-        # Log the full stack trace, prepend a line with our message
-        logger.exception(str(e))
-        raise e
+        return result_list
+
 
 
 ####################################################################################################
@@ -328,11 +300,6 @@ def create_entity(neo4j_driver, entity_class, entity_json_list_str):
             tx.commit()
 
             return entity_dict
-    except CypherSyntaxError as ce:
-        msg = "CypherSyntaxError from calling create_entity(): " + ce.message
-        # Log the full stack trace, prepend a line with our message
-        logger.exception(msg)
-        raise CypherSyntaxError(msg)
     except TransactionError as te:
         msg = "TransactionError from calling create_entity(): " + te.value
         # Log the full stack trace, prepend a line with our message
@@ -344,64 +311,13 @@ def create_entity(neo4j_driver, entity_class, entity_json_list_str):
             tx.rollback()
 
         raise TransactionError(msg)
-    except Exception as e:
-        # Log the full stack trace, prepend a line with our message
-        logger.exception(str(e))
-        raise e
+
 
 
 ####################################################################################################
 ## Entity update
 ####################################################################################################
 
-"""
-Update the properties of an existing entity node in neo4j
-
-Parameters
-----------
-tx : neo4j.Transaction object
-    The neo4j.Transaction object instance
-entity_class : str
-    One of the normalized entity classes: Dataset, Collection, Sample, Donor
-json_list_str : str
-    The string representation of a list containing only one entity to be created
-uuid : str
-    The uuid of target entity 
-
-Returns
--------
-neo4j.node
-    A neo4j node instance of the updated entity node
-"""
-def update_entity_tx(tx, entity_class, json_list_str, uuid):
-    # UNWIND expects json.entities to be List<T>
-    parameterized_query = ("WITH apoc.convert.fromJsonList('{json_list_str}') AS entities_list " +
-                           "UNWIND entities_list AS data " +
-                           "MATCH (e:{entity_class}) " +
-                           "WHERE e.uuid = '{uuid}' " +
-                           # https://neo4j.com/docs/cypher-manual/current/clauses/set/#set-setting-properties-using-map
-                           # `+=` is the magic here:
-                           # Any properties in the map that are not on the node will be added.
-                           # Any properties not in the map that are on the node will be left as is.
-                           # Any properties that are in both the map and the node will be replaced in the node. However, if any property in the map is null, it will be removed from the node.
-                           "SET e += data RETURN e AS {record_field_name}")
-
-    query = parameterized_query.format(json_list_str = json_list_str, 
-                                       entity_class = entity_class, 
-                                       uuid = uuid, 
-                                       record_field_name = record_field_name)
-    
-    logger.debug("======update_entity_tx() query======")
-    logger.debug(query)
-
-    result = tx.run(query)
-    record = result.single()
-    node = record[record_field_name]
-
-    logger.debug("======update_entity_tx() resulting node======")
-    logger.debug(node)
-
-    return node
 
 """
 Update the properties of an existing entity node in neo4j
@@ -423,26 +339,56 @@ dict
     A dictionary of updated entity details returned from the Cypher query
 """
 def update_entity(neo4j_driver, entity_class, json_list_str, uuid):
+    # UNWIND expects json.entities to be List<T>
+    parameterized_query = ("WITH apoc.convert.fromJsonList('{json_list_str}') AS entities_list " +
+                           "UNWIND entities_list AS data " +
+                           "MATCH (e:{entity_class}) " +
+                           "WHERE e.uuid = '{uuid}' " +
+                           # https://neo4j.com/docs/cypher-manual/current/clauses/set/#set-setting-properties-using-map
+                           # `+=` is the magic here:
+                           # Any properties in the map that are not on the node will be added.
+                           # Any properties not in the map that are on the node will be left as is.
+                           # Any properties that are in both the map and the node will be replaced in the node. However, if any property in the map is null, it will be removed from the node.
+                           "SET e += data RETURN e AS {record_field_name}")
+
+    query = parameterized_query.format(json_list_str = json_list_str, 
+                                       entity_class = entity_class, 
+                                       uuid = uuid, 
+                                       record_field_name = record_field_name)
+    
+    logger.debug("======update_entity() query======")
+    logger.debug(query)
+
     try:
         with neo4j_driver.session() as session:
             entity_dict = {}
+            
+            tx = session.begin_transaction()
+            
+            result = tx.run(query)
+            record = result.single()
+            entity_node = record[record_field_name]
 
-            entity_node = session.write_transaction(update_entity_tx, entity_class, json_list_str, uuid)
+            tx.commit()
+
             entity_dict = node_to_dict(entity_node)
 
             logger.debug("======update_entity() resulting entity_dict======")
             logger.debug(entity_dict)
 
             return entity_dict
-    except CypherSyntaxError as ce:
-        msg = "CypherSyntaxError from calling update_entity()" + ce.message
+    except TransactionError as te:
+        msg = "TransactionError from calling create_entity(): " + te.value
         # Log the full stack trace, prepend a line with our message
         logger.exception(msg)
-        raise CypherSyntaxError(msg)
-    except Exception as e:
-        # Log the full stack trace, prepend a line with our message
-        logger.exception(str(e))
-        raise e
+
+        if tx.closed() == False:
+            logger.info("Failed to commit update_entity() transaction, rollback")
+
+            tx.rollback()
+
+        raise TransactionError(msg)
+
 
 
 """
@@ -488,34 +434,24 @@ def get_ancestors(neo4j_driver, uuid, property_key = None):
     logger.debug("======get_ancestors() query======")
     logger.debug(query)
 
-    try:
-        with neo4j_driver.session() as session:
-            result = session.run(query)
-            record = result.single()
+    with neo4j_driver.session() as session:
+        result = session.run(query)
+        record = result.single()
 
-            result_list = []
+        result_list = []
 
-            if property_key:
-                # Just return the list of property values from each entity node
-                result_list = record[record_field_name]
-            else:
-                # Convert the entity nodes to dicts
-                nodes = record[record_field_name]
+        if property_key:
+            # Just return the list of property values from each entity node
+            result_list = record[record_field_name]
+        else:
+            # Convert the entity nodes to dicts
+            nodes = record[record_field_name]
 
-                for node in nodes:
-                    entity_dict = node_to_dict(node)
-                    result_list.append(entity_dict)
+            for node in nodes:
+                entity_dict = node_to_dict(node)
+                result_list.append(entity_dict)
 
-            return result_list               
-    except CypherSyntaxError as ce:
-        msg = "CypherSyntaxError from calling get_ancestors()" + ce.message
-        # Log the full stack trace, prepend a line with our message
-        logger.exception(msg)
-        raise CypherSyntaxError(msg)
-    except Exception as e:
-        # Log the full stack trace, prepend a line with our message
-        logger.exception(str(e))
-        raise e
+        return result_list               
 
 
 """
@@ -559,34 +495,25 @@ def get_descendants(neo4j_driver, uuid, property_key = None):
     logger.debug("======get_descendants() query======")
     logger.debug(query)
 
-    try:
-        with neo4j_driver.session() as session:
-            result = session.run(query)
-            record = result.single()
+    with neo4j_driver.session() as session:
+        result = session.run(query)
+        record = result.single()
 
-            result_list = []
+        result_list = []
 
-            if property_key:
-                # Just return the list of property values from each entity node
-                result_list = record[record_field_name]
-            else:
-                # Convert the entity nodes to dicts
-                nodes = record[record_field_name]
+        if property_key:
+            # Just return the list of property values from each entity node
+            result_list = record[record_field_name]
+        else:
+            # Convert the entity nodes to dicts
+            nodes = record[record_field_name]
 
-                for node in nodes:
-                    entity_dict = node_to_dict(node)
-                    result_list.append(entity_dict)
+            for node in nodes:
+                entity_dict = node_to_dict(node)
+                result_list.append(entity_dict)
 
-            return result_list               
-    except CypherSyntaxError as ce:
-        msg = "CypherSyntaxError from calling get_descendants(): " + ce.message
-        # Log the full stack trace, prepend a line with our message
-        logger.exception(msg)
-        raise CypherSyntaxError(msg)
-    except Exception as e:
-        # Log the full stack trace, prepend a line with our message
-        logger.exception(str(e))
-        raise e
+        return result_list               
+
 
 """
 Get all parents by uuid
@@ -631,34 +558,25 @@ def get_parents(neo4j_driver, uuid, property_key = None):
     logger.debug("======get_parents() query======")
     logger.debug(query)
 
-    try:
-        with neo4j_driver.session() as session:
-            result = session.run(query)
-            record = result.single()
+    with neo4j_driver.session() as session:
+        result = session.run(query)
+        record = result.single()
 
-            result_list = []
+        result_list = []
 
-            if property_key:
-                # Just return the list of property values from each entity node
-                result_list = record[record_field_name]
-            else:
-                # Convert the entity nodes to dicts
-                nodes = record[record_field_name]
+        if property_key:
+            # Just return the list of property values from each entity node
+            result_list = record[record_field_name]
+        else:
+            # Convert the entity nodes to dicts
+            nodes = record[record_field_name]
 
-                for node in nodes:
-                    entity_dict = node_to_dict(node)
-                    result_list.append(entity_dict)
+            for node in nodes:
+                entity_dict = node_to_dict(node)
+                result_list.append(entity_dict)
 
-            return result_list               
-    except CypherSyntaxError as ce:
-        msg = "CypherSyntaxError from calling get_parents(): " + ce.message
-        # Log the full stack trace, prepend a line with our message
-        logger.exception(msg)
-        raise CypherSyntaxError(msg)
-    except Exception as e:
-        # Log the full stack trace, prepend a line with our message
-        logger.exception(str(e))
-        raise e
+        return result_list               
+
 
 """
 Get all children by uuid
@@ -701,33 +619,24 @@ def get_children(neo4j_driver, uuid, property_key = None):
     logger.debug("======get_children() query======")
     logger.debug(query)
 
-    try:
-        with neo4j_driver.session() as session:
-            result = session.run(query)
-            record = result.single()
-            result_list = []
+    with neo4j_driver.session() as session:
+        result = session.run(query)
+        record = result.single()
+        result_list = []
 
-            if property_key:
-                # Just return the list of property values from each entity node
-                result_list = record[record_field_name]
-            else:
-                # Convert the entity nodes to dicts
-                nodes = record[record_field_name]
+        if property_key:
+            # Just return the list of property values from each entity node
+            result_list = record[record_field_name]
+        else:
+            # Convert the entity nodes to dicts
+            nodes = record[record_field_name]
 
-                for node in nodes:
-                    entity_dict = node_to_dict(node)
-                    result_list.append(entity_dict)
+            for node in nodes:
+                entity_dict = node_to_dict(node)
+                result_list.append(entity_dict)
 
-            return result_list             
-    except CypherSyntaxError as ce:
-        msg = "CypherSyntaxError from calling get_children(): " + ce.message
-        # Log the full stack trace, prepend a line with our message
-        logger.exception(msg)
-        raise CypherSyntaxError(msg)
-    except Exception as e:
-        # Log the full stack trace, prepend a line with our message
-        logger.exception(str(e))
-        raise e
+        return result_list             
+
 
 """
 Link the datasets to the target collection
@@ -758,36 +667,16 @@ def add_datasets_to_collection(neo4j_driver, collection_uuid, dataset_uuids_list
                                    "WHERE c.uuid = '{uuid}' AND d.uuid IN {dataset_uuids_list_str} " +
                                    # Use MERGE instead of CREATE to avoid creating the relationship multiple times
                                    # MERGE creates the relationship only if there is no existing relationship
-                                   "MERGE (c)<-[r:IN_COLLECTION]-(d) " +
-                                   "RETURN count(r) AS {record_field_name}") 
+                                   "MERGE (c)<-[r:IN_COLLECTION]-(d)") 
 
             query = parameterized_query.format(uuid = collection_uuid,
-                                               dataset_uuids_list_str = dataset_uuids_list_str,
-                                               record_field_name = record_field_name)
+                                               dataset_uuids_list_str = dataset_uuids_list_str)
 
             logger.debug("======add_datasets_to_collection() query======")
             logger.debug(query)
 
-            result = tx.run(query)
-            record = result.single()
-            count = record[record_field_name]
-
-            logger.debug("======add_datasets_to_collection() number of relationships created======")
-            logger.debug(count)
-
-            if count == len(dataset_uuids_list):
-                logger.info("Successfully created all relationships via add_datasets_to_collection(), commit transaction")
-                tx.commit()
-            else:
-                msg = "The number of relationships created by add_datasets_to_collection() does not match the number of datasets, rollback transaction"
-                # Log the full stack trace, prepend a line with our message
-                logger.exception(msg)
-                raise TransactionError(msg)
-    except CypherSyntaxError as ce:
-        msg = "CypherSyntaxError from calling add_datasets_to_collection(): " + ce.message
-        # Log the full stack trace, prepend a line with our message
-        logger.exception(msg)
-        raise CypherSyntaxError(msg)
+            tx.run(query)
+            tx.commit()
     except TransactionError as te:
         msg = "TransactionError from calling add_datasets_to_collection(): " + te.value
         # Log the full stack trace, prepend a line with our message
@@ -799,10 +688,7 @@ def add_datasets_to_collection(neo4j_driver, collection_uuid, dataset_uuids_list
             tx.rollback()
 
         raise TransactionError(msg)
-    except Exception as e:
-        # Log the full stack trace, prepend a line with our message
-        logger.exception(str(e))
-        raise e
+
 
 ####################################################################################################
 ## Internal Functions

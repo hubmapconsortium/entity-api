@@ -1,6 +1,7 @@
 import json
 import logging
 import datetime
+from neo4j.exceptions import TransactionError
 
 # Local modules
 from schema import schema_manager
@@ -80,6 +81,9 @@ str
     The data access level string
 """
 def get_data_access_level(property_key, normalized_class, neo4j_driver, data_dict):
+    if 'uuid' not in data_dict:
+        raise KeyError("Missing 'uuid' key in 'data_dict' during calling 'get_data_access_level()' trigger method.")
+
     # For now, don't use the constants from commons
     ACCESS_LEVEL_PUBLIC = 'public'
     ACCESS_LEVEL_CONSORTIUM = 'consortium'
@@ -364,9 +368,10 @@ def get_collection_datasets(property_key, normalized_class, neo4j_driver, data_d
 
     # Additional properties of the datasets to exclude 
     # We don't want to show too much nested information
-    properties_to_exclude = ['direct_ancestors', 'collections']
+    properties_to_skip = ['direct_ancestors', 'collections']
+    complete_entities_list = schema_manager.get_complete_entities_list(datasets_list, properties_to_skip)
 
-    return schema_manager.get_complete_entities_list(datasets_list, properties_to_exclude)
+    return schema_manager.normalize_entities_list_for_response(complete_entities_list)
 
 
 ####################################################################################################
@@ -401,11 +406,12 @@ def get_dataset_collections(property_key, normalized_class, neo4j_driver, data_d
     # Get back the list of collection dicts
     collections_list = schema_neo4j_queries.get_dataset_collections(neo4j_driver, data_dict['uuid'])
 
-    # Additional properties of the datasets to exclude 
+    # Exclude datasets from each resulting collection
     # We don't want to show too much nested information
-    properties_to_exclude = ['datasets']
+    properties_to_skip = ['datasets']
+    complete_entities_list = schema_manager.get_complete_entities_list(collections_list, properties_to_skip)
 
-    return schema_manager.get_complete_entities_list(collections_list)
+    return schema_manager.normalize_entities_list_for_response(complete_entities_list)
 
 """
 Trigger event method of building linkages between this new Dataset and its direct ancestors
@@ -463,14 +469,10 @@ def link_dataset_to_direct_ancestors(property_key, normalized_class, neo4j_drive
         logger.debug(activity_json_list_str)
 
         try:
-            success = schema_neo4j_queries.link_entity_to_direct_ancestor(neo4j_driver, data_dict['uuid'], direct_ancestor_uuid, activity_json_list_str)
-        except Exception:
-            msg = "Failed to execute 'schema_neo4j_queries.link_entity_to_direct_ancestor()' for dataset with uuid" + data_dict['uuid']
-            # Log the full stack trace, prepend a line with our message
-            logger.exception(msg)
-            raise Exception(msg)
-
-    return True
+            schema_neo4j_queries.link_entity_to_direct_ancestor(neo4j_driver, data_dict['uuid'], direct_ancestor_uuid, activity_json_list_str)
+        except TransactionError:
+            # No need to log
+            raise
 
 
 """
@@ -502,12 +504,10 @@ def relink_dataset_to_direct_ancestors(property_key, normalized_class, neo4j_dri
 
     # Delete old linkages before recreating new ones
     try:
-        num_activity_deleted = schema_neo4j_queries.unlink_entity_to_direct_ancestors(neo4j_driver, data_dict['uuid'])
-    except Exception:
-        msg = "Failed to execute 'schema_neo4j_queries.unlink_entity_to_direct_ancestors()' for dataset with uuid" + data_dict['uuid']
-        # Log the full stack trace, prepend a line with our message
-        logger.exception(msg)
-        raise Exception(msg)
+        schema_neo4j_queries.unlink_entity_to_direct_ancestors(neo4j_driver, data_dict['uuid'])
+    except TransactionError:
+        # No need to log
+        raise
 
     # For each source entity, create a linkage (via Activity node) 
     # between the dataset node and the source entity node in neo4j
@@ -538,14 +538,11 @@ def relink_dataset_to_direct_ancestors(property_key, normalized_class, neo4j_dri
         logger.debug(activity_json_list_str)
 
         try:
-            success = schema_neo4j_queries.link_entity_to_direct_ancestor(neo4j_driver, data_dict['uuid'], direct_ancestor_uuid, activity_json_list_str)
-        except Exception:
-            msg = "Failed to execute 'schema_neo4j_queries.link_entity_to_direct_ancestor()' for dataset with uuid" + data_dict['uuid']
-            # Log the full stack trace, prepend a line with our message
-            logger.exception(msg)
-            raise Exception(msg)
+            schema_neo4j_queries.link_entity_to_direct_ancestor(neo4j_driver, data_dict['uuid'], direct_ancestor_uuid, activity_json_list_str)
+        except TransactionError:
+            # No need to log
+            raise
 
-    return True
 
 """
 Trigger event method of getting source uuid
@@ -575,14 +572,14 @@ def get_dataset_direct_ancestors(property_key, normalized_class, neo4j_driver, d
     # Get back the list of ancestor dicts
     direct_ancestors_list = schema_neo4j_queries.get_dataset_direct_ancestors(neo4j_driver, data_dict['uuid'])
 
-    # Additional properties of the datasets to exclude 
     # We don't want to show too much nested information
     # The direct ancestor of a Dataset could be: Dataset or Sample
-    # To exclude 'direct_ancestors' and 'collections' if the direct ancestor is Dataset
-    # To exclude 'direct_ancestor' is the direct ancestor is Sample
-    properties_to_exclude = ['direct_ancestors', 'collections', 'direct_ancestor']
+    # Skip running the trigger methods for 'direct_ancestors' and 'collections' if the direct ancestor is Dataset
+    # Skip running the trigger methods for 'direct_ancestor' if the direct ancestor is Sample
+    properties_to_skip = ['direct_ancestors', 'collections', 'direct_ancestor']
+    complete_entities_list = schema_manager.get_complete_entities_list(direct_ancestors_list, properties_to_skip)
 
-    return schema_manager.get_complete_entities_list(direct_ancestors_list, properties_to_exclude)
+    return schema_manager.normalize_entities_list_for_response(complete_entities_list)
 
 """
 Trigger event method of getting source uuid
@@ -723,14 +720,11 @@ def link_sample_to_direct_ancestor(property_key, normalized_class, neo4j_driver,
     logger.debug(activity_json_list_str)
 
     try:
-        success = schema_neo4j_queries.link_entity_to_direct_ancestor(neo4j_driver, data_dict['uuid'], direct_ancestor_uuid, activity_json_list_str)
-    except Exception:
-        msg = "Failed to execute 'schema_neo4j_queries.link_entity_to_direct_ancestor()' for sample with uuid" + data_dict['uuid']
-        # Log the full stack trace, prepend a line with our message
-        logger.exception(msg)
-        raise Exception(msg)
+        schema_neo4j_queries.link_entity_to_direct_ancestor(neo4j_driver, data_dict['uuid'], direct_ancestor_uuid, activity_json_list_str)
+    except TransactionError:
+        # No need to log
+        raise
 
-    return True
 
 
 """
@@ -788,14 +782,10 @@ def relink_sample_to_direct_ancestor(property_key, normalized_class, neo4j_drive
     logger.debug(activity_json_list_str)
  
     try:
-        success = schema_neo4j_queries.link_entity_to_direct_ancestor(neo4j_driver, data_dict['uuid'], direct_ancestor_uuid, activity_json_list_str)
-    except Exception:
-        msg = "Failed to execute 'schema_neo4j_queries.link_entity_to_direct_ancestor(relink = True)' for sample with uuid" + data_dict['uuid']
-        # Log the full stack trace, prepend a line with our message
-        logger.exception(msg)
-        raise Exception(msg)
-
-    return True
+        schema_neo4j_queries.link_entity_to_direct_ancestor(neo4j_driver, data_dict['uuid'], direct_ancestor_uuid, activity_json_list_str)
+    except TransactionError:
+        # No need to log
+        raise
 
 
 """
@@ -823,15 +813,17 @@ def get_sample_direct_ancestor(property_key, normalized_class, neo4j_driver, dat
         raise KeyError("Missing 'uuid' key in 'data_dict' during calling 'get_sample_direct_ancestor()' trigger method.")
 
     direct_ancestor_dict = schema_neo4j_queries.get_sample_direct_ancestor(neo4j_driver, data_dict['uuid'])
-    
+
     if 'entity_class' not in direct_ancestor_dict:
         raise KeyError("The 'entity_class' property in the resulting 'direct_ancestor_dict' is not set during calling 'get_sample_direct_ancestor()' trigger method.")
 
-    # Additional properties to exclude form response
-    # We don't want to show too much nested information
-    properties_to_exclude = ['direct_ancestor']
+    # Generate trigger data for sample's direct_ancestor and skip the direct_ancestor's direct_ancestor
+    properties_to_skip = ['direct_ancestor']
+    complete_dict = schema_manager.get_complete_entity_result(direct_ancestor_dict, properties_to_skip)
 
-    return schema_manager.get_complete_entity_result(direct_ancestor_dict['entity_class'], direct_ancestor_dict, properties_to_exclude)
+    # Get rid of the entity node properties that are not defined in the yaml schema
+    # as well as the ones defined as `exposed: false` in the yaml schema
+    return normalize_entity_result_for_response(complete_dict)
 
 """
 Trigger event method of getting source uuid
