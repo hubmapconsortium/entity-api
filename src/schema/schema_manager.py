@@ -4,6 +4,7 @@ import requests
 from cachetools import cached, TTLCache
 import functools
 from urllib3.exceptions import InsecureRequestWarning
+from flask import Response
 
 # Use the current_app proxy, which points to the application handling the current activity
 from flask import current_app as app

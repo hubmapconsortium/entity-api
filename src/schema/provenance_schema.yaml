@@ -191,7 +191,7 @@ ENTITIES:
         required_on_create: true # Only required for create via POST, not update via PUT
         description: "The dataset title."
       data_types:
-        type: json_string
+        type: list
         required_on_create: true # Only required for create via POST, not update via PUT
         description: "The data or assay types contained in this dataset as a json array of strings.  Each is an assay code from https://github.com/hubmapconsortium/search-api/blob/devel/src/search-schema/data/definitions/enums/assay_types.yaml."
       collections:
