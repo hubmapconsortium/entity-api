@@ -404,7 +404,7 @@ def validate_json_data_against_schema(json_data_dict, normalized_entity_class, e
 
     if len(unsupported_keys) > 0:
         # No need to log the validation errors
-        raise KeyError("Unsupported keys in request json: " + separator.join(unsupported_keys))
+        raise schema_errors.SchemaValidationException("Unsupported keys in request json: " + separator.join(unsupported_keys))
 
     # Check if keys in request json are the ones to be auto generated
     generated_keys = []
@@ -415,7 +415,7 @@ def validate_json_data_against_schema(json_data_dict, normalized_entity_class, e
 
     if len(generated_keys) > 0:
         # No need to log the validation errors
-        raise KeyError("Auto generated keys are not allowed in request json: " + separator.join(generated_keys))
+        raise schema_errors.SchemaValidationException("Auto generated keys are not allowed in request json: " + separator.join(generated_keys))
 
     # Only check if keys in request json are immutable during entity update
     if not bool(existing_entity_dict):
@@ -427,7 +427,7 @@ def validate_json_data_against_schema(json_data_dict, normalized_entity_class, e
 
         if len(immutable_keys) > 0:
             # No need to log the validation errors
-            raise KeyError("Immutable keys are not allowed in request json: " + separator.join(immutable_keys))
+            raise schema_errors.SchemaValidationException("Immutable keys are not allowed in request json: " + separator.join(immutable_keys))
         
     # Check if any schema keys that are required_on_create but missing from POST request on creating new entity
     # No need to check on entity update
@@ -442,7 +442,7 @@ def validate_json_data_against_schema(json_data_dict, normalized_entity_class, e
 
         if len(missing_required_keys_on_create) > 0:
             # No need to log the validation errors
-            raise KeyError("Missing required keys in request json: " + separator.join(missing_required_keys_on_create))
+            raise schema_errors.SchemaValidationException("Missing required keys in request json: " + separator.join(missing_required_keys_on_create))
 
     # By now all the keys in request json have passed the above two checks: existence cehck in schema and required check in schema
     # Verify data types of keys
@@ -458,7 +458,7 @@ def validate_json_data_against_schema(json_data_dict, normalized_entity_class, e
     
     if len(invalid_data_type_keys) > 0:
         # No need to log the validation errors
-        raise TypeError("Keys in request json with invalid data types: " + separator.join(invalid_data_type_keys))
+        raise schema_errors.SchemaValidationException("Keys in request json with invalid data types: " + separator.join(invalid_data_type_keys))
 
 
 """

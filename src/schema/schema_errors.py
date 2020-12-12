@@ -1,4 +1,7 @@
 
+class SchemaValidationException(Exception):
+    pass
+
 class BeforeCreateTriggerException(Exception):
     pass
 

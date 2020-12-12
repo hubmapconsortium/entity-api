@@ -331,9 +331,9 @@ def create_entity(entity_class):
     # Validate request json against the yaml schema
     try:
         schema_manager.validate_json_data_against_schema(json_data_dict, normalized_entity_class)
-    except KeyError as e:
+    except schema_errors.SchemaValidationException as e:
         # No need to log the validation errors
-        internal_server_error(str(e))
+        bad_request_error(str(e))
 
     if normalized_entity_class == 'Collection':
         entity_dict = create_collection(normalized_entity_class, json_data_dict)
@@ -382,9 +382,9 @@ def update_entity(id):
     # Pass in the entity_dict for missing required key check, this is different from creating new entity
     try:
         schema_manager.validate_json_data_against_schema(json_data_dict, normalized_entity_class, existing_entity_dict = entity_dict)
-    except KeyError as e:
+    except schema_errors.SchemaValidationException as e:
         # No need to log the validation errors
-        internal_server_error(str(e))
+        bad_request_error(str(e))
 
     try:
         generated_before_update_trigger_data_dict = schema_manager.generate_triggered_data('before_update_trigger', normalized_entity_class, entity_dict)
