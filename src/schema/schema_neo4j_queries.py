@@ -94,14 +94,18 @@ def get_dataset_direct_ancestors(neo4j_driver, uuid, property_key = None):
         record = result.single()
         result_list = []
 
-        # Convert the entity nodes to dicts
-        nodes = record[record_field_name]
+        if property_key:
+            # Just return the list of property values from each entity node
+            result_list = record[record_field_name]
+        else:
+            # Convert the entity nodes to dicts
+            nodes = record[record_field_name]
 
-        for node in nodes:
-            entity_dict = node_to_dict(node)
-            result_list.append(entity_dict)
+            for node in nodes:
+                entity_dict = node_to_dict(node)
+                result_list.append(entity_dict)
 
-        return result_list
+        return result_list 
 
 
 """

@@ -10,6 +10,7 @@ from flask import Response
 from flask import current_app as app
 
 # Local modules
+from schema import schema_errors
 from schema import schema_triggers
 
 # HuBMAP commons
@@ -194,6 +195,7 @@ def generate_triggered_data(trigger_type, normalized_class, data_dict, propertie
         if (trigger_type in list(properties[key])) and (key not in properties_to_skip):
             # 'after_create_trigger' and 'after_update_trigger' don't generate property values
             # E.g., create relationships between nodes in neo4j
+            # So just return the empty trigger_generated_data_dict
             if trigger_type in ['after_create_trigger', 'after_update_trigger']:
                 # Only call the triggers if the propery key presents from the incoming data
                 # E.g., 'direct_ancestor_uuid' for Sample, 'dataset_uuids' for Collection
@@ -205,21 +207,20 @@ def generate_triggered_data(trigger_type, normalized_class, data_dict, propertie
                     # Call the target trigger method of schema_triggers.py module
                     trigger_method_to_call = getattr(schema_triggers, trigger_method_name)
 
-                    # Assume the trigger method failed by default
-                    # Overwrite if everything goes well
-                    trigger_generated_data_dict[trigger_method_name] = False
-
                     try:
                         # No return values for 'after_create_trigger' and 'after_update_trigger'
                         # because the property value is already set in `data_dict`
                         # normally it's building linkages between entity nodes
                         trigger_method_to_call(key, normalized_class, _neo4j_driver, data_dict)
-                        
-                        # Overwrite if the trigger method gets executed successfully
-                        trigger_generated_data_dict[trigger_method_name] = True
                     except Exception:
+                        msg = "Failed to call the " + trigger_type + " method: " + trigger_method_name
                         # Log the full stack trace, prepend a line with our message
-                        logger.exception("Failed to call the trigger method " + trigger_method_name)
+                        logger.exception(msg)
+
+                        if trigger_type == 'after_create_trigger':
+                            raise schema_errors.AfterCreateTriggerException
+                        elif trigger_type == 'after_update_trigger':
+                            raise schema_errors.AfterUpdateTriggerException
             else:
                 # Handling of all other trigger types:
                 # before_create_trigger|before_update_trigger|on_read_trigger
@@ -234,8 +235,22 @@ def generate_triggered_data(trigger_type, normalized_class, data_dict, propertie
                     # Will set the trigger return value as the property value
                     trigger_generated_data_dict[key] = trigger_method_to_call(key, normalized_class, _neo4j_driver, data_dict)
                 except Exception as e:
+                    msg = "Failed to call the " + trigger_type + " method: " + trigger_method_name
                     # Log the full stack trace, prepend a line with our message
-                    logger.exception("Failed to call the trigger method " + trigger_method_name)
+                    logger.exception(msg)
+
+                    if trigger_type == 'before_create_trigger':
+                        # We can't create/update the entity 
+                        # without successfully executing this trigger method
+                        raise schema_errors.BeforeCreateTriggerException
+                    elif trigger_type == 'before_update_trigger':
+                        # We can't create/update the entity 
+                        # without successfully executing this trigger method
+                        raise schema_errors.BeforeUpdateTriggerException
+                    else:
+                        # Assign the error message as the value of this property
+                        # No need to raise exception
+                        trigger_generated_data_dict[key] = msg
     
     # Return after for loop
     return trigger_generated_data_dict
@@ -259,6 +274,8 @@ dict
     A dictionary of complete entity with all all generated 'on_read_trigger' data
 """
 def get_complete_entity_result(entity_dict, properties_to_skip = []):
+    # No error handling here since if a 'on_read_trigger' method failed, 
+    # the property value will be the error message
     generated_on_read_trigger_data_dict = generate_triggered_data('on_read_trigger', entity_dict['entity_class'], entity_dict, properties_to_skip)
 
     # Merge the entity info and the generated on read data into one dictionary

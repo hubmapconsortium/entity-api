@@ -14,6 +14,7 @@ import urllib
 # Local modules
 import app_neo4j_queries
 from schema import schema_manager
+from schema import schema_errors
 
 # HuBMAP commons
 from hubmap_commons import string_helper
@@ -387,9 +388,10 @@ def update_entity(id):
 
     try:
         generated_before_update_trigger_data_dict = schema_manager.generate_triggered_data('before_update_trigger', normalized_entity_class, entity_dict)
-    except Exception:
+    # If one of the before_update_trigger methods fails, we can't update the entity
+    except schema_errors.BeforeUpdateTriggerException:
         # Log the full stack trace, prepend a line with our message
-        msg = "Failed to generate entity property data"
+        msg = "Failed to execute one of the 'before_update_trigger' methods, can't update the entity"
         logger.exception(msg)
         internal_server_error(msg)
 
@@ -422,12 +424,13 @@ def update_entity(id):
         # Terminate and let the users know
         internal_server_error(msg)
 
-    # TO-DO
     try:
-        success = schema_manager.generate_triggered_data('after_update_trigger', normalized_entity_class, merged_dict)
-    except Exception:
+        # 'after_create_trigger' and 'after_update_trigger' don't generate property values
+        # It just returns the empty dict, no need to assign value
+        schema_manager.generate_triggered_data('after_update_trigger', normalized_entity_class, merged_dict)
+    except schema_errors.AfterUpdateTriggerException:
         # Log the full stack trace, prepend a line with our message
-        msg = "Failed to generate entity property data"
+        msg = "The entity information has been updated, but failed to execute one of the 'after_update_trigger' methods"
         logger.exception(msg)
         internal_server_error(msg)
 
@@ -937,9 +940,10 @@ def create_collection(normalized_entity_class, json_data_dict):
 
     try:
         generated_before_create_trigger_data_dict = schema_manager.generate_triggered_data('before_create_trigger', normalized_entity_class, data_dict)
-    except Exception:
+    # If one of the before_create_trigger methods fails, we can't create the entity
+    except schema_errors.BeforeCreateTriggerException:
         # Log the full stack trace, prepend a line with our message
-        msg = "Failed to generate entity property data"
+        msg = "Failed to execute one of the 'before_create_trigger' methods, can't create the entity"
         logger.exception(msg)
         internal_server_error(msg)
 
@@ -971,14 +975,13 @@ def create_collection(normalized_entity_class, json_data_dict):
     # For new colletion to be linked to existing datasets
     # `dataset_uuids` is the only Collection property that has `after_create_trigger`
     if has_dataset_uuids:
-        # The `generate_triggered_data()` only returns True 
-        # if everything goes well with calling after_create_trigger methods
-        # TO-DO
         try:
-            success = schema_manager.generate_triggered_data('after_create_trigger', normalized_entity_class, merged_dict)
-        except Exception:
+            # 'after_create_trigger' and 'after_update_trigger' don't generate property values
+            # It just returns the empty dict, no need to assign value
+            schema_manager.generate_triggered_data('after_create_trigger', normalized_entity_class, merged_dict)
+        except schema_errors.AfterCreateTriggerException:
             # Log the full stack trace, prepend a line with our message
-            msg = "Failed to generate entity property data"
+            msg = "The entity has been created, but failed to execute one of the 'after_create_trigger' methods"
             logger.exception(msg)
             internal_server_error(msg)
 
@@ -1026,9 +1029,10 @@ def create_donor(normalized_entity_class, json_data_dict):
 
     try:
         generated_before_create_trigger_data_dict = schema_manager.generate_triggered_data('before_create_trigger', normalized_entity_class, data_dict)
-    except Exception:
+    # If one of the before_create_trigger methods fails, we can't create the entity
+    except schema_errors.BeforeCreateTriggerException:
         # Log the full stack trace, prepend a line with our message
-        msg = "Failed to generate entity property data"
+        msg = "Failed to execute one of the 'before_create_trigger' methods, can't create the entity"
         logger.exception(msg)
         internal_server_error(msg)
 
@@ -1102,9 +1106,10 @@ def create_sample(normalized_entity_class, json_data_dict):
 
     try:
         generated_before_create_trigger_data_dict = schema_manager.generate_triggered_data('before_create_trigger', normalized_entity_class, data_dict)
-    except Exception:
+    # If one of the before_create_trigger methods fails, we can't create the entity
+    except schema_errors.BeforeCreateTriggerException:
         # Log the full stack trace, prepend a line with our message
-        msg = "Failed to generate entity property data"
+        msg = "Failed to execute one of the 'before_create_trigger' methods, can't create the entity"
         logger.exception(msg)
         internal_server_error(msg)
 
@@ -1135,14 +1140,13 @@ def create_sample(normalized_entity_class, json_data_dict):
 
     # For new sample to be linked to existing source entity
     if has_direct_ancestor_uuid:
-        # The `generate_triggered_data()` only returns True 
-        # if everything goes well with calling after_create_trigger methods
-        # TO-DO
         try:
-            success = schema_manager.generate_triggered_data('after_create_trigger', normalized_entity_class, merged_dict)
-        except Exception:
+            # 'after_create_trigger' and 'after_update_trigger' don't generate property values
+            # It just returns the empty dict, no need to assign value
+            schema_manager.generate_triggered_data('after_create_trigger', normalized_entity_class, merged_dict)
+        except schema_errors.AfterCreateTriggerException:
             # Log the full stack trace, prepend a line with our message
-            msg = "Failed to generate entity property data"
+            msg = "The entity has been created, but failed to execute one of the 'after_create_trigger' methods"
             logger.exception(msg)
             internal_server_error(msg)
 
@@ -1199,9 +1203,10 @@ def create_dataset(normalized_entity_class, json_data_dict):
 
     try:
         generated_before_create_trigger_data_dict = schema_manager.generate_triggered_data('before_create_trigger', normalized_entity_class, data_dict)
-    except Exception:
+    # If one of the before_create_trigger methods fails, we can't create the entity
+    except schema_errors.BeforeCreateTriggerException:
         # Log the full stack trace, prepend a line with our message
-        msg = "Failed to generate entity property data"
+        msg = "Failed to execute one of the 'before_create_trigger' methods, can't create the entity"
         logger.exception(msg)
         internal_server_error(msg)
 
@@ -1233,14 +1238,13 @@ def create_dataset(normalized_entity_class, json_data_dict):
     # Handling collection_uuids or source_uuids via `after_create_trigger` methods 
     # if at least one of them presents
     if has_collection_uuids or has_direct_ancestor_uuids:
-        # The `generate_triggered_data()` only returns True 
-        # if everything goes well with calling `after_create_trigger` methods
-        # TO-DO
         try:
-            success = schema_manager.generate_triggered_data('after_create_trigger', normalized_entity_class, merged_dict)
-        except Exception:
+            # 'after_create_trigger' and 'after_update_trigger' don't generate property values
+            # It just returns the empty dict, no need to assign value
+            schema_manager.generate_triggered_data('after_create_trigger', normalized_entity_class, merged_dict)
+        except schema_errors.AfterCreateTriggerException:
             # Log the full stack trace, prepend a line with our message
-            msg = "Failed to generate entity property data"
+            msg = "The entity has been created, but failed to execute one of the 'after_create_trigger' methods"
             logger.exception(msg)
             internal_server_error(msg)
 

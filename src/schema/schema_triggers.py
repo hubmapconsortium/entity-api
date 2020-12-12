@@ -271,8 +271,7 @@ def set_group_uuid(property_key, normalized_class, neo4j_driver, data_dict):
         group_info = schema_manager.get_entity_group_info(data_dict['hmgroupids'])
         return group_info['uuid']
     except ValueError as e:
-        # Log the full stack trace, prepend a line with our message
-        logger.exception(str(e))
+        # No need to log
         raise ValueError(e)
 
 """
