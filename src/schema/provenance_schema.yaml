@@ -21,6 +21,7 @@
 
 # Entity retrival via http GET request:
 # - By default, all entity properties will be returned. Use `exposed: false` to filter out the property from response
+# - If a property has `exposed: false`, it doesn't need any `on_read_trigger` method
 # - If a property has `on_read_trigger`, it must be transient, meaning it's not stored in neo4j and only available during response
 
 
@@ -206,7 +207,6 @@ ENTITIES:
         transient: true
         exposed: false
         description: "The uuids of source entities from which this new entity is derived.  Used to pass source entity ids in on POST or PUT calls used to create the linkages."
-        on_read_trigger: get_dataset_direct_ancestor_uuids
         after_create_trigger: link_dataset_to_direct_ancestors
         after_update_trigger: relink_dataset_to_direct_ancestors
       direct_ancestors:
@@ -401,7 +401,6 @@ ENTITIES:
         description: "The uuid of source entity from which this new entity is derived from. Used on creation or edit to create an action and relationship to the ancestor"
         after_create_trigger: link_sample_to_direct_ancestor
         after_update_trigger: relink_sample_to_direct_ancestor
-        on_read_trigger: get_sample_direct_ancestor_uuid
       direct_ancestor:
         type: json_string
         generated: true
