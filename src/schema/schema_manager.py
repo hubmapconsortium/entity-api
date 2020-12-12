@@ -111,6 +111,24 @@ def clear_schema_cache():
 ####################################################################################################
 
 """
+Get a list of all the supported classes in the schmea yaml
+
+Returns
+-------
+list
+    A list of classes
+"""
+def get_all_classes():
+    global _schema
+
+    entity_classes = _schema['ENTITIES'].keys()
+    activity_classes = _schema['ACTIVITIES'].keys()
+
+    # Need convert the dict_keys object to a list
+    return list(entity_classes) + list(activity_classes)
+
+
+"""
 Get a list of all the supported entity classes in the schmea yaml
 
 Returns
@@ -152,7 +170,9 @@ def generate_triggered_data(trigger_type, normalized_class, data_dict, propertie
 
     # A bit validation
     validate_trigger_type(trigger_type)
-    validate_normalized_entity_class(normalized_class)
+    # Use validate_normalized_class instead of validate_normalized_entity_class()
+    # to allow "Activity"
+    validate_normalized_class(normalized_class)
 
     # Determine the schema section based on class
     if normalized_class == 'Activity':
@@ -509,7 +529,7 @@ Validate the normalized entity class
 Parameters
 ----------
 normalized_entity_class : str
-    The normalized entity class
+    The normalized entity class: Collection|Donor|Sample|Dataset
 """
 def validate_normalized_entity_class(normalized_entity_class):
     separator = ', '
@@ -521,6 +541,26 @@ def validate_normalized_entity_class(normalized_entity_class):
         # Log the full stack trace, prepend a line with our message
         logger.exception(msg)
         raise ValueError(msg)
+
+"""
+Validate the normalized class
+
+Parameters
+----------
+normalized_class : str
+    The normalized class: Activity|Collection|Donor|Sample|Dataset
+"""
+def validate_normalized_class(normalized_class):
+    separator = ', '
+    accepted_classes = get_all_classes()
+
+    # Validate provided entity_class
+    if normalized_class not in accepted_classes:
+        msg = "Invalid class: " + normalized_class + ". The class must be one of the following: " + separator.join(accepted_classes)
+        # Log the full stack trace, prepend a line with our message
+        logger.exception(msg)
+        raise ValueError(msg)
+
 
 """
 Validate the source and target entity classes for creating derived entity
