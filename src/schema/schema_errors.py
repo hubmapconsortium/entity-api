@@ -13,3 +13,9 @@ class BeforeUpdateTriggerException(Exception):
 
 class AfterUpdateTriggerException(Exception):
     pass
+
+class NoDataProviderGroupException(Exception):
+    pass
+
+class MultipleDataProviderGroupException(Exception):
+    pass

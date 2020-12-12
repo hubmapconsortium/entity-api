@@ -946,6 +946,11 @@ def create_collection(normalized_entity_class, json_data_dict):
         msg = "Failed to execute one of the 'before_create_trigger' methods, can't create the entity"
         logger.exception(msg)
         internal_server_error(msg)
+    except (schema_errors.NoDataProviderGroupException, schema_errors.MultipleDataProviderGroupException):
+        # Log the full stack trace, prepend a line with our message
+        msg = "The user does not have the correct Globus group associated with, can't create the entity"
+        logger.exception(msg)
+        bad_request_error(msg)
 
     # Merge the user json data and generated trigger data into one dictionary
     merged_dict = {**json_data_dict, **generated_before_create_trigger_data_dict}
@@ -1035,6 +1040,11 @@ def create_donor(normalized_entity_class, json_data_dict):
         msg = "Failed to execute one of the 'before_create_trigger' methods, can't create the entity"
         logger.exception(msg)
         internal_server_error(msg)
+    except (schema_errors.NoDataProviderGroupException, schema_errors.MultipleDataProviderGroupException):
+        # Log the full stack trace, prepend a line with our message
+        msg = "The user does not have the correct Globus group associated with, can't create the entity"
+        logger.exception(msg)
+        bad_request_error(msg)
 
     # Merge the user json data and generated trigger data into one dictionary
     merged_dict = {**json_data_dict, **generated_before_create_trigger_data_dict}
@@ -1112,6 +1122,11 @@ def create_sample(normalized_entity_class, json_data_dict):
         msg = "Failed to execute one of the 'before_create_trigger' methods, can't create the entity"
         logger.exception(msg)
         internal_server_error(msg)
+    except (schema_errors.NoDataProviderGroupException, schema_errors.MultipleDataProviderGroupException):
+        # Log the full stack trace, prepend a line with our message
+        msg = "The user does not have the correct Globus group associated with, can't create the entity"
+        logger.exception(msg)
+        bad_request_error(msg)
 
     # Merge the user json data and generated trigger data into one dictionary
     merged_dict = {**json_data_dict, **generated_before_create_trigger_data_dict}
@@ -1209,6 +1224,11 @@ def create_dataset(normalized_entity_class, json_data_dict):
         msg = "Failed to execute one of the 'before_create_trigger' methods, can't create the entity"
         logger.exception(msg)
         internal_server_error(msg)
+    except (schema_errors.NoDataProviderGroupException, schema_errors.MultipleDataProviderGroupException):
+        # Log the full stack trace, prepend a line with our message
+        msg = "The user does not have the correct Globus group associated with, can't create the entity"
+        logger.exception(msg)
+        bad_request_error(msg)
 
     # Merge the user json data and generated trigger data into one dictionary
     merged_dict = {**json_data_dict, **generated_before_create_trigger_data_dict}

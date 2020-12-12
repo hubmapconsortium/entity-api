@@ -234,6 +234,16 @@ def generate_triggered_data(trigger_type, normalized_class, data_dict, propertie
                 try:
                     # Will set the trigger return value as the property value
                     trigger_generated_data_dict[key] = trigger_method_to_call(key, normalized_class, _neo4j_driver, data_dict)
+                except NoDataProviderGroupException as e:
+                    msg = "Failed to call the " + trigger_type + " method: " + trigger_method_name
+                    # Log the full stack trace, prepend a line with our message
+                    logger.exception(msg)
+                    raise NoDataProviderGroupException
+                except MultipleDataProviderGroupException as e:
+                    msg = "Failed to call the " + trigger_type + " method: " + trigger_method_name
+                    # Log the full stack trace, prepend a line with our message
+                    logger.exception(msg)
+                    raise MultipleDataProviderGroupException
                 except Exception as e:
                     msg = "Failed to call the " + trigger_type + " method: " + trigger_method_name
                     # Log the full stack trace, prepend a line with our message
@@ -832,13 +842,13 @@ def get_entity_group_info(user_hmgroupids_list):
         msg = "No data_provider groups found for this user. Can't continue."
         # Log the full stack trace, prepend a line with our message
         logger.exception(msg)
-        raise ValueError(msg)
+        raise schema_errors.NoDataProviderGroupException(msg)
 
     if len(data_provider_groups) > 1:
         msg = "More than one data_provider groups found for this user. Can't continue."
         # Log the full stack trace, prepend a line with our message
         logger.exception(msg)
-        raise ValueError(msg)
+        raise schema_errors.MultipleDataProviderGroupException(msg)
 
     # By now only one data provider group found, this is what we want
     group_info['uuid'] = data_provider_groups[0]

@@ -270,9 +270,12 @@ def set_group_uuid(property_key, normalized_class, neo4j_driver, data_dict):
     try:
         group_info = schema_manager.get_entity_group_info(data_dict['hmgroupids'])
         return group_info['uuid']
-    except ValueError as e:
+    except NoDataProviderGroupException as e:
         # No need to log
-        raise ValueError(e)
+        raise NoDataProviderGroupException(e)
+    except MultipleDataProviderGroupException as e:
+        # No need to log
+        raise MultipleDataProviderGroupException(e)
 
 """
 Trigger event method of getting the group_name
@@ -301,8 +304,12 @@ def set_group_name(property_key, normalized_class, neo4j_driver, data_dict):
     try:
         group_info = schema_manager.get_entity_group_info(data_dict['hmgroupids'])
         return group_info['name']
-    except ValueError as e:
-        raise ValueError(e)
+    except NoDataProviderGroupException as e:
+        # No need to log
+        raise NoDataProviderGroupException(e)
+    except MultipleDataProviderGroupException as e:
+        # No need to log
+        raise MultipleDataProviderGroupException(e)
     
 
 ####################################################################################################
