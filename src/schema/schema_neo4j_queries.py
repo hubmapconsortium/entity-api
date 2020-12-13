@@ -7,7 +7,7 @@ logger = logging.getLogger(__name__)
 record_field_name = 'result'
 
 ####################################################################################################
-## Called by trigger methogs
+## Directly called by schema_triggers.py
 ####################################################################################################
 
 """
@@ -148,63 +148,6 @@ def link_entity_to_direct_ancestor(neo4j_driver, entity_uuid, ancestor_uuid, act
             tx.rollback()
 
         raise TransactionError(msg)
-
-"""
-Create a relationship from the source node to the target node in neo4j
-
-Parameters
-----------
-tx : neo4j.Transaction object
-    The neo4j.Transaction object instance
-source_node_uuid : str
-    The uuid of source node
-target_node_uuid : str
-    The uuid of target node
-relationship : str
-    The relationship type to be created
-direction: str
-    The relationship direction from source node to target node: outgoing `->` or incoming `<-`
-    Neo4j CQL CREATE command supports only directional relationships
-
-
-Returns
--------
-str
-    The relationship type name
-"""
-def create_relationship_tx(tx, source_node_uuid, target_node_uuid, relationship, direction):
-    incoming = "-"
-    outgoing = "-"
-    
-    if direction == "<-":
-        incoming = direction
-
-    if direction == "->":
-        outgoing = direction
-
-    parameterized_query = ("MATCH (s), (t) " +
-                           "WHERE s.uuid = '{source_node_uuid}' AND t.uuid = '{target_node_uuid}' " +
-                           "CREATE (s){incoming}[r:{relationship}]{outgoing}(t) " +
-                           "RETURN type(r) AS {record_field_name}") 
-
-    query = parameterized_query.format(source_node_uuid = source_node_uuid,
-                                       target_node_uuid = target_node_uuid,
-                                       incoming = incoming,
-                                       relationship = relationship,
-                                       outgoing = outgoing,
-                                       record_field_name = record_field_name)
-
-    logger.debug("======create_relationship_tx() query======")
-    logger.debug(query)
-
-    result = tx.run(query)
-    record = result.single()
-    relationship = record[record_field_name]
-
-    logger.debug("======create_relationship_tx() resulting relationship======")
-    logger.debug("(source node) " + incoming + " [:" + relationship + "] " + outgoing + " (target node)")
-
-    return relationship
 
 
 """
@@ -399,7 +342,7 @@ def get_sample_direct_ancestor(neo4j_driver, uuid, property_key = None):
 
 
 ####################################################################################################
-## Activity creation
+## Internal Functions
 ####################################################################################################
 
 """
@@ -440,9 +383,63 @@ def create_activity_tx(tx, json_list_str):
 
     return node
 
-####################################################################################################
-## Internal Functions
-####################################################################################################
+"""
+Create a relationship from the source node to the target node in neo4j
+
+Parameters
+----------
+tx : neo4j.Transaction object
+    The neo4j.Transaction object instance
+source_node_uuid : str
+    The uuid of source node
+target_node_uuid : str
+    The uuid of target node
+relationship : str
+    The relationship type to be created
+direction: str
+    The relationship direction from source node to target node: outgoing `->` or incoming `<-`
+    Neo4j CQL CREATE command supports only directional relationships
+
+
+Returns
+-------
+str
+    The relationship type name
+"""
+def create_relationship_tx(tx, source_node_uuid, target_node_uuid, relationship, direction):
+    incoming = "-"
+    outgoing = "-"
+    
+    if direction == "<-":
+        incoming = direction
+
+    if direction == "->":
+        outgoing = direction
+
+    parameterized_query = ("MATCH (s), (t) " +
+                           "WHERE s.uuid = '{source_node_uuid}' AND t.uuid = '{target_node_uuid}' " +
+                           "CREATE (s){incoming}[r:{relationship}]{outgoing}(t) " +
+                           "RETURN type(r) AS {record_field_name}") 
+
+    query = parameterized_query.format(source_node_uuid = source_node_uuid,
+                                       target_node_uuid = target_node_uuid,
+                                       incoming = incoming,
+                                       relationship = relationship,
+                                       outgoing = outgoing,
+                                       record_field_name = record_field_name)
+
+    logger.debug("======create_relationship_tx() query======")
+    logger.debug(query)
+
+    result = tx.run(query)
+    record = result.single()
+    relationship = record[record_field_name]
+
+    logger.debug("======create_relationship_tx() resulting relationship======")
+    logger.debug("(source node) " + incoming + " [:" + relationship + "] " + outgoing + " (target node)")
+
+    return relationship
+
 
 """
 Convert the neo4j node into Python dict
