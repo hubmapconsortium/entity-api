@@ -234,16 +234,16 @@ def generate_triggered_data(trigger_type, normalized_class, data_dict, propertie
                 try:
                     # Will set the trigger return value as the property value
                     trigger_generated_data_dict[key] = trigger_method_to_call(key, normalized_class, _neo4j_driver, data_dict)
-                except NoDataProviderGroupException as e:
+                except schema_errors.NoDataProviderGroupException as e:
                     msg = "Failed to call the " + trigger_type + " method: " + trigger_method_name
                     # Log the full stack trace, prepend a line with our message
                     logger.exception(msg)
-                    raise NoDataProviderGroupException
-                except MultipleDataProviderGroupException as e:
+                    raise schema_errors.NoDataProviderGroupException
+                except schema_errors.MultipleDataProviderGroupException as e:
                     msg = "Failed to call the " + trigger_type + " method: " + trigger_method_name
                     # Log the full stack trace, prepend a line with our message
                     logger.exception(msg)
-                    raise MultipleDataProviderGroupException
+                    raise schema_errors.MultipleDataProviderGroupException
                 except Exception as e:
                     msg = "Failed to call the " + trigger_type + " method: " + trigger_method_name
                     # Log the full stack trace, prepend a line with our message

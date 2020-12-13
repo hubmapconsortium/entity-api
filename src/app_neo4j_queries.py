@@ -205,10 +205,6 @@ def create_entity_tx(tx, entity_class, json_list_str):
 
     return node
 
-####################################################################################################
-## Relationship creation
-####################################################################################################
-
 """
 Create a relationship from the source node to the target node in neo4j
 

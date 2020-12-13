@@ -5,6 +5,7 @@ from neo4j.exceptions import TransactionError
 
 # Local modules
 from schema import schema_manager
+from schema import schema_errors
 from schema import schema_neo4j_queries
 
 # HuBMAP commons
@@ -270,12 +271,12 @@ def set_group_uuid(property_key, normalized_class, neo4j_driver, data_dict):
     try:
         group_info = schema_manager.get_entity_group_info(data_dict['hmgroupids'])
         return group_info['uuid']
-    except NoDataProviderGroupException as e:
+    except schema_errors.NoDataProviderGroupException as e:
         # No need to log
-        raise NoDataProviderGroupException(e)
-    except MultipleDataProviderGroupException as e:
+        raise schema_errors.NoDataProviderGroupException(e)
+    except schema_errors.MultipleDataProviderGroupException as e:
         # No need to log
-        raise MultipleDataProviderGroupException(e)
+        raise schema_errors.MultipleDataProviderGroupException(e)
 
 """
 Trigger event method of getting the group_name
@@ -304,12 +305,12 @@ def set_group_name(property_key, normalized_class, neo4j_driver, data_dict):
     try:
         group_info = schema_manager.get_entity_group_info(data_dict['hmgroupids'])
         return group_info['name']
-    except NoDataProviderGroupException as e:
+    except schema_errors.NoDataProviderGroupException as e:
         # No need to log
-        raise NoDataProviderGroupException(e)
-    except MultipleDataProviderGroupException as e:
+        raise schema_errors.NoDataProviderGroupException(e)
+    except schema_errors.MultipleDataProviderGroupException as e:
         # No need to log
-        raise MultipleDataProviderGroupException(e)
+        raise schema_errors.MultipleDataProviderGroupException(e)
     
 
 ####################################################################################################
