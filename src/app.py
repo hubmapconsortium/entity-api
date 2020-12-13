@@ -679,7 +679,7 @@ def get_children(id):
 
 
 """
-Link the list of datasets to the target collection
+Link the given list of datasets to the target collection
 
 JSON request body example:
 {
@@ -699,9 +699,9 @@ collection_uuid : str
 Returns
 -------
 json
-    All the updated properties of the target entity
+    JSON string containing a success message with 200 status code
 """
-@app.route('/add_datasets_to_collection/<collection_uuid>', methods = ['PUT'])
+@app.route('/collections/<collection_uuid>/add-datasets', methods = ['PUT'])
 def add_datasets_to_collection(collection_uuid):
     # Query target entity against uuid-api and neo4j and return as a dict if exists
     entity_dict = query_target_entity(collection_uuid)
