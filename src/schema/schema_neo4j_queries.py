@@ -102,7 +102,7 @@ def get_dataset_direct_ancestors(neo4j_driver, uuid, property_key = None):
             nodes = record[record_field_name]
 
             for node in nodes:
-                entity_dict = node_to_dict(node)
+                entity_dict = _node_to_dict(node)
                 result_list.append(entity_dict)
 
         return result_list 
@@ -131,10 +131,10 @@ def link_entity_to_direct_ancestor(neo4j_driver, entity_uuid, ancestor_uuid, act
             activity_dict = create_activity_tx(tx, activity_json_list_str)
 
             # Create relationship from ancestor entity node to this Activity node
-            create_relationship_tx(tx, ancestor_uuid, activity_dict['uuid'], 'ACTIVITY_INPUT', '->')
+            _create_relationship_tx(tx, ancestor_uuid, activity_dict['uuid'], 'ACTIVITY_INPUT', '->')
                 
             # Create relationship from this Activity node to the target entity node
-            create_relationship_tx(tx, activity_dict['uuid'], entity_uuid, 'ACTIVITY_OUTPUT', '->')
+            _create_relationship_tx(tx, activity_dict['uuid'], entity_uuid, 'ACTIVITY_OUTPUT', '->')
 
             tx.commit()
     except TransactionError as te:
@@ -196,7 +196,7 @@ def get_dataset_collections(neo4j_driver, uuid, property_key = None):
         nodes = record[record_field_name]
 
         for node in nodes:
-            entity_dict = node_to_dict(node)
+            entity_dict = _node_to_dict(node)
             result_list.append(entity_dict)
 
         return result_list
@@ -236,7 +236,7 @@ def get_collection_datasets(neo4j_driver, uuid):
         nodes = record[record_field_name]
 
         for node in nodes:
-            entity_dict = node_to_dict(node)
+            entity_dict = _node_to_dict(node)
             result_list.append(entity_dict)
 
         return result_list
@@ -337,7 +337,7 @@ def get_sample_direct_ancestor(neo4j_driver, uuid, property_key = None):
         else:
             # Convert the entity node to dict
             node = record[record_field_name]
-            entity_dict = node_to_dict(node)
+            entity_dict = _node_to_dict(node)
             return entity_dict               
 
 
@@ -406,7 +406,7 @@ Returns
 str
     The relationship type name
 """
-def create_relationship_tx(tx, source_node_uuid, target_node_uuid, relationship, direction):
+def _create_relationship_tx(tx, source_node_uuid, target_node_uuid, relationship, direction):
     incoming = "-"
     outgoing = "-"
     
@@ -428,14 +428,14 @@ def create_relationship_tx(tx, source_node_uuid, target_node_uuid, relationship,
                                        outgoing = outgoing,
                                        record_field_name = record_field_name)
 
-    logger.debug("======create_relationship_tx() query======")
+    logger.debug("======_create_relationship_tx() query======")
     logger.debug(query)
 
     result = tx.run(query)
     record = result.single()
     relationship = record[record_field_name]
 
-    logger.debug("======create_relationship_tx() resulting relationship======")
+    logger.debug("======_create_relationship_tx() resulting relationship======")
     logger.debug("(source node) " + incoming + " [:" + relationship + "] " + outgoing + " (target node)")
 
     return relationship
@@ -454,7 +454,7 @@ Returns
 dict
     A dictionary of target entity containing all property key/value pairs
 """
-def node_to_dict(entity_node):
+def _node_to_dict(entity_node):
     entity_dict = {}
 
     for key, value in entity_node._properties.items():

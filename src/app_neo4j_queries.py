@@ -91,7 +91,7 @@ def get_entity(neo4j_driver, uuid):
             raise Exception(message.format(num_nodes = str(len(nodes)), uuid = uuid))
         
         # Convert the neo4j node into Python dict
-        entity_dict = node_to_dict(nodes[0])
+        entity_dict = _node_to_dict(nodes[0])
 
         logger.debug("======get_entity() resulting entity_dict======")
         logger.debug(entity_dict)
@@ -152,7 +152,7 @@ def get_entities_by_class(neo4j_driver, entity_class, property_key = None):
             nodes = record[record_field_name]
 
             for node in nodes:
-                entity_dict = node_to_dict(node)
+                entity_dict = _node_to_dict(node)
                 result_list.append(entity_dict)
 
         return result_list
@@ -202,7 +202,7 @@ def create_entity(neo4j_driver, entity_class, entity_json_list_str):
             record = result.single()
             entity_node = record[record_field_name]
 
-            entity_dict = node_to_dict(entity_node)
+            entity_dict = _node_to_dict(entity_node)
 
             logger.debug("======create_entity() resulting entity_dict======")
             logger.debug(entity_dict)
@@ -275,7 +275,7 @@ def update_entity(neo4j_driver, entity_class, json_list_str, uuid):
 
             tx.commit()
 
-            entity_dict = node_to_dict(entity_node)
+            entity_dict = _node_to_dict(entity_node)
 
             logger.debug("======update_entity() resulting entity_dict======")
             logger.debug(entity_dict)
@@ -352,7 +352,7 @@ def get_ancestors(neo4j_driver, uuid, property_key = None):
             nodes = record[record_field_name]
 
             for node in nodes:
-                entity_dict = node_to_dict(node)
+                entity_dict = _node_to_dict(node)
                 result_list.append(entity_dict)
 
         return result_list               
@@ -413,7 +413,7 @@ def get_descendants(neo4j_driver, uuid, property_key = None):
             nodes = record[record_field_name]
 
             for node in nodes:
-                entity_dict = node_to_dict(node)
+                entity_dict = _node_to_dict(node)
                 result_list.append(entity_dict)
 
         return result_list               
@@ -476,7 +476,7 @@ def get_parents(neo4j_driver, uuid, property_key = None):
             nodes = record[record_field_name]
 
             for node in nodes:
-                entity_dict = node_to_dict(node)
+                entity_dict = _node_to_dict(node)
                 result_list.append(entity_dict)
 
         return result_list               
@@ -536,7 +536,7 @@ def get_children(neo4j_driver, uuid, property_key = None):
             nodes = record[record_field_name]
 
             for node in nodes:
-                entity_dict = node_to_dict(node)
+                entity_dict = _node_to_dict(node)
                 result_list.append(entity_dict)
 
         return result_list             
@@ -621,7 +621,7 @@ Returns
 str
     The relationship type name
 """
-def create_relationship_tx(tx, source_node_uuid, target_node_uuid, relationship, direction):
+def _create_relationship_tx(tx, source_node_uuid, target_node_uuid, relationship, direction):
     incoming = "-"
     outgoing = "-"
     
@@ -643,14 +643,14 @@ def create_relationship_tx(tx, source_node_uuid, target_node_uuid, relationship,
                                        outgoing = outgoing,
                                        record_field_name = record_field_name)
 
-    logger.debug("======create_relationship_tx() query======")
+    logger.debug("======_create_relationship_tx() query======")
     logger.debug(query)
 
     result = tx.run(query)
     record = result.single()
     relationship = record[record_field_name]
 
-    logger.debug("======create_relationship_tx() resulting relationship======")
+    logger.debug("======_create_relationship_tx() resulting relationship======")
     logger.debug("(source node) " + incoming + " [:" + relationship + "] " + outgoing + " (target node)")
 
     return relationship
@@ -669,7 +669,7 @@ Returns
 dict
     A dictionary of target entity containing all property key/value pairs
 """
-def node_to_dict(entity_node):
+def _node_to_dict(entity_node):
     entity_dict = {}
 
     for key, value in entity_node._properties.items():
