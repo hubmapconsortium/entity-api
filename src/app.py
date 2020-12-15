@@ -241,7 +241,7 @@ Returns
 json
     A list of all the available entity classes defined in the schema yaml
 """
-@app.route('/entity_classes', methods = ['GET'])
+@app.route('/entity-classes', methods = ['GET'])
 def get_entity_classes():
     return jsonify(schema_manager.get_all_entity_classes())
 
@@ -265,7 +265,7 @@ def get_entities_by_class(entity_class):
     # Normalize user provided entity_class
     normalized_entity_class = schema_manager.normalize_entity_class(entity_class)
 
-    # Validate the normalized_entity_class to enure it's one of the accepted classes
+    # Validate the normalized_entity_class to ensure it's one of the accepted classes
     try:
         schema_manager.validate_normalized_entity_class(normalized_entity_class)
     except schema_errors.InvalidNormalizedEntityClassException as e:

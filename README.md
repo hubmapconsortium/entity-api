@@ -13,13 +13,13 @@ The yaml file `src/resources/hubmap-entities.yaml` contains all the attributes o
 ### Get all entity classes
 
 ````
-GET https://entity-api.refactor.hubmapconsortium.org/entity_classes
+GET https://entity-api.refactor.hubmapconsortium.org/entity-classes
 ````
 
 Generated HTTP request code example:
 
 ````
-GET /entity_classes HTTP/1.1
+GET /entity-classes HTTP/1.1
 Host: entity-api.refactor.hubmapconsortium.org
 ````
 
