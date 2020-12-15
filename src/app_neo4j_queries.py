@@ -159,6 +159,63 @@ def get_entities_by_class(neo4j_driver, entity_class, property_key = None):
 
 
 
+"""
+Get all the public collection nodes
+
+Parameters
+----------
+neo4j_driver : neo4j.Driver object
+    The neo4j database connection pool
+property_key : str
+    A target property key for result filtering
+
+Returns
+-------
+list
+    A list of public collections returned from the Cypher query
+"""
+def get_public_collections(neo4j_driver, property_key = None):
+    if property_key:
+        parameterized_query = ("MATCH (e:Collection) " + 
+                               "WHERE e.has_doi = true " +
+                               # COLLECT() returns a list
+                               # apoc.coll.toSet() reruns a set containing unique nodes
+                               "RETURN apoc.coll.toSet(COLLECT(e.{property_key})) AS {record_field_name}")
+
+        query = parameterized_query.format(property_key = property_key,
+                                           record_field_name = record_field_name)
+    else:
+        parameterized_query = ("MATCH (e:Collection) " + 
+                               "WHERE e.has_doi = true " +
+                               # COLLECT() returns a list
+                               # apoc.coll.toSet() reruns a set containing unique nodes
+                               "RETURN apoc.coll.toSet(COLLECT(e)) AS {record_field_name}")
+
+        query = parameterized_query.format(record_field_name = record_field_name)
+    
+    logger.info("======get_public_collections() query======")
+    logger.info(query)
+
+    with neo4j_driver.session() as session:
+        result = session.run(query)
+        record = result.single()
+        
+        result_list = []
+
+        if property_key:
+            # Just return the list of property values from each entity node
+            result_list = record[record_field_name]
+        else:
+            # Convert the entity nodes to dicts
+            nodes = record[record_field_name]
+
+            for node in nodes:
+                entity_dict = _node_to_dict(node)
+                result_list.append(entity_dict)
+
+        return result_list
+
+
 
 """
 Create a new entity node in neo4j

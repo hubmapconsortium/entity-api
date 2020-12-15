@@ -375,31 +375,16 @@ def get_collections():
     # Get user data_access_level based on token
     user_info = auth_helper.getUserDataAccessLevel(request) 
 
-    # Get back a list of entity dicts for the given entity class
-    entities_list = app_neo4j_queries.get_entities_by_class(neo4j_driver_instance, normalized_entity_class)
-
-    result_list = []
-
     # If the user can only access public collections, modify the collection result
     # by only returning public datasets attached to this collection
     if user_info['data_access_level'] == 'public': 
-        public_collections_list = []
-        for entity_dict in entities_list:
-            if ('has_doi' in entity_dict) and entity_dict['has_doi']:
-                # Loop through Collection.datasets and only return the public datasets
-                public_datasets_list = [] 
-                for dataset in entity_dict['datasets']:
-                    if dataset['data_access_level'] == 'public':
-                        public_datasets_list.append(dataset)
-
-                entity_dict['datasets'] = public_datasets
-
-                # Add to the result list
-                public_collections_list.append(entity_dict)
-
-        result_list = public_collections_list
+        # Get back a list of entity dicts for the given entity class
+        entities_list = app_neo4j_queries.get_public_collections(neo4j_driver_instance)
     else:
-        result_list = entities_list
+        # Get back a list of entity dicts for the given entity class
+        entities_list = app_neo4j_queries.get_entities_by_class(neo4j_driver_instance, normalized_entity_class)
+
+    final_result = entities_list
 
     # Result filtering based on query string
     result_filtering_accepted_property_keys = ['uuid']
@@ -412,11 +397,12 @@ def get_collections():
             if property_key not in result_filtering_accepted_property_keys:
                 bad_request_error("Only the following property keys are supported in the query string: " + separator.join(result_filtering_accepted_property_keys))
             
-            # Only return a list of the filtered property value of each entity
-            for collection_dict in result_list:
-                if ('has_doi' in entity_dict) and entity_dict['has_doi']:
-                    
-            property_list = app_neo4j_queries.get_entities_by_class(neo4j_driver_instance, normalized_entity_class, property_key)
+            if user_info['data_access_level'] == 'public':
+                # Only return a list of the filtered property value of each public collection
+                property_list = app_neo4j_queries.get_public_collections(neo4j_driver_instance, property_key)
+            else:
+                # Only return a list of the filtered property value of each entity
+                property_list = app_neo4j_queries.get_entities_by_class(neo4j_driver_instance, normalized_entity_class, property_key)
 
             # Final result
             final_result = property_list
@@ -425,7 +411,6 @@ def get_collections():
 
     # Response with the final result
     return jsonify(final_result)
-
 
 
 """
