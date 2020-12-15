@@ -567,7 +567,7 @@ def validate_normalized_entity_class(normalized_entity_class):
         msg = "Invalid entity class: " + normalized_entity_class + ". The entity class must be one of the following: " + separator.join(accepted_entity_classes)
         # Log the full stack trace, prepend a line with our message
         logger.exception(msg)
-        raise ValueError(msg)
+        raise schema_errors.InvalidEntityClassException(msg)
 
 """
 Validate the normalized class
@@ -586,7 +586,7 @@ def validate_normalized_class(normalized_class):
         msg = "Invalid class: " + normalized_class + ". The class must be one of the following: " + separator.join(accepted_classes)
         # Log the full stack trace, prepend a line with our message
         logger.exception(msg)
-        raise ValueError(msg)
+        raise schema_errors.InvalidEntityClassException(msg)
 
 
 """

@@ -268,7 +268,7 @@ def get_entities_by_class(entity_class):
     # Validate the normalized_entity_class to enure it's one of the accepted classes
     try:
         schema_manager.validate_normalized_entity_class(normalized_entity_class)
-    except ValueError as e:
+    except schema_errors.InvalidEntityClassException as e:
         bad_request_error("Invalid entity class provided: " + entity_class)
 
     # Get back a list of entity dicts for the given entity class
@@ -319,7 +319,7 @@ def create_entity(entity_class):
     # Validate the normalized_entity_class to make sure it's one of the accepted classes
     try:
         schema_manager.validate_normalized_entity_class(normalized_entity_class)
-    except ValueError as e:
+    except schema_errors.InvalidEntityClassException as e:
         bad_request_error("Invalid entity class provided: " + entity_class)
 
     # Always expect a json body
