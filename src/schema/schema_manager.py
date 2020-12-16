@@ -281,7 +281,7 @@ properties_to_skip : list
 Returns
 -------
 dict
-    A dictionary of complete entity with all all generated 'on_read_trigger' data
+    A dictionary of complete entity with all the generated 'on_read_trigger' data
 """
 def get_complete_entity_result(entity_dict, properties_to_skip = []):
     # No error handling here since if a 'on_read_trigger' method failed, 
