@@ -14,8 +14,11 @@ src/VERSION
 # Ignore __pycache__ directories in any path
 **/__pycache__
 
-# Ignore log but keep the log directory
+# log files in any path
 **/*.log
+
+# Rotated log files
+**/*.log*
 
 #ignore eclipse files
 .project
