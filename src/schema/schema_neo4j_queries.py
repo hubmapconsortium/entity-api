@@ -243,7 +243,7 @@ def get_collection_datasets(neo4j_driver, uuid):
 
 
 """
-Get count of published Dataset in the provenance hierarchy for a given  Collection/Sample/Donor
+Get count of published Dataset in the provenance hierarchy for a given Collection/Sample/Donor
 
 Parameters
 ----------

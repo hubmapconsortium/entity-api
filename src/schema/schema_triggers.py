@@ -105,6 +105,9 @@ def get_data_access_level(property_key, normalized_class, neo4j_driver, data_dic
         # Default to consortium for Collection/Donor/Sample
         data_access_level = ACCESS_LEVEL_CONSORTIUM
         
+        ###############################################
+        ###########Performance Bottleneck##############
+        ###############################################
         # public if any dataset below it in the provenance hierarchy is published
         # (i.e. Dataset.status == "Published")
         count = schema_neo4j_queries.count_attached_published_datasets(neo4j_driver, normalized_class, data_dict['uuid'])
