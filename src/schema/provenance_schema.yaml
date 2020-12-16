@@ -138,7 +138,7 @@ shared_entity_properties: &shared_entity_properties
     immutable: true
     description: "One of the normalized entity types: Dataset, Collection, Sample, Donor"
     before_create_trigger: set_entity_class 
-  # Currently cretors and contacts are only available for Collection
+  # Currently cretors and contacts are only available for public Collections
   creators:
     type: list
     description: "A list of the people who created the entity with full name, email, ORCID iD, institution, etc.. This is analogus to the author list on a publication."
@@ -167,10 +167,10 @@ ENTITIES:
       <<: *shared_entity_properties
       title:
         type: string
-        required_on_create: true # Only required for create via POST, not update via PUT
+        required_on_create: true
       has_doi:
         type: boolean
-        description: "True if the entity has a doi registered for it, false otherwise."
+        description: "True if the collection has a doi registered for it, meaning it's a public collection. False otherwise."
       ###### Transient properties ######
       datasets:
         type: list
@@ -340,7 +340,7 @@ ENTITIES:
         immutable: true
         exposed: false
         description: "Internal count of child samples, used for generating the submission id of the children. This field is not exposed via the api."
-        #todo: add new yaml attribute, exposed that defaults to true.  When false the attribute is not returned in ws response
+        #todo: add new yaml attribute, exposed that defaults to true. When false the attribute is not returned in ws response
       label:
         type: string
         description: "Lab provided, de-identified name for the donor"
