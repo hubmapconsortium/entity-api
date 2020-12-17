@@ -69,32 +69,12 @@ def get_entity(neo4j_driver, uuid):
     logger.debug(query)
 
     with neo4j_driver.session() as session:
-        nodes = []
-        entity_dict = {}
+        result = session.run(query)
+        record = result.single()
 
-        results = session.run(query)
-
-        # Add all records to the nodes list
-        for record in results:
-            nodes.append(record.get(record_field_name))
-        
-        logger.debug("======get_entity() resulting nodes======")
-        logger.debug(nodes)
-
-        # Return an empty dict if no result
-        if len(nodes) < 1:
-            return entity_dict
-
-        # Raise an exception if multiple nodes returned
-        if len(nodes) > 1:
-            message = "{num_nodes} entity nodes with same uuid {uuid} found in the Neo4j database."
-            raise Exception(message.format(num_nodes = str(len(nodes)), uuid = uuid))
-        
+        entity_node = record[record_field_name]
         # Convert the neo4j node into Python dict
-        entity_dict = _node_to_dict(nodes[0])
-
-        logger.debug("======get_entity() resulting entity_dict======")
-        logger.debug(entity_dict)
+        entity_dict = _node_to_dict(entity_node)
 
         return entity_dict
 
