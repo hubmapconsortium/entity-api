@@ -262,7 +262,8 @@ int
 """
 def count_attached_published_datasets(neo4j_driver, entity_class, uuid):
     parameterized_query = ("MATCH (e:{entity_class})-[r:ACTIVITY_INPUT|:ACTIVITY_OUTPUT*]->(d:Dataset) " +
-                           "WHERE e.uuid='{uuid}' AND d.status = 'Published' " +
+                           # Use the string function toLower() to avoid case-sensetivity issue
+                           "WHERE e.uuid='{uuid}' AND toLower(d.status) = 'published' " +
                            # COLLECT() returns a list
                            # apoc.coll.toSet() reruns a set containing unique nodes
                            "RETURN COUNT(d) AS {record_field_name}")
@@ -284,6 +285,50 @@ def count_attached_published_datasets(neo4j_driver, entity_class, uuid):
         
         return count               
 
+"""
+Get count of published Dataset in the provenance hierarchy for a given Collection/Sample/Donor
+
+Parameters
+----------
+neo4j_driver : neo4j.Driver object
+    The neo4j database connection pool
+uuid : str
+    The uuid of target dataset 
+data_access_level : str
+    The new data_access_level to be updated for Collection, Sample, Donor
+"""
+def update_dataset_ancestors_data_access_level(neo4j_driver, uuid, data_access_level):
+    parameterized_query = ("MATCH (e:Entity)-[r:ACTIVITY_INPUT|:ACTIVITY_OUTPUT*]->(d:Dataset) " +
+                           "WHERE e.entity_class <> 'Dataset' AND d.uuid='{uuid}' " +
+                           "SET e.data_access_level = '{data_access_level}' "
+                           # COLLECT() returns a list
+                           # apoc.coll.toSet() reruns a set containing unique nodes
+                           "RETURN COUNT(d) AS {record_field_name}")
+
+    query = parameterized_query.format(uuid = uuid, 
+                                       data_access_level = data_access_level,
+                                       record_field_name = record_field_name)
+
+    logger.debug("======update_dataset_ancestors_data_access_level() query======")
+    logger.debug(query)
+    
+    try:
+        with neo4j_driver.session() as session:
+            tx = session.begin_transaction()
+
+            tx.run(query)
+            tx.commit()
+    except TransactionError as te:
+        msg = "TransactionError from calling update_dataset_ancestors_data_access_level(): "
+        # Log the full stack trace, prepend a line with our message
+        logger.exception(msg)
+
+        if tx.closed() == False:
+            # Log the full stack trace, prepend a line with our message
+            logger.info("Failed to commit update_dataset_ancestors_data_access_level() transaction, rollback")
+            tx.rollback()
+
+        raise TransactionError(msg)
 
 """
 Get the parent of a given Sample entity

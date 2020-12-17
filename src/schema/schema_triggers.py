@@ -62,7 +62,7 @@ def set_entity_class(property_key, normalized_class, neo4j_driver, data_dict):
     return normalized_class
 
 """
-Trigger event method of getting data access level
+Trigger event method of generating data access level
 
 Parameters
 ----------
@@ -81,7 +81,7 @@ Returns
 str
     The data access level string
 """
-def get_data_access_level(property_key, normalized_class, neo4j_driver, data_dict):
+def set_data_access_level(property_key, normalized_class, neo4j_driver, data_dict):
     if 'uuid' not in data_dict:
         raise KeyError("Missing 'uuid' key in 'data_dict' during calling 'get_data_access_level()' trigger method.")
 
@@ -97,7 +97,7 @@ def get_data_access_level(property_key, normalized_class, neo4j_driver, data_dic
         if data_dict['contains_human_genetic_sequences']:
             data_access_level = ACCESS_LEVEL_PROTECTED
         else:
-            if data_dict['status'] == 'Published':
+            if data_dict['status'].lower() == 'published':
                 data_access_level = ACCESS_LEVEL_PUBLIC
             else:
                 data_access_level = ACCESS_LEVEL_CONSORTIUM
@@ -105,9 +105,6 @@ def get_data_access_level(property_key, normalized_class, neo4j_driver, data_dic
         # Default to consortium for Collection/Donor/Sample
         data_access_level = ACCESS_LEVEL_CONSORTIUM
         
-        ###############################################
-        ###########Performance Bottleneck##############
-        ###############################################
         # public if any dataset below it in the provenance hierarchy is published
         # (i.e. Dataset.status == "Published")
         count = schema_neo4j_queries.count_attached_published_datasets(neo4j_driver, normalized_class, data_dict['uuid'])
@@ -116,6 +113,7 @@ def get_data_access_level(property_key, normalized_class, neo4j_driver, data_dic
             data_access_level = ACCESS_LEVEL_PUBLIC
 
     return data_access_level
+
 
 """
 Trigger event method of getting user sub
@@ -387,6 +385,71 @@ def get_collection_datasets(property_key, normalized_class, neo4j_driver, data_d
 ####################################################################################################
 ## Trigger methods specific to Dataset - DO NOT RENAME
 ####################################################################################################
+
+"""
+Trigger event method of setting the default status for this new Dtaset
+
+Parameters
+----------
+property_key : str
+    The target property key
+normalized_class : str
+    One of the classes defined in the schema yaml: Activity, Collection, Donor, Sample, Dataset
+neo4j_driver : neo4j.Driver object
+    The neo4j database connection pool
+data_dict : dict
+    A merged dictionary that contains all possible input data to be used
+    It's fine if a trigger method doesn't use any input data
+
+Returns
+-------
+str 
+    New
+"""
+def set_dataset_status(property_key, normalized_class, neo4j_driver, data_dict):
+    return 'New'
+
+
+"""
+Trigger event method of updating the dataset's ancestors' data_access_level 
+on status change of this dataset
+
+Parameters
+----------
+property_key : str
+    The target property key
+normalized_class : str
+    One of the classes defined in the schema yaml: Activity, Collection, Donor, Sample, Dataset
+neo4j_driver : neo4j.Driver object
+    The neo4j database connection pool
+data_dict : dict
+    A merged dictionary that contains all possible input data to be used
+    It's fine if a trigger method doesn't use any input data
+"""
+def update_dataset_ancestors_data_access_level(property_key, normalized_class, neo4j_driver, data_dict):
+    if 'uuid' not in data_dict:
+        raise KeyError("Missing 'uuid' key in 'data_dict' during calling 'update_dataset_ancestors_data_access_level()' trigger method.")
+
+    if 'status' not in data_dict:
+        raise KeyError("Missing 'status' key in 'data_dict' during calling 'update_dataset_ancestors_data_access_level()' trigger method.")
+
+    # Caculate the new data_access_level of this dataset's ancestors (except another dataset is the ancestor)
+    # For now, don't use the constants from commons
+    ACCESS_LEVEL_PUBLIC = 'public'
+    ACCESS_LEVEL_CONSORTIUM = 'consortium'
+ 
+    # Default to consortium for Collection/Donor/Sample
+    data_access_level = ACCESS_LEVEL_CONSORTIUM
+    if data_dict['status'].lower() == "published":
+        data_access_level = ACCESS_LEVEL_PUBLIC
+
+    try:
+        schema_neo4j_queries.update_dataset_ancestors_data_access_level(neo4j_driver, data_dict['uuid'], data_access_level)
+    except TransactionError:
+        # No need to log
+        raise
+    
+
 
 """
 Trigger event method of getting a list of collections for this new Dtaset

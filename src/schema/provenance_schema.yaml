@@ -25,6 +25,7 @@
 # - If a property has `on_read_trigger`, it must be `transient: true`, meaning it's not stored in neo4j and only available during response
 # - If a property is `transient: true`, it can have `on_read_trigger` or not have one (when `exposed: false`)
 
+# Question: how to handle Dataset.status update
 
 ############################################# Attention #############################################
 # Properties that are still stored in neo4j but no longer needed: protocol_file, protocol_info
@@ -124,13 +125,11 @@ shared_entity_properties: &shared_entity_properties
     generated: true
     description: "The name of the person or process authenticated when the object was last modified."
     before_update_trigger: set_user_displayname
-  ###### Shared transient properties ######
   data_access_level:
     type: string
     generated: true
-    transient: true # Caculate this instead of storing in neo4j
     description: "One of the values: public, consortium, protected. Only Dataset may have protected value"
-    on_read_trigger: get_data_access_level
+    on_create_trigger: set_data_access_level
   ###### All other shared properties ######
   entity_class:
     type: string
@@ -258,11 +257,14 @@ ENTITIES:
         transient: true
         description: "The path on the local file system, relative to the base data directory, where the data is stored."
         on_read_trigger: get_local_directory_rel_path
-      # The Dataset.data_access_level is based on Dataset.status and Dataset.contains_human_genetic_sequences
+      #???????????????????
       status:
         type: string
-        immutable: true
-        description: "The status of the dataset one of Published|New|QA|Error|Hold|Invalid. Cannot be set directly must be set with a PUT /datasets/<id>/<status> method."
+        # Should it be immutable? Sicne Cannot be set directly must be set via ingest-api with a PUT /datasets/<id>/<status> method.
+        #immutable: true
+        description: "One of: Published|New|QA|Error|Hold|Invalid. Cannot be set directly must be set via ingest-api with a PUT /datasets/<id>/<status> method."
+        on_create_trigger: set_dataset_status
+        on_update_trigger: update_dataset_ancestors_data_access_level
       run_id:
         type: string
       ingest_id:
