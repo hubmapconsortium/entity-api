@@ -83,7 +83,7 @@ str
 """
 def set_data_access_level(property_key, normalized_class, neo4j_driver, data_dict):
     if 'uuid' not in data_dict:
-        raise KeyError("Missing 'uuid' key in 'data_dict' during calling 'get_data_access_level()' trigger method.")
+        raise KeyError("Missing 'uuid' key in 'data_dict' during calling 'set_data_access_level()' trigger method.")
 
     # For now, don't use the constants from commons
     ACCESS_LEVEL_PUBLIC = 'public'
@@ -679,6 +679,9 @@ def get_local_directory_rel_path(property_key, normalized_class, neo4j_driver, d
     if 'uuid' not in data_dict:
         raise KeyError("Missing 'uuid' key in 'data_dict' during calling 'get_local_directory_rel_path()' trigger method.")
     
+    if 'data_access_level' not in data_dict:
+        raise KeyError("Missing 'data_access_level' key in 'data_dict' during calling 'get_local_directory_rel_path()' trigger method.")
+    
     uuid = data_dict['uuid']
 
     if (not 'group_uuid' in data_dict) or (not data_dict['group_uuid']):
@@ -687,16 +690,13 @@ def get_local_directory_rel_path(property_key, normalized_class, neo4j_driver, d
     # Get the globus groups info based on the groups json file in commons package
     globus_groups_info = globus_groups.get_globus_groups_info()
     groups_by_id_dict = globus_groups_info['by_id']
-    
-    # Get the data_acess_level by calling another trigger method
-    data_access_level = get_data_access_level(property_key, normalized_class, neo4j_driver, data_dict)
 
     #look up the Component's group ID, return an error if not found
     data_group_id = data_dict['group_uuid']
     if not data_group_id in groups_by_id_dict:
         raise KeyError("Can not find dataset group: " + data_group_id + " for uuid: " + uuid)
 
-    dir_path = data_access_level + "/" + groups_by_id_dict[data_group_id]['displayname'] + "/" + uuid + "/"
+    dir_path = data_dict['data_access_level'] + "/" + groups_by_id_dict[data_group_id]['displayname'] + "/" + uuid + "/"
 
     return dir_path
 
