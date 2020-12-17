@@ -279,7 +279,10 @@ def get_entities_by_class(entity_class):
     entities_list = app_neo4j_queries.get_entities_by_class(neo4j_driver_instance, normalized_entity_class)
 
     # Generate trigger data and merge into a big dict
-    complete_entities_list = schema_manager.get_complete_entities_list(entities_list)
+    # and skip some of the properties that are time-consuming to generate via triggers
+    # direct_ancestor for Sample, and direct_ancestors for Dataset
+    properties_to_skip = ['direct_ancestors', 'direct_ancestor']
+    complete_entities_list = schema_manager.get_complete_entities_list(entities_list, properties_to_skip)
 
     # Final result after normalization
     final_result = schema_manager.normalize_entities_list_for_response(complete_entities_list)
@@ -404,7 +407,9 @@ def get_collections():
         collections_list = app_neo4j_queries.get_entities_by_class(neo4j_driver_instance, normalized_entity_class)
 
     # Generate trigger data and merge into a big dict
-    complete_collections_list = schema_manager.get_complete_entities_list(collections_list)
+    # and skip some of the properties that are time-consuming to generate via triggers
+    properties_to_skip = ['datasets']
+    complete_collections_list = schema_manager.get_complete_entities_list(collections_list, properties_to_skip)
 
     # Final result after normalization
     final_result = schema_manager.normalize_entities_list_for_response(complete_collections_list)
@@ -634,7 +639,10 @@ def get_ancestors(id):
     ancestors_list = app_neo4j_queries.get_ancestors(neo4j_driver_instance, uuid)
 
     # Generate trigger data and merge into a big dict
-    complete_entities_list = schema_manager.get_complete_entities_list(ancestors_list)
+    # and skip some of the properties that are time-consuming to generate via triggers
+    # datasts for Collection, director_ancestor for Sample, and direct_ancestors for Dataset
+    properties_to_skip = ['datasets', 'direct_ancestor', 'direct_ancestors']
+    complete_entities_list = schema_manager.get_complete_entities_list(ancestors_list, properties_to_skip)
 
     # Final result after normalization
     final_result = schema_manager.normalize_entities_list_for_response(complete_entities_list)
@@ -686,7 +694,10 @@ def get_descendants(id):
     descendants_list = app_neo4j_queries.get_descendants(neo4j_driver_instance, uuid)
 
     # Generate trigger data and merge into a big dict
-    complete_entities_list = schema_manager.get_complete_entities_list(descendants_list)
+    # and skip some of the properties that are time-consuming to generate via triggers
+    # datasts for Collection, director_ancestor for Sample, and direct_ancestors for Dataset
+    properties_to_skip = ['datasets', 'direct_ancestor', 'direct_ancestors']
+    complete_entities_list = schema_manager.get_complete_entities_list(descendants_list, properties_to_skip)
 
     # Final result after normalization
     final_result = schema_manager.normalize_entities_list_for_response(complete_entities_list)
@@ -737,7 +748,10 @@ def get_parents(id):
     parents_list = app_neo4j_queries.get_parents(neo4j_driver_instance, uuid)
 
     # Generate trigger data and merge into a big dict
-    complete_entities_list = schema_manager.get_complete_entities_list(parents_list)
+    # and skip some of the properties that are time-consuming to generate via triggers
+    # datasts for Collection, director_ancestor for Sample, and direct_ancestors for Dataset
+    properties_to_skip = ['datasets', 'direct_ancestor', 'direct_ancestors']
+    complete_entities_list = schema_manager.get_complete_entities_list(parents_list, properties_to_skip)
 
     # Final result after normalization
     final_result = schema_manager.normalize_entities_list_for_response(complete_entities_list)
@@ -788,7 +802,10 @@ def get_children(id):
     children_list = app_neo4j_queries.get_children(neo4j_driver_instance, uuid)
 
     # Generate trigger data and merge into a big dict
-    complete_entities_list = schema_manager.get_complete_entities_list(children_list)
+    # and skip some of the properties that are time-consuming to generate via triggers
+    # datasts for Collection, director_ancestor for Sample, and direct_ancestors for Dataset
+    properties_to_skip = ['datasets', 'direct_ancestor', 'direct_ancestors']
+    complete_entities_list = schema_manager.get_complete_entities_list(children_list, properties_to_skip)
 
     # Final result after normalization
     final_result = schema_manager.normalize_entities_list_for_response(complete_entities_list)
