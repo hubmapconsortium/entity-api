@@ -868,7 +868,7 @@ def get_sample_direct_ancestor(property_key, normalized_class, neo4j_driver, dat
 
     # Get rid of the entity node properties that are not defined in the yaml schema
     # as well as the ones defined as `exposed: false` in the yaml schema
-    return normalize_entity_result_for_response(complete_dict)
+    return schema_manager.normalize_entity_result_for_response(complete_dict)
 
 
 ####################################################################################################
