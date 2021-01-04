@@ -712,8 +712,7 @@ def get_descendants(id):
             # Validate the target property
             if property_key not in result_filtering_accepted_property_keys:
                 bad_request_error("Only the following property keys are supported in the query string: " + separator.join(result_filtering_accepted_property_keys))
-            
-<<<<<<< HEAD
+
             # Only return a list of the filtered property value of each entity
             property_list = app_neo4j_queries.get_descendants(neo4j_driver_instance, uuid, property_key)
 
