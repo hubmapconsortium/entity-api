@@ -416,7 +416,7 @@ def get_descendants(neo4j_driver, uuid, property_key = None):
     if property_key:
         parameterized_query = ("MATCH (e:Entity)-[r:ACTIVITY_INPUT|:ACTIVITY_OUTPUT*]->(descendant:Entity) " +
                                # Filter out the Lab entities
-                               "WHERE e.uuid='{uuid}' AND desendant.entity_class <> 'Lab' " +
+                               "WHERE e.uuid='{uuid}' AND descendant.entity_class <> 'Lab' " +
                                # COLLECT() returns a list
                                # apoc.coll.toSet() reruns a set containing unique nodes
                                "RETURN apoc.coll.toSet(COLLECT(descendant.{property_key})) AS {record_field_name}")
@@ -426,7 +426,8 @@ def get_descendants(neo4j_driver, uuid, property_key = None):
                                            record_field_name = record_field_name)
     else:
         parameterized_query = ("MATCH (e:Entity)-[r:ACTIVITY_INPUT|:ACTIVITY_OUTPUT*]->(descendant:Entity) " +
-                               "WHERE e.uuid='{uuid}' " +
+                               # Filter out the Lab entities
+                               "WHERE e.uuid='{uuid}' AND descendant.entity_class <> 'Lab' " +
                                # COLLECT() returns a list
                                # apoc.coll.toSet() reruns a set containing unique nodes
                                "RETURN apoc.coll.toSet(COLLECT(descendant)) AS {record_field_name}")
