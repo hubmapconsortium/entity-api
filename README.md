@@ -3,7 +3,7 @@
 A set of web service calls to return information about HuBMAP entities.
 
 The webservices are accessible through the `/entities` restful endpoint.
-A description of the API calls is found here: [Entities API](http://smart-api.info/ui/12af775769ba65a684476960f5f87e72).
+A description of the API calls is found here: [Entities API](https://smart-api.info/ui/0065e419668f3336a40d1f5ab89c6ba3).
 
 ## Development and deployment environments
 
