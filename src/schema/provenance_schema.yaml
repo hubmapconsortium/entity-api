@@ -125,11 +125,6 @@ shared_entity_properties: &shared_entity_properties
     generated: true
     description: "The name of the person or process authenticated when the object was last modified."
     before_update_trigger: set_user_displayname
-  data_access_level:
-    type: string
-    generated: true
-    description: "One of the values: public, consortium, protected. Only Dataset may have protected value"
-    on_create_trigger: set_data_access_level
   ###### All other shared properties ######
   entity_class:
     type: string
@@ -161,6 +156,7 @@ ENTITIES:
     derivation:
       source: false
       target: false
+    # Collection doesn't actually need data_access_level property
     properties:
       <<: *shared_properties
       <<: *shared_entity_properties
@@ -187,6 +183,11 @@ ENTITIES:
     properties:
       <<: *shared_properties
       <<: *shared_entity_properties
+      data_access_level:
+        type: string
+        generated: true
+        description: "One of the values: public, consortium, protected. Only Dataset may have protected value"
+        on_create_trigger: set_data_access_level
       title:
         type: string
         required_on_create: true # Only required for create via POST, not update via PUT
@@ -257,7 +258,6 @@ ENTITIES:
         transient: true
         description: "The path on the local file system, relative to the base data directory, where the data is stored."
         on_read_trigger: get_local_directory_rel_path
-      #???????????????????
       status:
         type: string
         # Should it be immutable? Sicne Cannot be set directly must be set via ingest-api with a PUT /datasets/<id>/<status> method.
@@ -295,6 +295,11 @@ ENTITIES:
     properties:
       <<: *shared_properties
       <<: *shared_entity_properties
+      data_access_level:
+        type: string
+        generated: true
+        description: "One of the values: public, consortium, protected. Only Dataset may have protected value"
+        on_create_trigger: set_data_access_level
       # Need `title` property?
       # Deidentified Name?- we're using label (definition below).  For now...
       image_file_metadata:
@@ -360,6 +365,11 @@ ENTITIES:
     properties:
       <<: *shared_properties
       <<: *shared_entity_properties
+      data_access_level:
+        type: string
+        generated: true
+        description: "One of the values: public, consortium, protected. Only Dataset may have protected value"
+        on_create_trigger: set_data_access_level
       specimen_type:
         type: string
         required_on_create: true # Only required for create via POST, not update via PUT

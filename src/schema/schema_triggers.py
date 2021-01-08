@@ -61,59 +61,6 @@ str
 def set_entity_class(property_key, normalized_class, neo4j_driver, data_dict):
     return normalized_class
 
-"""
-Trigger event method of generating data access level
-
-Parameters
-----------
-property_key : str
-    The target property key of the value to be generated
-normalized_class : str
-    One of the entity classes defined in the schema yaml: Collection, Donor, Sample, Dataset
-neo4j_driver : neo4j.Driver object
-    The neo4j database connection pool
-data_dict : dict
-    A merged dictionary that contains all possible input data to be used
-    It's fine if a trigger method doesn't use any input data
-
-Returns
--------
-str
-    The data access level string
-"""
-def set_data_access_level(property_key, normalized_class, neo4j_driver, data_dict):
-    if 'uuid' not in data_dict:
-        raise KeyError("Missing 'uuid' key in 'data_dict' during calling 'set_data_access_level()' trigger method.")
-
-    # For now, don't use the constants from commons
-    ACCESS_LEVEL_PUBLIC = 'public'
-    ACCESS_LEVEL_CONSORTIUM = 'consortium'
-    ACCESS_LEVEL_PROTECTED = 'protected'
-    
-    if normalized_class == 'Dataset':
-        # Default to protected
-        data_access_level = ACCESS_LEVEL_PROTECTED
-
-        if data_dict['contains_human_genetic_sequences']:
-            data_access_level = ACCESS_LEVEL_PROTECTED
-        else:
-            if data_dict['status'].lower() == 'published':
-                data_access_level = ACCESS_LEVEL_PUBLIC
-            else:
-                data_access_level = ACCESS_LEVEL_CONSORTIUM
-    else:
-        # Default to consortium for Collection/Donor/Sample
-        data_access_level = ACCESS_LEVEL_CONSORTIUM
-        
-        # public if any dataset below it in the provenance hierarchy is published
-        # (i.e. Dataset.status == "Published")
-        count = schema_neo4j_queries.count_attached_published_datasets(neo4j_driver, normalized_class, data_dict['uuid'])
-
-        if count > 0:
-            data_access_level = ACCESS_LEVEL_PUBLIC
-
-    return data_access_level
-
 
 """
 Trigger event method of getting user sub
@@ -244,6 +191,61 @@ def set_hubmap_id(property_key, normalized_class, neo4j_driver, data_dict):
 ####################################################################################################
 ## Trigger methods shared by Sample, Donor, Dataset - DO NOT RENAME
 ####################################################################################################
+
+
+"""
+Trigger event method of generating data access level
+
+Parameters
+----------
+property_key : str
+    The target property key of the value to be generated
+normalized_class : str
+    One of the entity classes defined in the schema yaml: Collection, Donor, Sample, Dataset
+neo4j_driver : neo4j.Driver object
+    The neo4j database connection pool
+data_dict : dict
+    A merged dictionary that contains all possible input data to be used
+    It's fine if a trigger method doesn't use any input data
+
+Returns
+-------
+str
+    The data access level string
+"""
+def set_data_access_level(property_key, normalized_class, neo4j_driver, data_dict):
+    if 'uuid' not in data_dict:
+        raise KeyError("Missing 'uuid' key in 'data_dict' during calling 'set_data_access_level()' trigger method.")
+
+    # For now, don't use the constants from commons
+    ACCESS_LEVEL_PUBLIC = 'public'
+    ACCESS_LEVEL_CONSORTIUM = 'consortium'
+    ACCESS_LEVEL_PROTECTED = 'protected'
+    
+    if normalized_class == 'Dataset':
+        # Default to protected
+        data_access_level = ACCESS_LEVEL_PROTECTED
+
+        if data_dict['contains_human_genetic_sequences']:
+            data_access_level = ACCESS_LEVEL_PROTECTED
+        else:
+            if data_dict['status'].lower() == 'published':
+                data_access_level = ACCESS_LEVEL_PUBLIC
+            else:
+                data_access_level = ACCESS_LEVEL_CONSORTIUM
+    else:
+        # Default to consortium for Collection/Donor/Sample
+        data_access_level = ACCESS_LEVEL_CONSORTIUM
+        
+        # public if any dataset below it in the provenance hierarchy is published
+        # (i.e. Dataset.status == "Published")
+        count = schema_neo4j_queries.count_attached_published_datasets(neo4j_driver, normalized_class, data_dict['uuid'])
+
+        if count > 0:
+            data_access_level = ACCESS_LEVEL_PUBLIC
+
+    return data_access_level
+
 
 """
 Trigger event method of getting the group_uuid

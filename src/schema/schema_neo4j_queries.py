@@ -286,7 +286,8 @@ def count_attached_published_datasets(neo4j_driver, entity_class, uuid):
         return count               
 
 """
-Get count of published Dataset in the provenance hierarchy for a given Collection/Sample/Donor
+Update the ancestors data_access_level for a given dataset.
+The dataset's ancestor can be another Dataset, Donor, or Sample. Won't be Collection
 
 Parameters
 ----------
@@ -295,7 +296,7 @@ neo4j_driver : neo4j.Driver object
 uuid : str
     The uuid of target dataset 
 data_access_level : str
-    The new data_access_level to be updated for Collection, Sample, Donor
+    The new data_access_level to be updated for the given dataset's ancestors: Dataset, Sample, Donor
 """
 def update_dataset_ancestors_data_access_level(neo4j_driver, uuid, data_access_level):
     parameterized_query = ("MATCH (e:Entity)-[r:ACTIVITY_INPUT|:ACTIVITY_OUTPUT*]->(d:Dataset) " +
