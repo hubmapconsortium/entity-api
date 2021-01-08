@@ -99,17 +99,17 @@ else
             # On test/stage/prod, copy the VERSION file and BUILD file to image
             if [[ "$1" != "localhost" && "$1" != "dev" && "$1" != "refactor" ]]; then
                 # Delete old VERSION and BUILD files if found
-                if [ -f "entity-api/src/VERSION" ]; then
-                    rm -rf entity-api/src/VERSION
+                if [ -f "entity-api/VERSION" ]; then
+                    rm -rf entity-api/VERSION
                 fi
                 
-                if [ -f "entity-api/src/BUILD" ]; then
-                    rm -rf entity-api/src/BUILD
+                if [ -f "entity-api/BUILD" ]; then
+                    rm -rf entity-api/BUILD
                 fi
                 
-                # Copy over the one files
-                cp ../VERSION entity-api/src
-                cp ../BUILD entity-api/src
+                # Copy over the VERSION and BUILD files
+                cp ../VERSION entity-api
+                cp ../BUILD entity-api
             fi
 
             docker-compose -f docker-compose.yml -f docker-compose.$1.yml -p entity-api build

@@ -151,8 +151,8 @@ json
 def get_status():
     status_data = {
         # Use strip() to remove leading and trailing spaces, newlines, and tabs
-        'version': (Path(__file__).parent / 'VERSION').read_text().strip(),
-        'build': (Path(__file__).parent / 'BUILD').read_text().strip(),
+        'version': (Path(__file__).absolute().parent.parent / 'VERSION').read_text().strip(),
+        'build': (Path(__file__).absolute().parent.parent / 'BUILD').read_text().strip(),
         'neo4j_connection': False
     }
     
