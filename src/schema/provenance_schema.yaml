@@ -405,8 +405,7 @@ ENTITIES:
       organ_other:
         type: string
         description: The organ type provided by the user if "other" organ type is selected
-      # Do we want to expose direct_ancestor_uuid and direct_ancestor at the same time?
-      # Should we make direct_ancestor_uuid `immutable: true` to disallow update?
+      # Should we make direct_ancestor_uuid `required_on_create`? Since creating the hubmap ids would require `parent_ids`?
       direct_ancestor_uuid:
         type: string
         transient: true
@@ -427,6 +426,7 @@ ENTITIES:
         immutable: true
         description: "The hubmap internal id with embedded semantic information e.g.: VAN0003-LK-1-10.  This id is generated at creation time which tracks the lab, donor, organ and sample hierarchy per the following: https://docs.google.com/document/d/1DjHgmqWF1VA5-3mfzLFNfabbzmc8KLSG9xWx1DDLlzo/edit?usp=sharing"
         before_create_trigger: set_submission_id
+      # ??????????? should this be required on create?
       organ:
         type: string
         description: "Organ code specifier, only set if sample_type == organ.  Valid values found in: https://github.com/hubmapconsortium/search-api/blob/devel/src/search-schema/data/definitions/enums/organ_types.yaml"

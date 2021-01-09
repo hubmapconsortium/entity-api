@@ -1130,7 +1130,7 @@ request : flask.Request object
 normalized_entity_class : str
     One of the normalized entity classes: Dataset, Collection, Sample, Donor
 json_data_dict: dict
-    The json request dict
+    The json request dict from user input
 
 Returns
 -------
@@ -1142,7 +1142,7 @@ def create_entity_details(request, normalized_entity_class, json_data_dict):
     user_info_dict = schema_manager.get_user_info(request)
 
     # Create new ids for the new entity
-    new_ids_dict = schema_manager.create_hubmap_ids(normalized_entity_class)
+    new_ids_dict = schema_manager.create_hubmap_ids(normalized_entity_class, json_data_dict)
 
     # Merge all the above dictionaries and pass to the trigger methods
     data_dict = {**user_info_dict, **new_ids_dict}
@@ -1326,10 +1326,26 @@ dict
 """
 def query_target_entity(id):
     try:
+        """
+        The dict returned by uuid-api that contains all the associated ids, e.g.:
+        {
+            "ancestor_id": "23c0ffa90648358e06b7ac0c5673ccd2",
+            "ancestor_ids":[
+                "23c0ffa90648358e06b7ac0c5673ccd2"
+            ],
+            "email": "marda@ufl.edu",
+            "hm_uuid": "1785aae4f0fb8f13a56d79957d1cbedf",
+            "hubmap_id": "HBM966.VNKN.965",
+            "submission_id": "UFL0007",
+            "time_generated": "2020-10-19 15:52:02",
+            "type": "DONOR",
+            "user_id": "694c6f6a-1deb-41a6-880f-d1ad8af3705f"
+        }
+        """
         hubmap_ids = schema_manager.get_hubmap_ids(id)
 
         # Get the target uuid if all good
-        uuid = hubmap_ids['hmuuid']
+        uuid = hubmap_ids['hm_uuid']
         entity_dict = app_neo4j_queries.get_entity(neo4j_driver_instance, uuid)
 
         # The uuid exists via uuid-api doesn't mean it's also in Neo4j

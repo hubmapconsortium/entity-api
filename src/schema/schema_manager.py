@@ -676,7 +676,7 @@ def get_user_info(request):
 
 
 """
-Retrive target uuid based on the given id
+Retrive target uuid, hubmap_id, and submission_id based on the given id
 
 Parameters
 ----------
@@ -688,14 +688,17 @@ Returns
 dict
     The dict returned by uuid-api that contains all the associated ids, e.g.:
     {
-        "doiSuffix": "456FDTP455",
-        "email": "xxx@pitt.edu",
-        "hmuuid": "461bbfdc353a2673e381f632510b0f17",
-        "hubmapId": "VAN0002",
-        "parentId": null,
-        "timeStamp": "2019-11-01 18:34:24",
-        "type": "{UUID_DATATYPE}",
-        "userId": "83ae233d-6d1d-40eb-baa7-b6f636ab579a"
+        "ancestor_id": "23c0ffa90648358e06b7ac0c5673ccd2",
+        "ancestor_ids":[
+            "23c0ffa90648358e06b7ac0c5673ccd2"
+        ],
+        "email": "marda@ufl.edu",
+        "hm_uuid": "1785aae4f0fb8f13a56d79957d1cbedf",
+        "hubmap_id": "HBM966.VNKN.965",
+        "submission_id": "UFL0007",
+        "time_generated": "2020-10-19 15:52:02",
+        "type": "DONOR",
+        "user_id": "694c6f6a-1deb-41a6-880f-d1ad8af3705f"
     }
 """
 def get_hubmap_ids(id):
@@ -708,8 +711,8 @@ def get_hubmap_ids(id):
     response = requests.get(url = target_url, headers = request_headers, verify = False) 
     
     if response.status_code == 200:
-        ids_list = response.json()
-        return ids_list[0]
+        ids_dict = response.json()
+        return ids_dict
     elif response.status_code == 404:
         msg = "Could not find the target id via uuid-api: " + id
         # Log the full stack trace, prepend a line with our message
@@ -747,6 +750,8 @@ Parameters
 ----------
 normalized_class : str
     One of the classes defined in the schema yaml: Activity, Collection, Donor, Sample, Dataset
+json_data_dict: dict
+    The json request dict from user input
 
 Returns
 -------
@@ -759,19 +764,49 @@ dict
     }
 
 """
-def create_hubmap_ids(normalized_class):
+def create_hubmap_ids(normalized_class, json_data_dict):
     global _uuid_api_url
 
-    # Must use "generateDOI": "true" to generate the doi (doi_suffix_id) and displayDoi (hubmap_id)
-    ##############################
-    # For sample and dataset, pass in the source_uuid
-    # If sample and sample_type == organ, pass in the organ 
-    ##############################
-    
+    """
+    POST arguments in json
+    entity_type - required: the type of entity, DONOR, SAMPLE, DATASET
+    parent_ids - required for entity types of SAMPLE, DONOR and DATASET
+               an array of UUIDs for the ancestors of the new entity
+               For SAMPLEs and DONORs a single uuid is required (one entry in the array)
+               and multiple ids are not allowed (SAMPLEs and DONORs are required to 
+               have a single ancestor, not multiple).  For DATASETs at least one ancestor
+               UUID is required, but multiple can be specified. (A DATASET can be derived
+               from multiple SAMPLEs or DATASETs.) 
+     organ_code - required only in the case where an id is being generated for a SAMPLE that
+               has a DONOR as a direct ancestor.  Must be one of the codes from:
+               https://github.com/hubmapconsortium/search-api/blob/test-release/src/search-schema/data/definitions/enums/organ_types.yaml
+    """
     json_to_post = {
-        'entityType': normalized_class, 
-        'generateDOI': "true"
+        'entity_type': normalized_class
     }
+
+    # Activity and Collection don't require the `parent_ids` in request json
+    if normalized_class in ['Donor', 'Sample', 'Dataset']:
+        # ????????????????????
+        # In the schema yaml, Donor has no property for such ancestor uuid, AKA lab uuid?
+        # Possibly `lab_donor_id`? Then that property needs to be `required_on_create`
+        if normalized_class == 'Donor':
+            parent_id = json_data_dict['lab_donor_id']
+            json_to_post['parent_ids'] = [parent_id]
+        elif normalized_class == 'Sample':
+            # Should `direct_ancestor_uuid` be `required_on_create` in yaml?
+            parent_id = json_data_dict['direct_ancestor_uuid']
+            json_to_post['parent_ids'] = [parent_id]
+
+            # Check if the json_data_dict['direct_ancestor_uuid'] is uuid of Donor
+            ids_dict = get_hubmap_ids(parent_id)
+            if ids_dict['type'].upper() == 'DONOR':
+                # Add the organ_code in request json
+                # ?????????? should `organ` be required on create?
+                json_to_post['organ_code'] = json_data_dict['organ']
+        else:
+            # Similarly, should `direct_ancestor_uuids` be `required_on_create` in yaml?
+            json_to_post['parent_ids'] = json_data_dict['direct_ancestor_uuids']
 
     request_headers = _create_request_headers()
 
@@ -779,13 +814,20 @@ def create_hubmap_ids(normalized_class):
     response = requests.post(url = _uuid_api_url, headers = request_headers, json = json_to_post, verify = False) 
     
     if response.status_code == 200:
-        ids_list = response.json()
-        ids_dict = ids_list[0]
+        # The uuid-api response looks like:
+        """
+        {
+            "uuid": "3bcc20f4f9ba19ed837136d19f530fbe",
+            "hubmap_base_id": "965PRGB226",
+            "hubmap_id": "HBM965.PRGB.226"
+        }
+        """
+        ids_dict = response.json()
 
         # Create a new dict with desired keys
         new_ids_dict = {
             'uuid': ids_dict['uuid'],
-            'hubmap_id': ids_dict['displayDoi']
+            'hubmap_id': ids_dict['hubmap_id']
         }
 
         return new_ids_dict

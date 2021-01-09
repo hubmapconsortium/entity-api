@@ -526,7 +526,7 @@ def link_dataset_to_direct_ancestors(property_key, normalized_class, neo4j_drive
         normalized_entity_class_dict = {'normalized_entity_class': normalized_class}
 
         # Create new ids for the new Activity
-        new_ids_dict_for_activity = schema_manager.create_hubmap_ids(normalized_activity_class)
+        new_ids_dict_for_activity = schema_manager.create_hubmap_ids(normalized_activity_class, json_data_dict = None)
 
         # The `data_dict` should already have user_info
         data_dict_for_activity = {**data_dict, **normalized_entity_class_dict, **new_ids_dict_for_activity}
@@ -595,7 +595,7 @@ def relink_dataset_to_direct_ancestors(property_key, normalized_class, neo4j_dri
         normalized_entity_class_dict = {'normalized_entity_class': normalized_class}
 
         # Create new ids for the new Activity
-        new_ids_dict_for_activity = schema_manager.create_hubmap_ids(normalized_activity_class)
+        new_ids_dict_for_activity = schema_manager.create_hubmap_ids(normalized_activity_class, json_data_dict = None)
 
         # The `data_dict` should already have user_info
         data_dict_for_activity = {**data_dict, **normalized_entity_class_dict, **new_ids_dict_for_activity}
@@ -749,7 +749,7 @@ def link_sample_to_direct_ancestor(property_key, normalized_class, neo4j_driver,
     normalized_entity_class_dict = {'normalized_entity_class': normalized_class}
 
     # Create new ids for the new Activity
-    new_ids_dict_for_activity = schema_manager.create_hubmap_ids(normalized_activity_class)
+    new_ids_dict_for_activity = schema_manager.create_hubmap_ids(normalized_activity_class, json_data_dict = None)
 
     # The `data_dict` should already have user_info
     data_dict_for_activity = {**data_dict, **normalized_entity_class_dict, **new_ids_dict_for_activity}
@@ -811,7 +811,7 @@ def relink_sample_to_direct_ancestor(property_key, normalized_class, neo4j_drive
     normalized_entity_class_dict = {'normalized_entity_class': normalized_class}
 
     # Create new ids for the new Activity
-    new_ids_dict_for_activity = schema_manager.create_hubmap_ids(normalized_activity_class)
+    new_ids_dict_for_activity = schema_manager.create_hubmap_ids(normalized_activity_class, json_data_dict = None)
 
     # The `data_dict` should already have user_info
     data_dict_for_activity = {**data_dict, **normalized_entity_class_dict, **new_ids_dict_for_activity}
