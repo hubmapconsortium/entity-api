@@ -418,7 +418,7 @@ ENTITIES:
         generated: true
         transient: true
         on_read_trigger: get_sample_direct_ancestor
-      # No submission_id for Dataset nor Collection
+      # No submission_id for Dataset and Collection
       # Only Donor and Sample have this property
       submission_id:
         type: string

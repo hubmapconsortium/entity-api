@@ -322,6 +322,7 @@ def set_group_name(property_key, normalized_class, neo4j_driver, data_dict):
 
 """
 Trigger event method of getting the submission_id
+No submission_id for Dataset and Collection
 
 Parameters
 ----------

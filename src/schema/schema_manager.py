@@ -814,12 +814,22 @@ def create_hubmap_ids(normalized_class, json_data_dict):
     response = requests.post(url = _uuid_api_url, headers = request_headers, json = json_to_post, verify = False) 
     
     if response.status_code == 200:
-        # The uuid-api response looks like:
+        # For Collection/Dataset/Activity, the uuid-api response looks like:
         """
         {
             "uuid": "3bcc20f4f9ba19ed837136d19f530fbe",
             "hubmap_base_id": "965PRGB226",
             "hubmap_id": "HBM965.PRGB.226"
+        }
+        """
+        # For Donor/Sample, submission_id will be added:
+        # Only Donor and Sample have this submission_id
+        """
+        {
+            uuid": "c0276b5937ba8e0d7d1185020bade18f",
+            "hubmap_base_id": "535RWXB646",
+            "hubmap_id": "HBM535.RWXB.646",
+            "submission_id": "TTDCT0001"
         }
         """
         ids_dict = response.json()
