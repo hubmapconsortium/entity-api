@@ -293,6 +293,9 @@ ENTITIES:
     properties:
       <<: *shared_properties
       <<: *shared_entity_properties
+      description:
+        type: string
+        description: "Free text description of the donor"
       data_access_level:
         type: string
         generated: true
