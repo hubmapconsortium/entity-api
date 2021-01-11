@@ -2,10 +2,10 @@
 class SchemaValidationException(Exception):
     pass
 
-class InvalidNormalizedEntityClassException(Exception):
+class InvalidNormalizedEntityTypeException(Exception):
     pass
 
-class InvalidNormalizedClassException(Exception):
+class InvalidNormalizedTypeException(Exception):
     pass
 
 class BeforeCreateTriggerException(Exception):

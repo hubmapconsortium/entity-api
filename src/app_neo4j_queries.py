@@ -80,42 +80,42 @@ def get_entity(neo4j_driver, uuid):
 
 
 """
-Get all the entity nodes for the given entity class
+Get all the entity nodes for the given entity type
 
 Parameters
 ----------
 neo4j_driver : neo4j.Driver object
     The neo4j database connection pool
-entity_class : str
-    One of the normalized entity classes: Dataset, Collection, Sample, Donor
+entity_type : str
+    One of the normalized entity types: Dataset, Collection, Sample, Donor
 property_key : str
     A target property key for result filtering
 
 Returns
 -------
 list
-    A list of entity dicts of the given class returned from the Cypher query
+    A list of entity dicts of the given type returned from the Cypher query
 """
-def get_entities_by_class(neo4j_driver, entity_class, property_key = None):
+def get_entities_by_type(neo4j_driver, entity_type, property_key = None):
     if property_key:
-        parameterized_query = ("MATCH (e:{entity_class}) " + 
+        parameterized_query = ("MATCH (e:{entity_type}) " + 
                                # COLLECT() returns a list
                                # apoc.coll.toSet() reruns a set containing unique nodes
                                "RETURN apoc.coll.toSet(COLLECT(e.{property_key})) AS {record_field_name}")
 
-        query = parameterized_query.format(entity_class = entity_class, 
+        query = parameterized_query.format(entity_type = entity_type, 
                                            property_key = property_key,
                                            record_field_name = record_field_name)
     else:
-        parameterized_query = ("MATCH (e:{entity_class}) " + 
+        parameterized_query = ("MATCH (e:{entity_type}) " + 
                                # COLLECT() returns a list
                                # apoc.coll.toSet() reruns a set containing unique nodes
                                "RETURN apoc.coll.toSet(COLLECT(e)) AS {record_field_name}")
 
-        query = parameterized_query.format(entity_class = entity_class, 
+        query = parameterized_query.format(entity_type = entity_type, 
                                            record_field_name = record_field_name)
     
-    logger.info("======get_entities_by_class() query======")
+    logger.info("======get_entities_by_type() query======")
     logger.info(query)
 
     with neo4j_driver.session() as session:
@@ -204,8 +204,8 @@ Parameters
 ----------
 neo4j_driver : neo4j.Driver object
     The neo4j database connection pool
-entity_class : str
-    One of the normalized entity classes: Dataset, Collection, Sample, Donor
+entity_type : str
+    One of the normalized entity types: Dataset, Collection, Sample, Donor
 entity_json_list_str : str
     The string representation of a list containing only one Entity node to be created
 
@@ -214,16 +214,16 @@ Returns
 dict
     A dictionary of newly created entity details returned from the Cypher query
 """
-def create_entity(neo4j_driver, entity_class, entity_json_list_str):
+def create_entity(neo4j_driver, entity_type, entity_json_list_str):
     # UNWIND expects json.entities to be List<T>
     parameterized_query = ("WITH apoc.convert.fromJsonList('{json_list_str}') AS entities_list " +
                            "UNWIND entities_list AS data " +
-                           "CREATE (e:{entity_class}) " +
+                           "CREATE (e:{entity_type}) " +
                            "SET e = data " +
                            "RETURN e AS {record_field_name}")
 
     query = parameterized_query.format(json_list_str = json_list_str, 
-                                       entity_class = entity_class, 
+                                       entity_type = entity_type, 
                                        record_field_name = record_field_name)
 
     logger.debug("======create_entity() query======")
@@ -267,8 +267,8 @@ Parameters
 ----------
 neo4j_driver : neo4j.Driver object
     The neo4j database connection pool
-entity_class : str
-    One of the normalized entity classes: Dataset, Collection, Sample, Donor
+entity_type : str
+    One of the normalized entity types: Dataset, Collection, Sample, Donor
 json_list_str : str
     The string representation of a list containing only one entity to be created
 uuid : str
@@ -279,11 +279,11 @@ Returns
 dict
     A dictionary of updated entity details returned from the Cypher query
 """
-def update_entity(neo4j_driver, entity_class, json_list_str, uuid):
+def update_entity(neo4j_driver, entity_type, json_list_str, uuid):
     # UNWIND expects json.entities to be List<T>
     parameterized_query = ("WITH apoc.convert.fromJsonList('{json_list_str}') AS entities_list " +
                            "UNWIND entities_list AS data " +
-                           "MATCH (e:{entity_class}) " +
+                           "MATCH (e:{entity_type}) " +
                            "WHERE e.uuid = '{uuid}' " +
                            # https://neo4j.com/docs/cypher-manual/current/clauses/set/#set-setting-properties-using-map
                            # `+=` is the magic here:
@@ -293,7 +293,7 @@ def update_entity(neo4j_driver, entity_class, json_list_str, uuid):
                            "SET e += data RETURN e AS {record_field_name}")
 
     query = parameterized_query.format(json_list_str = json_list_str, 
-                                       entity_class = entity_class, 
+                                       entity_type = entity_type, 
                                        uuid = uuid, 
                                        record_field_name = record_field_name)
     
@@ -353,7 +353,7 @@ def get_ancestors(neo4j_driver, uuid, property_key = None):
     if property_key:
         parameterized_query = ("MATCH (e:Entity)<-[r:ACTIVITY_INPUT|:ACTIVITY_OUTPUT*]-(ancestor:Entity) " +
                                # Filter out the Lab entities
-                               "WHERE e.uuid='{uuid}' AND ancestor.entity_class <> 'Lab' " +
+                               "WHERE e.uuid='{uuid}' AND ancestor.entity_type <> 'Lab' " +
                                # COLLECT() returns a list
                                # apoc.coll.toSet() reruns a set containing unique nodes
                                "RETURN apoc.coll.toSet(COLLECT(ancestor.{property_key})) AS {record_field_name}")
@@ -364,7 +364,7 @@ def get_ancestors(neo4j_driver, uuid, property_key = None):
     else:
         parameterized_query = ("MATCH (e:Entity)<-[r:ACTIVITY_INPUT|:ACTIVITY_OUTPUT*]-(ancestor:Entity) " +
                                # Filter out the Lab entities
-                               "WHERE e.uuid='{uuid}' AND ancestor.entity_class <> 'Lab' " +
+                               "WHERE e.uuid='{uuid}' AND ancestor.entity_type <> 'Lab' " +
                                # COLLECT() returns a list
                                # apoc.coll.toSet() reruns a set containing unique nodes
                                "RETURN apoc.coll.toSet(COLLECT(ancestor)) AS {record_field_name}")
@@ -416,7 +416,7 @@ def get_descendants(neo4j_driver, uuid, property_key = None):
     if property_key:
         parameterized_query = ("MATCH (e:Entity)-[r:ACTIVITY_INPUT|:ACTIVITY_OUTPUT*]->(descendant:Entity) " +
                                # Filter out the Lab entities
-                               "WHERE e.uuid='{uuid}' AND descendant.entity_class <> 'Lab' " +
+                               "WHERE e.uuid='{uuid}' AND descendant.entity_type <> 'Lab' " +
                                # COLLECT() returns a list
                                # apoc.coll.toSet() reruns a set containing unique nodes
                                "RETURN apoc.coll.toSet(COLLECT(descendant.{property_key})) AS {record_field_name}")
@@ -427,7 +427,7 @@ def get_descendants(neo4j_driver, uuid, property_key = None):
     else:
         parameterized_query = ("MATCH (e:Entity)-[r:ACTIVITY_INPUT|:ACTIVITY_OUTPUT*]->(descendant:Entity) " +
                                # Filter out the Lab entities
-                               "WHERE e.uuid='{uuid}' AND descendant.entity_class <> 'Lab' " +
+                               "WHERE e.uuid='{uuid}' AND descendant.entity_type <> 'Lab' " +
                                # COLLECT() returns a list
                                # apoc.coll.toSet() reruns a set containing unique nodes
                                "RETURN apoc.coll.toSet(COLLECT(descendant)) AS {record_field_name}")
@@ -478,7 +478,7 @@ def get_parents(neo4j_driver, uuid, property_key = None):
     if property_key:
         parameterized_query = ("MATCH (e:Entity)<-[:ACTIVITY_OUTPUT]-(:Activity)<-[:ACTIVITY_INPUT]-(parent:Entity) " +
                                # Filter out the Lab entities
-                               "WHERE e.uuid='{uuid}' AND parent.entity_class <> 'Lab' " +
+                               "WHERE e.uuid='{uuid}' AND parent.entity_type <> 'Lab' " +
                                # COLLECT() returns a list
                                # apoc.coll.toSet() reruns a set containing unique nodes
                                "RETURN apoc.coll.toSet(COLLECT(parent.{property_key})) AS {record_field_name}")
@@ -489,7 +489,7 @@ def get_parents(neo4j_driver, uuid, property_key = None):
     else:
         parameterized_query = ("MATCH (e:Entity)<-[:ACTIVITY_OUTPUT]-(:Activity)<-[:ACTIVITY_INPUT]-(parent:Entity) " +
                                # Filter out the Lab entities
-                               "WHERE e.uuid='{uuid}' AND parent.entity_class <> 'Lab' " +
+                               "WHERE e.uuid='{uuid}' AND parent.entity_type <> 'Lab' " +
                                # COLLECT() returns a list
                                # apoc.coll.toSet() reruns a set containing unique nodes
                                "RETURN apoc.coll.toSet(COLLECT(parent)) AS {record_field_name}")
@@ -541,7 +541,7 @@ def get_children(neo4j_driver, uuid, property_key = None):
     if property_key:
         parameterized_query = ("MATCH (e:Entity)-[:ACTIVITY_INPUT]->(:Activity)-[:ACTIVITY_OUTPUT]->(child:Entity) " +
                                # Filter out the Lab entities
-                               "WHERE e.uuid='{uuid}' AND child.entity_class <> 'Lab' " +
+                               "WHERE e.uuid='{uuid}' AND child.entity_type <> 'Lab' " +
                                # COLLECT() returns a list
                                # apoc.coll.toSet() reruns a set containing unique nodes
                                "RETURN apoc.coll.toSet(COLLECT(child.{property_key})) AS {record_field_name}")
@@ -551,7 +551,7 @@ def get_children(neo4j_driver, uuid, property_key = None):
     else:
         parameterized_query = ("MATCH (e:Entity)-[:ACTIVITY_INPUT]->(:Activity)-[:ACTIVITY_OUTPUT]->(child:Entity) " +
                                # Filter out the Lab entities
-                               "WHERE e.uuid='{uuid}' AND child.entity_class <> 'Lab' " +
+                               "WHERE e.uuid='{uuid}' AND child.entity_type <> 'Lab' " +
                                # COLLECT() returns a list
                                # apoc.coll.toSet() reruns a set containing unique nodes
                                "RETURN apoc.coll.toSet(COLLECT(child)) AS {record_field_name}")

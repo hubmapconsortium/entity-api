@@ -10,20 +10,20 @@ The yaml file `src/resources/hubmap-entities.yaml` contains all the attributes o
 
 ## API endpoints and examples
 
-### Get all entity classes
+### Get all entity types
 
 ````
-GET https://entity-api.refactor.hubmapconsortium.org/entity-classes
+GET https://entity-api.refactor.hubmapconsortium.org/entity-types
 ````
 
 Generated HTTP request code example:
 
 ````
-GET /entity-classes HTTP/1.1
+GET /entity-types HTTP/1.1
 Host: entity-api.refactor.hubmapconsortium.org
 ````
 
-It doesn't require a globus token to make the request. And the response returns a list of normalized entity classes: `Collection`, `Dataset`, `Donor`, `Sample`.
+It doesn't require a globus token to make the request. And the response returns a list of normalized entity types: `Collection`, `Dataset`, `Donor`, `Sample`.
 
 ### Get an entity by id
 
@@ -53,7 +53,7 @@ As you can see, it requires a globus token. And the result JSON looks like:
 "data_access_level": "consortium",
 "data_types": "[\"sc_atac_seq_snare\"]",
 "doi_suffix_id": "865LWLC946",
-"entity_class": "Dataset",
+"entity_type": "Dataset",
 "group_name": "hubmap-ucsd-tmc",
 "group_uuid": "03b3d854-ed44-11e8-8bce-0e368f3075e8",
 "hubmap_id": "HBM865.LWLC.946",
@@ -84,10 +84,10 @@ GET https://entity-api.refactor.hubmapconsortium.org/entities/<id>?property=data
 
 This returns the `data_access_level` property value directly instead of all the properties of this entity object.
 
-### Get all entities of a given class 
+### Get all entities of a given entity type 
 
 ````
-GET https://entity-api.refactor.hubmapconsortium.org/<entity_class>/entities
+GET https://entity-api.refactor.hubmapconsortium.org/<entity_type>/entities
 ````
 
 Generated HTTP request code example:
@@ -103,15 +103,15 @@ As you can see, it requires a globus token.
 Result filtering is supported via query string:
 
 ````
-GET https://entity-api.refactor.hubmapconsortium.org/<entity_class>/entities?property=uuid
+GET https://entity-api.refactor.hubmapconsortium.org/<entity_type>/entities?property=uuid
 ````
 
 This returns a list of UUIDs of the resulting entities instead of all the properties of each entity.
 
-### Create an entity of the target class
+### Create an entity of the target entity type
 
 ````
-POST https://entity-api.refactor.hubmapconsortium.org/entities/<entity_class>
+POST https://entity-api.refactor.hubmapconsortium.org/entities/<entity_type>
 ````
 
 Generated HTTP request code example:
@@ -131,7 +131,7 @@ Create a new entity:
 
 ````
 {
-    all the standard properties defined in schema yaml for the target class...
+    all the standard properties defined in schema yaml for the target entity type...
 }
 ````
 

@@ -200,7 +200,7 @@ def get_entity_by_id(id):
     entity_dict = query_target_entity(id)
 
     # Handle Collection retrieval using a different endpoint 
-    if entity_dict['entity_class'] == 'Collection':
+    if entity_dict['entity_type'] == 'Collection':
         bad_request_error("Please use another API endpoint `/collections/<id>` to query a collection")
 
     # We'll need to return all the properties including those 
@@ -233,50 +233,50 @@ def get_entity_by_id(id):
     return jsonify(final_result)
 
 """
-Show all the supported entity classes
+Show all the supported entity types
 
 Returns
 -------
 json
-    A list of all the available entity classes defined in the schema yaml
+    A list of all the available entity types defined in the schema yaml
 """
-@app.route('/entity-classes', methods = ['GET'])
-def get_entity_classes():
-    return jsonify(schema_manager.get_all_entity_classes())
+@app.route('/entity-types', methods = ['GET'])
+def get_entity_types():
+    return jsonify(schema_manager.get_all_entity_types())
 
 """
-Retrive all the entity nodes for a given entity class
+Retrive all the entity nodes for a given entity type
 Result filtering is supported based on query string
-For example: /<entity_class>/entities?property=uuid
+For example: /<entity_type>/entities?property=uuid
 
 Parameters
 ----------
-entity_class : str
-    One of the normalized entity classes: Dataset, Sample, Donor
+entity_type : str
+    One of the normalized entity types: Dataset, Sample, Donor
     Will handle Collection via API endpoint `/collections`
 
 Returns
 -------
 json
-    All the entity nodes in a list of the target entity class
+    All the entity nodes in a list of the target entity type
 """
-@app.route('/<entity_class>/entities', methods = ['GET'])
-def get_entities_by_class(entity_class):
-    # Normalize user provided entity_class
-    normalized_entity_class = schema_manager.normalize_entity_class(entity_class)
+@app.route('/<entity_type>/entities', methods = ['GET'])
+def get_entities_by_type(entity_type):
+    # Normalize user provided entity_type
+    normalized_entity_type = schema_manager.normalize_entity_type(entity_type)
 
-    # Validate the normalized_entity_class to ensure it's one of the accepted classes
+    # Validate the normalized_entity_type to ensure it's one of the accepted types
     try:
-        schema_manager.validate_normalized_entity_class(normalized_entity_class)
-    except schema_errors.InvalidNormalizedEntityClassException as e:
-        bad_request_error("Invalid entity class provided: " + entity_class)
+        schema_manager.validate_normalized_entity_type(normalized_entity_type)
+    except schema_errors.InvalidNormalizedEntityTypeException as e:
+        bad_request_error("Invalid entity type provided: " + entity_type)
 
     # Handle Collections retrieval using a different endpoint 
-    if normalized_entity_class == 'Collection':
+    if normalized_entity_type == 'Collection':
         bad_request_error("Please use another API endpoint `/collections` to query collections")
 
-    # Get back a list of entity dicts for the given entity class
-    entities_list = app_neo4j_queries.get_entities_by_class(neo4j_driver_instance, normalized_entity_class)
+    # Get back a list of entity dicts for the given entity type
+    entities_list = app_neo4j_queries.get_entities_by_type(neo4j_driver_instance, normalized_entity_type)
 
     # Generate trigger data and merge into a big dict
     # and skip some of the properties that are time-consuming to generate via triggers
@@ -299,7 +299,7 @@ def get_entities_by_class(entity_class):
                 bad_request_error("Only the following property keys are supported in the query string: " + separator.join(result_filtering_accepted_property_keys))
             
             # Only return a list of the filtered property value of each entity
-            property_list = app_neo4j_queries.get_entities_by_class(neo4j_driver_instance, normalized_entity_class, property_key)
+            property_list = app_neo4j_queries.get_entities_by_type(neo4j_driver_instance, normalized_entity_type, property_key)
 
             # Final result
             final_result = property_list
@@ -338,7 +338,7 @@ def get_collection(id):
     collection_dict = query_target_entity(id)
 
     # A bit validation 
-    if collection_dict['entity_class'] != 'Collection':
+    if collection_dict['entity_type'] != 'Collection':
         bad_request_error("Target entity of the given id is not a collection")
 
     # Get user data_access_level based on token
@@ -386,7 +386,7 @@ json
 """
 @app.route('/collections', methods = ['GET'])
 def get_collections():
-    normalized_entity_class = 'Collection'
+    normalized_entity_type = 'Collection'
 
     # Get user data_access_level based on token
     user_info = auth_helper.getUserDataAccessLevel(request) 
@@ -404,7 +404,7 @@ def get_collections():
             collection_dict = get_complete_public_collection_dict(collection_dict)
     else:
         # Get back a list of all collections dicts
-        collections_list = app_neo4j_queries.get_entities_by_class(neo4j_driver_instance, normalized_entity_class)
+        collections_list = app_neo4j_queries.get_entities_by_type(neo4j_driver_instance, normalized_entity_type)
 
     # Generate trigger data and merge into a big dict
     # and skip some of the properties that are time-consuming to generate via triggers
@@ -430,7 +430,7 @@ def get_collections():
                 property_list = app_neo4j_queries.get_public_collections(neo4j_driver_instance, property_key)
             else:
                 # Only return a list of the filtered property value of each entity
-                property_list = app_neo4j_queries.get_entities_by_class(neo4j_driver_instance, normalized_entity_class, property_key)
+                property_list = app_neo4j_queries.get_entities_by_type(neo4j_driver_instance, normalized_entity_type, property_key)
 
             # Final result
             final_result = property_list
@@ -442,28 +442,28 @@ def get_collections():
 
 
 """
-Create an entity of the target class in neo4j
+Create an entity of the target type in neo4j
 
 Parameters
 ----------
-entity_class : str
-    One of the target entity classes (case-insensitive since will be normalized): Dataset, Collection, Sample, but NOT Donor or Collection
+entity_type : str
+    One of the target entity types (case-insensitive since will be normalized): Dataset, Collection, Sample, but NOT Donor or Collection
 
 Returns
 -------
 json
     All the properties of the newly created entity
 """
-@app.route('/entities/<entity_class>', methods = ['POST'])
-def create_entity(entity_class):
-    # Normalize user provided entity_class
-    normalized_entity_class = schema_manager.normalize_entity_class(entity_class)
+@app.route('/entities/<entity_type>', methods = ['POST'])
+def create_entity(entity_type):
+    # Normalize user provided entity_type
+    normalized_entity_type = schema_manager.normalize_entity_type(entity_type)
 
-    # Validate the normalized_entity_class to make sure it's one of the accepted classes
+    # Validate the normalized_entity_type to make sure it's one of the accepted types
     try:
-        schema_manager.validate_normalized_entity_class(normalized_entity_class)
-    except schema_errors.InvalidNormalizedEntityClassException as e:
-        bad_request_error("Invalid entity class provided: " + entity_class)
+        schema_manager.validate_normalized_entity_type(normalized_entity_type)
+    except schema_errors.InvalidNormalizedEntityTypeException as e:
+        bad_request_error("Invalid entity type provided: " + entity_type)
 
     # Always expect a json body
     require_json(request)
@@ -473,14 +473,14 @@ def create_entity(entity_class):
 
     # Validate request json against the yaml schema
     try:
-        schema_manager.validate_json_data_against_schema(json_data_dict, normalized_entity_class)
+        schema_manager.validate_json_data_against_schema(json_data_dict, normalized_entity_type)
     except schema_errors.SchemaValidationException as e:
         # No need to log the validation errors
         bad_request_error(str(e))
 
     # Sample and Dataset: additional validation, create entity, after_create_trigger
     # Collection and Donor: create entity
-    if normalized_entity_class == 'Sample':
+    if normalized_entity_type == 'Sample':
         # A bit more validation for new sample to be linked to existing source entity
         has_direct_ancestor_uuid = False
         if ('direct_ancestor_uuid' in json_data_dict) and json_data_dict['direct_ancestor_uuid']:
@@ -491,12 +491,12 @@ def create_entity(entity_class):
             source_dict = query_target_entity(direct_ancestor_uuid)
 
         # Generate 'before_create_triiger' data and create the entity details in Neo4j
-        merged_dict = create_entity_details(request, normalized_entity_class, json_data_dict)
+        merged_dict = create_entity_details(request, normalized_entity_type, json_data_dict)
 
         # For new sample to be linked to existing direct ancestor
         if has_direct_ancestor_uuid:
-            after_create(normalized_entity_class, merged_dict)
-    elif normalized_entity_class == 'Dataset':    
+            after_create(normalized_entity_type, merged_dict)
+    elif normalized_entity_type == 'Dataset':    
         # A bit more validation if `direct_ancestor_uuids` provided
         has_direct_ancestor_uuids = False
         if ('direct_ancestor_uuids' in json_data_dict) and (json_data_dict['direct_ancestor_uuids']):
@@ -507,14 +507,14 @@ def create_entity(entity_class):
                 direct_ancestor_dict = query_target_entity(direct_ancestor_uuid)
 
         # Generate 'before_create_triiger' data and create the entity details in Neo4j
-        merged_dict = create_entity_details(request, normalized_entity_class, json_data_dict)
+        merged_dict = create_entity_details(request, normalized_entity_type, json_data_dict)
 
         # Handle direct_ancestor_uuids via `after_create_trigger` methods 
         if has_direct_ancestor_uuids:
-            after_create(normalized_entity_class, merged_dict)
+            after_create(normalized_entity_type, merged_dict)
     else:
         # Generate 'before_create_triiger' data and create the entity details in Neo4j
-        merged_dict = create_entity_details(request, normalized_entity_class, json_data_dict)
+        merged_dict = create_entity_details(request, normalized_entity_type, json_data_dict)
 
     # We'll need to return all the properties including those 
     # generated by `on_read_trigger` to have a complete result
@@ -531,8 +531,8 @@ Update the properties of a given entity, no Collection stuff
 
 Parameters
 ----------
-entity_class : str
-    One of the normalized entity classes: Dataset, Collection, Sample, Donor
+entity_type : str
+    One of the normalized entity types: Dataset, Collection, Sample, Donor
 id : str
     The HuBMAP ID (e.g. HBM123.ABCD.456) or UUID of target entity 
 
@@ -552,20 +552,20 @@ def update_entity(id):
     # Get target entity and return as a dict if exists
     entity_dict = query_target_entity(id)
 
-    # Normalize user provided entity_class
-    normalized_entity_class = schema_manager.normalize_entity_class(entity_dict['entity_class'])
+    # Normalize user provided entity_type
+    normalized_entity_type = schema_manager.normalize_entity_type(entity_dict['entity_type'])
 
     # Validate request json against the yaml schema
     # Pass in the entity_dict for missing required key check, this is different from creating new entity
     try:
-        schema_manager.validate_json_data_against_schema(json_data_dict, normalized_entity_class, existing_entity_dict = entity_dict)
+        schema_manager.validate_json_data_against_schema(json_data_dict, normalized_entity_type, existing_entity_dict = entity_dict)
     except schema_errors.SchemaValidationException as e:
         # No need to log the validation errors
         bad_request_error(str(e))
 
     # Sample and Dataset: additional validation, update entity, after_update_trigger
     # Collection and Donor: update entity
-    if normalized_entity_class == 'Sample':
+    if normalized_entity_type == 'Sample':
         # A bit more validation for new sample to be linked to existing source entity
         has_direct_ancestor_uuid = False
         if ('direct_ancestor_uuid' in json_data_dict) and json_data_dict['direct_ancestor_uuid']:
@@ -576,12 +576,12 @@ def update_entity(id):
             source_dict = query_target_entity(direct_ancestor_uuid)
 
         # Generate 'before_update_triiger' data and update the entity details in Neo4j
-        merged_updated_dict = update_entity_details(request, normalized_entity_class, json_data_dict, entity_dict)
+        merged_updated_dict = update_entity_details(request, normalized_entity_type, json_data_dict, entity_dict)
 
         # For sample to be linked to existing direct ancestor
         if has_direct_ancestor_uuid:
-            after_update(normalized_entity_class, merged_updated_dict)
-    elif normalized_entity_class == 'Dataset':    
+            after_update(normalized_entity_type, merged_updated_dict)
+    elif normalized_entity_type == 'Dataset':    
         # A bit more validation if `direct_ancestor_uuids` provided
         has_direct_ancestor_uuids = False
         if ('direct_ancestor_uuids' in json_data_dict) and (json_data_dict['direct_ancestor_uuids']):
@@ -592,14 +592,14 @@ def update_entity(id):
                 direct_ancestor_dict = query_target_entity(direct_ancestor_uuid)
         
         # Generate 'before_update_triiger' data and update the entity details in Neo4j
-        merged_updated_dict = update_entity_details(request, normalized_entity_class, json_data_dict, entity_dict)
+        merged_updated_dict = update_entity_details(request, normalized_entity_type, json_data_dict, entity_dict)
 
         # Handle direct_ancestor_uuids via `after_update_trigger` methods 
         if has_direct_ancestor_uuids:
-            after_update(normalized_entity_class, merged_updated_dict)
+            after_update(normalized_entity_type, merged_updated_dict)
     else:
         # Generate 'before_update_triiger' data and update the entity details in Neo4j
-        merged_updated_dict = update_entity_details(request, normalized_entity_class, json_data_dict, entity_dict)
+        merged_updated_dict = update_entity_details(request, normalized_entity_type, json_data_dict, entity_dict)
 
     # We'll need to return all the properties including those 
     # generated by `on_read_trigger` to have a complete result
@@ -860,7 +860,7 @@ json
 def add_datasets_to_collection(collection_uuid):
     # Query target entity against uuid-api and neo4j and return as a dict if exists
     entity_dict = query_target_entity(collection_uuid)
-    if entity_dict['entity_class'] != 'Collection':
+    if entity_dict['entity_type'] != 'Collection':
         bad_request_error("The UUID provided in URL is not a Collection: " + collection_uuid)
 
     # Always expect a json body
@@ -881,7 +881,7 @@ def add_datasets_to_collection(collection_uuid):
     # Make sure all the given uuids are datasets
     for dataset_uuid in dataset_uuids_list:
         entity_dict = query_target_entity(dataset_uuid)
-        if entity_dict['entity_class'] != 'Dataset':
+        if entity_dict['entity_type'] != 'Dataset':
             bad_request_error("The UUID provided in JSON is not a Dataset: " + dataset_uuid)
 
     try:
@@ -910,7 +910,7 @@ def collection_redirect(id):
     entity_dict = query_target_entity(id)
 
     # Only for collection
-    if entity_dict['entity_class'] != 'Collection':
+    if entity_dict['entity_type'] != 'Collection':
         bad_request_error("The target entity of the specified id is not a Collection")
 
     uuid = entity_dict['uuid']
@@ -963,7 +963,7 @@ def get_dataset_globus_url(id):
     entity_dict = query_target_entity(id)
     
     # Only for dataset
-    if entity_dict['entity_class'] != 'Dataset':
+    if entity_dict['entity_type'] != 'Dataset':
         bad_request_error("The target entity enity of the specified id is not a Dataset")
 
     uuid = entity_dict['uuid']
@@ -1127,8 +1127,8 @@ Parameters
 ----------
 request : flask.Request object
     The incoming request
-normalized_entity_class : str
-    One of the normalized entity classes: Dataset, Collection, Sample, Donor
+normalized_entity_type : str
+    One of the normalized entity types: Dataset, Collection, Sample, Donor
 json_data_dict: dict
     The json request dict from user input
 
@@ -1137,13 +1137,13 @@ Returns
 dict
     A dict of all the newly created entity detials
 """
-def create_entity_details(request, normalized_entity_class, json_data_dict):
+def create_entity_details(request, normalized_entity_type, json_data_dict):
     # Get user info based on request
     user_info_dict = schema_manager.get_user_info(request)
 
     # Create new ids for the new entity
     try:
-        new_ids_dict = schema_manager.create_hubmap_ids(normalized_entity_class, json_data_dict, user_info_dict)
+        new_ids_dict = schema_manager.create_hubmap_ids(normalized_entity_type, json_data_dict, user_info_dict)
     # When group_uuid is provided by user, it can be invalid
     except schema_errors.NoDataProviderGroupException:
         # Log the full stack trace, prepend a line with our message
@@ -1159,7 +1159,7 @@ def create_entity_details(request, normalized_entity_class, json_data_dict):
     data_dict = {**user_info_dict, **new_ids_dict}
 
     try:
-        generated_before_create_trigger_data_dict = schema_manager.generate_triggered_data('before_create_trigger', normalized_entity_class, data_dict)
+        generated_before_create_trigger_data_dict = schema_manager.generate_triggered_data('before_create_trigger', normalized_entity_type, data_dict)
     # If one of the before_create_trigger methods fails, we can't create the entity
     except schema_errors.BeforeCreateTriggerException:
         # Log the full stack trace, prepend a line with our message
@@ -1189,9 +1189,9 @@ def create_entity_details(request, normalized_entity_class, json_data_dict):
 
     # Create new entity
     try:
-        entity_dict = app_neo4j_queries.create_entity(neo4j_driver_instance, normalized_entity_class, escaped_json_list_str)
+        entity_dict = app_neo4j_queries.create_entity(neo4j_driver_instance, normalized_entity_type, escaped_json_list_str)
     except TransactionError:
-        msg = "Failed to create the new " + normalized_entity_class
+        msg = "Failed to create the new " + normalized_entity_type
         # Log the full stack trace, prepend a line with our message
         logger.exception(msg)
         # Terminate and let the users know
@@ -1209,16 +1209,16 @@ Execute 'after_create_triiger' methods
 
 Parameters
 ----------
-normalized_entity_class : str
-    One of the normalized entity classes: Dataset, Collection, Sample, Donor
+normalized_entity_type : str
+    One of the normalized entity types: Dataset, Collection, Sample, Donor
 entity_dict: dict
     The entity dict newly created
 """
-def after_create(normalized_entity_class, entity_dict):
+def after_create(normalized_entity_type, entity_dict):
     try:
         # 'after_create_trigger' and 'after_update_trigger' don't generate property values
         # It just returns the empty dict, no need to assign value
-        schema_manager.generate_triggered_data('after_create_trigger', normalized_entity_class, entity_dict)
+        schema_manager.generate_triggered_data('after_create_trigger', normalized_entity_type, entity_dict)
     except schema_errors.AfterCreateTriggerException:
         # Log the full stack trace, prepend a line with our message
         msg = "The entity has been created, but failed to execute one of the 'after_create_trigger' methods"
@@ -1233,8 +1233,8 @@ Parameters
 ----------
 request : flask.Request object
     The incoming request
-normalized_entity_class : str
-    One of the normalized entity classes: Dataset, Collection, Sample, Donor
+normalized_entity_type : str
+    One of the normalized entity types: Dataset, Collection, Sample, Donor
 json_data_dict: dict
     The json request dict
 existing_entity_dict: dict
@@ -1245,7 +1245,7 @@ Returns
 dict
     A dict of all the updated entity detials
 """
-def update_entity_details(request, normalized_entity_class, json_data_dict, existing_entity_dict):
+def update_entity_details(request, normalized_entity_type, json_data_dict, existing_entity_dict):
     # Get user info based on request
     user_info_dict = schema_manager.get_user_info(request)
 
@@ -1253,7 +1253,7 @@ def update_entity_details(request, normalized_entity_class, json_data_dict, exis
     data_dict = {**user_info_dict, **existing_entity_dict}
 
     try:
-        generated_before_update_trigger_data_dict = schema_manager.generate_triggered_data('before_update_trigger', normalized_entity_class, data_dict)
+        generated_before_update_trigger_data_dict = schema_manager.generate_triggered_data('before_update_trigger', normalized_entity_type, data_dict)
     # If one of the before_update_trigger methods fails, we can't update the entity
     except schema_errors.BeforeUpdateTriggerException:
         # Log the full stack trace, prepend a line with our message
@@ -1282,7 +1282,7 @@ def update_entity_details(request, normalized_entity_class, json_data_dict, exis
 
     # Update the exisiting entity
     try:
-        updated_entity_dict = app_neo4j_queries.update_entity(neo4j_driver_instance, normalized_entity_class, escaped_json_list_str, existing_entity_dict['uuid'])
+        updated_entity_dict = app_neo4j_queries.update_entity(neo4j_driver_instance, normalized_entity_type, escaped_json_list_str, existing_entity_dict['uuid'])
     except TransactionError:
         msg = "Failed to update the entity with id " + id
         # Log the full stack trace, prepend a line with our message
@@ -1305,16 +1305,16 @@ Execute 'after_update_triiger' methods
 
 Parameters
 ----------
-normalized_entity_class : str
-    One of the normalized entity classes: Dataset, Collection, Sample, Donor
+normalized_entity_type : str
+    One of the normalized entity types: Dataset, Collection, Sample, Donor
 entity_dict: dict
     The entity dict newly updated
 """
-def after_update(normalized_entity_class, entity_dict):
+def after_update(normalized_entity_type, entity_dict):
     try:
         # 'after_create_trigger' and 'after_update_trigger' don't generate property values
         # It just returns the empty dict, no need to assign value
-        schema_manager.generate_triggered_data('after_update_trigger', normalized_entity_class, entity_dict)
+        schema_manager.generate_triggered_data('after_update_trigger', normalized_entity_type, entity_dict)
     except schema_errors.AfterUpdateTriggerException:
         # Log the full stack trace, prepend a line with our message
         msg = "The entity information has been updated, but failed to execute one of the 'after_update_trigger' methods"

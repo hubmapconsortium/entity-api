@@ -249,8 +249,8 @@ Parameters
 ----------
 neo4j_driver : neo4j.Driver object
     The neo4j database connection pool
-entity_class : str
-    One of the normalized entity classes: Collection, Sample, Donor
+entity_type : str
+    One of the normalized entity types: Collection, Sample, Donor
 uuid : str
     The uuid of target entity 
 
@@ -260,15 +260,15 @@ int
     The count of published Dataset in the provenance hierarchy 
     below the target entity (Donor, Sample and Collection)
 """
-def count_attached_published_datasets(neo4j_driver, entity_class, uuid):
-    parameterized_query = ("MATCH (e:{entity_class})-[r:ACTIVITY_INPUT|:ACTIVITY_OUTPUT*]->(d:Dataset) " +
+def count_attached_published_datasets(neo4j_driver, entity_type, uuid):
+    parameterized_query = ("MATCH (e:{entity_type})-[r:ACTIVITY_INPUT|:ACTIVITY_OUTPUT*]->(d:Dataset) " +
                            # Use the string function toLower() to avoid case-sensetivity issue
                            "WHERE e.uuid='{uuid}' AND toLower(d.status) = 'published' " +
                            # COLLECT() returns a list
                            # apoc.coll.toSet() reruns a set containing unique nodes
                            "RETURN COUNT(d) AS {record_field_name}")
 
-    query = parameterized_query.format(entity_class = entity_class,
+    query = parameterized_query.format(entity_type = entity_type,
                                        uuid = uuid, 
                                        record_field_name = record_field_name)
 
@@ -300,7 +300,7 @@ data_access_level : str
 """
 def update_dataset_ancestors_data_access_level(neo4j_driver, uuid, data_access_level):
     parameterized_query = ("MATCH (e:Entity)-[r:ACTIVITY_INPUT|:ACTIVITY_OUTPUT*]->(d:Dataset) " +
-                           "WHERE e.entity_class <> 'Dataset' AND d.uuid='{uuid}' " +
+                           "WHERE e.entity_type <> 'Dataset' AND d.uuid='{uuid}' " +
                            "SET e.data_access_level = '{data_access_level}' "
                            # COLLECT() returns a list
                            # apoc.coll.toSet() reruns a set containing unique nodes
@@ -352,7 +352,7 @@ def get_sample_direct_ancestor(neo4j_driver, uuid, property_key = None):
     if property_key:
         parameterized_query = ("MATCH (e:Entity)<-[:ACTIVITY_OUTPUT]-(:Activity)<-[:ACTIVITY_INPUT]-(parent:Entity) " +
                                # Filter out the Lab entity if it's the ancestor
-                               "WHERE e.uuid='{uuid}' AND parent.entity_class <> 'Lab' " +
+                               "WHERE e.uuid='{uuid}' AND parent.entity_type <> 'Lab' " +
                                # COLLECT() returns a list
                                # apoc.coll.toSet() reruns a set containing unique nodes
                                "RETURN parent.{property_key} AS {record_field_name}")
@@ -363,7 +363,7 @@ def get_sample_direct_ancestor(neo4j_driver, uuid, property_key = None):
     else:
         parameterized_query = ("MATCH (e:Entity)<-[:ACTIVITY_OUTPUT]-(:Activity)<-[:ACTIVITY_INPUT]-(parent:Entity) " +
                                # Filter out the Lab entity if it's the ancestor
-                               "WHERE e.uuid='{uuid}' AND parent.entity_class <> 'Lab' " +
+                               "WHERE e.uuid='{uuid}' AND parent.entity_type <> 'Lab' " +
                                # COLLECT() returns a list
                                # apoc.coll.toSet() reruns a set containing unique nodes
                                "RETURN parent AS {record_field_name}")

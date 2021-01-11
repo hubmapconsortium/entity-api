@@ -126,12 +126,12 @@ shared_entity_properties: &shared_entity_properties
     description: "The name of the person or process authenticated when the object was last modified."
     before_update_trigger: set_user_displayname
   ###### All other shared properties ######
-  entity_class:
+  entity_type:
     type: string
     generated: true
     immutable: true
     description: "One of the normalized entity types: Dataset, Collection, Sample, Donor"
-    before_create_trigger: set_entity_class 
+    before_create_trigger: set_entity_type 
   # Currently cretors and contacts are only available for public Collections
   creators:
     type: list

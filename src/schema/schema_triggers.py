@@ -21,8 +21,8 @@ Parameters
 ----------
 property_key : str
     The target property key of the value to be generated
-normalized_class : str
-    One of the classes defined in the schema yaml: Activity, Collection, Donor, Sample, Dataset
+normalized_type : str
+    One of the types defined in the schema yaml: Activity, Collection, Donor, Sample, Dataset
 data_dict : dict
     A merged dictionary that contains all possible input data to be used
     It's fine if a trigger method doesn't use any input data
@@ -32,20 +32,20 @@ Returns
 int
     A timestamp integer of seconds
 """
-def set_timestamp(property_key, normalized_class, neo4j_driver, data_dict):
+def set_timestamp(property_key, normalized_type, neo4j_driver, data_dict):
     current_time = datetime.datetime.now() 
     seconds = int(current_time.timestamp())
     return seconds
 
 """
-Trigger event method of setting the entity class of a given entity
+Trigger event method of setting the entity type of a given entity
 
 Parameters
 ----------
 property_key : str
     The target property key of the value to be generated
-normalized_class : str
-    One of the classes defined in the schema yaml: Activity, Collection, Donor, Sample, Dataset
+normalized_type : str
+    One of the types defined in the schema yaml: Activity, Collection, Donor, Sample, Dataset
 data_dict : dict
     A merged dictionary that contains all possible input data to be used
     It's fine if a trigger method doesn't use any input data
@@ -53,10 +53,10 @@ data_dict : dict
 Returns
 -------
 str
-    The string of normalized entity class
+    The string of normalized entity type
 """
-def set_entity_class(property_key, normalized_class, neo4j_driver, data_dict):
-    return normalized_class
+def set_entity_type(property_key, normalized_type, neo4j_driver, data_dict):
+    return normalized_type
 
 
 """
@@ -66,8 +66,8 @@ Parameters
 ----------
 property_key : str
     The target property key of the value to be generated
-normalized_class : str
-    One of the classes defined in the schema yaml: Activity, Collection, Donor, Sample, Dataset
+normalized_type : str
+    One of the types defined in the schema yaml: Activity, Collection, Donor, Sample, Dataset
 neo4j_driver : neo4j.Driver object
     The neo4j database connection pool
 data_dict : dict
@@ -79,7 +79,7 @@ Returns
 str
     The 'sub' string
 """
-def set_user_sub(property_key, normalized_class, neo4j_driver, data_dict):
+def set_user_sub(property_key, normalized_type, neo4j_driver, data_dict):
     if 'sub' not in data_dict:
         raise KeyError("Missing 'sub' key in 'data_dict' during calling 'set_user_sub()' trigger method.")
     return data_dict['sub']
@@ -91,8 +91,8 @@ Parameters
 ----------
 property_key : str
     The target property key of the value to be generated
-normalized_class : str
-    One of the classes defined in the schema yaml: Activity, Collection, Donor, Sample, Dataset
+normalized_type : str
+    One of the types defined in the schema yaml: Activity, Collection, Donor, Sample, Dataset
 neo4j_driver : neo4j.Driver object
     The neo4j database connection pool
 data_dict : dict
@@ -104,7 +104,7 @@ Returns
 str
     The 'email' string
 """
-def set_user_email(property_key, normalized_class, neo4j_driver, data_dict):
+def set_user_email(property_key, normalized_type, neo4j_driver, data_dict):
     if 'email' not in data_dict:
         raise KeyError("Missing 'email' key in 'data_dict' during calling 'set_user_email()' trigger method.")
     return data_dict['email']
@@ -116,8 +116,8 @@ Parameters
 ----------
 property_key : str
     The target property key of the value to be generated
-normalized_class : str
-    One of the classes defined in the schema yaml: Activity, Collection, Donor, Sample, Dataset
+normalized_type : str
+    One of the types defined in the schema yaml: Activity, Collection, Donor, Sample, Dataset
 neo4j_driver : neo4j.Driver object
     The neo4j database connection pool
 data_dict : dict
@@ -129,7 +129,7 @@ Returns
 str
     The 'name' string
 """
-def set_user_displayname(property_key, normalized_class, neo4j_driver, data_dict):
+def set_user_displayname(property_key, normalized_type, neo4j_driver, data_dict):
     if 'name' not in data_dict:
         raise KeyError("Missing 'name' key in 'data_dict' during calling 'set_user_displayname()' trigger method.")
     return data_dict['name']
@@ -141,8 +141,8 @@ Parameters
 ----------
 property_key : str
     The target property key of the value to be generated
-normalized_class : str
-    One of the classes defined in the schema yaml: Activity, Collection, Donor, Sample, Dataset
+normalized_type : str
+    One of the types defined in the schema yaml: Activity, Collection, Donor, Sample, Dataset
 neo4j_driver : neo4j.Driver object
     The neo4j database connection pool
 data_dict : dict
@@ -154,7 +154,7 @@ Returns
 str
     The uuid created via uuid-api
 """
-def set_uuid(property_key, normalized_class, neo4j_driver, data_dict):
+def set_uuid(property_key, normalized_type, neo4j_driver, data_dict):
     if 'uuid' not in data_dict:
         raise KeyError("Missing 'uuid' key in 'data_dict' during calling 'set_uuid()' trigger method.")
     return data_dict['uuid']
@@ -166,8 +166,8 @@ Parameters
 ----------
 property_key : str
     The target property key of the value to be generated
-normalized_class : str
-    One of the classes defined in the schema yaml: Activity, Collection, Donor, Sample, Dataset
+normalized_type : str
+    One of the types defined in the schema yaml: Activity, Collection, Donor, Sample, Dataset
 neo4j_driver : neo4j.Driver object
     The neo4j database connection pool
 data_dict : dict
@@ -179,7 +179,7 @@ Returns
 str
     The hubmap_id created via uuid-api
 """
-def set_hubmap_id(property_key, normalized_class, neo4j_driver, data_dict):
+def set_hubmap_id(property_key, normalized_type, neo4j_driver, data_dict):
     if 'hubmap_id' not in data_dict:
         raise KeyError("Missing 'hubmap_id' key in 'data_dict' during calling 'set_hubmap_id()' trigger method.")
     return data_dict['hubmap_id']
@@ -197,8 +197,8 @@ Parameters
 ----------
 property_key : str
     The target property key of the value to be generated
-normalized_class : str
-    One of the entity classes defined in the schema yaml: Collection, Donor, Sample, Dataset
+normalized_type : str
+    One of the entity types defined in the schema yaml: Collection, Donor, Sample, Dataset
 neo4j_driver : neo4j.Driver object
     The neo4j database connection pool
 data_dict : dict
@@ -210,7 +210,7 @@ Returns
 str
     The data access level string
 """
-def set_data_access_level(property_key, normalized_class, neo4j_driver, data_dict):
+def set_data_access_level(property_key, normalized_type, neo4j_driver, data_dict):
     if 'uuid' not in data_dict:
         raise KeyError("Missing 'uuid' key in 'data_dict' during calling 'set_data_access_level()' trigger method.")
 
@@ -220,7 +220,7 @@ def set_data_access_level(property_key, normalized_class, neo4j_driver, data_dic
     ACCESS_LEVEL_CONSORTIUM = 'consortium'
     ACCESS_LEVEL_PROTECTED = 'protected'
     
-    if normalized_class == 'Dataset':
+    if normalized_type == 'Dataset':
         # Default to protected
         data_access_level = ACCESS_LEVEL_PROTECTED
 
@@ -237,7 +237,7 @@ def set_data_access_level(property_key, normalized_class, neo4j_driver, data_dic
         
         # public if any dataset below it in the provenance hierarchy is published
         # (i.e. Dataset.status == "Published")
-        count = schema_neo4j_queries.count_attached_published_datasets(neo4j_driver, normalized_class, data_dict['uuid'])
+        count = schema_neo4j_queries.count_attached_published_datasets(neo4j_driver, normalized_type, data_dict['uuid'])
 
         if count > 0:
             data_access_level = ACCESS_LEVEL_PUBLIC
@@ -252,8 +252,8 @@ Parameters
 ----------
 property_key : str
     The target property key of the value to be generated
-normalized_class : str
-    One of the classes defined in the schema yaml: Activity, Collection, Donor, Sample, Dataset
+normalized_type : str
+    One of the types defined in the schema yaml: Activity, Collection, Donor, Sample, Dataset
 neo4j_driver : neo4j.Driver object
     The neo4j database connection pool
 data_dict : dict
@@ -265,7 +265,7 @@ Returns
 str
     The group uuid
 """
-def set_group_uuid(property_key, normalized_class, neo4j_driver, data_dict):
+def set_group_uuid(property_key, normalized_type, neo4j_driver, data_dict):
     # Use the user input if `group_uuid` is set
     if 'group_uuid' in data_dict:
         # Validate the group_uuid and make sure it's one of the valid data providers
@@ -300,8 +300,8 @@ Parameters
 ----------
 property_key : str
     The target property key of the value to be generated
-normalized_class : str
-    One of the classes defined in the schema yaml: Activity, Collection, Donor, Sample, Dataset
+normalized_type : str
+    One of the types defined in the schema yaml: Activity, Collection, Donor, Sample, Dataset
 neo4j_driver : neo4j.Driver object
     The neo4j database connection pool
 data_dict : dict
@@ -313,7 +313,7 @@ Returns
 str
     The group name
 """
-def set_group_name(property_key, normalized_class, neo4j_driver, data_dict):
+def set_group_name(property_key, normalized_type, neo4j_driver, data_dict):
     # Use the user input if `group_name` is set
     if 'group_name' in data_dict:
         return data_dict['group_name']
@@ -359,8 +359,8 @@ Parameters
 ----------
 property_key : str
     The target property key of the value to be generated
-normalized_class : str
-    One of the classes defined in the schema yaml: Activity, Collection, Donor, Sample, Dataset
+normalized_type : str
+    One of the types defined in the schema yaml: Activity, Collection, Donor, Sample, Dataset
 neo4j_driver : neo4j.Driver object
     The neo4j database connection pool
 data_dict : dict
@@ -372,7 +372,7 @@ Returns
 str
     The submission_id
 """
-def set_submission_id(property_key, normalized_class, neo4j_driver, data_dict):
+def set_submission_id(property_key, normalized_type, neo4j_driver, data_dict):
     if 'submission_id' not in data_dict:
         raise KeyError("Missing 'submission_id' key in 'data_dict' during calling 'set_submission_id()' trigger method.")
     return data_dict['submission_id']
@@ -389,8 +389,8 @@ Parameters
 ----------
 property_key : str
     The target property key of the value to be generated
-normalized_class : str
-    One of the classes defined in the schema yaml: Activity, Collection, Donor, Sample, Dataset
+normalized_type : str
+    One of the types defined in the schema yaml: Activity, Collection, Donor, Sample, Dataset
 neo4j_driver : neo4j.Driver object
     The neo4j database connection pool
 data_dict : dict
@@ -402,7 +402,7 @@ Returns
 list
     A list of associated dataset dicts with all the normalized information
 """
-def get_collection_datasets(property_key, normalized_class, neo4j_driver, data_dict):
+def get_collection_datasets(property_key, normalized_type, neo4j_driver, data_dict):
     if 'uuid' not in data_dict:
         raise KeyError("Missing 'uuid' key in 'data_dict' during calling 'get_collection_datasets()' trigger method.")
 
@@ -427,8 +427,8 @@ Parameters
 ----------
 property_key : str
     The target property key
-normalized_class : str
-    One of the classes defined in the schema yaml: Activity, Collection, Donor, Sample, Dataset
+normalized_type : str
+    One of the types defined in the schema yaml: Activity, Collection, Donor, Sample, Dataset
 neo4j_driver : neo4j.Driver object
     The neo4j database connection pool
 data_dict : dict
@@ -440,7 +440,7 @@ Returns
 str 
     New
 """
-def set_dataset_status(property_key, normalized_class, neo4j_driver, data_dict):
+def set_dataset_status(property_key, normalized_type, neo4j_driver, data_dict):
     return 'New'
 
 
@@ -452,15 +452,15 @@ Parameters
 ----------
 property_key : str
     The target property key
-normalized_class : str
-    One of the classes defined in the schema yaml: Activity, Collection, Donor, Sample, Dataset
+normalized_type : str
+    One of the types defined in the schema yaml: Activity, Collection, Donor, Sample, Dataset
 neo4j_driver : neo4j.Driver object
     The neo4j database connection pool
 data_dict : dict
     A merged dictionary that contains all possible input data to be used
     It's fine if a trigger method doesn't use any input data
 """
-def update_dataset_ancestors_data_access_level(property_key, normalized_class, neo4j_driver, data_dict):
+def update_dataset_ancestors_data_access_level(property_key, normalized_type, neo4j_driver, data_dict):
     if 'uuid' not in data_dict:
         raise KeyError("Missing 'uuid' key in 'data_dict' during calling 'update_dataset_ancestors_data_access_level()' trigger method.")
 
@@ -492,8 +492,8 @@ Parameters
 ----------
 property_key : str
     The target property key
-normalized_class : str
-    One of the classes defined in the schema yaml: Activity, Collection, Donor, Sample, Dataset
+normalized_type : str
+    One of the types defined in the schema yaml: Activity, Collection, Donor, Sample, Dataset
 neo4j_driver : neo4j.Driver object
     The neo4j database connection pool
 data_dict : dict
@@ -505,7 +505,7 @@ Returns
 list 
     A list of associated collections with all the normalized information
 """
-def get_dataset_collections(property_key, normalized_class, neo4j_driver, data_dict):
+def get_dataset_collections(property_key, normalized_type, neo4j_driver, data_dict):
     if 'uuid' not in data_dict:
         raise KeyError("Missing 'uuid' key in 'data_dict' during calling 'get_dataset_collections()' trigger method.")
 
@@ -527,8 +527,8 @@ Parameters
 ----------
 property_key : str
     The target property key
-normalized_class : str
-    One of the classes defined in the schema yaml: Activity, Collection, Donor, Sample, Dataset
+normalized_type : str
+    One of the types defined in the schema yaml: Activity, Collection, Donor, Sample, Dataset
 neo4j_driver : neo4j.Driver object
     The neo4j database connection pool
 data_dict : dict
@@ -540,7 +540,7 @@ Returns
 str
     The uuid string of source entity
 """
-def link_dataset_to_direct_ancestors(property_key, normalized_class, neo4j_driver, data_dict):
+def link_dataset_to_direct_ancestors(property_key, normalized_type, neo4j_driver, data_dict):
     if 'uuid' not in data_dict:
         raise KeyError("Missing 'uuid' key in 'data_dict' during calling 'link_dataset_to_direct_ancestors()' trigger method.")
 
@@ -550,21 +550,21 @@ def link_dataset_to_direct_ancestors(property_key, normalized_class, neo4j_drive
     # For each source entity, create a linkage (via Activity node) 
     # between the dataset node and the source entity node in neo4j
     for direct_ancestor_uuid in data_dict['direct_ancestor_uuids']:
-        # Activity is not an Entity, thus we use "class" for reference
-        normalized_activity_class = 'Activity'
+        # Activity is not an Entity
+        normalized_activity_type = 'Activity'
 
-        # Target entity class dict
+        # Target entity type dict
         # Will be used when calling set_activity_creation_action() trigger method
-        normalized_entity_class_dict = {'normalized_entity_class': normalized_class}
+        normalized_entity_type_dict = {'normalized_entity_type': normalized_type}
 
         # Create new ids for the new Activity
-        new_ids_dict_for_activity = schema_manager.create_hubmap_ids(normalized_activity_class, json_data_dict = None, user_info_dict = None)
+        new_ids_dict_for_activity = schema_manager.create_hubmap_ids(normalized_activity_type, json_data_dict = None, user_info_dict = None)
 
         # The `data_dict` should already have user_info
-        data_dict_for_activity = {**data_dict, **normalized_entity_class_dict, **new_ids_dict_for_activity}
+        data_dict_for_activity = {**data_dict, **normalized_entity_type_dict, **new_ids_dict_for_activity}
 
         # Generate property values for Activity
-        generated_before_create_trigger_data_dict_for_activity = schema_manager.generate_triggered_data('before_create_trigger', normalized_activity_class, data_dict_for_activity)
+        generated_before_create_trigger_data_dict_for_activity = schema_manager.generate_triggered_data('before_create_trigger', normalized_activity_type, data_dict_for_activity)
 
         # `UNWIND` in Cypher expects List<T>
         activity_data_list = [generated_before_create_trigger_data_dict_for_activity]
@@ -589,8 +589,8 @@ Parameters
 ----------
 property_key : str
     The target property key
-normalized_class : str
-    One of the classes defined in the schema yaml: Activity, Collection, Donor, Sample, Dataset
+normalized_type : str
+    One of the types defined in the schema yaml: Activity, Collection, Donor, Sample, Dataset
 neo4j_driver : neo4j.Driver object
     The neo4j database connection pool
 data_dict : dict
@@ -602,7 +602,7 @@ Returns
 str
     The uuid string of source entity
 """
-def relink_dataset_to_direct_ancestors(property_key, normalized_class, neo4j_driver, data_dict):
+def relink_dataset_to_direct_ancestors(property_key, normalized_type, neo4j_driver, data_dict):
     if 'uuid' not in data_dict:
         raise KeyError("Missing 'uuid' key in 'data_dict' during calling 'relink_dataset_to_direct_ancestors()' trigger method.")
 
@@ -619,21 +619,21 @@ def relink_dataset_to_direct_ancestors(property_key, normalized_class, neo4j_dri
     # For each source entity, create a linkage (via Activity node) 
     # between the dataset node and the source entity node in neo4j
     for direct_ancestor_uuid in data_dict['direct_ancestor_uuids']:
-        # Activity is not an Entity, thus we use "class" for reference
-        normalized_activity_class = 'Activity'
+        # Activity is not an Entity
+        normalized_activity_type = 'Activity'
 
-        # Target entity class dict
+        # Target entity type dict
         # Will be used when calling set_activity_creation_action() trigger method
-        normalized_entity_class_dict = {'normalized_entity_class': normalized_class}
+        normalized_entity_type_dict = {'normalized_entity_type': normalized_type}
 
         # Create new ids for the new Activity
-        new_ids_dict_for_activity = schema_manager.create_hubmap_ids(normalized_activity_class, json_data_dict = None, user_info_dict = None)
+        new_ids_dict_for_activity = schema_manager.create_hubmap_ids(normalized_activity_type, json_data_dict = None, user_info_dict = None)
 
         # The `data_dict` should already have user_info
-        data_dict_for_activity = {**data_dict, **normalized_entity_class_dict, **new_ids_dict_for_activity}
+        data_dict_for_activity = {**data_dict, **normalized_entity_type_dict, **new_ids_dict_for_activity}
 
         # Generate property values for Activity
-        generated_before_create_trigger_data_dict_for_activity = schema_manager.generate_triggered_data('before_create_trigger', normalized_activity_class, data_dict_for_activity)
+        generated_before_create_trigger_data_dict_for_activity = schema_manager.generate_triggered_data('before_create_trigger', normalized_activity_type, data_dict_for_activity)
 
         # `UNWIND` in Cypher expects List<T>
         activity_data_list = [generated_before_create_trigger_data_dict_for_activity]
@@ -658,8 +658,8 @@ Parameters
 ----------
 property_key : str
     The target property key of the value to be generated
-normalized_class : str
-    One of the classes defined in the schema yaml: Activity, Collection, Donor, Sample, Dataset
+normalized_type : str
+    One of the types defined in the schema yaml: Activity, Collection, Donor, Sample, Dataset
 neo4j_driver : neo4j.Driver object
     The neo4j database connection pool
 data_dict : dict
@@ -671,7 +671,7 @@ Returns
 list
     A list of associated direct ancestors with all the normalized information
 """
-def get_dataset_direct_ancestors(property_key, normalized_class, neo4j_driver, data_dict):
+def get_dataset_direct_ancestors(property_key, normalized_type, neo4j_driver, data_dict):
     if 'uuid' not in data_dict:
         raise KeyError("Missing 'uuid' key in 'data_dict' during calling 'get_dataset_direct_ancestors()' trigger method.")
 
@@ -696,8 +696,8 @@ Parameters
 ----------
 property_key : str
     The target property key of the value to be generated
-normalized_class : str
-    One of the classes defined in the schema yaml: Activity, Collection, Donor, Sample, Dataset
+normalized_type : str
+    One of the types defined in the schema yaml: Activity, Collection, Donor, Sample, Dataset
 neo4j_driver : neo4j.Driver object
     The neo4j database connection pool
 data_dict : dict
@@ -709,7 +709,7 @@ Returns
 str
     The relative directory path
 """
-def get_local_directory_rel_path(property_key, normalized_class, neo4j_driver, data_dict):
+def get_local_directory_rel_path(property_key, normalized_type, neo4j_driver, data_dict):
     if 'uuid' not in data_dict:
         raise KeyError("Missing 'uuid' key in 'data_dict' during calling 'get_local_directory_rel_path()' trigger method.")
     
@@ -751,8 +751,8 @@ Parameters
 ----------
 property_key : str
     The target property key
-normalized_class : str
-    One of the classes defined in the schema yaml: Activity, Collection, Donor, Sample, Dataset
+normalized_type : str
+    One of the types defined in the schema yaml: Activity, Collection, Donor, Sample, Dataset
 neo4j_driver : neo4j.Driver object
     The neo4j database connection pool
 data_dict : dict
@@ -764,7 +764,7 @@ Returns
 bool
     True if everything goes well, otherwise False
 """
-def link_sample_to_direct_ancestor(property_key, normalized_class, neo4j_driver, data_dict):
+def link_sample_to_direct_ancestor(property_key, normalized_type, neo4j_driver, data_dict):
     if 'uuid' not in data_dict:
         raise KeyError("Missing 'uuid' key in 'data_dict' during calling 'link_sample_to_direct_ancestor()' trigger method.")
 
@@ -773,21 +773,21 @@ def link_sample_to_direct_ancestor(property_key, normalized_class, neo4j_driver,
 
     # Create a linkage (via Activity node) 
     # between the dataset node and the source entity node in neo4j
-    # Activity is not an Entity, thus we use "class" for reference
-    normalized_activity_class = 'Activity'
+    # Activity is not an Entity
+    normalized_activity_type = 'Activity'
 
-    # Target entity class dict
+    # Target entity type dict
     # Will be used when calling set_activity_creation_action() trigger method
-    normalized_entity_class_dict = {'normalized_entity_class': normalized_class}
+    normalized_entity_type_dict = {'normalized_entity_type': normalized_type}
 
     # Create new ids for the new Activity
-    new_ids_dict_for_activity = schema_manager.create_hubmap_ids(normalized_activity_class, json_data_dict = None, user_info_dict = None)
+    new_ids_dict_for_activity = schema_manager.create_hubmap_ids(normalized_activity_type, json_data_dict = None, user_info_dict = None)
 
     # The `data_dict` should already have user_info
-    data_dict_for_activity = {**data_dict, **normalized_entity_class_dict, **new_ids_dict_for_activity}
+    data_dict_for_activity = {**data_dict, **normalized_entity_type_dict, **new_ids_dict_for_activity}
     
     # Generate property values for Activity
-    generated_before_create_trigger_data_dict_for_activity = schema_manager.generate_triggered_data('before_create_trigger', normalized_activity_class, data_dict_for_activity)
+    generated_before_create_trigger_data_dict_for_activity = schema_manager.generate_triggered_data('before_create_trigger', normalized_activity_type, data_dict_for_activity)
 
     # `UNWIND` in Cypher expects List<T>
     activity_data_list = [generated_before_create_trigger_data_dict_for_activity]
@@ -813,8 +813,8 @@ Parameters
 ----------
 property_key : str
     The target property key
-normalized_class : str
-    One of the classes defined in the schema yaml: Activity, Collection, Donor, Sample, Dataset
+normalized_type : str
+    One of the types defined in the schema yaml: Activity, Collection, Donor, Sample, Dataset
 neo4j_driver : neo4j.Driver object
     The neo4j database connection pool
 data_dict : dict
@@ -826,7 +826,7 @@ Returns
 bool
     True if everything goes well, otherwise False
 """
-def relink_sample_to_direct_ancestor(property_key, normalized_class, neo4j_driver, data_dict):
+def relink_sample_to_direct_ancestor(property_key, normalized_type, neo4j_driver, data_dict):
     if 'uuid' not in data_dict:
         raise KeyError("Missing 'uuid' key in 'data_dict' during calling 'relink_sample_to_direct_ancestor()' trigger method.")
 
@@ -835,21 +835,21 @@ def relink_sample_to_direct_ancestor(property_key, normalized_class, neo4j_drive
 
     # Create a linkage (via Activity node) 
     # between the dataset node and the source entity node in neo4j
-    # Activity is not an Entity, thus we use "class" for reference
-    normalized_activity_class = 'Activity'
+    # Activity is not an Entity
+    normalized_activity_type = 'Activity'
 
-    # Target entity class dict
+    # Target entity type dict
     # Will be used when calling set_activity_creation_action() trigger method
-    normalized_entity_class_dict = {'normalized_entity_class': normalized_class}
+    normalized_entity_type_dict = {'normalized_entity_type': normalized_type}
 
     # Create new ids for the new Activity
-    new_ids_dict_for_activity = schema_manager.create_hubmap_ids(normalized_activity_class, json_data_dict = None, user_info_dict = None)
+    new_ids_dict_for_activity = schema_manager.create_hubmap_ids(normalized_activity_type, json_data_dict = None, user_info_dict = None)
 
     # The `data_dict` should already have user_info
-    data_dict_for_activity = {**data_dict, **normalized_entity_class_dict, **new_ids_dict_for_activity}
+    data_dict_for_activity = {**data_dict, **normalized_entity_type_dict, **new_ids_dict_for_activity}
     
     # Generate property values for Activity
-    generated_before_create_trigger_data_dict_for_activity = schema_manager.generate_triggered_data('before_create_trigger', normalized_activity_class, data_dict_for_activity)
+    generated_before_create_trigger_data_dict_for_activity = schema_manager.generate_triggered_data('before_create_trigger', normalized_activity_type, data_dict_for_activity)
 
     # `UNWIND` in Cypher expects List<T>
     activity_data_list = [generated_before_create_trigger_data_dict_for_activity]
@@ -874,8 +874,8 @@ Parameters
 ----------
 property_key : str
     The target property key of the value to be generated
-normalized_class : str
-    One of the classes defined in the schema yaml: Activity, Collection, Donor, Sample, Dataset
+normalized_type : str
+    One of the types defined in the schema yaml: Activity, Collection, Donor, Sample, Dataset
 neo4j_driver : neo4j.Driver object
     The neo4j database connection pool
 data_dict : dict
@@ -887,14 +887,14 @@ Returns
 dict
     The direct ancestor entity (either another Sample or a Donor) with all the normalized information
 """
-def get_sample_direct_ancestor(property_key, normalized_class, neo4j_driver, data_dict):
+def get_sample_direct_ancestor(property_key, normalized_type, neo4j_driver, data_dict):
     if 'uuid' not in data_dict:
         raise KeyError("Missing 'uuid' key in 'data_dict' during calling 'get_sample_direct_ancestor()' trigger method.")
 
     direct_ancestor_dict = schema_neo4j_queries.get_sample_direct_ancestor(neo4j_driver, data_dict['uuid'])
 
-    if 'entity_class' not in direct_ancestor_dict:
-        raise KeyError("The 'entity_class' property in the resulting 'direct_ancestor_dict' is not set during calling 'get_sample_direct_ancestor()' trigger method.")
+    if 'entity_type' not in direct_ancestor_dict:
+        raise KeyError("The 'entity_type' property in the resulting 'direct_ancestor_dict' is not set during calling 'get_sample_direct_ancestor()' trigger method.")
 
     # Generate trigger data for sample's direct_ancestor and skip the direct_ancestor's direct_ancestor
     properties_to_skip = ['direct_ancestor']
@@ -925,8 +925,8 @@ Parameters
 ----------
 property_key : str
     The target property key of the value to be generated
-normalized_class : str
-    One of the classes defined in the schema yaml: Activity, Collection, Donor, Sample, Dataset
+normalized_type : str
+    One of the types defined in the schema yaml: Activity, Collection, Donor, Sample, Dataset
 neo4j_driver : neo4j.Driver object
     The neo4j database connection pool
 data_dict : dict
@@ -938,9 +938,9 @@ Returns
 str
     The creation_action string
 """
-def set_activity_creation_action(property_key, normalized_class, neo4j_driver, data_dict):
-    if 'normalized_entity_class' not in data_dict:
-        raise KeyError("Missing 'normalized_entity_class' key in 'data_dict' during calling 'set_activity_creation_action()' trigger method.")
+def set_activity_creation_action(property_key, normalized_type, neo4j_driver, data_dict):
+    if 'normalized_entity_type' not in data_dict:
+        raise KeyError("Missing 'normalized_entity_type' key in 'data_dict' during calling 'set_activity_creation_action()' trigger method.")
     
-    return "Create {normalized_entity_class} Activity".format(normalized_entity_class = data_dict['normalized_entity_class'])
+    return "Create {normalized_entity_type} Activity".format(normalized_entity_type = data_dict['normalized_entity_type'])
 

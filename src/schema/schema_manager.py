@@ -112,32 +112,32 @@ def clear_schema_cache():
 ####################################################################################################
 
 """
-Get a list of all the supported classes in the schmea yaml
+Get a list of all the supported types in the schmea yaml
 
 Returns
 -------
 list
-    A list of classes
+    A list of types
 """
-def get_all_classes():
+def get_all_types():
     global _schema
 
-    entity_classes = _schema['ENTITIES'].keys()
-    activity_classes = _schema['ACTIVITIES'].keys()
+    entity_types = _schema['ENTITIES'].keys()
+    activity_types = _schema['ACTIVITIES'].keys()
 
     # Need convert the dict_keys object to a list
-    return list(entity_classes) + list(activity_classes)
+    return list(entity_types) + list(activity_types)
 
 
 """
-Get a list of all the supported entity classes in the schmea yaml
+Get a list of all the supported entity types in the schmea yaml
 
 Returns
 -------
 list
-    A list of entity classes
+    A list of entity types
 """
-def get_all_entity_classes():
+def get_all_entity_types():
     global _schema
 
     dict_keys = _schema['ENTITIES'].keys()
@@ -152,7 +152,7 @@ Parameters
 trigger_type : str
     One of the trigger types: on_create_trigger, on_update_trigger, on_read_trigger
 normalized_class : str
-    One of the classes defined in the schema yaml: Activity, Collection, Donor, Sample, Dataset
+    One of the types defined in the schema yaml: Activity, Collection, Donor, Sample, Dataset
 data_dict : dict
     A dictionary that contains data to be used by the trigger methods
 properties_to_skip : list
@@ -171,7 +171,7 @@ def generate_triggered_data(trigger_type, normalized_class, data_dict, propertie
 
     # A bit validation
     validate_trigger_type(trigger_type)
-    # Use validate_normalized_class instead of validate_normalized_entity_class()
+    # Use validate_normalized_class instead of validate_normalized_entity_type()
     # to allow "Activity"
     validate_normalized_class(normalized_class)
 
@@ -272,7 +272,7 @@ Generate the complete entity record as well as result filtering for response
 Parameters
 ----------
 normalized_class : str
-    One of the classes defined in the schema yaml: Collection, Donor, Sample, Dataset
+    One of the types defined in the schema yaml: Collection, Donor, Sample, Dataset
 entity_dict : dict
     The entity dict based on neo4j record
 properties_to_skip : list
@@ -286,7 +286,7 @@ dict
 def get_complete_entity_result(entity_dict, properties_to_skip = []):
     # No error handling here since if a 'on_read_trigger' method failed, 
     # the property value will be the error message
-    generated_on_read_trigger_data_dict = generate_triggered_data('on_read_trigger', entity_dict['entity_class'], entity_dict, properties_to_skip)
+    generated_on_read_trigger_data_dict = generate_triggered_data('on_read_trigger', entity_dict['entity_type'], entity_dict, properties_to_skip)
 
     # Merge the entity info and the generated on read data into one dictionary
     complete_entity_dict = {**entity_dict, **generated_on_read_trigger_data_dict}
@@ -338,8 +338,8 @@ dict
 def normalize_entity_result_for_response(entity_dict, properties_to_exclude = []):
     global _schema
 
-    normalized_entity_class = entity_dict['entity_class']
-    properties = _schema['ENTITIES'][normalized_entity_class]['properties']
+    normalized_entity_type = entity_dict['entity_type']
+    properties = _schema['ENTITIES'][normalized_entity_type]['properties']
     class_property_keys = properties.keys() 
     # In Python 3, entity_dict.keys() returns an iterable, which causes error if deleting keys during the loop
     # We can use list to force a copy of the keys to be made
@@ -393,15 +393,15 @@ Parameters
 ----------
 json_data_dict : dict
     The json data dict from user request
-normalized_entity_class : str
-    One of the normalized entity classes: Dataset, Collection, Sample, Donor
+normalized_entity_type : str
+    One of the normalized entity types: Dataset, Collection, Sample, Donor
 existing_entity_dict : dict
     Entity dict for creating new entity, otherwise pass in the existing entity dict for update validation
 """
-def validate_json_data_against_schema(json_data_dict, normalized_entity_class, existing_entity_dict = {}):
+def validate_json_data_against_schema(json_data_dict, normalized_entity_type, existing_entity_dict = {}):
     global _schema
 
-    properties = _schema['ENTITIES'][normalized_entity_class]['properties']
+    properties = _schema['ENTITIES'][normalized_entity_type]['properties']
     schema_keys = properties.keys() 
     json_data_keys = json_data_dict.keys()
     separator = ', '
@@ -472,61 +472,61 @@ def validate_json_data_against_schema(json_data_dict, normalized_entity_class, e
 
 
 """
-Get a list of entity classes that can be used as derivation source in the schmea yaml
+Get a list of entity types that can be used as derivation source in the schmea yaml
 
 Returns
 -------
 list
-    A list of entity classes
+    A list of entity types
 """
-def get_derivation_source_entity_classes():
+def get_derivation_source_entity_types():
     global _schema
 
-    derivation_source_entity_classes = []
-    entity_classes = get_all_entity_classes()
-    for entity_class in entity_classes:
-        if _schema['ENTITIES'][entity_class]['derivation']['source']:
-            derivation_source_entity_classes.append(entity_class)
+    derivation_source_entity_types = []
+    entity_types = get_all_entity_types()
+    for entity_type in entity_types:
+        if _schema['ENTITIES'][entity_type]['derivation']['source']:
+            derivation_source_entity_types.append(entity_type)
 
-    return derivation_source_entity_classes
+    return derivation_source_entity_types
 
 """
-Get a list of entity classes that can be used as derivation target in the schmea yaml
+Get a list of entity types that can be used as derivation target in the schmea yaml
 
 Returns
 -------
 list
-    A list of entity classes
+    A list of entity types
 """
-def get_derivation_target_entity_classes():
+def get_derivation_target_entity_types():
     global _schema
 
-    derivation_target_entity_classes = []
-    entity_classes = get_all_entity_classes()
-    for entity_class in entity_classes:
-        if _schema['ENTITIES'][entity_class]['derivation']['target']:
-            derivation_target_entity_classes.append(entity_class)
+    derivation_target_entity_types = []
+    entity_types = get_all_entity_types()
+    for entity_type in entity_types:
+        if _schema['ENTITIES'][entity_type]['derivation']['target']:
+            derivation_target_entity_types.append(entity_type)
 
-    return derivation_target_entity_classes
+    return derivation_target_entity_types
 
 """
 Lowercase and captalize the entity type string
 
 Parameters
 ----------
-normalized_entity_class : str
-    One of the normalized entity classes: Dataset, Collection, Sample, Donor
+normalized_entity_type : str
+    One of the normalized entity types: Dataset, Collection, Sample, Donor
 id : str
     The uuid of target entity 
 
 Returns
 -------
 string
-    One of the normalized entity classes: Dataset, Collection, Sample, Donor
+    One of the normalized entity types: Dataset, Collection, Sample, Donor
 """
-def normalize_entity_class(entity_class):
-    normalized_entity_class = entity_class.lower().capitalize()
-    return normalized_entity_class
+def normalize_entity_type(entity_type):
+    normalized_entity_type = entity_type.lower().capitalize()
+    return normalized_entity_type
 
 """
 Validate the provided trigger type
@@ -555,19 +555,19 @@ Validate the normalized entity class
 
 Parameters
 ----------
-normalized_entity_class : str
+normalized_entity_type : str
     The normalized entity class: Collection|Donor|Sample|Dataset
 """
-def validate_normalized_entity_class(normalized_entity_class):
+def validate_normalized_entity_type(normalized_entity_type):
     separator = ', '
-    accepted_entity_classes = get_all_entity_classes()
+    accepted_entity_types = get_all_entity_types()
 
-    # Validate provided entity_class
-    if normalized_entity_class not in accepted_entity_classes:
-        msg = "Invalid entity class: " + normalized_entity_class + ". The entity class must be one of the following: " + separator.join(accepted_entity_classes)
+    # Validate provided entity_type
+    if normalized_entity_type not in accepted_entity_types:
+        msg = "Invalid entity class: " + normalized_entity_type + ". The entity class must be one of the following: " + separator.join(accepted_entity_types)
         # Log the full stack trace, prepend a line with our message
         logger.exception(msg)
-        raise schema_errors.InvalidNormalizedEntityClassException(msg)
+        raise schema_errors.InvalidNormalizedEntityTypeException(msg)
 
 """
 Validate the normalized class
@@ -579,45 +579,45 @@ normalized_class : str
 """
 def validate_normalized_class(normalized_class):
     separator = ', '
-    accepted_classes = get_all_classes()
+    accepted_types = get_all_types()
 
-    # Validate provided entity_class
-    if normalized_class not in accepted_classes:
-        msg = "Invalid class: " + normalized_class + ". The class must be one of the following: " + separator.join(accepted_classes)
+    # Validate provided entity_type
+    if normalized_class not in accepted_types:
+        msg = "Invalid class: " + normalized_class + ". The class must be one of the following: " + separator.join(accepted_types)
         # Log the full stack trace, prepend a line with our message
         logger.exception(msg)
-        raise schema_errors.InvalidNormalizedClassException(msg)
+        raise schema_errors.InvalidNormalizedTypeException(msg)
 
 
 """
-Validate the source and target entity classes for creating derived entity
+Validate the source and target entity types for creating derived entity
 
 Parameters
 ----------
-normalized_target_entity_class : str
+normalized_target_entity_type : str
     The normalized target entity class
 """
-def validate_target_entity_class_for_derivation(normalized_target_entity_class):
+def validate_target_entity_type_for_derivation(normalized_target_entity_type):
     separator = ', '
-    accepted_target_entity_classes = get_derivation_target_entity_classes()
+    accepted_target_entity_types = get_derivation_target_entity_types()
 
-    if normalized_target_entity_class not in accepted_target_entity_classes:
-        bad_request_error("Invalid target entity class specified for creating the derived entity. Accepted classes: " + separator.join(accepted_target_entity_classes))
+    if normalized_target_entity_type not in accepted_target_entity_types:
+        bad_request_error("Invalid target entity type specified for creating the derived entity. Accepted types: " + separator.join(accepted_target_entity_types))
 
 """
-Validate the source and target entity classes for creating derived entity
+Validate the source and target entity types for creating derived entity
 
 Parameters
 ----------
-normalized_source_entity_class : str
+normalized_source_entity_type : str
     The normalized source entity class
 """
-def validate_source_entity_class_for_derivation(normalized_source_entity_class):
+def validate_source_entity_type_for_derivation(normalized_source_entity_type):
     separator = ', '
-    accepted_source_entity_classes = get_derivation_source_entity_classes()
+    accepted_source_entity_types = get_derivation_source_entity_types()
 
-    if normalized_source_entity_class not in accepted_source_entity_classes:
-        bad_request_error("Invalid source entity class specified for creating the derived entity. Accepted classes: " + separator.join(accepted_source_entity_classes))
+    if normalized_source_entity_type not in accepted_source_entity_types:
+        bad_request_error("Invalid source entity class specified for creating the derived entity. Accepted types: " + separator.join(accepted_source_entity_types))
 
 
 ####################################################################################################
@@ -734,7 +734,7 @@ Create a set of new ids for the new entity to be created
 Parameters
 ----------
 normalized_class : str
-    One of the classes defined in the schema yaml: Activity, Collection, Donor, Sample, Dataset
+    One of the types defined in the schema yaml: Activity, Collection, Donor, Sample, Dataset
 json_data_dict: dict
     The json request dict from user input, required when creating ids for Donor/Sample/Dataset only
 user_info_dict: dict
