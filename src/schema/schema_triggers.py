@@ -218,6 +218,7 @@ def set_data_access_level(property_key, normalized_class, neo4j_driver, data_dic
         raise KeyError("Missing 'uuid' key in 'data_dict' during calling 'set_data_access_level()' trigger method.")
 
     # For now, don't use the constants from commons
+    # All lowercase for easy comparision
     ACCESS_LEVEL_PUBLIC = 'public'
     ACCESS_LEVEL_CONSORTIUM = 'consortium'
     ACCESS_LEVEL_PROTECTED = 'protected'

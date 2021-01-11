@@ -687,6 +687,7 @@ Returns
 -------
 dict
     The dict returned by uuid-api that contains all the associated ids, e.g.:
+    Only Donor and Sample have `submission_id`
     {
         "ancestor_id": "23c0ffa90648358e06b7ac0c5673ccd2",
         "ancestor_ids":[
@@ -729,22 +730,6 @@ def get_hubmap_ids(id):
 
 """
 Create a set of new ids for the new entity to be created
-Make a POST call to uuid-api with the following json:
-{
-    "entityType":"Dataset",
-    "generateDOI": "true"
-}
-
-The list returned by uuid-api that contains all the associated ids, e.g.:
-{
-    "uuid": "c754a4f878628f3c072d4e8024f707cd",
-    "doi": "479NDDG476",
-    "displayDoi": "HBM479.NDDG.476"
-}
-
-Then map them to the target ids:
-uuid -> uuid
-displayDoi -> hubmap_id
 
 Parameters
 ----------
@@ -757,12 +742,6 @@ Returns
 -------
 dict
     The dictionary of new ids
-
-    {
-        "uuid": "c754a4f878628f3c072d4e8024f707cd",
-        "hubmap_id": "HBM479.NDDG.476"
-    }
-
 """
 def create_hubmap_ids(normalized_class, json_data_dict):
     global _uuid_api_url
@@ -822,11 +801,12 @@ def create_hubmap_ids(normalized_class, json_data_dict):
             "hubmap_id": "HBM965.PRGB.226"
         }
         """
-        # For Donor/Sample, submission_id will be added:
+
+        # For Donor/Sample, submission_id will be added
         # Only Donor and Sample have this submission_id
         """
         {
-            uuid": "c0276b5937ba8e0d7d1185020bade18f",
+            "uuid": "c0276b5937ba8e0d7d1185020bade18f",
             "hubmap_base_id": "535RWXB646",
             "hubmap_id": "HBM535.RWXB.646",
             "submission_id": "TTDCT0001"
@@ -834,13 +814,7 @@ def create_hubmap_ids(normalized_class, json_data_dict):
         """
         ids_dict = response.json()
 
-        # Create a new dict with desired keys
-        new_ids_dict = {
-            'uuid': ids_dict['uuid'],
-            'hubmap_id': ids_dict['hubmap_id']
-        }
-
-        return new_ids_dict
+        return ids_dict
     else:
         msg = "Failed to create new ids via the uuid-api service during the creation of this new " + normalized_class
         
