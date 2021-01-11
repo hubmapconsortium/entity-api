@@ -8,9 +8,6 @@ from schema import schema_manager
 from schema import schema_errors
 from schema import schema_neo4j_queries
 
-# HuBMAP commons
-from hubmap_commons import globus_groups
-
 logger = logging.getLogger(__name__)
 
 ####################################################################################################
@@ -269,6 +266,20 @@ str
     The group uuid
 """
 def set_group_uuid(property_key, normalized_class, neo4j_driver, data_dict):
+    # Use the user input if `group_uuid` is set
+    if 'group_uuid' in data_dict:
+        # Validate the group_uuid and make sure it's one of the valid data providers
+        try:
+            schema_manager.validate_entity_group_uuid(data_dict['group_uuid'])
+        except schema_errors.NoDataProviderGroupException as e:
+            # No need to log
+            raise schema_errors.NoDataProviderGroupException(e)
+
+        return data_dict['group_uuid']
+
+    # If `group_uuid` is not already set, looks for membership in a single "data provider" group and sets to that. 
+    # Otherwise if not set and no single "provider group" membership throws error.  
+    # This field is also used to link (Neo4j relationship) to the correct Lab node on creation.
     if 'hmgroupids' not in data_dict:
         raise KeyError("Missing 'hmgroupids' key in 'data_dict' during calling 'set_group_uuid()' trigger method.")
 
@@ -303,6 +314,25 @@ str
     The group name
 """
 def set_group_name(property_key, normalized_class, neo4j_driver, data_dict):
+    # Use the user input if `group_name` is set
+    if 'group_name' in data_dict:
+        return data_dict['group_name']
+
+    # Get the `group_name` based on the provided `group_uuid`
+    # when `group_name` is not provided but `group_uuid` is provided
+    if ('group_name' not in data_dict) and ('group_uuid' in data_dict):
+        # Validate the group_uuid and make sure it's one of the valid data providers
+        try:
+            schema_manager.validate_entity_group_uuid(data_dict['group_uuid'])
+        except schema_errors.NoDataProviderGroupException as e:
+            # No need to log
+            raise schema_errors.NoDataProviderGroupException(e)
+
+        return schema_manager.get_entity_group_name(data_dict['group_uuid'])
+
+    # If `group_uuid` is not already set, looks for membership in a single "data provider" group and sets to that. 
+    # Otherwise if not set and no single "provider group" membership throws error.  
+    # This field is also used to link (Neo4j relationship) to the correct Lab node on creation.
     if 'hmgroupids' not in data_dict:
         raise KeyError("Missing 'hmgroupids' key in 'data_dict' during calling 'set_group_name()' trigger method.")
     
@@ -528,7 +558,7 @@ def link_dataset_to_direct_ancestors(property_key, normalized_class, neo4j_drive
         normalized_entity_class_dict = {'normalized_entity_class': normalized_class}
 
         # Create new ids for the new Activity
-        new_ids_dict_for_activity = schema_manager.create_hubmap_ids(normalized_activity_class, json_data_dict = None)
+        new_ids_dict_for_activity = schema_manager.create_hubmap_ids(normalized_activity_class, json_data_dict = None, user_info_dict = None)
 
         # The `data_dict` should already have user_info
         data_dict_for_activity = {**data_dict, **normalized_entity_class_dict, **new_ids_dict_for_activity}
@@ -597,7 +627,7 @@ def relink_dataset_to_direct_ancestors(property_key, normalized_class, neo4j_dri
         normalized_entity_class_dict = {'normalized_entity_class': normalized_class}
 
         # Create new ids for the new Activity
-        new_ids_dict_for_activity = schema_manager.create_hubmap_ids(normalized_activity_class, json_data_dict = None)
+        new_ids_dict_for_activity = schema_manager.create_hubmap_ids(normalized_activity_class, json_data_dict = None, user_info_dict = None)
 
         # The `data_dict` should already have user_info
         data_dict_for_activity = {**data_dict, **normalized_entity_class_dict, **new_ids_dict_for_activity}
@@ -691,16 +721,16 @@ def get_local_directory_rel_path(property_key, normalized_class, neo4j_driver, d
     if (not 'group_uuid' in data_dict) or (not data_dict['group_uuid']):
         raise KeyError("Group uuid not set for dataset with uuid: " + uuid)
 
-    # Get the globus groups info based on the groups json file in commons package
-    globus_groups_info = globus_groups.get_globus_groups_info()
-    groups_by_id_dict = globus_groups_info['by_id']
+    # Validate the group_uuid and make sure it's one of the valid data providers
+    try:
+        schema_manager.validate_entity_group_uuid(data_dict['group_uuid'])
+    except schema_errors.NoDataProviderGroupException as e:
+        # No need to log
+        raise schema_errors.NoDataProviderGroupException(e)
 
-    #look up the Component's group ID, return an error if not found
-    data_group_id = data_dict['group_uuid']
-    if not data_group_id in groups_by_id_dict:
-        raise KeyError("Can not find dataset group: " + data_group_id + " for uuid: " + uuid)
+    group_name = schema_manager.get_entity_group_name(data_dict['group_uuid'])
 
-    dir_path = data_dict['data_access_level'] + "/" + groups_by_id_dict[data_group_id]['displayname'] + "/" + uuid + "/"
+    dir_path = data_dict['data_access_level'] + "/" + group_name + "/" + uuid + "/"
 
     return dir_path
 
@@ -751,7 +781,7 @@ def link_sample_to_direct_ancestor(property_key, normalized_class, neo4j_driver,
     normalized_entity_class_dict = {'normalized_entity_class': normalized_class}
 
     # Create new ids for the new Activity
-    new_ids_dict_for_activity = schema_manager.create_hubmap_ids(normalized_activity_class, json_data_dict = None)
+    new_ids_dict_for_activity = schema_manager.create_hubmap_ids(normalized_activity_class, json_data_dict = None, user_info_dict = None)
 
     # The `data_dict` should already have user_info
     data_dict_for_activity = {**data_dict, **normalized_entity_class_dict, **new_ids_dict_for_activity}
@@ -813,7 +843,7 @@ def relink_sample_to_direct_ancestor(property_key, normalized_class, neo4j_drive
     normalized_entity_class_dict = {'normalized_entity_class': normalized_class}
 
     # Create new ids for the new Activity
-    new_ids_dict_for_activity = schema_manager.create_hubmap_ids(normalized_activity_class, json_data_dict = None)
+    new_ids_dict_for_activity = schema_manager.create_hubmap_ids(normalized_activity_class, json_data_dict = None, user_info_dict = None)
 
     # The `data_dict` should already have user_info
     data_dict_for_activity = {**data_dict, **normalized_entity_class_dict, **new_ids_dict_for_activity}

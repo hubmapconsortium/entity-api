@@ -1142,7 +1142,18 @@ def create_entity_details(request, normalized_entity_class, json_data_dict):
     user_info_dict = schema_manager.get_user_info(request)
 
     # Create new ids for the new entity
-    new_ids_dict = schema_manager.create_hubmap_ids(normalized_entity_class, json_data_dict)
+    try:
+        new_ids_dict = schema_manager.create_hubmap_ids(normalized_entity_class, json_data_dict, user_info_dict)
+    # When group_uuid is provided by user, it can be invalid
+    except schema_errors.NoDataProviderGroupException:
+        # Log the full stack trace, prepend a line with our message
+        msg = "The user does not have the correct Globus group associated with, can't create the entity"
+        logger.exception(msg)
+        bad_request_error(msg)
+    except KeyError as e:
+        # Log the full stack trace, prepend a line with our message
+        logger.exception(e)
+        bad_request_error(e)
 
     # Merge all the above dictionaries and pass to the trigger methods
     data_dict = {**user_info_dict, **new_ids_dict}

@@ -272,7 +272,6 @@ ENTITIES:
       # Must set in neo4j
       group_uuid:
         type: string
-        generated: true
         immutable: true
         description: "The uuid of globus group which the user who created this entity is a member of"
         before_create_trigger: set_group_uuid #method that, if group_uuid is not already set looks for membership in a single "data provider" group and sets to that. Otherwise if not set and no single "provider group" membership throws error
@@ -280,7 +279,6 @@ ENTITIES:
       group_name:
         # It's not being mapped in the current version, what to do for the existing entities?
         type: string
-        generated: true
         immutable: true
         description: "The displayname of globus group which the user who created this entity is a member of"
         before_create_trigger: set_group_name #same as group_uuid, except set group_name
@@ -326,14 +324,12 @@ ENTITIES:
       # Must set in neo4j
       group_uuid:
         type: string
-        generated: true 
         immutable: true
         description: "The uuid of globus group which the user who created this entity is a member of"
         before_create_trigger: set_group_uuid #method that, if group_uuid is not already set looks for membership in a single "data provider" group and sets to that. Otherwise if not set and no single "provider group" membership throws error.  This field is also used to link (Neo4j relationship) to the correct Lab node on creation.
       # Must set in neo4j
       group_name:
         type: string
-        generated: true
         immutable: true
         description: "The displayname of globus group which the user who created this entity is a member of"
         before_create_trigger: set_group_name
@@ -389,25 +385,27 @@ ENTITIES:
       # Must set in neo4j
       group_uuid:
         type: string
-        generated: true
         immutable: true
         description: "The uuid of globus group which the user who created this entity is a member of"
         before_create_trigger: set_group_uuid #method that, if group_uuid is not already set looks for membership in a single "data provider" group and sets to that. Otherwise if not set and no single "provider group" membership throws error.  This field is also used to link (Neo4j relationship) to the correct Lab node on creation.
       # Must set in neo4j
       group_name:
         type: string
-        generated: true
         immutable: true
         description: "The displayname of globus group which the user who created this entity is a member of"
         before_create_trigger: set_group_name
       sample_count:
         type: string
+      # Should be required on create only when specimen_type==organ
+      organ:
+        type: string
+        description: "Organ code specifier, only set if sample_type == organ.  Valid values found in: https://github.com/hubmapconsortium/search-api/blob/devel/src/search-schema/data/definitions/enums/organ_types.yaml"
       organ_other:
         type: string
         description: The organ type provided by the user if "other" organ type is selected
-      # Should we make direct_ancestor_uuid `required_on_create`? Since creating the hubmap ids would require `parent_ids`?
       direct_ancestor_uuid:
         type: string
+        required_on_create: true # Creating the hubmap ids via uuid-api requires `parent_ids`
         transient: true
         exposed: false
         description: "The uuid of source entity from which this new entity is derived from. Used on creation or edit to create an action and relationship to the ancestor"
@@ -426,10 +424,6 @@ ENTITIES:
         immutable: true
         description: "The hubmap internal id with embedded semantic information e.g.: VAN0003-LK-1-10.  This id is generated at creation time which tracks the lab, donor, organ and sample hierarchy per the following: https://docs.google.com/document/d/1DjHgmqWF1VA5-3mfzLFNfabbzmc8KLSG9xWx1DDLlzo/edit?usp=sharing"
         before_create_trigger: set_submission_id
-      # ??????????? should this be required on create?
-      organ:
-        type: string
-        description: "Organ code specifier, only set if sample_type == organ.  Valid values found in: https://github.com/hubmapconsortium/search-api/blob/devel/src/search-schema/data/definitions/enums/organ_types.yaml"
       lab_tissue_sample_id:
         type: string
         description: "Lab specific id for the sample."

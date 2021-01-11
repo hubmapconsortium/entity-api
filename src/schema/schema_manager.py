@@ -736,14 +736,33 @@ Parameters
 normalized_class : str
     One of the classes defined in the schema yaml: Activity, Collection, Donor, Sample, Dataset
 json_data_dict: dict
-    The json request dict from user input
+    The json request dict from user input, required when creating ids for Donor/Sample/Dataset only
+user_info_dict: dict
+    A dict containing all the user info, requried when creating ids for Donor only:
+    {
+        "scope": "urn:globus:auth:scope:nexus.api.globus.org:groups",
+        "name": "First Last",
+        "iss": "https://auth.globus.org",
+        "client_id": "21f293b0-5fa5-4ee1-9e0e-3cf88bd70114",
+        "active": True,
+        "nbf": 1603761442,
+        "token_type": "Bearer",
+        "aud": ["nexus.api.globus.org", "21f293b0-5fa5-4ee1-9e0e-3cf88bd70114"],
+        "iat": 1603761442,
+        "dependent_tokens_cache_id": "af2d5979090a97536619e8fbad1ebd0afa875c880a0d8058cddf510fc288555c",
+        "exp": 1603934242,
+        "sub": "c0f8907a-ec78-48a7-9c85-7da995b05446",
+        "email": "email@pitt.edu",
+        "username": "username@pitt.edu",
+        "hmscopes": ["urn:globus:auth:scope:nexus.api.globus.org:groups"],
+    }
 
 Returns
 -------
 dict
     The dictionary of new ids
 """
-def create_hubmap_ids(normalized_class, json_data_dict):
+def create_hubmap_ids(normalized_class, json_data_dict, user_info_dict):
     global _uuid_api_url
 
     """
@@ -766,22 +785,51 @@ def create_hubmap_ids(normalized_class, json_data_dict):
 
     # Activity and Collection don't require the `parent_ids` in request json
     if normalized_class in ['Donor', 'Sample', 'Dataset']:
-        # ????????????????????
-        # In the schema yaml, Donor has no property for such ancestor uuid, AKA lab uuid?
-        # Possibly `lab_donor_id`? Then that property needs to be `required_on_create`
         if normalized_class == 'Donor':
-            parent_id = json_data_dict['lab_donor_id']
+            # If group_uuid is provided by the request, use it
+            if 'group_uuid' in json_data_dict:
+                # First validate the group_uuid and make sure it's one of the valid data providers
+                try:
+                    schema_manager.validate_entity_group_uuid(json_data_dict['group_uuid'])
+                except schema_errors.NoDataProviderGroupException as e:
+                    # No need to log
+                    raise schema_errors.NoDataProviderGroupException(e)
+
+                parent_id = json_data_dict['group_uuid']
+            # Otherwise, parse user token to get the group_uuid
+            else:
+                # If `group_uuid` is not already set, looks for membership in a single "data provider" group and sets to that. 
+                # Otherwise if not set and no single "provider group" membership throws error.  
+                # This field is also used to link (Neo4j relationship) to the correct Lab node on creation.
+                if 'hmgroupids' not in user_info_dict:
+                    raise KeyError("Missing 'hmgroupids' key in 'user_info_dict' when calling 'create_hubmap_ids()' to create new ids for this Donor.")
+
+                try:
+                    group_info = get_entity_group_info(user_info_dict['hmgroupids'])
+                except schema_errors.NoDataProviderGroupException as e:
+                    # No need to log
+                    raise schema_errors.NoDataProviderGroupException(e)
+                except schema_errors.MultipleDataProviderGroupException as e:
+                    # No need to log
+                    raise schema_errors.MultipleDataProviderGroupException(e)
+                
+                parent_id = group_info['uuid']
+            
+            # Add the parent_id to the request json
             json_to_post['parent_ids'] = [parent_id]
         elif normalized_class == 'Sample':
-            # Should `direct_ancestor_uuid` be `required_on_create` in yaml?
+            # 'Sample.direct_ancestor_uuid' is marked as `required_on_create` in the schema yaml
+            # The application-specific code should have already validated the 'direct_ancestor_uuid'
             parent_id = json_data_dict['direct_ancestor_uuid']
             json_to_post['parent_ids'] = [parent_id]
 
-            # Check if the json_data_dict['direct_ancestor_uuid'] is uuid of Donor
-            ids_dict = get_hubmap_ids(parent_id)
-            if ids_dict['type'].upper() == 'DONOR':
-                # Add the organ_code in request json
-                # ?????????? should `organ` be required on create?
+            # 'Sample.specimen_type' is marked as `required_on_create` in the schema yaml
+            if json_data_dict['specimen_type'].lower() == 'organ':
+                # The 'organ' field containing the organ code is required in this case
+                if 'organ' not in json_data_dict:
+                    raise KeyError("Missing 'organ' key in 'json_data_dict' when calling 'create_hubmap_ids()' to create ids for this new Sample.")
+
+                # This is the organ code
                 json_to_post['organ_code'] = json_data_dict['organ']
         else:
             # Similarly, should `direct_ancestor_uuids` be `required_on_create` in yaml?
@@ -881,6 +929,49 @@ def get_entity_group_info(user_hmgroupids_list):
     group_info['name'] = groups_by_id_dict[uuid]['displayname']
     
     return group_info
+
+"""
+Get the group_name based on the given group_uuid
+
+Parameters
+----------
+group_uuid : str
+    UUID of the target group
+"""
+def validate_entity_group_uuid(group_uuid):
+    # Get the globus groups info based on the groups json file in commons package
+    globus_groups_info = globus_groups.get_globus_groups_info()
+    groups_by_id_dict = globus_groups_info['by_id']
+
+    if not group_uuid in groups_by_id_dict:
+        msg = "No data_provider groups found for the given group_uuid: " + group_uuid + ". Can't continue."
+        # Log the full stack trace, prepend a line with our message
+        logger.exception(msg)
+        raise schema_errors.NoDataProviderGroupException(msg)
+
+
+"""
+Get the group_name based on the given group_uuid
+
+Parameters
+----------
+group_uuid : str
+    UUID of the target group
+
+Returns
+-------
+str
+    The group_name corresponding to this group_uuid
+"""
+def get_entity_group_name(group_uuid):
+    # Get the globus groups info based on the groups json file in commons package
+    globus_groups_info = globus_groups.get_globus_groups_info()
+    groups_by_id_dict = globus_groups_info['by_id']
+    group_dict = groups_by_id_dict[group_uuid]
+    group_name = group_dict['displayname']
+
+    return group_name
+
 
 ####################################################################################################
 ## Internal functions
