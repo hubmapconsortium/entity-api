@@ -263,8 +263,6 @@ ENTITIES:
         on_read_trigger: get_local_directory_rel_path
       status:
         type: string
-        # Should it be immutable? Sicne Cannot be set directly must be set via ingest-api with a PUT /datasets/<id>/<status> method.
-        #immutable: true
         description: "One of: Published|New|QA|Error|Hold|Invalid. Cannot be set directly must be set via ingest-api with a PUT /datasets/<id>/<status> method."
         on_create_trigger: set_dataset_status
         on_update_trigger: update_dataset_ancestors_data_access_level
@@ -299,10 +297,12 @@ ENTITIES:
       description:
         type: string
         description: "Free text description of the donor"
+      # A Donor is public only if any dataset below it in the provenance hierarchy is published
+      # (i.e. Dataset.status == "Published")
       data_access_level:
         type: string
         generated: true
-        description: "One of the values: public, consortium, protected. Only Dataset may have protected value"
+        description: "One of the values: public, consortium"
         on_create_trigger: set_data_access_level
       # Need `title` property?
       # Deidentified Name?- we're using label (definition below).  For now...
@@ -370,6 +370,8 @@ ENTITIES:
       description:
         type: string
         description: "Free text description of the sample"
+      # A Sample is public only if any dataset below it in the provenance hierarchy is published
+      # (i.e. Dataset.status == "Published")
       data_access_level:
         type: string
         generated: true
