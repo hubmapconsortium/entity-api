@@ -11,6 +11,11 @@ from pathlib import Path
 import logging
 import urllib
 
+# Provenance stuff
+import prov
+from prov.serializers.provjson import ProvJSONSerializer
+from prov.model import ProvDocument, PROV_TYPE, Namespace, NamespaceManager
+
 # Local modules
 import app_neo4j_queries
 from schema import schema_manager
@@ -231,6 +236,54 @@ def get_entity_by_id(id):
 
     # Response with the final result
     return jsonify(final_result)
+
+
+
+"""
+Retrive the full tree above the referenced entity
+
+Parameters
+----------
+id : str
+    The HuBMAP ID (e.g. HBM123.ABCD.456) or UUID of target entity 
+
+Returns
+-------
+json
+    All the provenance details associated with this entity
+"""
+@app.route('/entities/<id>/provenance', methods = ['GET'])
+def get_entity_provenance(id):
+    # Query target entity against uuid-api and neo4j and return as a dict if exists
+    entity_dict = query_target_entity(id)
+    uuid = entity_dict['uuid']
+    normalized_entity_type = entity_dict['entity_type']
+    entity_data_access_level = entity_dict['data_access_level']
+
+    # For now, don't use the constants from commons
+    # All lowercase for easy comparision
+    ACCESS_LEVEL_PUBLIC = 'public'
+    ACCESS_LEVEL_CONSORTIUM = 'consortium'
+    ACCESS_LEVEL_PROTECTED = 'protected'
+
+    # Get user data_access_level based on token
+    user_info = auth_helper.getUserDataAccessLevel(request) 
+    user_data_access_level = user_info['data_access_level'].lower()
+    
+    # The `data_access_level` of Dataset can be 'public', consortium', or 'protected'
+    # The `data_access_level` of Donor/Sample can only be either 'public' or 'consortium'
+    if ((entity_data_access_level == ACCESS_LEVEL_CONSORTIUM) and (user_data_access_level == ACCESS_LEVEL_PUBLIC))
+        or ((entity_data_access_level == ACCESS_LEVEL_PROTECTED) and (user_data_access_level != ACCESS_LEVEL_PROTECTED)):
+        forbidden_error("The current user does not have the authorization required to retrieve provenance data")
+
+    depth = None
+    if 'depth' in request.args:
+        depth = int(request.args.get('depth'))
+
+    provenance_data = prov.get_provenance_history(uuid, depth)
+    
+    # Response with the provenance details
+    return jsonify(provenance_data)
 
 """
 Show all the supported entity types
@@ -1424,4 +1477,182 @@ def access_level_prefix_dir(dir_name):
         return ''
     else:
         return file_helper.ensureTrailingSlashURL(file_helper.ensureBeginningSlashURL(dir_name))
+
+
+
+
+
+
+
+
+
+
+
+def get_provenance_history(uuid, depth=None):
+    prov_doc = ProvDocument()
+    #prov_doc.
+    #NOTE!! There is a bug with the JSON serializer.  I can't add the prov prefix using this mechanism
+    
+    prov_doc.add_namespace('ex', 'http://example.org/')
+    prov_doc.add_namespace('hubmap', 'https://hubmapconsortium.org/')
+    
+    #prov_doc.add_namespace('dct', 'http://purl.org/dc/terms/')
+    #prov_doc.add_namespace('foaf','http://xmlns.com/foaf/0.1/')
+    
+    relation_list = []
+    with neo4j_driver.session() as session:
+        # max_level_str is the string used to put a limit on the number of levels to traverse
+        max_level_str = ''
+        if depth is not None and len(str(depth)) > 0:
+            max_level_str = """maxLevel: {depth},""".format(depth=depth)
+
+        result = app_neo4j_queries.get_provenance(neo4j_driver_instance, max_level_str, depth)
+        
+        #there should only be one record
+        for jsonData in result:
+            try:
+                record = dict(jsonData)['json']
+
+                if 'relationships' not in record:
+                    raise LookupError('Error, unable to find relationships for uuid:' + uuid)
+                if 'nodes' not in record:
+                    raise LookupError('Error, unable to find nodes for uuid:' + uuid)
+                
+                node_dict = {}
+                # pack the nodes into a dictionary using the uuid as a key
+                for node_record in record['nodes']:
+                    node_dict[node_record['uuid']] = node_record
+                    
+                # TODO: clean up nodes
+                # remove nodes that lack metadata
+                
+                # need to devise a methodology for this
+                # try preprocessing the record['relationships'] here:
+                # make a copy of the node_dict called unreferenced_node_dict
+                # loop through the relationships and find all the has_metadata relationships
+                # for each node pair in the has_metadata relationship, delete it from the unreferenced_node_dict
+                # once the loop is finished, continue as before
+                # add some logic when generating the wasGenerated and used relationships.  If either node is in the 
+                # unreferenced_node_dict, then ignore the relationship
+                    
+                # now, connect the nodes
+                for rel_record in record['relationships']:
+                    from_uuid = rel_record['fromNode']['uuid']
+                    to_uuid = rel_record['toNode']['uuid']
+                    from_node = node_dict[from_uuid]
+                    to_node = node_dict[to_uuid]
+                    if rel_record['rel_data']['type'] == HubmapConst.HAS_METADATA_REL:
+                        # assign the metadata node as the metadata attribute
+                        # just extract the provenance information from the metadata node
+                        
+                        entity_timestamp_json = Provenance.get_json_timestamp(int(to_node[HubmapConst.PROVENANCE_CREATE_TIMESTAMP_ATTRIBUTE]))
+                        provenance_data = {ProvConst.PROV_GENERATED_TIME_ATTRIBUTE : entity_timestamp_json}
+                        type_code = None
+                        isEntity = True
+                        if HubmapConst.ENTITY_TYPE_ATTRIBUTE in from_node:
+                            type_code = from_node[HubmapConst.ENTITY_TYPE_ATTRIBUTE]
+                        elif HubmapConst.ACTIVITY_TYPE_ATTRIBUTE in from_node:
+                            type_code = from_node[HubmapConst.ACTIVITY_TYPE_ATTRIBUTE]
+                            isEntity = False
+                        label_text = None                                
+                        if HubmapConst.LAB_IDENTIFIER_ATTRIBUTE in from_node:
+                            label_text = from_node[HubmapConst.LAB_IDENTIFIER_ATTRIBUTE]
+                        else:
+                            label_text = from_node[HubmapConst.UUID_ATTRIBUTE]
+                            
+                        # build metadata attribute from the Metadata node
+                        metadata_attribute = {}
+                        for attribute_key in to_node:
+                            if attribute_key not in self.metadata_ignore_attributes:
+                                if attribute_key in self.known_attribute_map:                                            
+                                    # special case: timestamps
+                                    if attribute_key == HubmapConst.PROVENANCE_MODIFIED_TIMESTAMP_ATTRIBUTE:
+                                        provenance_data[self.known_attribute_map[attribute_key]] = Provenance.get_json_timestamp(int(to_node[attribute_key]))
+                                else: #add any extraneous data to the metadata attribute
+                                    metadata_attribute[attribute_key] = to_node[attribute_key]
+                               
+                        # Need to add the agent and organization here, plus the appropriate relationships (between the entity and the agent plus orgainzation)
+                        agent_record = self.get_agent_record(to_node)
+                        agent_unique_id = str(agent_record[ProvConst.HUBMAP_PROV_USER_EMAIL]).replace('@', '-')
+                        agent_unique_id = str(agent_unique_id).replace('.', '-')
+                        if ProvConst.HUBMAP_PROV_USER_UUID in agent_record:
+                            agent_unique_id =agent_record[ProvConst.HUBMAP_PROV_USER_UUID]
+                        agent_uri = Provenance.build_uri('hubmap','agent',agent_unique_id)
+                        organization_record = self.get_organization_record(to_node)
+                        organization_uri = Provenance.build_uri('hubmap','organization',organization_record[ProvConst.HUBMAP_PROV_GROUP_UUID])
+                        doc_agent = None
+                        doc_org = None
+                        
+                        get_agent = prov_doc.get_record(agent_uri)
+                        # only add this once
+                        if len(get_agent) == 0:
+                            doc_agent = prov_doc.agent(agent_uri, agent_record)
+                        else:
+                            doc_agent = get_agent[0]
+
+                        get_org = prov_doc.get_record(organization_uri)
+                        # only add this once
+                        if len(get_org) == 0:
+                            doc_org = prov_doc.agent(organization_uri, organization_record)
+                        else:
+                            doc_org = get_org[0]
+                        
+                        
+                                                        
+                        other_attributes = {ProvConst.PROV_LABEL_ATTRIBUTE : label_text,
+                                            ProvConst.PROV_TYPE_ATTRIBUTE : type_code, 
+                                            ProvConst.HUBMAP_DOI_ATTRIBUTE : from_node[HubmapConst.DOI_ATTRIBUTE],
+                                            ProvConst.HUBMAP_DISPLAY_DOI_ATTRIBUTE : from_node[HubmapConst.DISPLAY_DOI_ATTRIBUTE],
+                                            ProvConst.HUBMAP_DISPLAY_IDENTIFIER_ATTRIBUTE : label_text, 
+                                            ProvConst.HUBMAP_UUID_ATTRIBUTE : from_node[HubmapConst.UUID_ATTRIBUTE]                                                    
+                                            }
+                        # only add metadata if it contains data
+                        if len(metadata_attribute) > 0:
+                            other_attributes[ProvConst.HUBMAP_METADATA_ATTRIBUTE] = json.dumps(metadata_attribute)
+                        # add the provenance data to the other_attributes
+                        other_attributes.update(provenance_data)
+                        if isEntity == True:
+                            prov_doc.entity(Provenance.build_uri('hubmap','entities',from_node['uuid']), other_attributes)
+                        else:
+                            activity_timestamp_json = Provenance.get_json_timestamp(int(to_node[HubmapConst.PROVENANCE_CREATE_TIMESTAMP_ATTRIBUTE]))
+                            doc_activity = prov_doc.activity(Provenance.build_uri('hubmap','activities',from_node['uuid']), activity_timestamp_json, activity_timestamp_json, other_attributes)
+                            prov_doc.actedOnBehalfOf(doc_agent, doc_org, doc_activity)
+                    elif rel_record['rel_data']['type'] in [HubmapConst.ACTIVITY_OUTPUT_REL, HubmapConst.ACTIVITY_INPUT_REL]:
+                        to_node_uri = None
+                        from_node_uri = None
+                        if HubmapConst.ENTITY_TYPE_ATTRIBUTE in to_node:
+                            to_node_uri = Provenance.build_uri('hubmap', 'entities', to_node['uuid'])
+                        else:
+                            to_node_uri = Provenance.build_uri('hubmap', 'activities', to_node['uuid'])
+                        if HubmapConst.ENTITY_TYPE_ATTRIBUTE in from_node:
+                            from_node_uri = Provenance.build_uri('hubmap', 'entities', from_node['uuid'])
+                        else:
+                            from_node_uri = Provenance.build_uri('hubmap', 'activities', from_node['uuid'])
+                        
+                        if rel_record['rel_data']['type'] == 'ACTIVITY_OUTPUT':
+                            #prov_doc.wasGeneratedBy(entity, activity, time, identifier, other_attributes)
+                            prov_doc.wasGeneratedBy(to_node_uri, from_node_uri)
+
+                        if rel_record['rel_data']['type'] == 'ACTIVITY_INPUT':
+                            #prov_doc.used(activity, entity, time, identifier, other_attributes)
+                            prov_doc.used(to_node_uri, from_node_uri)
+                        
+                        # for now, simply create a "relation" where the fromNode's uuid is connected to a toNode's uuid via a relationship:
+                        # ex: {'fromNodeUUID': '42e10053358328c9079f1c8181287b6d', 'relationship': 'ACTIVITY_OUTPUT', 'toNodeUUID': '398400024fda58e293cdb435db3c777e'}
+                        rel_data_record = {'fromNodeUUID' : from_node['uuid'], 'relationship' : rel_record['rel_data']['type'], 'toNodeUUID' : to_node['uuid']}
+                        relation_list.append(rel_data_record)
+                return_data = {'nodes' : node_dict, 'relations' : relation_list}  
+            except Exception as e:
+                raise e
+
+
+         
+        # there is a bug in the JSON serializer.  So manually insert the prov prefix
+        
+        output_doc = prov_doc.serialize(indent=2) 
+        output_doc = output_doc.replace('"prefix": {', '"prefix": {\n    "prov" : "http://www.w3.org/ns/prov#", ')
+        
+        #output_doc = prov_doc.serialize(format='rdf', rdf_format='trig')
+        #output_doc = prov_doc.serialize(format='provn')
+        return output_doc
 
