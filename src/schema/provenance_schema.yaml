@@ -381,6 +381,9 @@ ENTITIES:
         type: string
         required_on_create: true # Only required for create via POST, not update via PUT
         description: "A code representing the type of specimen.  Must be one of the codes specified in: https://github.com/hubmapconsortium/search-api/blob/devel/src/search-schema/data/definitions/enums/tissue_sample_types.yaml"
+      specimen_type_other:
+        type: string
+        description: "The user provided sample type if the 'other' sample_type is chosen."
       portal_metadata_upload_files:
         type: json_string
         description: "A list of relative paths to metadata files"
@@ -450,9 +453,6 @@ ENTITIES:
       rui_location:
         type: json_string
         description: "The sample location and orientation in the ancestor organ as specified in the RUI tool."
-      specimen_type_other:
-        type: string
-        description: "The user provided sample type if the 'other' sample_type is chosen."
       visit:
         type: string
         description: "The visit id for the donor/patient when the sample was obtained."
