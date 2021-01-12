@@ -224,6 +224,8 @@ def set_data_access_level(property_key, normalized_type, neo4j_driver, data_dict
         # Default to protected
         data_access_level = ACCESS_LEVEL_PROTECTED
 
+        # When `contains_human_genetic_sequences` is true, even if `status` is 'Published', 
+        # the `data_access_level` is still 'protected'
         if data_dict['contains_human_genetic_sequences']:
             data_access_level = ACCESS_LEVEL_PROTECTED
         else:

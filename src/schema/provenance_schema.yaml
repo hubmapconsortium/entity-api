@@ -192,6 +192,7 @@ ENTITIES:
         generated: true
         description: "One of the values: public, consortium, protected. Only Dataset may have protected value"
         on_create_trigger: set_data_access_level
+      # When contains_human_genetic_sequences is true, even if status is 'Published', the data_access_level is still 'protected'
       contains_human_genetic_sequences:
         type: boolean
         required_on_create: true # Only required for create via POST, not update via PUT
