@@ -186,11 +186,21 @@ ENTITIES:
       description:
         type: string
         description: "Free text description of the dataset"
+      # The Dataset.data_access_level is based on Dataset.status and Dataset.contains_human_genetic_sequences
       data_access_level:
         type: string
         generated: true
         description: "One of the values: public, consortium, protected. Only Dataset may have protected value"
         on_create_trigger: set_data_access_level
+      contains_human_genetic_sequences:
+        type: boolean
+        required_on_create: true # Only required for create via POST, not update via PUT
+        description: "True if the data contains any human genetic sequence information."
+      status:
+        type: string
+        description: "One of: Published|New|QA|Error|Hold|Invalid. Cannot be set directly must be set via ingest-api with a PUT /datasets/<id>/<status> method."
+        on_create_trigger: set_dataset_status
+        on_update_trigger: update_dataset_and_ancestors_data_access_level
       title:
         type: string
         required_on_create: true # Only required for create via POST, not update via PUT
@@ -245,11 +255,6 @@ ENTITIES:
       pipeline_message:
         #todo: where is this attribute sourced from?  Is it stored in the database? <- Not in neo4j
         type: string
-      # The Dataset.data_access_level is based on Dataset.status and Dataset.contains_human_genetic_sequences
-      contains_human_genetic_sequences:
-        type: boolean
-        required_on_create: true # Only required for create via POST, not update via PUT
-        description: "True if the data contains any human genetic sequence information."
       ingest_metadata:
         type: json_string
         description: "The metadata returned from the processing at data submission time."
@@ -261,11 +266,6 @@ ENTITIES:
         transient: true
         description: "The path on the local file system, relative to the base data directory, where the data is stored."
         on_read_trigger: get_local_directory_rel_path
-      status:
-        type: string
-        description: "One of: Published|New|QA|Error|Hold|Invalid. Cannot be set directly must be set via ingest-api with a PUT /datasets/<id>/<status> method."
-        on_create_trigger: set_dataset_status
-        on_update_trigger: update_dataset_ancestors_data_access_level
       run_id:
         type: string
       ingest_id:

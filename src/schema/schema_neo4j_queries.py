@@ -286,8 +286,9 @@ def count_attached_published_datasets(neo4j_driver, entity_type, uuid):
         return count               
 
 """
-Update the ancestors data_access_level for a given dataset.
-The dataset's ancestor can be another Dataset, Donor, or Sample. Won't be Collection
+Update the dataset and its ancestors' data_access_level for a given dataset.
+The dataset's ancestor can be another Dataset, Donor, or Sample. Won't be Collection.
+In this case, we'll only need to update the dataset itself, and its Donor/Sample ancestors
 
 Parameters
 ----------
@@ -296,21 +297,20 @@ neo4j_driver : neo4j.Driver object
 uuid : str
     The uuid of target dataset 
 data_access_level : str
-    The new data_access_level to be updated for the given dataset's ancestors: Dataset, Sample, Donor
+    The new data_access_level to be updated for the given dataset and its ancestors (Sample/Donor)
 """
-def update_dataset_ancestors_data_access_level(neo4j_driver, uuid, data_access_level):
+def update_dataset_and_ancestors_data_access_level(neo4j_driver, uuid, data_access_level):
     parameterized_query = ("MATCH (e:Entity)-[r:ACTIVITY_INPUT|:ACTIVITY_OUTPUT*]->(d:Dataset) " +
-                           "WHERE e.entity_type <> 'Dataset' AND d.uuid='{uuid}' " +
-                           "SET e.data_access_level = '{data_access_level}' "
-                           # COLLECT() returns a list
-                           # apoc.coll.toSet() reruns a set containing unique nodes
-                           "RETURN COUNT(d) AS {record_field_name}")
+                           "WHERE e.entity_type IN ['Donor', 'Sample'] AND d.uuid='{uuid}' " +
+                           "SET e.data_access_level = '{data_access_level}', d.data_access_level = '{data_access_level}' "
+                           # We don't really use the returned value
+                           "RETURN COUNT(e) AS {record_field_name}")
 
     query = parameterized_query.format(uuid = uuid, 
                                        data_access_level = data_access_level,
                                        record_field_name = record_field_name)
 
-    logger.debug("======update_dataset_ancestors_data_access_level() query======")
+    logger.debug("======update_dataset_and_ancestors_data_access_level() query======")
     logger.debug(query)
     
     try:
@@ -320,7 +320,7 @@ def update_dataset_ancestors_data_access_level(neo4j_driver, uuid, data_access_l
             tx.run(query)
             tx.commit()
     except TransactionError as te:
-        msg = "TransactionError from calling update_dataset_ancestors_data_access_level(): "
+        msg = "TransactionError from calling update_dataset_and_ancestors_data_access_level(): "
         # Log the full stack trace, prepend a line with our message
         logger.exception(msg)
 
