@@ -191,7 +191,7 @@ ENTITIES:
         type: string
         generated: true
         description: "One of the values: public, consortium, protected. Only Dataset may have protected value"
-        on_create_trigger: set_data_access_level
+        before_create_trigger: set_data_access_level
       # When contains_human_genetic_sequences is true, even if status is 'Published', the data_access_level is still 'protected'
       contains_human_genetic_sequences:
         type: boolean
@@ -200,7 +200,7 @@ ENTITIES:
       status:
         type: string
         description: "One of: Published|New|QA|Error|Hold|Invalid. Cannot be set directly must be set via ingest-api with a PUT /datasets/<id>/<status> method."
-        on_create_trigger: set_dataset_status
+        before_create_trigger: set_dataset_status
         on_update_trigger: update_dataset_and_ancestors_data_access_level
       title:
         type: string
@@ -304,7 +304,7 @@ ENTITIES:
         type: string
         generated: true
         description: "One of the values: public, consortium"
-        on_create_trigger: set_data_access_level
+        before_create_trigger: set_data_access_level
       # Need `title` property?
       # Deidentified Name?- we're using label (definition below).  For now...
       image_file_metadata:
@@ -377,7 +377,7 @@ ENTITIES:
         type: string
         generated: true
         description: "One of the values: public, consortium, protected. Only Dataset may have protected value"
-        on_create_trigger: set_data_access_level
+        before_create_trigger: set_data_access_level
       specimen_type:
         type: string
         required_on_create: true # Only required for create via POST, not update via PUT
