@@ -200,7 +200,7 @@ dict
 """
 def create_entity(neo4j_driver, entity_type, entity_json_list_str):
     # UNWIND expects json.entities to be List<T>
-    query = (f"WITH apoc.convert.fromJsonList('{json_list_str}') AS entities_list "
+    query = (f"WITH apoc.convert.fromJsonList('{entity_json_list_str}') AS entities_list "
              f"UNWIND entities_list AS data "
              f"CREATE (e:{entity_type}) "
              f"SET e = data "

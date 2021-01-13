@@ -843,24 +843,25 @@ def create_hubmap_ids(normalized_class, json_data_dict, user_info_dict):
     if response.status_code == 200:
         # For Collection/Dataset/Activity, the uuid-api response looks like:
         """
-        {
+        [{
             "uuid": "3bcc20f4f9ba19ed837136d19f530fbe",
             "hubmap_base_id": "965PRGB226",
             "hubmap_id": "HBM965.PRGB.226"
-        }
+        }]
         """
 
         # For Donor/Sample, submission_id will be added
         # Only Donor and Sample have this submission_id
         """
-        {
+        [{
             "uuid": "c0276b5937ba8e0d7d1185020bade18f",
             "hubmap_base_id": "535RWXB646",
             "hubmap_id": "HBM535.RWXB.646",
             "submission_id": "TTDCT0001"
-        }
+        }]
         """
-        ids_dict = response.json()
+        ids_list = response.json()
+        ids_dict = ids_list[0]
 
         return ids_dict
     else:
@@ -891,6 +892,9 @@ dict
     The group info (group_uuid and group_name)
 """
 def get_entity_group_info(user_hmgroupids_list):
+    logger.debug("====user_hmgroupids_list====")
+    logger.debug(user_hmgroupids_list)
+
     # Default
     group_info = {
         'uuid': '',
@@ -900,32 +904,39 @@ def get_entity_group_info(user_hmgroupids_list):
     # Get the globus groups info based on the groups json file in commons package
     globus_groups_info = globus_groups.get_globus_groups_info()
     groups_by_id_dict = globus_groups_info['by_id']
+    
+    logger.debug("====groups_by_id_dict====")
+    logger.debug(groups_by_id_dict)
 
     # A list of data provider uuids
     data_provider_uuids = []
     for uuid_key in groups_by_id_dict:
-        if 'data_provider' in groups_by_id_dict[uuid_key] and groups_by_id_dict[uuid_key]['data_provider']:
+        if ('data_provider' in groups_by_id_dict[uuid_key]) and groups_by_id_dict[uuid_key]['data_provider']:
             data_provider_uuids.append(uuid_key)
+    
+    logger.debug("====data_provider_uuids====")
+    logger.debug(data_provider_uuids)
 
-    data_provider_groups = []
+    user_data_provider_uuids = []
     for group_uuid in user_hmgroupids_list:
         if group_uuid in data_provider_uuids:
-            data_provider_groups.append(group_uuid)
+            user_data_provider_uuids.append(group_uuid)
 
-    if len(data_provider_groups) == 0:
+    if len(user_data_provider_uuids) == 0:
         msg = "No data_provider groups found for this user. Can't continue."
         # Log the full stack trace, prepend a line with our message
         logger.exception(msg)
         raise schema_errors.NoDataProviderGroupException(msg)
 
-    if len(data_provider_groups) > 1:
+    if len(user_data_provider_uuids) > 1:
         msg = "More than one data_provider groups found for this user. Can't continue."
         # Log the full stack trace, prepend a line with our message
         logger.exception(msg)
         raise schema_errors.MultipleDataProviderGroupException(msg)
 
     # By now only one data provider group found, this is what we want
-    group_info['uuid'] = data_provider_groups[0]
+    uuid = user_data_provider_uuids[0]
+    group_info['uuid'] = uuid
     group_info['name'] = groups_by_id_dict[uuid]['displayname']
     
     return group_info
