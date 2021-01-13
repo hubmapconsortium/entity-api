@@ -247,7 +247,7 @@ def count_attached_published_datasets(neo4j_driver, entity_type, uuid):
              f"WHERE e.uuid='{uuid}' AND toLower(d.status) = 'published' "
              # COLLECT() returns a list
              # apoc.coll.toSet() reruns a set containing unique nodes
-             "RETURN COUNT(d) AS {record_field_name}")
+             f"RETURN COUNT(d) AS {record_field_name}")
 
     logger.debug("======count_attached_published_datasets() query======")
     logger.debug(query)
