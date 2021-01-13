@@ -715,7 +715,7 @@ def get_local_directory_rel_path(property_key, normalized_type, neo4j_driver, da
     uuid = data_dict['uuid']
 
     if (not 'group_uuid' in data_dict) or (not data_dict['group_uuid']):
-        raise KeyError("Group uuid not set for dataset with uuid: " + uuid)
+        raise KeyError(f"Group uuid not set for dataset with uuid: {uuid}")
 
     # Validate the group_uuid and make sure it's one of the valid data providers
     try:
@@ -938,5 +938,5 @@ def set_activity_creation_action(property_key, normalized_type, neo4j_driver, da
     if 'normalized_entity_type' not in data_dict:
         raise KeyError("Missing 'normalized_entity_type' key in 'data_dict' during calling 'set_activity_creation_action()' trigger method.")
     
-    return "Create {normalized_entity_type} Activity".format(normalized_entity_type = data_dict['normalized_entity_type'])
+    return f"Create {normalized_entity_type} Activity"
 

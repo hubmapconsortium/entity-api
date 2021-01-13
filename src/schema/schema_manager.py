@@ -202,7 +202,7 @@ def generate_triggered_data(trigger_type, normalized_class, data_dict, propertie
                 if key in data_dict:
                     trigger_method_name = properties[key][trigger_type]
 
-                    logger.debug("Calling schema " + trigger_type + ": " + trigger_method_name + " defined for " + normalized_class)
+                    logger.debug(f"Calling schema {trigger_type}: {trigger_method_name} defined for {normalized_class}")
 
                     # Call the target trigger method of schema_triggers.py module
                     trigger_method_to_call = getattr(schema_triggers, trigger_method_name)
@@ -226,7 +226,7 @@ def generate_triggered_data(trigger_type, normalized_class, data_dict, propertie
                 # before_create_trigger|before_update_trigger|on_read_trigger
                 trigger_method_name = properties[key][trigger_type]
 
-                logger.debug("Calling schema " + trigger_type + ": " + trigger_method_name + " defined for " + normalized_class)
+                logger.debug(f"Calling schema {trigger_type}: {trigger_method_name} defined for {normalized_class}")
 
                 # Call the target trigger method of schema_triggers.py module
                 trigger_method_to_call = getattr(schema_triggers, trigger_method_name)
@@ -235,17 +235,17 @@ def generate_triggered_data(trigger_type, normalized_class, data_dict, propertie
                     # Will set the trigger return value as the property value
                     trigger_generated_data_dict[key] = trigger_method_to_call(key, normalized_class, _neo4j_driver, data_dict)
                 except schema_errors.NoDataProviderGroupException as e:
-                    msg = "Failed to call the " + trigger_type + " method: " + trigger_method_name
+                    msg = f"Failed to call the {trigger_type} method: {trigger_method_name}"
                     # Log the full stack trace, prepend a line with our message
                     logger.exception(msg)
                     raise schema_errors.NoDataProviderGroupException
                 except schema_errors.MultipleDataProviderGroupException as e:
-                    msg = "Failed to call the " + trigger_type + " method: " + trigger_method_name
+                    msg = f"Failed to call the {trigger_type} method: {trigger_method_name}"
                     # Log the full stack trace, prepend a line with our message
                     logger.exception(msg)
                     raise schema_errors.MultipleDataProviderGroupException
                 except Exception as e:
-                    msg = "Failed to call the " + trigger_type + " method: " + trigger_method_name
+                    msg = f"Failed to call the {trigger_type} method: {trigger_method_name}"
                     # Log the full stack trace, prepend a line with our message
                     logger.exception(msg)
 
@@ -414,7 +414,7 @@ def validate_json_data_against_schema(json_data_dict, normalized_entity_type, ex
 
     if len(unsupported_keys) > 0:
         # No need to log the validation errors
-        raise schema_errors.SchemaValidationException("Unsupported keys in request json: " + separator.join(unsupported_keys))
+        raise schema_errors.SchemaValidationException(f"Unsupported keys in request json: {separator.join(unsupported_keys)}")
 
     # Check if keys in request json are the ones to be auto generated
     generated_keys = []
@@ -425,7 +425,7 @@ def validate_json_data_against_schema(json_data_dict, normalized_entity_type, ex
 
     if len(generated_keys) > 0:
         # No need to log the validation errors
-        raise schema_errors.SchemaValidationException("Auto generated keys are not allowed in request json: " + separator.join(generated_keys))
+        raise schema_errors.SchemaValidationException(f"Auto generated keys are not allowed in request json: {separator.join(generated_keys)}")
 
     # Only check if keys in request json are immutable during entity update
     if not bool(existing_entity_dict):
@@ -437,7 +437,7 @@ def validate_json_data_against_schema(json_data_dict, normalized_entity_type, ex
 
         if len(immutable_keys) > 0:
             # No need to log the validation errors
-            raise schema_errors.SchemaValidationException("Immutable keys are not allowed in request json: " + separator.join(immutable_keys))
+            raise schema_errors.SchemaValidationException(f"Immutable keys are not allowed in request json: {separator.join(immutable_keys)}")
         
     # Check if any schema keys that are required_on_create but missing from POST request on creating new entity
     # No need to check on entity update
@@ -452,7 +452,7 @@ def validate_json_data_against_schema(json_data_dict, normalized_entity_type, ex
 
         if len(missing_required_keys_on_create) > 0:
             # No need to log the validation errors
-            raise schema_errors.SchemaValidationException("Missing required keys in request json: " + separator.join(missing_required_keys_on_create))
+            raise schema_errors.SchemaValidationException(f"Missing required keys in request json: {separator.join(missing_required_keys_on_create)}")
 
     # By now all the keys in request json have passed the above two checks: existence cehck in schema and required check in schema
     # Verify data types of keys
@@ -468,7 +468,7 @@ def validate_json_data_against_schema(json_data_dict, normalized_entity_type, ex
     
     if len(invalid_data_type_keys) > 0:
         # No need to log the validation errors
-        raise schema_errors.SchemaValidationException("Keys in request json with invalid data types: " + separator.join(invalid_data_type_keys))
+        raise schema_errors.SchemaValidationException(f"Keys in request json with invalid data types: {separator.join(invalid_data_type_keys)}")
 
 
 """
@@ -545,7 +545,7 @@ def validate_trigger_type(trigger_type):
     separator = ', '
 
     if trigger_type.lower() not in accepted_trigger_types:
-        msg = "Invalid trigger type: " + trigger_type + ". The trigger type must be one of the following: " + separator.join(accepted_trigger_types)
+        msg = f"Invalid trigger type: {trigger_type}. The trigger type must be one of the following: {separator.join(accepted_trigger_types)}"
         # Log the full stack trace, prepend a line with our message
         logger.exception(msg)
         raise ValueError(msg)
@@ -564,7 +564,7 @@ def validate_normalized_entity_type(normalized_entity_type):
 
     # Validate provided entity_type
     if normalized_entity_type not in accepted_entity_types:
-        msg = "Invalid entity class: " + normalized_entity_type + ". The entity class must be one of the following: " + separator.join(accepted_entity_types)
+        msg = f"Invalid entity class: {normalized_entity_type}. The entity class must be one of the following: {separator.join(accepted_entity_types)}"
         # Log the full stack trace, prepend a line with our message
         logger.exception(msg)
         raise schema_errors.InvalidNormalizedEntityTypeException(msg)
@@ -583,7 +583,7 @@ def validate_normalized_class(normalized_class):
 
     # Validate provided entity_type
     if normalized_class not in accepted_types:
-        msg = "Invalid class: " + normalized_class + ". The class must be one of the following: " + separator.join(accepted_types)
+        msg = f"Invalid class: {normalized_class}. The class must be one of the following: {separator.join(accepted_types)}"
         # Log the full stack trace, prepend a line with our message
         logger.exception(msg)
         raise schema_errors.InvalidNormalizedTypeException(msg)
@@ -602,7 +602,7 @@ def validate_target_entity_type_for_derivation(normalized_target_entity_type):
     accepted_target_entity_types = get_derivation_target_entity_types()
 
     if normalized_target_entity_type not in accepted_target_entity_types:
-        bad_request_error("Invalid target entity type specified for creating the derived entity. Accepted types: " + separator.join(accepted_target_entity_types))
+        bad_request_error(f"Invalid target entity type specified for creating the derived entity. Accepted types: {separator.join(accepted_target_entity_types)}")
 
 """
 Validate the source and target entity types for creating derived entity
@@ -617,7 +617,7 @@ def validate_source_entity_type_for_derivation(normalized_source_entity_type):
     accepted_source_entity_types = get_derivation_source_entity_types()
 
     if normalized_source_entity_type not in accepted_source_entity_types:
-        bad_request_error("Invalid source entity class specified for creating the derived entity. Accepted types: " + separator.join(accepted_source_entity_types))
+        bad_request_error(f"Invalid source entity class specified for creating the derived entity. Accepted types: {separator.join(accepted_source_entity_types)}")
 
 
 ####################################################################################################
@@ -715,14 +715,14 @@ def get_hubmap_ids(id):
         ids_dict = response.json()
         return ids_dict
     elif response.status_code == 404:
-        msg = "Could not find the target id via uuid-api: " + id
+        msg = f"Could not find the target id via uuid-api: {id}"
         # Log the full stack trace, prepend a line with our message
         logger.exception(msg)
         raise requests.exceptions.HTTPError(msg)
     else:
         # uuid-api will also return 400 if the gien id is invalid
         # We'll just hanle that and all other cases all together here
-        msg = "Failed to make a request to query the id via uuid-api: " + id
+        msg = f"Failed to make a request to query the id via uuid-api: {id}"
         # Log the full stack trace, prepend a line with our message
         logger.exception(msg)
         raise requests.exceptions.RequestException(msg)
@@ -864,7 +864,7 @@ def create_hubmap_ids(normalized_class, json_data_dict, user_info_dict):
 
         return ids_dict
     else:
-        msg = "Failed to create new ids via the uuid-api service during the creation of this new " + normalized_class
+        msg = f"Failed to create new ids via the uuid-api service during the creation of this new {normalized_class}" 
         
         # Log the full stack trace, prepend a line with our message
         logger.exception(msg)
@@ -944,7 +944,7 @@ def validate_entity_group_uuid(group_uuid):
     groups_by_id_dict = globus_groups_info['by_id']
 
     if not group_uuid in groups_by_id_dict:
-        msg = "No data_provider groups found for the given group_uuid: " + group_uuid + ". Can't continue."
+        msg = f"No data_provider groups found for the given group_uuid: {group_uuid}. Can't continue."
         # Log the full stack trace, prepend a line with our message
         logger.exception(msg)
         raise schema_errors.NoDataProviderGroupException(msg)

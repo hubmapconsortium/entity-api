@@ -21,12 +21,10 @@ uuid : str
     The uuid of target entity 
 """
 def unlink_entity_to_direct_ancestors(neo4j_driver, uuid):
-    parameterized_query = ("MATCH (s:Entity)-[in:ACTIVITY_INPUT]->(a:Activity)-[out:ACTIVITY_OUTPUT]->(t:Entity) " + 
-                           "WHERE t.uuid = '{uuid}' " +
-                           # Delete the Activity node and in input/out relationships
-                           "DELETE in, a, out")
-
-    query = parameterized_query.format(uuid = uuid)
+    query = (f"MATCH (s:Entity)-[in:ACTIVITY_INPUT]->(a:Activity)-[out:ACTIVITY_OUTPUT]->(t:Entity) "
+             f"WHERE t.uuid = '{uuid}' "
+             # Delete the Activity node and in input/out relationships
+             f"DELETE in, a, out")
 
     logger.debug("======unlink_entity_to_direct_ancestors() query======")
     logger.debug(query)
@@ -70,20 +68,13 @@ list
 """
 def get_dataset_direct_ancestors(neo4j_driver, uuid, property_key = None):
     if property_key:
-        parameterized_query = ("MATCH (s:Dataset)-[:ACTIVITY_INPUT]->(a:Activity)-[:ACTIVITY_OUTPUT]->(t:Entity) " + 
-                               "WHERE t.uuid = '{uuid}' " +
-                               "RETURN apoc.coll.toSet(COLLECT(s.{property_key})) AS {record_field_name}")
-
-        query = parameterized_query.format(uuid = uuid, 
-                                           property_key = property_key,
-                                           record_field_name = record_field_name)
+        query = (f"MATCH (s:Dataset)-[:ACTIVITY_INPUT]->(a:Activity)-[:ACTIVITY_OUTPUT]->(t:Entity) " 
+                 f"WHERE t.uuid = '{uuid}' "
+                 f"RETURN apoc.coll.toSet(COLLECT(s.{property_key})) AS {record_field_name}")
     else:
-        parameterized_query = ("MATCH (s:Dataset)-[:ACTIVITY_INPUT]->(a:Activity)-[:ACTIVITY_OUTPUT]->(t:Entity) " + 
-                               "WHERE t.uuid = '{uuid}' " +
-                               "RETURN apoc.coll.toSet(COLLECT(s)) AS {record_field_name}")
-
-        query = parameterized_query.format(uuid = uuid, 
-                                           record_field_name = record_field_name)
+        query = (f"MATCH (s:Dataset)-[:ACTIVITY_INPUT]->(a:Activity)-[:ACTIVITY_OUTPUT]->(t:Entity) "
+                 f"WHERE t.uuid = '{uuid}' "
+                 f"RETURN apoc.coll.toSet(COLLECT(s)) AS {record_field_name}")
 
     logger.debug("======get_dataset_direct_ancestors() query======")
     logger.debug(query)
@@ -169,20 +160,13 @@ list
 """
 def get_dataset_collections(neo4j_driver, uuid, property_key = None):
     if property_key:
-        parameterized_query = ("MATCH (e:Entity)-[:IN_COLLECTION]->(c:Collection) " + 
-                               "WHERE e.uuid = '{uuid}' " +
-                               "RETURN apoc.coll.toSet(COLLECT(c.{property_key})) AS {record_field_name}")
-
-        query = parameterized_query.format(uuid = uuid, 
-                                           property_key = property_key,
-                                           record_field_name = record_field_name)
+        query = (f"MATCH (e:Entity)-[:IN_COLLECTION]->(c:Collection) "
+                 f"WHERE e.uuid = '{uuid}' "
+                 f"RETURN apoc.coll.toSet(COLLECT(c.{property_key})) AS {record_field_name}")
     else:
-        parameterized_query = ("MATCH (e:Entity)-[:IN_COLLECTION]->(c:Collection) " + 
-                               "WHERE e.uuid = '{uuid}' " +
-                               "RETURN apoc.coll.toSet(COLLECT(c)) AS {record_field_name}")
-
-        query = parameterized_query.format(uuid = uuid, 
-                                           record_field_name = record_field_name)
+        query = (f"MATCH (e:Entity)-[:IN_COLLECTION]->(c:Collection) "
+                 f"WHERE e.uuid = '{uuid}' "
+                 f"RETURN apoc.coll.toSet(COLLECT(c)) AS {record_field_name}")
 
     logger.debug("======get_dataset_collection_uuids() query======")
     logger.debug(query)
@@ -217,13 +201,10 @@ list
     The list comtaining associated dataset dicts
 """
 def get_collection_datasets(neo4j_driver, uuid):
-    parameterized_query = ("MATCH (e:Entity)-[:IN_COLLECTION]->(c:Collection) " + 
-                           "WHERE c.uuid = '{uuid}' " +
-                           "RETURN apoc.coll.toSet(COLLECT(e)) AS {record_field_name}")
+    query = (f"MATCH (e:Entity)-[:IN_COLLECTION]->(c:Collection) "
+             f"WHERE c.uuid = '{uuid}' "
+             f"RETURN apoc.coll.toSet(COLLECT(e)) AS {record_field_name}")
 
-    query = parameterized_query.format(uuid = uuid, 
-                                       record_field_name = record_field_name)
-    
     logger.debug("======get_collection_datasets() query======")
     logger.debug(query)
 
@@ -261,16 +242,12 @@ int
     below the target entity (Donor, Sample and Collection)
 """
 def count_attached_published_datasets(neo4j_driver, entity_type, uuid):
-    parameterized_query = ("MATCH (e:{entity_type})-[r:ACTIVITY_INPUT|:ACTIVITY_OUTPUT*]->(d:Dataset) " +
-                           # Use the string function toLower() to avoid case-sensetivity issue
-                           "WHERE e.uuid='{uuid}' AND toLower(d.status) = 'published' " +
-                           # COLLECT() returns a list
-                           # apoc.coll.toSet() reruns a set containing unique nodes
-                           "RETURN COUNT(d) AS {record_field_name}")
-
-    query = parameterized_query.format(entity_type = entity_type,
-                                       uuid = uuid, 
-                                       record_field_name = record_field_name)
+    query = (f"MATCH (e:{entity_type})-[r:ACTIVITY_INPUT|:ACTIVITY_OUTPUT*]->(d:Dataset) "
+             # Use the string function toLower() to avoid case-sensetivity issue
+             f"WHERE e.uuid='{uuid}' AND toLower(d.status) = 'published' "
+             # COLLECT() returns a list
+             # apoc.coll.toSet() reruns a set containing unique nodes
+             "RETURN COUNT(d) AS {record_field_name}")
 
     logger.debug("======count_attached_published_datasets() query======")
     logger.debug(query)
@@ -300,15 +277,11 @@ data_access_level : str
     The new data_access_level to be updated for the given dataset and its ancestors (Sample/Donor)
 """
 def update_dataset_and_ancestors_data_access_level(neo4j_driver, uuid, data_access_level):
-    parameterized_query = ("MATCH (e:Entity)-[r:ACTIVITY_INPUT|:ACTIVITY_OUTPUT*]->(d:Dataset) " +
-                           "WHERE e.entity_type IN ['Donor', 'Sample'] AND d.uuid='{uuid}' " +
-                           "SET e.data_access_level = '{data_access_level}', d.data_access_level = '{data_access_level}' "
-                           # We don't really use the returned value
-                           "RETURN COUNT(e) AS {record_field_name}")
-
-    query = parameterized_query.format(uuid = uuid, 
-                                       data_access_level = data_access_level,
-                                       record_field_name = record_field_name)
+    query = (f"MATCH (e:Entity)-[r:ACTIVITY_INPUT|:ACTIVITY_OUTPUT*]->(d:Dataset) "
+             f"WHERE e.entity_type IN ['Donor', 'Sample'] AND d.uuid='{uuid}' "
+             f"SET e.data_access_level = '{data_access_level}', d.data_access_level = '{data_access_level}' "
+             # We don't really use the returned value
+             f"RETURN COUNT(e) AS {record_field_name}")
 
     logger.debug("======update_dataset_and_ancestors_data_access_level() query======")
     logger.debug(query)
@@ -350,26 +323,19 @@ dict
 """
 def get_sample_direct_ancestor(neo4j_driver, uuid, property_key = None):
     if property_key:
-        parameterized_query = ("MATCH (e:Entity)<-[:ACTIVITY_OUTPUT]-(:Activity)<-[:ACTIVITY_INPUT]-(parent:Entity) " +
-                               # Filter out the Lab entity if it's the ancestor
-                               "WHERE e.uuid='{uuid}' AND parent.entity_type <> 'Lab' " +
-                               # COLLECT() returns a list
-                               # apoc.coll.toSet() reruns a set containing unique nodes
-                               "RETURN parent.{property_key} AS {record_field_name}")
-
-        query = parameterized_query.format(uuid = uuid, 
-                                           property_key = property_key,
-                                           record_field_name = record_field_name)
+        query = (f"MATCH (e:Entity)<-[:ACTIVITY_OUTPUT]-(:Activity)<-[:ACTIVITY_INPUT]-(parent:Entity) "
+                 # Filter out the Lab entity if it's the ancestor
+                 f"WHERE e.uuid='{uuid}' AND parent.entity_type <> 'Lab' "
+                 # COLLECT() returns a list
+                 # apoc.coll.toSet() reruns a set containing unique nodes
+                 f"RETURN parent.{property_key} AS {record_field_name}")
     else:
-        parameterized_query = ("MATCH (e:Entity)<-[:ACTIVITY_OUTPUT]-(:Activity)<-[:ACTIVITY_INPUT]-(parent:Entity) " +
-                               # Filter out the Lab entity if it's the ancestor
-                               "WHERE e.uuid='{uuid}' AND parent.entity_type <> 'Lab' " +
-                               # COLLECT() returns a list
-                               # apoc.coll.toSet() reruns a set containing unique nodes
-                               "RETURN parent AS {record_field_name}")
-
-        query = parameterized_query.format(uuid = uuid, 
-                                           record_field_name = record_field_name)
+        query = (f"MATCH (e:Entity)<-[:ACTIVITY_OUTPUT]-(:Activity)<-[:ACTIVITY_INPUT]-(parent:Entity) "
+                 # Filter out the Lab entity if it's the ancestor
+                 f"WHERE e.uuid='{uuid}' AND parent.entity_type <> 'Lab' "
+                 # COLLECT() returns a list
+                 # apoc.coll.toSet() reruns a set containing unique nodes
+                 f"RETURN parent AS {record_field_name}")
 
     logger.debug("======get_sample_direct_ancestor() query======")
     logger.debug(query)
@@ -408,14 +374,11 @@ neo4j.node
 """
 def create_activity_tx(tx, json_list_str):
     # UNWIND expects json.entities to be List<T>
-    parameterized_query = ("WITH apoc.convert.fromJsonList('{json_list_str}') AS activities_list " +
-                           "UNWIND activities_list AS data " +
-                           "CREATE (a:Activity) " +
-                           "SET a = data " +
-                           "RETURN a AS {record_field_name}")
-
-    query = parameterized_query.format(json_list_str = json_list_str,
-                                       record_field_name = record_field_name)
+    query = (f"WITH apoc.convert.fromJsonList('{json_list_str}') AS activities_list "
+             f"UNWIND activities_list AS data "
+             f"CREATE (a:Activity) "
+             f"SET a = data "
+             f"RETURN a AS {record_field_name}")
 
     logger.debug("======create_activity_tx() query======")
     logger.debug(query)
@@ -462,17 +425,10 @@ def _create_relationship_tx(tx, source_node_uuid, target_node_uuid, relationship
     if direction == "->":
         outgoing = direction
 
-    parameterized_query = ("MATCH (s), (t) " +
-                           "WHERE s.uuid = '{source_node_uuid}' AND t.uuid = '{target_node_uuid}' " +
-                           "CREATE (s){incoming}[r:{relationship}]{outgoing}(t) " +
-                           "RETURN type(r) AS {record_field_name}") 
-
-    query = parameterized_query.format(source_node_uuid = source_node_uuid,
-                                       target_node_uuid = target_node_uuid,
-                                       incoming = incoming,
-                                       relationship = relationship,
-                                       outgoing = outgoing,
-                                       record_field_name = record_field_name)
+    query = (f"MATCH (s), (t) "
+             f"WHERE s.uuid = '{source_node_uuid}' AND t.uuid = '{target_node_uuid}' "
+             f"CREATE (s){incoming}[r:{relationship}]{outgoing}(t) "
+             f"RETURN type(r) AS {record_field_name}") 
 
     logger.debug("======_create_relationship_tx() query======")
     logger.debug(query)
@@ -482,7 +438,7 @@ def _create_relationship_tx(tx, source_node_uuid, target_node_uuid, relationship
     relationship = record[record_field_name]
 
     logger.debug("======_create_relationship_tx() resulting relationship======")
-    logger.debug("(source node) " + incoming + " [:" + relationship + "] " + outgoing + " (target node)")
+    logger.debug(f"(source node) {incoming} [:{relationship}] {outgoing} (target node)")
 
     return relationship
 
