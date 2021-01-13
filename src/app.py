@@ -281,12 +281,16 @@ def get_entity_provenance(id):
     if 'depth' in request.args:
         depth = int(request.args.get('depth'))
 
-    provenance_data = provenance.get_provenance_history(uuid, depth)
+    # Convert neo4j json to dict
+    neo4j_result = app_neo4j_queries.get_provenance(neo4j_driver_instance, uuid, depth)
+    provenance_dict = dict(neo4j_result['json'])
+
+    provenance_json = provenance.get_provenance_history(provenance_dict)
     
     # Response with the provenance details
     #return jsonify(provenance_data)
 
-    return provenance_data
+    return provenance_json
 
 """
 Show all the supported entity types

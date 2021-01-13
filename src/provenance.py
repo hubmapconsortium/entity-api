@@ -38,7 +38,7 @@ HUBMAP_PROV_USER_EMAIL = 'hubmap:userEmail'
 HUBMAP_PROV_USER_UUID = 'hubmap:userUUID'
 
 
-def get_provenance_history(uuid, depth = None):
+def get_provenance_history(provenance_dict):
     metadata_ignore_attributes = [
         'entity_type', 
         'created_timestamp', 
@@ -70,33 +70,22 @@ def get_provenance_history(uuid, depth = None):
     
     relation_list = []
     
-    # max_level_str is the string used to put a limit on the number of levels to traverse
-    max_level_str = ''
-    if depth is not None and len(str(depth)) > 0:
-        max_level_str = f"maxLevel: {depth}, "
+    if 'relationships' not in provenance_dict:
+        raise LookupError(f"No relationships found for uuid: {uuid}")
 
-    # Convert neo4j json to dict
-    result = app_neo4j_queries.get_provenance(neo4j_driver_instance, uuid, max_level_str)
-    record = dict(result['json'])
-    
-    logger.info(record)
-
-    if 'relationships' not in record:
-        raise LookupError(f"Unable to find relationships for uuid: {uuid}")
-
-    if 'nodes' not in record:
-        raise LookupError(f"Unable to find nodes for uuid: {uuid}")
+    if 'nodes' not in provenance_dict:
+        raise LookupError(f"No graph nodes found for uuid: {uuid}")
     
     node_dict = {}
     # pack the nodes into a dictionary using the uuid as a key
-    for node_record in record['nodes']:
-        node_dict[node_record['uuid']] = node_record
+    for node in provenance_dict['nodes']:
+        node_dict[node['uuid']] = node
         
     # TODO: clean up nodes
     # remove nodes that lack metadata
     
     # need to devise a methodology for this
-    # try preprocessing the record['relationships'] here:
+    # try preprocessing the provenance_dict['relationships'] here:
     # make a copy of the node_dict called unreferenced_node_dict
     # loop through the relationships and find all the has_metadata relationships
     # for each node pair in the has_metadata relationship, delete it from the unreferenced_node_dict
@@ -105,12 +94,13 @@ def get_provenance_history(uuid, depth = None):
     # unreferenced_node_dict, then ignore the relationship
         
     # now, connect the nodes
-    for rel_record in record['relationships']:
-        from_uuid = rel_record['fromNode']['uuid']
-        to_uuid = rel_record['toNode']['uuid']
+    for rel_dict in provenance_dict['relationships']:
+        from_uuid = rel_dict['fromNode']['uuid']
+        to_uuid = rel_dict['toNode']['uuid']
         from_node = node_dict[from_uuid]
         to_node = node_dict[to_uuid]
-        if rel_record['rel_data']['type'] == 'HAS_METADATA':
+        
+        if rel_dict['rel_data']['type'] == 'HAS_METADATA':
             # assign the metadata node as the metadata attribute
             # just extract the provenance information from the metadata node
             
@@ -148,8 +138,10 @@ def get_provenance_history(uuid, depth = None):
             agent_record = get_agent_record(to_node)
             agent_unique_id = str(agent_record[HUBMAP_PROV_USER_EMAIL]).replace('@', '-')
             agent_unique_id = str(agent_unique_id).replace('.', '-')
+
             if HUBMAP_PROV_USER_UUID in agent_record:
                 agent_unique_id =agent_record[HUBMAP_PROV_USER_UUID]
+                
             agent_uri = build_uri('hubmap','agent',agent_unique_id)
             organization_record = get_organization_record(to_node)
             organization_uri = build_uri('hubmap','organization',organization_record[HUBMAP_PROV_GROUP_UUID])
@@ -190,9 +182,11 @@ def get_provenance_history(uuid, depth = None):
                 activity_timestamp_json = get_json_timestamp(int(to_node['created_timestamp']))
                 doc_activity = prov_doc.activity(build_uri('hubmap','activities',from_node['uuid']), activity_timestamp_json, activity_timestamp_json, other_attributes)
                 prov_doc.actedOnBehalfOf(doc_agent, doc_org, doc_activity)
-        elif rel_record['rel_data']['type'] in ['ACTIVITY_OUTPUT', 'ACTIVITY_INPUT']:
+        
+        elif rel_dict['rel_data']['type'] in ['ACTIVITY_OUTPUT', 'ACTIVITY_INPUT']:
             to_node_uri = None
             from_node_uri = None
+
             if 'entity_type' in to_node:
                 to_node_uri = build_uri('hubmap', 'entities', to_node['uuid'])
             else:
@@ -203,21 +197,31 @@ def get_provenance_history(uuid, depth = None):
             else:
                 from_node_uri = build_uri('hubmap', 'activities', from_node['uuid'])
             
-            if rel_record['rel_data']['type'] == 'ACTIVITY_OUTPUT':
+            if rel_dict['rel_data']['type'] == 'ACTIVITY_OUTPUT':
                 #prov_doc.wasGeneratedBy(entity, activity, time, identifier, other_attributes)
                 prov_doc.wasGeneratedBy(to_node_uri, from_node_uri)
 
-            if rel_record['rel_data']['type'] == 'ACTIVITY_INPUT':
+            if rel_dict['rel_data']['type'] == 'ACTIVITY_INPUT':
                 #prov_doc.used(activity, entity, time, identifier, other_attributes)
                 prov_doc.used(to_node_uri, from_node_uri)
             
             # for now, simply create a "relation" where the fromNode's uuid is connected to a toNode's uuid via a relationship:
             # ex: {'fromNodeUUID': '42e10053358328c9079f1c8181287b6d', 'relationship': 'ACTIVITY_OUTPUT', 'toNodeUUID': '398400024fda58e293cdb435db3c777e'}
-            rel_data_record = {'fromNodeUUID' : from_node['uuid'], 'relationship' : rel_record['rel_data']['type'], 'toNodeUUID' : to_node['uuid']}
+            rel_data_record = {
+                'fromNodeUUID': from_node['uuid'], 
+                'relationship': rel_dict['rel_data']['type'], 
+                'toNodeUUID': to_node['uuid']
+            }
+
             relation_list.append(rel_data_record)
     
-    return_data = {'nodes' : node_dict, 'relations' : relation_list}  
+    # Why not being used? 
+    return_data = {
+        'nodes': node_dict, 
+        'relations': relation_list
+    }  
 
+    logger.debug(return_data)
 
     # there is a bug in the JSON serializer.  So manually insert the prov prefix
     

@@ -224,14 +224,14 @@ def get_collection_datasets(neo4j_driver, uuid):
 
 
 """
-Get count of published Dataset in the provenance hierarchy for a given Collection/Sample/Donor
+Get count of published Dataset in the provenance hierarchy for a given Sample/Donor
 
 Parameters
 ----------
 neo4j_driver : neo4j.Driver object
     The neo4j database connection pool
 entity_type : str
-    One of the normalized entity types: Collection, Sample, Donor
+    One of the normalized entity types: Sample, Donor
 uuid : str
     The uuid of target entity 
 
