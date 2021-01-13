@@ -583,6 +583,10 @@ def create_entity(entity_type):
     # Will also filter the result based on schema
     normalized_complete_dict = schema_manager.normalize_entity_result_for_response(complete_dict)
 
+    # How to handle reindex collection?
+    # Also index the new entity node in elasticsearch via search-api
+    reindex_entity(complete_dict['uuid'])
+
     return jsonify(normalized_complete_dict)
 
 
