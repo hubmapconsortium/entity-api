@@ -695,7 +695,7 @@ def get_provenance(neo4j_driver, uuid, depth):
     
     # More info on apoc.path.subgraphAll() procedure: https://neo4j.com/labs/apoc/4.0/graph-querying/expand-subgraph/
     query = (f"MATCH (n:Entity) "
-             f"WHERE n.uuid = '{uuid}' " 
+             f"WHERE n.uuid = '{uuid}' AND n.entity_type <> 'Lab' " 
              f"CALL apoc.path.subgraphAll(n, {{ {max_level_str} relationshipFilter:'<ACTIVITY_INPUT|<ACTIVITY_OUTPUT' }}) "
              f"YIELD nodes, relationships "
              f"WITH [node in nodes | node {{ .*, label:labels(node)[0] }} ] as nodes, "

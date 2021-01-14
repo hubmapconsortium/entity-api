@@ -2,9 +2,13 @@ import prov
 from prov.serializers.provjson import ProvJSONSerializer
 from prov.model import ProvDocument, PROV_TYPE, Namespace, NamespaceManager
 import logging
+import datetime
 
 # Local modules
 import app_neo4j_queries
+
+# HuBMAP commons
+from hubmap_commons import globus_groups
 
 # Set logging fromat and level (default is warning)
 # All the API logging is forwarded to the uWSGI server and gets written into the log file `uwsgo-entity-api.log`
@@ -39,13 +43,10 @@ HUBMAP_PROV_USER_UUID = 'hubmap:userUUID'
 
 
 def get_provenance_history(provenance_dict):
-    metadata_ignore_attributes = [
+    ignore_attributes = [
         'entity_type', 
         'created_timestamp', 
-        'reference_uuid',
         'uuid', 
-        'source_uuid', 
-        'source_display_id', # Gone
         'label'
     ]
     
@@ -76,17 +77,17 @@ def get_provenance_history(provenance_dict):
     if 'nodes' not in provenance_dict:
         raise LookupError(f"No graph nodes found for uuid: {uuid}")
     
-    node_dict = {}
+    nodes_dict = {}
     # pack the nodes into a dictionary using the uuid as a key
     for node in provenance_dict['nodes']:
-        node_dict[node['uuid']] = node
+        nodes_dict[node['uuid']] = node
         
     # TODO: clean up nodes
     # remove nodes that lack metadata
     
     # need to devise a methodology for this
     # try preprocessing the provenance_dict['relationships'] here:
-    # make a copy of the node_dict called unreferenced_node_dict
+    # make a copy of the nodes_dict called unreferenced_node_dict
     # loop through the relationships and find all the has_metadata relationships
     # for each node pair in the has_metadata relationship, delete it from the unreferenced_node_dict
     # once the loop is finished, continue as before
@@ -97,127 +98,111 @@ def get_provenance_history(provenance_dict):
     for rel_dict in provenance_dict['relationships']:
         from_uuid = rel_dict['fromNode']['uuid']
         to_uuid = rel_dict['toNode']['uuid']
-        from_node = node_dict[from_uuid]
-        to_node = node_dict[to_uuid]
+
+        from_node = nodes_dict[from_uuid]
+        to_node = nodes_dict[to_uuid]
         
-        if rel_dict['rel_data']['type'] == 'HAS_METADATA':
-            # assign the metadata node as the metadata attribute
-            # just extract the provenance information from the metadata node
-            
-            entity_timestamp_json = get_json_timestamp(int(to_node['created_timestamp']))
-            
-            provenance_data = {
-                PROV_GENERATED_TIME_ATTRIBUTE : entity_timestamp_json
-            }
+        type_code = None
+        isEntity = True
+        if 'entity_type' in from_node:
+            type_code = from_node['entity_type']
+        elif 'creation_action' in from_node:
+            type_code = from_node['creation_action']
+            isEntity = False
 
-            type_code = None
-            isEntity = True
-            if 'entity_type' in from_node:
-                type_code = from_node['entity_type']
-            elif 'creation_action' in from_node:
-                type_code = from_node['creation_action']
-                isEntity = False
-            label_text = None                                
-            if 'submission_id' in from_node:
-                label_text = from_node['submission_id']
-            else:
-                label_text = from_node['uuid']
-                
-            # build metadata attribute from the Metadata node
-            metadata_attribute = {}
-            for attribute_key in to_node:
-                if attribute_key not in metadata_ignore_attributes:
-                    if attribute_key in known_attribute_map:                                            
-                        # special case: timestamps
-                        if attribute_key == 'last_modified_timestamp':
-                            provenance_data[known_attribute_map[attribute_key]] = get_json_timestamp(int(to_node[attribute_key]))
-                    else: #add any extraneous data to the metadata attribute
-                        metadata_attribute[attribute_key] = to_node[attribute_key]
-                   
-            # Need to add the agent and organization here, plus the appropriate relationships (between the entity and the agent plus orgainzation)
-            agent_record = get_agent_record(to_node)
-            agent_unique_id = str(agent_record[HUBMAP_PROV_USER_EMAIL]).replace('@', '-')
-            agent_unique_id = str(agent_unique_id).replace('.', '-')
-
-            if HUBMAP_PROV_USER_UUID in agent_record:
-                agent_unique_id =agent_record[HUBMAP_PROV_USER_UUID]
-                
-            agent_uri = build_uri('hubmap','agent',agent_unique_id)
-            organization_record = get_organization_record(to_node)
-            organization_uri = build_uri('hubmap','organization',organization_record[HUBMAP_PROV_GROUP_UUID])
-            doc_agent = None
-            doc_org = None
-            
-            get_agent = prov_doc.get_record(agent_uri)
-            # only add this once
-            if len(get_agent) == 0:
-                doc_agent = prov_doc.agent(agent_uri, agent_record)
-            else:
-                doc_agent = get_agent[0]
-
-            get_org = prov_doc.get_record(organization_uri)
-            # only add this once
-            if len(get_org) == 0:
-                doc_org = prov_doc.agent(organization_uri, organization_record)
-            else:
-                doc_org = get_org[0]
-                      
-            other_attributes = {
-                PROV_LABEL_ATTRIBUTE : label_text,
-                PROV_TYPE_ATTRIBUTE : type_code, 
-                HUBMAP_DOI_ATTRIBUTE : from_node['doi'],
-                HUBMAP_DISPLAY_DOI_ATTRIBUTE : from_node['hubmap_id'],
-                HUBMAP_DISPLAY_IDENTIFIER_ATTRIBUTE : label_text, 
-                HUBMAP_UUID_ATTRIBUTE : from_node['uuid']                                                    
-            }
-
-            # only add metadata if it contains data
-            if len(metadata_attribute) > 0:
-                other_attributes[HUBMAP_METADATA_ATTRIBUTE] = json.dumps(metadata_attribute)
-            # add the provenance data to the other_attributes
-            other_attributes.update(provenance_data)
-            if isEntity == True:
-                prov_doc.entity(build_uri('hubmap','entities',from_node['uuid']), other_attributes)
-            else:
-                activity_timestamp_json = get_json_timestamp(int(to_node['created_timestamp']))
-                doc_activity = prov_doc.activity(build_uri('hubmap','activities',from_node['uuid']), activity_timestamp_json, activity_timestamp_json, other_attributes)
-                prov_doc.actedOnBehalfOf(doc_agent, doc_org, doc_activity)
+        label_text = None                                
+        if 'submission_id' in from_node:
+            label_text = from_node['submission_id']
+        else:
+            label_text = from_node['uuid']
         
-        elif rel_dict['rel_data']['type'] in ['ACTIVITY_OUTPUT', 'ACTIVITY_INPUT']:
-            to_node_uri = None
-            from_node_uri = None
+        # Need to add the agent and organization here, plus the appropriate relationships (between the entity and the agent plus orgainzation)
+        agent_record = get_agent_record(to_node)
+        agent_unique_id = str(agent_record[HUBMAP_PROV_USER_EMAIL]).replace('@', '-')
+        agent_unique_id = str(agent_unique_id).replace('.', '-')
 
-            if 'entity_type' in to_node:
-                to_node_uri = build_uri('hubmap', 'entities', to_node['uuid'])
-            else:
-                to_node_uri = build_uri('hubmap', 'activities', to_node['uuid'])
-            
-            if 'entity_type' in from_node:
-                from_node_uri = build_uri('hubmap', 'entities', from_node['uuid'])
-            else:
-                from_node_uri = build_uri('hubmap', 'activities', from_node['uuid'])
-            
-            if rel_dict['rel_data']['type'] == 'ACTIVITY_OUTPUT':
-                #prov_doc.wasGeneratedBy(entity, activity, time, identifier, other_attributes)
-                prov_doc.wasGeneratedBy(to_node_uri, from_node_uri)
+        if HUBMAP_PROV_USER_UUID in agent_record:
+            agent_unique_id = agent_record[HUBMAP_PROV_USER_UUID]
 
-            if rel_dict['rel_data']['type'] == 'ACTIVITY_INPUT':
-                #prov_doc.used(activity, entity, time, identifier, other_attributes)
-                prov_doc.used(to_node_uri, from_node_uri)
-            
-            # for now, simply create a "relation" where the fromNode's uuid is connected to a toNode's uuid via a relationship:
-            # ex: {'fromNodeUUID': '42e10053358328c9079f1c8181287b6d', 'relationship': 'ACTIVITY_OUTPUT', 'toNodeUUID': '398400024fda58e293cdb435db3c777e'}
-            rel_data_record = {
-                'fromNodeUUID': from_node['uuid'], 
-                'relationship': rel_dict['rel_data']['type'], 
-                'toNodeUUID': to_node['uuid']
-            }
+        agent_uri = build_uri('hubmap','agent',agent_unique_id)
+        organization_record = get_organization_record(to_node)
+        organization_uri = build_uri('hubmap','organization',organization_record[HUBMAP_PROV_GROUP_UUID])
+        doc_agent = None
+        doc_org = None
+        
+        get_agent = prov_doc.get_record(agent_uri)
+        # only add this once
+        if len(get_agent) == 0:
+            doc_agent = prov_doc.agent(agent_uri, agent_record)
+        else:
+            doc_agent = get_agent[0]
 
-            relation_list.append(rel_data_record)
+        get_org = prov_doc.get_record(organization_uri)
+        # only add this once
+        if len(get_org) == 0:
+            doc_org = prov_doc.agent(organization_uri, organization_record)
+        else:
+            doc_org = get_org[0]
+                  
+        other_attributes = {
+            PROV_LABEL_ATTRIBUTE: label_text,
+            PROV_TYPE_ATTRIBUTE: type_code, 
+            # doi renamed to doi_sufix_id, and doi_sufix_id is no longer needed
+            #HUBMAP_DOI_ATTRIBUTE : from_node['doi'],
+
+            # display_doi renamed to hubmap_id
+            #HUBMAP_DISPLAY_DOI_ATTRIBUTE: from_node['hubmap_id'],
+            HUBMAP_DISPLAY_IDENTIFIER_ATTRIBUTE: label_text, 
+            HUBMAP_UUID_ATTRIBUTE: from_node['uuid']                                                    
+        }
+
+        if isEntity == True:
+            prov_doc.entity(build_uri('hubmap','entities',from_node['uuid']), other_attributes)
+        else:
+            activity_timestamp_json = get_json_timestamp(int(to_node['created_timestamp']))
+            doc_activity = prov_doc.activity(build_uri('hubmap','activities',from_node['uuid']), activity_timestamp_json, activity_timestamp_json, other_attributes)
+            prov_doc.actedOnBehalfOf(doc_agent, doc_org, doc_activity)
     
+
+
+
+
+
+
+        to_node_uri = None
+        from_node_uri = None
+
+        if 'entity_type' in to_node:
+            to_node_uri = build_uri('hubmap', 'entities', to_node['uuid'])
+        else:
+            to_node_uri = build_uri('hubmap', 'activities', to_node['uuid'])
+        
+        if 'entity_type' in from_node:
+            from_node_uri = build_uri('hubmap', 'entities', from_node['uuid'])
+        else:
+            from_node_uri = build_uri('hubmap', 'activities', from_node['uuid'])
+        
+        if rel_dict['rel_data']['type'] == 'ACTIVITY_OUTPUT':
+            #prov_doc.wasGeneratedBy(entity, activity, time, identifier, other_attributes)
+            prov_doc.wasGeneratedBy(to_node_uri, from_node_uri)
+
+        if rel_dict['rel_data']['type'] == 'ACTIVITY_INPUT':
+            #prov_doc.used(activity, entity, time, identifier, other_attributes)
+            prov_doc.used(to_node_uri, from_node_uri)
+        
+        # for now, simply create a "relation" where the fromNode's uuid is connected to a toNode's uuid via a relationship:
+        # ex: {'fromNodeUUID': '42e10053358328c9079f1c8181287b6d', 'relationship': 'ACTIVITY_OUTPUT', 'toNodeUUID': '398400024fda58e293cdb435db3c777e'}
+        rel_data_record = {
+            'fromNodeUUID': from_node['uuid'], 
+            'relationship': rel_dict['rel_data']['type'], 
+            'toNodeUUID': to_node['uuid']
+        }
+
+        relation_list.append(rel_data_record)
+
     # Why not being used? 
     return_data = {
-        'nodes': node_dict, 
+        'nodes': nodes_dict, 
         'relations': relation_list
     }  
 
@@ -255,6 +240,11 @@ def get_agent_record(node_data):
     return return_dict
 
 def get_organization_record(node_data):
+	# Get the globus groups info based on the groups json file in commons package
+    globus_groups_info = globus_groups.get_globus_groups_info()
+    groups_by_id_dict = globus_groups_info['by_id']
+    groups_by_name_dict = globus_groups_info['by_name']
+
     organization_attribute_map = {
         'displayname' : HUBMAP_PROV_GROUP_NAME, 
         'uuid' : HUBMAP_PROV_GROUP_UUID
@@ -266,17 +256,17 @@ def get_organization_record(node_data):
     group_record = {}
     if 'group_uuid' in node_data:
         group_uuid = node_data['group_uuid']
-        if group_uuid in self.groupsById:
-            group_record = self.groupsById[group_uuid]
+        if group_uuid in groups_by_id_dict:
+            group_record = groups_by_id_dict[group_uuid]
         else:
             raise LookupError('Cannot find group for uuid: ' + group_uuid)
     elif 'group_name' in node_data:
         group_name = node_data['group_name']
-        if group_name in self.groupsByName:
-            group_record = self.groupsByName[group_name]
+        if group_name in groups_by_name_dict:
+            group_record = groups_by_name_dict[group_name]
         #handle the case where the group UUID is incorrectly stored in the name field:
-        elif group_name in self.groupsById:
-            group_record = self.groupsById[group_name]
+        elif group_name in groups_by_id_dict:
+            group_record = groups_by_id_dict[group_name]
         else:
             raise LookupError('Cannot find group for name: ' + group_name)
     for attribute_key in group_record:

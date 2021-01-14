@@ -1450,12 +1450,8 @@ Make a call to search-api to reindex this entity node in elasticsearch
 
 Parameters
 ----------
-request : Flask request object
-    The Flask request passed from the API endpoint 
-
-Returns
--------
-dict
+uuid : str
+    The uuid of the target entity
 """
 def reindex_entity(uuid):
     try:
