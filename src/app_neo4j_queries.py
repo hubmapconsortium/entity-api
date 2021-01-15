@@ -580,6 +580,66 @@ def add_datasets_to_collection(neo4j_driver, collection_uuid, dataset_uuids_list
         raise TransactionError(msg)
 
 
+"""
+Retrive the full tree above the given entity
+
+Parameters
+----------
+neo4j_driver : neo4j.Driver object
+    The neo4j database connection pool
+uuid : str
+    The uuid of target entity: Donor/Sample/Dataset, not Collection 
+depth : int
+    The maximum number of hops in the traversal
+"""
+def get_provenance(neo4j_driver, uuid, depth):
+    # max_level_str is the string used to put a limit on the number of levels to traverse
+    max_level_str = ''
+    if depth is not None and len(str(depth)) > 0:
+        max_level_str = f"maxLevel: {depth}, "
+ 
+        """
+    Basically this Cypher query returns a collection of nodes and relationships.  The relationships include ACTIVITY_INPUT, ACTIVITY_OUTPUT and
+    HAS_METADATA.  First, we build a dictionary of the nodes using uuid as a key.  Next, we loop through the relationships looking for HAS_METADATA 
+    relationships.  The HAS_METADATA relationships connect the Entity nodes with their metadata.  The data from the Metadata node
+    becomes the 'metadata' attribute for the Entity node.
+    """
+
+
+    """Possible replacement:
+    THIS WORKS...NEEDS LOTS of COMMENTS!!
+    MATCH (entity_metadata)<-[r1:HAS_METADATA]-(e)<-[r2:ACTIVITY_OUTPUT]-(a:Activity)-[r3:HAS_METADATA]->(activity_metadata) 
+                    WHERE e.hubmap_identifier = 'TEST0010-LK-1-1'
+                    WITH [e,a, entity_metadata, activity_metadata] AS entities, COLLECT(r1) + COLLECT(r2) + COLLECT(r3) AS relationships
+                    WITH [node in entities | node {.*, label:labels(node)}] AS nodes, [rel in relationships | rel { .*, fromNode: { label:labels(startNode(rel))[0], uuid:startNode(rel).uuid } , toNode: { label:labels(endNode(rel))[0], uuid:endNode(rel).uuid }, rel_data: { type: type(rel) } } ] as rels
+                    RETURN nodes, rels
+    UNION OPTIONAL MATCH (activity_metadata)<-[r1:HAS_METADATA]-(a:Activity)<-[r2:ACTIVITY_INPUT|:ACTIVITY_OUTPUT*]-(parent)-[r3:HAS_METADATA]->(parent_metadata),
+    (e)<-[r4:ACTIVITY_OUTPUT]-(a:Activity) 
+                    WHERE e.hubmap_identifier = 'TEST0010-LK-1-1'
+                    WITH [parent,parent_metadata, a, activity_metadata] AS nodes, [rel in COLLECT(r1) + COLLECT(r3) + COLLECT(r4)+COLLECT(apoc.convert.toRelationship(r2)) | rel { .*, fromNode: { label:labels(startNode(rel))[0], uuid:startNode(rel).uuid } , toNode: { label:labels(endNode(rel))[0], uuid:endNode(rel).uuid }, rel_data: { type: type(rel) } } ] as rels
+                    RETURN DISTINCT nodes, rels                
+    uuid for TEST0010-LK-1-1 for testing: eda3916db4695d834eb6c51a893d06f1
+    """
+    
+    # More info on apoc.path.subgraphAll() procedure: https://neo4j.com/labs/apoc/4.0/graph-querying/expand-subgraph/
+    query = (f"MATCH (n:Entity) "
+             f"WHERE n.uuid = '{uuid}' AND n.entity_type <> 'Lab' " 
+             f"CALL apoc.path.subgraphAll(n, {{ {max_level_str} relationshipFilter:'<ACTIVITY_INPUT|<ACTIVITY_OUTPUT' }}) "
+             f"YIELD nodes, relationships "
+             f"WITH [node in nodes | node {{ .*, label:labels(node)[0] }} ] as nodes, "
+             f"[rel in relationships | rel {{ .*, fromNode: {{ label:labels(startNode(rel))[0], uuid:startNode(rel).uuid }}, toNode: {{ label:labels(endNode(rel))[0], uuid:endNode(rel).uuid }}, rel_data: {{ type: type(rel) }} }} ] as rels "
+             f"WITH {{ nodes:nodes, relationships:rels }} as json "
+             f"RETURN json")
+
+    logger.debug("======get_provenance() query======")
+    logger.debug(query)
+
+    with neo4j_driver.session() as session:
+        result = session.run(query)
+        record = result.single()
+
+        return record
+        
 ####################################################################################################
 ## Internal Functions
 ####################################################################################################
@@ -657,59 +717,4 @@ def _node_to_dict(entity_node):
     return entity_dict
 
 
-
-
-
-
-
-
-
-def get_provenance(neo4j_driver, uuid, depth):
-    # max_level_str is the string used to put a limit on the number of levels to traverse
-    max_level_str = ''
-    if depth is not None and len(str(depth)) > 0:
-        max_level_str = f"maxLevel: {depth}, "
- 
-        """
-    Basically this Cypher query returns a collection of nodes and relationships.  The relationships include ACTIVITY_INPUT, ACTIVITY_OUTPUT and
-    HAS_METADATA.  First, we build a dictionary of the nodes using uuid as a key.  Next, we loop through the relationships looking for HAS_METADATA 
-    relationships.  The HAS_METADATA relationships connect the Entity nodes with their metadata.  The data from the Metadata node
-    becomes the 'metadata' attribute for the Entity node.
-    """
-
-
-    """Possible replacement:
-    THIS WORKS...NEEDS LOTS of COMMENTS!!
-    MATCH (entity_metadata)<-[r1:HAS_METADATA]-(e)<-[r2:ACTIVITY_OUTPUT]-(a:Activity)-[r3:HAS_METADATA]->(activity_metadata) 
-                    WHERE e.hubmap_identifier = 'TEST0010-LK-1-1'
-                    WITH [e,a, entity_metadata, activity_metadata] AS entities, COLLECT(r1) + COLLECT(r2) + COLLECT(r3) AS relationships
-                    WITH [node in entities | node {.*, label:labels(node)}] AS nodes, [rel in relationships | rel { .*, fromNode: { label:labels(startNode(rel))[0], uuid:startNode(rel).uuid } , toNode: { label:labels(endNode(rel))[0], uuid:endNode(rel).uuid }, rel_data: { type: type(rel) } } ] as rels
-                    RETURN nodes, rels
-    UNION OPTIONAL MATCH (activity_metadata)<-[r1:HAS_METADATA]-(a:Activity)<-[r2:ACTIVITY_INPUT|:ACTIVITY_OUTPUT*]-(parent)-[r3:HAS_METADATA]->(parent_metadata),
-    (e)<-[r4:ACTIVITY_OUTPUT]-(a:Activity) 
-                    WHERE e.hubmap_identifier = 'TEST0010-LK-1-1'
-                    WITH [parent,parent_metadata, a, activity_metadata] AS nodes, [rel in COLLECT(r1) + COLLECT(r3) + COLLECT(r4)+COLLECT(apoc.convert.toRelationship(r2)) | rel { .*, fromNode: { label:labels(startNode(rel))[0], uuid:startNode(rel).uuid } , toNode: { label:labels(endNode(rel))[0], uuid:endNode(rel).uuid }, rel_data: { type: type(rel) } } ] as rels
-                    RETURN DISTINCT nodes, rels                
-    uuid for TEST0010-LK-1-1 for testing: eda3916db4695d834eb6c51a893d06f1
-    """
-    
-    # More info on apoc.path.subgraphAll() procedure: https://neo4j.com/labs/apoc/4.0/graph-querying/expand-subgraph/
-    query = (f"MATCH (n:Entity) "
-             f"WHERE n.uuid = '{uuid}' AND n.entity_type <> 'Lab' " 
-             f"CALL apoc.path.subgraphAll(n, {{ {max_level_str} relationshipFilter:'<ACTIVITY_INPUT|<ACTIVITY_OUTPUT' }}) "
-             f"YIELD nodes, relationships "
-             f"WITH [node in nodes | node {{ .*, label:labels(node)[0] }} ] as nodes, "
-             f"[rel in relationships | rel {{ .*, fromNode: {{ label:labels(startNode(rel))[0], uuid:startNode(rel).uuid }}, toNode: {{ label:labels(endNode(rel))[0], uuid:endNode(rel).uuid }}, rel_data: {{ type: type(rel) }} }} ] as rels "
-             f"WITH {{ nodes:nodes, relationships:rels }} as json "
-             f"RETURN json")
-
-    logger.debug("======get_provenance() query======")
-    logger.debug(query)
-
-    with neo4j_driver.session() as session:
-        result = session.run(query)
-        record = result.single()
-
-        return record
-        
         

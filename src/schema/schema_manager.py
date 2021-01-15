@@ -320,8 +320,8 @@ def get_complete_entities_list(entities_list, properties_to_skip = []):
 
 
 """
-Normalize the entity result by removing properties that are not defined in the yaml schema
-and filter out the ones that are marked as `exposed: false` prior to sending the response
+Normalize the entity result by filtering out properties that are not defined in the yaml schema
+and the ones that are marked as `exposed: false` prior to sending the response
 
 Parameters
 ----------
@@ -341,23 +341,19 @@ def normalize_entity_result_for_response(entity_dict, properties_to_exclude = []
     normalized_entity_type = entity_dict['entity_type']
     properties = _schema['ENTITIES'][normalized_entity_type]['properties']
     class_property_keys = properties.keys() 
-    # In Python 3, entity_dict.keys() returns an iterable, which causes error if deleting keys during the loop
-    # We can use list to force a copy of the keys to be made
-    entity_keys = list(entity_dict)
 
-    for key in entity_keys:
-        if key not in class_property_keys:
-            del entity_dict[key]
-        else:
-            # Also remove the properties that are marked as `exposed: false`
-            if ('exposed' in properties[key]) and (not properties[key]['exposed']):
-                del entity_dict[key]
+    normalized_entity = {}
+    for key in entity_dict:
+        # Only return the properties defined in the schema yaml
+        # Exclude additional properties if specified
+        if (key in class_property_keys) and (key not in properties_to_exclude):
+            # By default, all properties are exposed
+            # It's possible to see `exposed: true`
+            if ('exposed' not in properties[key]) or (('exposed' in properties[key]) and properties[key]['exposed']):
+                # Add to the normalized_entity dict
+                normalized_entity[key] = entity_dict[key]
 
-            # Exclude additional properties if specified
-            if key in properties_to_exclude:
-                del entity_dict[key]
-
-    return entity_dict
+    return normalized_entity
 
 
 """
