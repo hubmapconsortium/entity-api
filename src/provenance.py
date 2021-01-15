@@ -7,6 +7,9 @@ import datetime
 # Local modules
 from schema import schema_manager
 
+# HuBMAP commons
+from hubmap_commons import globus_groups
+
 # Set logging fromat and level (default is warning)
 # All the API logging is forwarded to the uWSGI server and gets written into the log file `uwsgo-entity-api.log`
 # Log rotation is handled via logrotate on the host system with a configuration file
@@ -14,6 +17,7 @@ from schema import schema_manager
 logging.basicConfig(format='[%(asctime)s] %(levelname)s in %(module)s: %(message)s', level=logging.DEBUG, datefmt='%Y-%m-%d %H:%M:%S')
 logger = logging.getLogger(__name__)
 
+HUBMAP_NAMESPACE = 'hubmap'
 
 """
 Build the provenance document based on the W3C PROV-DM
@@ -34,9 +38,8 @@ def get_provenance_history(normalized_provenance_dict):
 
     prov_doc = ProvDocument()
 
-    prov_doc.add_namespace('hubmap', 'https://hubmapconsortium.org/')
-    prov_doc.add_namespace('prov', 'https://hubmapconsortium.org/')
-    
+    prov_doc.add_namespace(HUBMAP_NAMESPACE, 'https://hubmapconsortium.org/')
+  
     # A bit validation
     if 'relationships' not in normalized_provenance_dict:
         raise LookupError(f'Missing "relationships" key from the normalized_provenance_dict for Entity of uuid: {uuid}')
@@ -80,15 +83,27 @@ def get_provenance_history(normalized_provenance_dict):
         # Need to add the agent and organization here, 
         # plus the appropriate relationships (between the entity and the agent plus orgainzation)
         agent_record = get_agent_record(to_node)
-        agent_unique_id = str(agent_record['hubmap:created_by_user_email']).replace('@', '-')
-        agent_unique_id = str(agent_unique_id).replace('.', '-')
 
-        if 'created_by_user_sub' in agent_record:
-            agent_unique_id = agent_record['created_by_user_sub']
+        # Use `created_by_user_sub` as agent id if exists, otherwise try created_by_user_email
+        agent_id = None
+        created_by_user_sub_prov_key = f'{HUBMAP_NAMESPACE}:created_by_user_sub'
+        created_by_user_email_prov_key = f'{HUBMAP_NAMESPACE}:created_by_user_email'
 
-        agent_uri = build_uri('hubmap', 'agent', agent_unique_id)
-        organization_record = get_organization_record(to_node)
-        organization_uri = build_uri('hubmap', 'organization', organization_record['hubmap:group_uuid'])
+        if created_by_user_sub_prov_key in agent_record:
+            agent_id = agent_record[created_by_user_sub_prov_key]
+        elif created_by_user_email_prov_key in agent_record:
+            agent_id = str(agent_record[created_by_user_email_prov_key]).replace('@', '-')
+            agent_id = str(agent_id).replace('.', '-')
+
+        agent_uri = build_uri(HUBMAP_NAMESPACE, 'agent', agent_id)
+        org_record = get_organization_record(to_node)
+
+
+        logger.debug("ddddddddddddddd")
+        logger.debug(organization_record)
+
+        group_uuid_prov_key = f'{HUBMAP_NAMESPACE}:group_uuid'
+        org_uri = build_uri(HUBMAP_NAMESPACE, 'organization', org_record[group_uuid_prov_key])
         doc_agent = None
         doc_org = None
         
@@ -100,11 +115,11 @@ def get_provenance_history(normalized_provenance_dict):
         else:
             doc_agent = get_agent[0]
 
-        get_org = prov_doc.get_record(organization_uri)
+        get_org = prov_doc.get_record(org_uri)
         # Only add this once
         # Multiple entities can be associated to different agents who are from the same organization
         if len(get_org) == 0:
-            doc_org = prov_doc.agent(organization_uri, organization_record)
+            doc_org = prov_doc.agent(org_uri, org_record)
         else:
             doc_org = get_org[0]
                   
@@ -118,18 +133,18 @@ def get_provenance_history(normalized_provenance_dict):
                 # Normalize the result based on schema
                 final_node = schema_manager.normalize_entity_result_for_response(from_node)
                 for key in final_node:
-                    prov_key = f'hubmap:{key}'
+                    prov_key = f'{HUBMAP_NAMESPACE}:{key}'
                     exposed_attributes[prov_key] = final_node[key]
         else:
             for key in from_node:
-                prov_key = f'hubmap:{key}'
+                prov_key = f'{HUBMAP_NAMESPACE}:{key}'
                 exposed_attributes[prov_key] = from_node[key]
 
         if is_entity == True:
-            prov_doc.entity(build_uri('hubmap', 'entities', from_node['uuid']), exposed_attributes)
+            prov_doc.entity(build_uri(HUBMAP_NAMESPACE, 'entities', from_node['uuid']), exposed_attributes)
         else:
             activity_timestamp_json = get_json_timestamp(int(to_node['created_timestamp']))
-            activity_url = build_uri('hubmap', 'activities', from_node['uuid'])
+            activity_url = build_uri(HUBMAP_NAMESPACE, 'activities', from_node['uuid'])
             doc_activity = prov_doc.activity(activity_url, activity_timestamp_json, activity_timestamp_json, exposed_attributes)
             prov_doc.actedOnBehalfOf(doc_agent, doc_org, doc_activity)
 
@@ -218,7 +233,7 @@ Build the agent - person record
 
 Parameters
 ----------
-node_data : dict
+node_dict : dict
     The entity dict
 
 Returns
@@ -226,7 +241,7 @@ Returns
 dict
     The prov dict for person 
 """
-def get_agent_record(node_data):
+def get_agent_record(node_dict):
     agent_attributes = ['created_by_user_displayname', 'created_by_user_email', 'created_by_user_sub']
         
     # All agents share this same PROV_TYPE
@@ -235,10 +250,10 @@ def get_agent_record(node_data):
     }
 
     for key in agent_attributes:
-        if key in node_data:
-            prov_key = f'hubmap:{key}'
+        if key in node_dict:
+            prov_key = f'{HUBMAP_NAMESPACE}:{key}'
             # Add to the result
-            agent_dict[prov_key] = node_data[key]
+            agent_dict[prov_key] = node_dict[key]
 
     return agent_dict
 
@@ -247,7 +262,7 @@ Build the agent - organization record
 
 Parameters
 ----------
-node_data : dict
+node_dict : dict
     The entity dict
 
 Returns
@@ -255,18 +270,52 @@ Returns
 dict
     The prov dict for organization 
 """
-def get_organization_record(node_data):
-    org_attributes = ['group_uuid', 'group_name']
+def get_organization_record(node_dict):
+    logger.debug("=========node_dict")
+    logger.debug(node_dict)
+
+    # Get the globus groups info based on the groups json file in commons package
+    globus_groups_info = globus_groups.get_globus_groups_info()
+    groups_by_id_dict = globus_groups_info['by_id']
+    groups_by_name_dict = globus_groups_info['by_name']
+
+    logger.debug("=========groups_by_id_dict")
+    logger.debug(groups_by_id_dict)
+
+    logger.debug("=========groups_by_name_dict")
+    logger.debug(groups_by_name_dict)
         
     # All organizations share this same PROV_TYPE
     org_dict = {
         PROV_TYPE: 'prov:Organization'
     }
 
-    for key in org_attributes:
-        if key in node_data:
-            prov_key = f'hubmap:{key}'
-            # Add to the result
-            org_dict[prov_key] = node_data[key]
+    if ('group_uuid' not in node_dict) and ('group_name' not in node_dict):
+        node_dict['group_uuid'] = 'Missing'
+        node_dict['group_uuid'] = 'Missing'
+    elif ('group_uuid' in node_dict) and ('group_name' not in node_dict):
+        group_uuid = node_dict['group_uuid']
+        if group_uuid in groups_by_id_dict:
+            group_record = groups_by_id_dict[group_uuid]
+            # Add group_name to node_dict
+            node_dict['group_name'] = group_record['displayname']
+        else:
+            raise LookupError(f'Cannot find group with uuid: {group_uuid}')
+    elif ('group_uuid' not in node_dict) and ('group_name' in node_dict):
+        group_name = node_dict['group_name']
+        if group_name in groups_by_name_dict:
+            group_record = groups_by_name_dict[group_name]
+            # Add group_uuid to node_dict
+            node_dict['group_uuid'] = group_record['uuid']
+        else:
+            raise LookupError(f'Cannot find group with name: {group_name}')
+
+    # By now both 'group_uuid' and 'group_name' exist
+    group_uuid_prov_key = f'{HUBMAP_NAMESPACE}:group_uuid'
+    group_name_prov_key = f'{HUBMAP_NAMESPACE}:group_name'
+
+    # Add to the result
+    org_dict[group_uuid_prov_key] = node_dict['group_uuid']
+    org_dict[group_name_prov_key] = node_dict['group_name']
 
     return org_dict
