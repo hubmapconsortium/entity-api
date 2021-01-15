@@ -17,6 +17,7 @@ from hubmap_commons import globus_groups
 logging.basicConfig(format='[%(asctime)s] %(levelname)s in %(module)s: %(message)s', level=logging.DEBUG, datefmt='%Y-%m-%d %H:%M:%S')
 logger = logging.getLogger(__name__)
 
+# https://www.w3.org/TR/prov-dm/
 
 PROV_ENTITY_TYPE = 'prov:Entity'
 PROV_ACTIVITY_TYPE = 'prov:Activity'
@@ -40,28 +41,9 @@ HUBMAP_PROV_USER_EMAIL = 'hubmap:userEmail'
 HUBMAP_PROV_USER_UUID = 'hubmap:userUUID'
 
 
-def get_provenance_history(provenance_dict):
-    ignore_attributes = [
-        'entity_type', 
-        'created_timestamp', 
-        'uuid', 
-        'label'
-    ]
-    
-    known_attribute_map = {
-        'group_name': HUBMAP_PROV_GROUP_NAME, 
-        'group_uuid': HUBMAP_PROV_GROUP_UUID,
-        'created_by_user_displayname': HUBMAP_PROV_USER_DISPLAY_NAME, 
-        'created_by_user_email': HUBMAP_PROV_USER_EMAIL,
-        'created_by_user_sub': HUBMAP_PROV_USER_UUID, 
-        'last_modified_timestamp': HUBMAP_MODIFIED_TIMESTAMP
-    }
-
+def get_provenance_history(normalized_provenance_dict):
     prov_doc = ProvDocument()
 
-    #NOTE!! There is a bug with the JSON serializer.  I can't add the prov prefix using this mechanism
-    
-    prov_doc.add_namespace('ex', 'http://example.org/')
     prov_doc.add_namespace('hubmap', 'https://hubmapconsortium.org/')
     
     #prov_doc.add_namespace('dct', 'http://purl.org/dc/terms/')
@@ -69,18 +51,18 @@ def get_provenance_history(provenance_dict):
     
     relation_list = []
     
-    if 'relationships' not in provenance_dict:
+    if 'relationships' not in normalized_provenance_dict:
         raise LookupError(f"No relationships found for uuid: {uuid}")
 
-    if 'nodes' not in provenance_dict:
+    if 'nodes' not in normalized_provenance_dict:
         raise LookupError(f"No graph nodes found for uuid: {uuid}")
     
     nodes_dict = {}
     # Pack the nodes into a dictionary using the uuid as key
-    for node in provenance_dict['nodes']:
+    for node in normalized_provenance_dict['nodes']:
         nodes_dict[node['uuid']] = node
         
-    for rel_dict in provenance_dict['relationships']:
+    for rel_dict in normalized_provenance_dict['relationships']:
         # Step 1: build the PROV core concepts: Entity, Acvivitiy
         from_uuid = rel_dict['fromNode']['uuid']
         to_uuid = rel_dict['toNode']['uuid']
@@ -192,22 +174,10 @@ def get_provenance_history(provenance_dict):
 
         relation_list.append(rel_data_record)
 
-    # Why not being used? 
-    return_data = {
-        'nodes': nodes_dict, 
-        'relations': relation_list
-    }  
+    # Format into json string
+    serialized_json = prov_doc.serialize() 
 
-    logger.debug(return_data)
-
-    # there is a bug in the JSON serializer.  So manually insert the prov prefix
-    
-    output_doc = prov_doc.serialize(indent=2) 
-    output_doc = output_doc.replace('"prefix": {', '"prefix": {\n    "prov" : "http://www.w3.org/ns/prov#", ')
-    
-    #output_doc = prov_doc.serialize(format='rdf', rdf_format='trig')
-    #output_doc = prov_doc.serialize(format='provn')
-    return output_doc
+    return serialized_json
 
 def build_uri(prefix, uri_type, identifier):
     return prefix + ':' + str(uri_type) + '/' + str(identifier)
