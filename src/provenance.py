@@ -132,26 +132,24 @@ def get_provenance_history(normalized_provenance_dict):
             'prov:type': 'Entity'
         }
 
-        # The schema yaml doesn't handle Lab
-        if entity_node['entity_type'] == 'Lab':
-            final_entity_node = entity_node
-        else:
+        # Skip Lab nodes
+        if entity_node['entity_type'] != 'Lab':
             # Normalize the result based on schema and skip `label` attribute
             attributes_to_exclude = ['label']
             final_entity_node = schema_manager.normalize_entity_result_for_response(entity_node, attributes_to_exclude)
 
-        for key in final_entity_node:
-            # Entity property values can be list, skip
-            # And list is unhashable type when calling `prov_doc.entity()`
-            if not isinstance(final_entity_node[key], list):
-                prov_key = f'{HUBMAP_NAMESPACE}:{key}'
-                entity_attributes[prov_key] = final_entity_node[key]
-    
-        entity_uri = build_uri(HUBMAP_NAMESPACE, 'entities', entity_node['uuid'])
+            for key in final_entity_node:
+                # Entity property values can be list, skip
+                # And list is unhashable type when calling `prov_doc.entity()`
+                if not isinstance(final_entity_node[key], list):
+                    prov_key = f'{HUBMAP_NAMESPACE}:{key}'
+                    entity_attributes[prov_key] = final_entity_node[key]
+        
+            entity_uri = build_uri(HUBMAP_NAMESPACE, 'entities', entity_node['uuid'])
 
-        # Only add once
-        if len(prov_doc.get_record(entity_uri)) == 0:
-            prov_doc.entity(entity_uri, entity_attributes)
+            # Only add once
+            if len(prov_doc.get_record(entity_uri)) == 0:
+                prov_doc.entity(entity_uri, entity_attributes)
 
 
         # (Activity) - [ACTIVITY_OUTPUT] -> (Entity)
