@@ -48,7 +48,6 @@ def get_provenance_history(normalized_provenance_dict):
         raise LookupError(f'Missing "nodes" key from the normalized_provenance_dict for Entity of uuid: {uuid}')
     
     nodes_dict = {}
-    relation_list = []
 
     # Pack the nodes into a dictionary using the uuid as key
     for node in normalized_provenance_dict['nodes']:
@@ -56,127 +55,172 @@ def get_provenance_history(normalized_provenance_dict):
     
     # Loop through the relationships and build the provenance document
     for rel_dict in normalized_provenance_dict['relationships']:
-        # Step 1: build the PROV core concepts: Entity, Acvivitiy
-        from_uuid = rel_dict['fromNode']['uuid']
-        to_uuid = rel_dict['toNode']['uuid']
+        # (Activity) - [ACTIVITY_OUTPUT] -> (Entity)
+        if rel_dict['rel_data']['type'] == 'ACTIVITY_OUTPUT':
+            activity_uuid = rel_dict['fromNode']['uuid']
+            entity_uuid = rel_dict['toNode']['uuid']
 
-        from_node = nodes_dict[from_uuid]
-        to_node = nodes_dict[to_uuid]
+            activity_node = nodes_dict[activity_uuid]
+            entity_node = nodes_dict[entity_uuid]
 
-        # Find out if the from node is Entity or Activity
-        prov_type = None
-        is_entity = True
-        if from_node['label'] == 'Entity':
-            prov_type = from_node['entity_type']
-        elif from_node['label'] == 'Activity':
-            prov_type = from_node['creation_action']
-            is_entity = False
+            # Get the agent information from the entity node
+            agent_record = get_agent_record(entity_node)
 
-        # Use submission_id as the label for Entity if exists
-        # Otherwise use uuid
-        label_text = None                                
-        if 'submission_id' in from_node:
-            label_text = from_node['submission_id']
-        else:
-            label_text = from_node['uuid']
-        
-        # Need to add the agent and organization here, 
-        # plus the appropriate relationships (between the entity and the agent plus orgainzation)
-        agent_record = get_agent_record(to_node)
-
-        # Use `created_by_user_sub` as agent id if exists, otherwise try created_by_user_email
-        agent_id = None
-        created_by_user_sub_prov_key = f'{HUBMAP_NAMESPACE}:created_by_user_sub'
-        created_by_user_email_prov_key = f'{HUBMAP_NAMESPACE}:created_by_user_email'
-
-        if created_by_user_sub_prov_key in agent_record:
-            agent_id = agent_record[created_by_user_sub_prov_key]
-        elif created_by_user_email_prov_key in agent_record:
+            # Build the agent uri
+            created_by_user_email_prov_key = f'{HUBMAP_NAMESPACE}:created_by_user_email'
             agent_id = str(agent_record[created_by_user_email_prov_key]).replace('@', '-')
             agent_id = str(agent_id).replace('.', '-')
 
-        agent_uri = build_uri(HUBMAP_NAMESPACE, 'agent', agent_id)
-        org_record = get_organization_record(to_node)
+            created_by_user_sub_prov_key = f'{HUBMAP_NAMESPACE}:created_by_user_sub'
+            if created_by_user_sub_prov_key in agent_record:
+                agent_id = agent_record[created_by_user_sub_prov_key]
 
+            agent_uri = build_uri(HUBMAP_NAMESPACE, 'agent', agent_id)
 
-        logger.debug("ddddddddddddddd")
-        logger.debug(organization_record)
+            # Only add the same agent once
+            # Multiple entities can be associated to the same agent
+            if len(prov_doc.get_record(agent_uri)) == 0:
+                prov_doc.agent(agent_uri, agent_record)
 
-        group_uuid_prov_key = f'{HUBMAP_NAMESPACE}:group_uuid'
-        org_uri = build_uri(HUBMAP_NAMESPACE, 'organization', org_record[group_uuid_prov_key])
-        doc_agent = None
-        doc_org = None
-        
-        get_agent = prov_doc.get_record(agent_uri)
-        # Only add agent once
-        # Multiple entities can be associated to the same agent
-        if len(get_agent) == 0:
-            doc_agent = prov_doc.agent(agent_uri, agent_record)
-        else:
-            doc_agent = get_agent[0]
+            # Organization
+            # Get the organization information from the entity node
+            org_record = get_organization_record(entity_node)
 
-        get_org = prov_doc.get_record(org_uri)
-        # Only add this once
-        # Multiple entities can be associated to different agents who are from the same organization
-        if len(get_org) == 0:
-            doc_org = prov_doc.agent(org_uri, org_record)
-        else:
-            doc_org = get_org[0]
-                  
-        # Attributes to be exposed in the PROV document
-        exposed_attributes = {}
+            # Build the organization uri
+            group_uuid_prov_key = f'{HUBMAP_NAMESPACE}:group_uuid'
+            org_uri = build_uri(HUBMAP_NAMESPACE, 'organization', org_record[group_uuid_prov_key])
 
-        # Add node attributes to the exposed_attributes
-        if from_node['label'] == 'Entity':
-            # Skip Lab nodes
-            if from_node['entity_type'] != 'Lab':
-                # Normalize the result based on schema
-                final_node = schema_manager.normalize_entity_result_for_response(from_node)
-                for key in final_node:
-                    prov_key = f'{HUBMAP_NAMESPACE}:{key}'
-                    exposed_attributes[prov_key] = final_node[key]
-        else:
-            for key in from_node:
+            # Only add the same organization once
+            # Multiple entities can be associated to different agents who are from the same organization
+            if len(prov_doc.get_record(org_uri)) == 0:
+                prov_doc.agent(org_uri, org_record)
+
+            # Build the activity record         
+            activity_attributes = {
+                'prov:type': 'Activity'
+            }
+
+            for key in activity_node:
                 prov_key = f'{HUBMAP_NAMESPACE}:{key}'
-                exposed_attributes[prov_key] = from_node[key]
+                activity_attributes[prov_key] = activity_node[key]
 
-        if is_entity == True:
-            prov_doc.entity(build_uri(HUBMAP_NAMESPACE, 'entities', from_node['uuid']), exposed_attributes)
-        else:
-            activity_timestamp_json = get_json_timestamp(int(to_node['created_timestamp']))
-            activity_url = build_uri(HUBMAP_NAMESPACE, 'activities', from_node['uuid'])
-            doc_activity = prov_doc.activity(activity_url, activity_timestamp_json, activity_timestamp_json, exposed_attributes)
-            prov_doc.actedOnBehalfOf(doc_agent, doc_org, doc_activity)
+            activity_timestamp_json = get_json_timestamp(int(activity_node['created_timestamp']))
 
-        # Step 2: build the PROV relations: WasGeneratedBy, Used, ActedOnBehalfOf
-        to_node_uri = None
-        from_node_uri = None
+            # Build the activity uri
+            activity_uri = build_uri(HUBMAP_NAMESPACE, 'activities', activity_node['uuid'])
+            
+            # Add the activity to prov_doc
+            # In our case, prov:startTime is the same as prov:endTime
+            if len(prov_doc.get_record(activity_uri)) == 0:
+                prov_doc.activity(activity_uri, activity_timestamp_json, activity_timestamp_json, activity_attributes)
+            
+            # Attributes to be added to the PROV document
+            entity_attributes = {
+                'prov:type': 'Entity'
+            }
 
-        if to_node['label'] == 'Entity':
-            to_node_uri = build_uri('hubmap', 'entities', to_node['uuid'])
-        else:
-            to_node_uri = build_uri('hubmap', 'activities', to_node['uuid'])
+            # Lab nodes have already been skipped in Neo4j query
+            # Normalize the result based on schema and skip `label` attribute
+            attributes_to_exclude = ['label']
+            final_entity_node = schema_manager.normalize_entity_result_for_response(entity_node, attributes_to_exclude)
+            for key in final_entity_node:
+                # Entity property values can be list, skip
+                # And list is unhashable type when calling `prov_doc.entity()`
+                if not isinstance(final_entity_node[key], list):
+                    prov_key = f'{HUBMAP_NAMESPACE}:{key}'
+                    entity_attributes[prov_key] = final_entity_node[key]
         
-        if from_node['label'] == 'Entity':
-            from_node_uri = build_uri('hubmap', 'entities', from_node['uuid'])
-        else:
-            from_node_uri = build_uri('hubmap', 'activities', from_node['uuid'])
-        
-        if rel_dict['rel_data']['type'] == 'ACTIVITY_OUTPUT':
-            prov_doc.wasGeneratedBy(to_node_uri, from_node_uri)
+            entity_uri = build_uri(HUBMAP_NAMESPACE, 'entities', entity_node['uuid'])
 
+            # Only add once
+            if len(prov_doc.get_record(entity_uri)) == 0:
+                prov_doc.entity(entity_uri, entity_attributes)
+
+            # Relationship: the entity wasGeneratedBy the activity
+            prov_doc.wasGeneratedBy(entity_uri, activity_uri)
+
+        # (Entity) - [ACTIVITY_INPUT] -> (Activity)
         if rel_dict['rel_data']['type'] == 'ACTIVITY_INPUT':
-            prov_doc.used(to_node_uri, from_node_uri)
-        
-        # For now, simply create a "relation" where the fromNode's uuid is connected to a toNode's uuid via a relationship:
-        # ex: {'fromNodeUUID': '42e10053358328c9079f1c8181287b6d', 'relationship': 'ACTIVITY_OUTPUT', 'toNodeUUID': '398400024fda58e293cdb435db3c777e'}
-        rel_data_record = {
-            'fromNodeUUID': from_node['uuid'], 
-            'relationship': rel_dict['rel_data']['type'], 
-            'toNodeUUID': to_node['uuid']
-        }
+            entity_uuid = rel_dict['fromNode']['uuid']
+            activity_uuid = rel_dict['toNode']['uuid']
 
-        relation_list.append(rel_data_record)
+            entity_node = nodes_dict[entity_uuid]
+            activity_node = nodes_dict[activity_uuid]
+
+            # Get the agent information from the entity node
+            agent_record = get_agent_record(entity_node)
+
+            # Build the agent uri
+            created_by_user_email_prov_key = f'{HUBMAP_NAMESPACE}:created_by_user_email'
+            agent_id = str(agent_record[created_by_user_email_prov_key]).replace('@', '-')
+            agent_id = str(agent_id).replace('.', '-')
+
+            created_by_user_sub_prov_key = f'{HUBMAP_NAMESPACE}:created_by_user_sub'
+            if created_by_user_sub_prov_key in agent_record:
+                agent_id = agent_record[created_by_user_sub_prov_key]
+
+            agent_uri = build_uri(HUBMAP_NAMESPACE, 'agent', agent_id)
+
+            # Only add the same agent once
+            # Multiple entities can be associated to the same agent
+            if len(prov_doc.get_record(agent_uri)) == 0:
+                prov_doc.agent(agent_uri, agent_record)
+
+            # Organization
+            # Get the organization information from the entity node
+            org_record = get_organization_record(entity_node)
+
+            # Build the organization uri
+            group_uuid_prov_key = f'{HUBMAP_NAMESPACE}:group_uuid'
+            org_uri = build_uri(HUBMAP_NAMESPACE, 'organization', org_record[group_uuid_prov_key])
+
+            # Only add the same organization once
+            # Multiple entities can be associated to different agents who are from the same organization
+            if len(prov_doc.get_record(org_uri)) == 0:
+                prov_doc.agent(org_uri, org_record)
+
+            # Build the activity record         
+            activity_attributes = {
+                'prov:type': 'Activity'
+            }
+
+            for key in activity_node:
+                prov_key = f'{HUBMAP_NAMESPACE}:{key}'
+                activity_attributes[prov_key] = activity_node[key]
+
+            activity_timestamp_json = get_json_timestamp(int(activity_node['created_timestamp']))
+
+            # Build the activity uri
+            activity_uri = build_uri(HUBMAP_NAMESPACE, 'activities', activity_node['uuid'])
+            
+            # Add the activity to prov_doc
+            # In our case, prov:startTime is the same as prov:endTime
+            if len(prov_doc.get_record(activity_uri)) == 0:
+                prov_doc.activity(activity_uri, activity_timestamp_json, activity_timestamp_json, activity_attributes)
+   
+            # Attributes to be added to the PROV document
+            entity_attributes = {
+                'prov:type': 'Entity'
+            }
+
+            # Lab nodes have already been skipped in Neo4j query
+            # Normalize the result based on schema and skip `label` attribute
+            attributes_to_exclude = ['label']
+            final_entity_node = schema_manager.normalize_entity_result_for_response(entity_node, attributes_to_exclude)
+            for key in final_entity_node:
+                # Entity property values can be list, skip
+                # And list is unhashable type when calling `prov_doc.entity()`
+                if not isinstance(final_entity_node[key], list):
+                    prov_key = f'{HUBMAP_NAMESPACE}:{key}'
+                    entity_attributes[prov_key] = final_entity_node[key]
+        
+            entity_uri = build_uri(HUBMAP_NAMESPACE, 'entities', entity_node['uuid'])
+
+            if len(prov_doc.get_record(entity_uri)) == 0:
+                prov_doc.entity(entity_uri, entity_attributes)
+            
+            # Relationship: the activity used the entity
+            prov_doc.used(activity_uri, entity_uri)
 
     # Format into json string based on the PROV-JSON Serialization
     # https://www.w3.org/Submission/prov-json/
@@ -242,18 +286,28 @@ dict
     The prov dict for person 
 """
 def get_agent_record(node_dict):
-    agent_attributes = ['created_by_user_displayname', 'created_by_user_email', 'created_by_user_sub']
-        
     # All agents share this same PROV_TYPE
     agent_dict = {
         PROV_TYPE: 'prov:Person'
     }
 
-    for key in agent_attributes:
-        if key in node_dict:
-            prov_key = f'{HUBMAP_NAMESPACE}:{key}'
-            # Add to the result
-            agent_dict[prov_key] = node_dict[key]
+    if 'created_by_user_displayname' not in node_dict:
+        node_dict['created_by_user_displayname'] = 'unknown'
+    
+    if 'created_by_user_email' not in node_dict:
+        node_dict['created_by_user_email'] = 'unknown'
+
+    if 'created_by_user_sub' not in node_dict:
+        node_dict['created_by_user_sub'] = 'unknown'
+
+    created_by_user_displayname_prov_key = f'{HUBMAP_NAMESPACE}:created_by_user_displayname'
+    created_by_user_email_prov_key = f'{HUBMAP_NAMESPACE}:created_by_user_email'
+    created_by_user_sub_prov_key = f'{HUBMAP_NAMESPACE}:created_by_user_sub'
+
+    # Add to the result
+    agent_dict[created_by_user_displayname_prov_key] = node_dict['created_by_user_displayname']
+    agent_dict[created_by_user_email_prov_key] = node_dict['created_by_user_email']
+    agent_dict[created_by_user_sub_prov_key] = node_dict['created_by_user_sub']
 
     return agent_dict
 
@@ -290,25 +344,20 @@ def get_organization_record(node_dict):
         PROV_TYPE: 'prov:Organization'
     }
 
-    if ('group_uuid' not in node_dict) and ('group_name' not in node_dict):
-        node_dict['group_uuid'] = 'Missing'
-        node_dict['group_uuid'] = 'Missing'
-    elif ('group_uuid' in node_dict) and ('group_name' not in node_dict):
+    if 'group_uuid' in node_dict:
         group_uuid = node_dict['group_uuid']
-        if group_uuid in groups_by_id_dict:
-            group_record = groups_by_id_dict[group_uuid]
+
+        if group_uuid not in groups_by_id_dict:
+            raise LookupError(f'Cannot find group with uuid: {group_uuid}')
+
+        if 'group_name' not in node_dict:
             # Add group_name to node_dict
             node_dict['group_name'] = group_record['displayname']
-        else:
-            raise LookupError(f'Cannot find group with uuid: {group_uuid}')
-    elif ('group_uuid' not in node_dict) and ('group_name' in node_dict):
-        group_name = node_dict['group_name']
-        if group_name in groups_by_name_dict:
-            group_record = groups_by_name_dict[group_name]
-            # Add group_uuid to node_dict
-            node_dict['group_uuid'] = group_record['uuid']
-        else:
-            raise LookupError(f'Cannot find group with name: {group_name}')
+    else:
+        msg = f"Missing key 'group_uuid' in Entity uuid: {node_dict['uuid']}"
+        logger.error(msg)
+        logger.debug(node_dict)
+        raise KeyError(msg)
 
     # By now both 'group_uuid' and 'group_name' exist
     group_uuid_prov_key = f'{HUBMAP_NAMESPACE}:group_uuid'
