@@ -83,8 +83,11 @@ def get_provenance_history(normalized_provenance_dict):
 
         # Only add the same agent once
         # Multiple entities can be associated to the same agent
-        if len(prov_doc.get_record(agent_uri)) == 0:
-            prov_doc.agent(agent_uri, agent_record)
+        agent = prov_doc.get_record(agent_uri)
+        if len(agent) == 0:
+            doc_agent = prov_doc.agent(agent_uri, agent_record)
+        else:
+            doc_agent = agent[0]
 
         # Organization
         # Get the organization information from the entity node
@@ -96,8 +99,11 @@ def get_provenance_history(normalized_provenance_dict):
 
         # Only add the same organization once
         # Multiple entities can be associated to different agents who are from the same organization
-        if len(prov_doc.get_record(org_uri)) == 0:
-            prov_doc.agent(org_uri, org_record)
+        org = prov_doc.get_record(org_uri)
+        if len(org) == 0:
+            doc_org = prov_doc.agent(org_uri, org_record)
+        else:
+            doc_org = org[0]
 
         # Build the activity record         
         activity_attributes = {
@@ -115,15 +121,17 @@ def get_provenance_history(normalized_provenance_dict):
         
         # Add the activity to prov_doc
         # In our case, prov:startTime is the same as prov:endTime
-        if len(prov_doc.get_record(activity_uri)) == 0:
-            prov_doc.activity(activity_uri, activity_timestamp_json, activity_timestamp_json, activity_attributes)
+        activity = prov_doc.get_record(activity_uri)
+        if len(activity) == 0:
+            doc_activity = prov_doc.activity(activity_uri, activity_timestamp_json, activity_timestamp_json, activity_attributes)
+        else:
+            doc_activity = activity[0]    
         
         # Attributes to be added to the PROV document
         entity_attributes = {
             'prov:type': 'Entity'
         }
 
-        # Lab nodes have already been skipped in Neo4j query
         # Normalize the result based on schema and skip `label` attribute
         attributes_to_exclude = ['label']
         final_entity_node = schema_manager.normalize_entity_result_for_response(entity_node, attributes_to_exclude)
@@ -149,6 +157,9 @@ def get_provenance_history(normalized_provenance_dict):
         elif rel_dict['rel_data']['type'] == 'ACTIVITY_INPUT':
             # Relationship: the activity used the entity
             prov_doc.used(activity_uri, entity_uri)
+
+            # Relationship: the agent actedOnBehalfOf the org
+            prov_doc.actedOnBehalfOf(doc_agent, doc_org, doc_activity)
 
     # Format into json string based on the PROV-JSON Serialization
     # https://www.w3.org/Submission/prov-json/
@@ -261,12 +272,6 @@ def get_organization_record(node_dict):
     groups_by_id_dict = globus_groups_info['by_id']
     groups_by_name_dict = globus_groups_info['by_name']
 
-    logger.debug("=========groups_by_id_dict")
-    logger.debug(groups_by_id_dict)
-
-    logger.debug("=========groups_by_name_dict")
-    logger.debug(groups_by_name_dict)
-        
     # All organizations share this same PROV_TYPE
     org_dict = {
         PROV_TYPE: 'prov:Organization'
@@ -279,8 +284,9 @@ def get_organization_record(node_dict):
             raise LookupError(f'Cannot find group with uuid: {group_uuid}')
 
         if 'group_name' not in node_dict:
+            group = groups_by_id_dict[group_uuid]
             # Add group_name to node_dict
-            node_dict['group_name'] = group_record['displayname']
+            node_dict['group_name'] = group['displayname']
     else:
         msg = f"Missing key 'group_uuid' in Entity uuid: {node_dict['uuid']}"
         logger.error(msg)
