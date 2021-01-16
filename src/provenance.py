@@ -94,7 +94,7 @@ def get_provenance_history(normalized_provenance_dict):
         org_record = get_organization_record(entity_node)
 
         # Build the organization uri
-        group_uuid_prov_key = f'{HUBMAP_NAMESPACE}:group_uuid'
+        group_uuid_prov_key = f'{HUBMAP_NAMESPACE}:uuid'
         org_uri = build_uri(HUBMAP_NAMESPACE, 'organization', org_record[group_uuid_prov_key])
 
         # Only add the same organization once
@@ -132,9 +132,14 @@ def get_provenance_history(normalized_provenance_dict):
             'prov:type': 'Entity'
         }
 
-        # Normalize the result based on schema and skip `label` attribute
-        attributes_to_exclude = ['label']
-        final_entity_node = schema_manager.normalize_entity_result_for_response(entity_node, attributes_to_exclude)
+        # The schema yaml doesn't handle Lab
+        if entity_node['entity_type'] == 'Lab':
+            final_entity_node = entity_node
+        else:
+            # Normalize the result based on schema and skip `label` attribute
+            attributes_to_exclude = ['label']
+            final_entity_node = schema_manager.normalize_entity_result_for_response(entity_node, attributes_to_exclude)
+
         for key in final_entity_node:
             # Entity property values can be list, skip
             # And list is unhashable type when calling `prov_doc.entity()`
@@ -225,28 +230,27 @@ dict
     The prov dict for person 
 """
 def get_agent_record(node_dict):
-    # All agents share this same PROV_TYPE
-    agent_dict = {
-        PROV_TYPE: 'prov:Person'
-    }
-
-    if 'created_by_user_displayname' not in node_dict:
-        node_dict['created_by_user_displayname'] = 'unknown'
-    
-    if 'created_by_user_email' not in node_dict:
-        node_dict['created_by_user_email'] = 'unknown'
-
-    if 'created_by_user_sub' not in node_dict:
-        node_dict['created_by_user_sub'] = 'unknown'
-
     created_by_user_displayname_prov_key = f'{HUBMAP_NAMESPACE}:created_by_user_displayname'
     created_by_user_email_prov_key = f'{HUBMAP_NAMESPACE}:created_by_user_email'
     created_by_user_sub_prov_key = f'{HUBMAP_NAMESPACE}:created_by_user_sub'
 
-    # Add to the result
-    agent_dict[created_by_user_displayname_prov_key] = node_dict['created_by_user_displayname']
-    agent_dict[created_by_user_email_prov_key] = node_dict['created_by_user_email']
-    agent_dict[created_by_user_sub_prov_key] = node_dict['created_by_user_sub']
+    # All agents share this same PROV_TYPE
+    agent_dict = {
+        PROV_TYPE: 'prov:Person',
+        created_by_user_displayname_prov_key: 'hubmap:userDisplayName',
+        created_by_user_email_prov_key: 'hubmap:userEmail',
+        created_by_user_sub_prov_key: 'hubmap:userUUID'
+    }
+
+    # Add to agent_dict if exists in node_dict
+    if 'created_by_user_displayname' in node_dict:
+        agent_dict[created_by_user_displayname_prov_key] = node_dict['created_by_user_displayname']
+    
+    if 'created_by_user_email' in node_dict:
+        agent_dict[created_by_user_email_prov_key] = node_dict['created_by_user_email']
+    
+    if 'created_by_user_sub' in node_dict:
+        agent_dict[created_by_user_sub_prov_key] = node_dict['created_by_user_sub']
 
     return agent_dict
 
@@ -267,38 +271,59 @@ def get_organization_record(node_dict):
     logger.debug("=========node_dict")
     logger.debug(node_dict)
 
+    group = {}
+
     # Get the globus groups info based on the groups json file in commons package
     globus_groups_info = globus_groups.get_globus_groups_info()
     groups_by_id_dict = globus_groups_info['by_id']
     groups_by_name_dict = globus_groups_info['by_name']
 
     # All organizations share this same PROV_TYPE
+    # uuid and displayname are default values
+    group_uuid_prov_key = f'{HUBMAP_NAMESPACE}:uuid'
+    # Return displayname (no dash, space separated) instead of name (dash-connected)
+    group_name_prov_key = f'{HUBMAP_NAMESPACE}:displayname'
+
     org_dict = {
-        PROV_TYPE: 'prov:Organization'
+        PROV_TYPE: 'prov:Organization',
+        group_uuid_prov_key: 'hubmap:groupUUID',
+        group_name_prov_key: 'hubmap:groupName'
     }
 
     if 'group_uuid' in node_dict:
         group_uuid = node_dict['group_uuid']
-
         if group_uuid not in groups_by_id_dict:
             raise LookupError(f'Cannot find group with uuid: {group_uuid}')
 
         if 'group_name' not in node_dict:
             group = groups_by_id_dict[group_uuid]
-            # Add group_name to node_dict
-            node_dict['group_name'] = group['displayname']
+    elif 'group_name' in node_dict:
+        group_name = node_dict['group_name']
+        if group_name in groups_by_name_dict:
+            group = groups_by_name_dict[group_name]
+        # Handle the case where the group_uuid is incorrectly stored in the group_name field
+        elif group_name in groups_by_id_dict:
+            group = groups_by_id_dict[group_name]
+        else:
+            msg = f"Unable to find group of name: {group_name}"
+            logger.error(msg)
+            logger.debug(node_dict)
+            raise LookupError(msg)
     else:
-        msg = f"Missing key 'group_uuid' in Entity uuid: {node_dict['uuid']}"
+        msg = f"Both 'group_uuid' and 'group_name' are missing from Entity uuid: {node_dict['uuid']}"
         logger.error(msg)
         logger.debug(node_dict)
-        raise KeyError(msg)
 
-    # By now both 'group_uuid' and 'group_name' exist
-    group_uuid_prov_key = f'{HUBMAP_NAMESPACE}:group_uuid'
-    group_name_prov_key = f'{HUBMAP_NAMESPACE}:group_name'
+    # By now we have the group information available
+    group_uuid_prov_key = f'{HUBMAP_NAMESPACE}:uuid'
+    # Return displayname (no dash, space separated) instead of name (dash-connected)
+    group_name_prov_key = f'{HUBMAP_NAMESPACE}:displayname'
 
-    # Add to the result
-    org_dict[group_uuid_prov_key] = node_dict['group_uuid']
-    org_dict[group_name_prov_key] = node_dict['group_name']
+    # Overwrite the default values in org_dict if the attributes exist in group
+    if 'uuid' in group:
+        org_dict[group_uuid_prov_key] = group['uuid']
+
+    if 'displayname' in group:
+        org_dict[group_name_prov_key] = group['displayname']
 
     return org_dict
