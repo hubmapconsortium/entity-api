@@ -59,166 +59,94 @@ def get_provenance_history(normalized_provenance_dict):
         if rel_dict['rel_data']['type'] == 'ACTIVITY_OUTPUT':
             activity_uuid = rel_dict['fromNode']['uuid']
             entity_uuid = rel_dict['toNode']['uuid']
-
-            activity_node = nodes_dict[activity_uuid]
-            entity_node = nodes_dict[entity_uuid]
-
-            # Get the agent information from the entity node
-            agent_record = get_agent_record(entity_node)
-
-            # Build the agent uri
-            created_by_user_email_prov_key = f'{HUBMAP_NAMESPACE}:created_by_user_email'
-            agent_id = str(agent_record[created_by_user_email_prov_key]).replace('@', '-')
-            agent_id = str(agent_id).replace('.', '-')
-
-            created_by_user_sub_prov_key = f'{HUBMAP_NAMESPACE}:created_by_user_sub'
-            if created_by_user_sub_prov_key in agent_record:
-                agent_id = agent_record[created_by_user_sub_prov_key]
-
-            agent_uri = build_uri(HUBMAP_NAMESPACE, 'agent', agent_id)
-
-            # Only add the same agent once
-            # Multiple entities can be associated to the same agent
-            if len(prov_doc.get_record(agent_uri)) == 0:
-                prov_doc.agent(agent_uri, agent_record)
-
-            # Organization
-            # Get the organization information from the entity node
-            org_record = get_organization_record(entity_node)
-
-            # Build the organization uri
-            group_uuid_prov_key = f'{HUBMAP_NAMESPACE}:group_uuid'
-            org_uri = build_uri(HUBMAP_NAMESPACE, 'organization', org_record[group_uuid_prov_key])
-
-            # Only add the same organization once
-            # Multiple entities can be associated to different agents who are from the same organization
-            if len(prov_doc.get_record(org_uri)) == 0:
-                prov_doc.agent(org_uri, org_record)
-
-            # Build the activity record         
-            activity_attributes = {
-                'prov:type': 'Activity'
-            }
-
-            for key in activity_node:
-                prov_key = f'{HUBMAP_NAMESPACE}:{key}'
-                activity_attributes[prov_key] = activity_node[key]
-
-            activity_timestamp_json = get_json_timestamp(int(activity_node['created_timestamp']))
-
-            # Build the activity uri
-            activity_uri = build_uri(HUBMAP_NAMESPACE, 'activities', activity_node['uuid'])
-            
-            # Add the activity to prov_doc
-            # In our case, prov:startTime is the same as prov:endTime
-            if len(prov_doc.get_record(activity_uri)) == 0:
-                prov_doc.activity(activity_uri, activity_timestamp_json, activity_timestamp_json, activity_attributes)
-            
-            # Attributes to be added to the PROV document
-            entity_attributes = {
-                'prov:type': 'Entity'
-            }
-
-            # Lab nodes have already been skipped in Neo4j query
-            # Normalize the result based on schema and skip `label` attribute
-            attributes_to_exclude = ['label']
-            final_entity_node = schema_manager.normalize_entity_result_for_response(entity_node, attributes_to_exclude)
-            for key in final_entity_node:
-                # Entity property values can be list, skip
-                # And list is unhashable type when calling `prov_doc.entity()`
-                if not isinstance(final_entity_node[key], list):
-                    prov_key = f'{HUBMAP_NAMESPACE}:{key}'
-                    entity_attributes[prov_key] = final_entity_node[key]
-        
-            entity_uri = build_uri(HUBMAP_NAMESPACE, 'entities', entity_node['uuid'])
-
-            # Only add once
-            if len(prov_doc.get_record(entity_uri)) == 0:
-                prov_doc.entity(entity_uri, entity_attributes)
-
-            # Relationship: the entity wasGeneratedBy the activity
-            prov_doc.wasGeneratedBy(entity_uri, activity_uri)
-
         # (Entity) - [ACTIVITY_INPUT] -> (Activity)
-        if rel_dict['rel_data']['type'] == 'ACTIVITY_INPUT':
+        elif rel_dict['rel_data']['type'] == 'ACTIVITY_INPUT':
             entity_uuid = rel_dict['fromNode']['uuid']
             activity_uuid = rel_dict['toNode']['uuid']
 
-            entity_node = nodes_dict[entity_uuid]
-            activity_node = nodes_dict[activity_uuid]
+        activity_node = nodes_dict[activity_uuid]
+        entity_node = nodes_dict[entity_uuid]
 
-            # Get the agent information from the entity node
-            agent_record = get_agent_record(entity_node)
+        # Get the agent information from the entity node
+        agent_record = get_agent_record(entity_node)
 
-            # Build the agent uri
-            created_by_user_email_prov_key = f'{HUBMAP_NAMESPACE}:created_by_user_email'
-            agent_id = str(agent_record[created_by_user_email_prov_key]).replace('@', '-')
-            agent_id = str(agent_id).replace('.', '-')
+        # Build the agent uri
+        created_by_user_email_prov_key = f'{HUBMAP_NAMESPACE}:created_by_user_email'
+        agent_id = str(agent_record[created_by_user_email_prov_key]).replace('@', '-')
+        agent_id = str(agent_id).replace('.', '-')
 
-            created_by_user_sub_prov_key = f'{HUBMAP_NAMESPACE}:created_by_user_sub'
-            if created_by_user_sub_prov_key in agent_record:
-                agent_id = agent_record[created_by_user_sub_prov_key]
+        created_by_user_sub_prov_key = f'{HUBMAP_NAMESPACE}:created_by_user_sub'
+        if created_by_user_sub_prov_key in agent_record:
+            agent_id = agent_record[created_by_user_sub_prov_key]
 
-            agent_uri = build_uri(HUBMAP_NAMESPACE, 'agent', agent_id)
+        agent_uri = build_uri(HUBMAP_NAMESPACE, 'agent', agent_id)
 
-            # Only add the same agent once
-            # Multiple entities can be associated to the same agent
-            if len(prov_doc.get_record(agent_uri)) == 0:
-                prov_doc.agent(agent_uri, agent_record)
+        # Only add the same agent once
+        # Multiple entities can be associated to the same agent
+        if len(prov_doc.get_record(agent_uri)) == 0:
+            prov_doc.agent(agent_uri, agent_record)
 
-            # Organization
-            # Get the organization information from the entity node
-            org_record = get_organization_record(entity_node)
+        # Organization
+        # Get the organization information from the entity node
+        org_record = get_organization_record(entity_node)
 
-            # Build the organization uri
-            group_uuid_prov_key = f'{HUBMAP_NAMESPACE}:group_uuid'
-            org_uri = build_uri(HUBMAP_NAMESPACE, 'organization', org_record[group_uuid_prov_key])
+        # Build the organization uri
+        group_uuid_prov_key = f'{HUBMAP_NAMESPACE}:group_uuid'
+        org_uri = build_uri(HUBMAP_NAMESPACE, 'organization', org_record[group_uuid_prov_key])
 
-            # Only add the same organization once
-            # Multiple entities can be associated to different agents who are from the same organization
-            if len(prov_doc.get_record(org_uri)) == 0:
-                prov_doc.agent(org_uri, org_record)
+        # Only add the same organization once
+        # Multiple entities can be associated to different agents who are from the same organization
+        if len(prov_doc.get_record(org_uri)) == 0:
+            prov_doc.agent(org_uri, org_record)
 
-            # Build the activity record         
-            activity_attributes = {
-                'prov:type': 'Activity'
-            }
+        # Build the activity record         
+        activity_attributes = {
+            'prov:type': 'Activity'
+        }
 
-            for key in activity_node:
-                prov_key = f'{HUBMAP_NAMESPACE}:{key}'
-                activity_attributes[prov_key] = activity_node[key]
+        for key in activity_node:
+            prov_key = f'{HUBMAP_NAMESPACE}:{key}'
+            activity_attributes[prov_key] = activity_node[key]
 
-            activity_timestamp_json = get_json_timestamp(int(activity_node['created_timestamp']))
+        activity_timestamp_json = get_json_timestamp(int(activity_node['created_timestamp']))
 
-            # Build the activity uri
-            activity_uri = build_uri(HUBMAP_NAMESPACE, 'activities', activity_node['uuid'])
-            
-            # Add the activity to prov_doc
-            # In our case, prov:startTime is the same as prov:endTime
-            if len(prov_doc.get_record(activity_uri)) == 0:
-                prov_doc.activity(activity_uri, activity_timestamp_json, activity_timestamp_json, activity_attributes)
-   
-            # Attributes to be added to the PROV document
-            entity_attributes = {
-                'prov:type': 'Entity'
-            }
-
-            # Lab nodes have already been skipped in Neo4j query
-            # Normalize the result based on schema and skip `label` attribute
-            attributes_to_exclude = ['label']
-            final_entity_node = schema_manager.normalize_entity_result_for_response(entity_node, attributes_to_exclude)
-            for key in final_entity_node:
-                # Entity property values can be list, skip
-                # And list is unhashable type when calling `prov_doc.entity()`
-                if not isinstance(final_entity_node[key], list):
-                    prov_key = f'{HUBMAP_NAMESPACE}:{key}'
-                    entity_attributes[prov_key] = final_entity_node[key]
+        # Build the activity uri
+        activity_uri = build_uri(HUBMAP_NAMESPACE, 'activities', activity_node['uuid'])
         
-            entity_uri = build_uri(HUBMAP_NAMESPACE, 'entities', entity_node['uuid'])
+        # Add the activity to prov_doc
+        # In our case, prov:startTime is the same as prov:endTime
+        if len(prov_doc.get_record(activity_uri)) == 0:
+            prov_doc.activity(activity_uri, activity_timestamp_json, activity_timestamp_json, activity_attributes)
+        
+        # Attributes to be added to the PROV document
+        entity_attributes = {
+            'prov:type': 'Entity'
+        }
 
-            if len(prov_doc.get_record(entity_uri)) == 0:
-                prov_doc.entity(entity_uri, entity_attributes)
-            
+        # Lab nodes have already been skipped in Neo4j query
+        # Normalize the result based on schema and skip `label` attribute
+        attributes_to_exclude = ['label']
+        final_entity_node = schema_manager.normalize_entity_result_for_response(entity_node, attributes_to_exclude)
+        for key in final_entity_node:
+            # Entity property values can be list, skip
+            # And list is unhashable type when calling `prov_doc.entity()`
+            if not isinstance(final_entity_node[key], list):
+                prov_key = f'{HUBMAP_NAMESPACE}:{key}'
+                entity_attributes[prov_key] = final_entity_node[key]
+    
+        entity_uri = build_uri(HUBMAP_NAMESPACE, 'entities', entity_node['uuid'])
+
+        # Only add once
+        if len(prov_doc.get_record(entity_uri)) == 0:
+            prov_doc.entity(entity_uri, entity_attributes)
+
+
+        # (Activity) - [ACTIVITY_OUTPUT] -> (Entity)
+        if rel_dict['rel_data']['type'] == 'ACTIVITY_OUTPUT':
+            # Relationship: the entity wasGeneratedBy the activity
+            prov_doc.wasGeneratedBy(entity_uri, activity_uri)
+        # (Entity) - [ACTIVITY_INPUT] -> (Activity)
+        elif rel_dict['rel_data']['type'] == 'ACTIVITY_INPUT':
             # Relationship: the activity used the entity
             prov_doc.used(activity_uri, entity_uri)
 
