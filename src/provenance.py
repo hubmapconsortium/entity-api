@@ -1,11 +1,6 @@
-import prov
-from prov.serializers.provjson import ProvJSONSerializer
-from prov.model import ProvDocument, PROV_TYPE, Namespace, NamespaceManager
+from prov.model import ProvDocument, PROV
 import logging
 import datetime
-
-# Local modules
-from schema import schema_manager
 
 # HuBMAP commons
 from hubmap_commons import globus_groups
@@ -26,7 +21,7 @@ https://www.w3.org/TR/prov-dm/
 Parameters
 ----------
 normalized_provenance_dict : dict
-    The processed dict that contains the complete entity properties
+    The dict that contains all the normalized entity properties defined by the schema yaml
 
 Returns
 -------
@@ -34,10 +29,8 @@ str
     A JSON string representation of the provenance document
 """
 def get_provenance_history(normalized_provenance_dict):
-    logger.debug(normalized_provenance_dict)
-
     prov_doc = ProvDocument()
-
+    # The 'prov' prefix is build-in namespace, no need to redefine here
     prov_doc.add_namespace(HUBMAP_NAMESPACE, 'https://hubmapconsortium.org/')
   
     # A bit validation
@@ -47,9 +40,8 @@ def get_provenance_history(normalized_provenance_dict):
     if 'nodes' not in normalized_provenance_dict:
         raise LookupError(f'Missing "nodes" key from the normalized_provenance_dict for Entity of uuid: {uuid}')
     
-    nodes_dict = {}
-
     # Pack the nodes into a dictionary using the uuid as key
+    nodes_dict = {}
     for node in normalized_provenance_dict['nodes']:
         nodes_dict[node['uuid']] = node
     
@@ -66,21 +58,30 @@ def get_provenance_history(normalized_provenance_dict):
 
         activity_node = nodes_dict[activity_uuid]
         entity_node = nodes_dict[entity_uuid]
+        
+        activity_uri = None
+        entity_uri = None
 
         # Skip Lab nodes for agent and organization
         if entity_node['entity_type'] != 'Lab':
             # Get the agent information from the entity node
             agent_record = get_agent_record(entity_node)
 
-            # Build the agent uri
-            created_by_user_email_prov_key = f'{HUBMAP_NAMESPACE}:userEmail'
-            agent_id = str(agent_record[created_by_user_email_prov_key]).replace('@', '-')
-            agent_id = str(agent_id).replace('.', '-')
-
+            # Use 'created_by_user_sub' as agent ID if presents
+            # Otherwise, fall back to use email by replacing @ and .
             created_by_user_sub_prov_key = f'{HUBMAP_NAMESPACE}:userUUID'
+            created_by_user_email_prov_key = f'{HUBMAP_NAMESPACE}:userEmail'
             if created_by_user_sub_prov_key in agent_record:
                 agent_id = agent_record[created_by_user_sub_prov_key]
+            elif created_by_user_email_prov_key in agent_record:
+                agent_id = str(agent_record[created_by_user_email_prov_key]).replace('@', '-')
+                agent_id = str(agent_id).replace('.', '-')
+            else:
+                msg = f"Both 'created_by_user_sub' and 'created_by_user_email' are missing form entity of uuid: {entity_node['uuid']}"
+                logger.error(msg)
+                raise LookupError(msg)
 
+            # Build the agent uri
             agent_uri = build_uri(HUBMAP_NAMESPACE, 'agent', agent_id)
 
             # Only add the same agent once
@@ -107,57 +108,72 @@ def get_provenance_history(normalized_provenance_dict):
             else:
                 doc_org = org[0]
 
-            # Build the activity record         
-            activity_attributes = {
-                'prov:type': 'Activity'
-            }
-
-            for key in activity_node:
-                prov_key = f'{HUBMAP_NAMESPACE}:{key}'
-                activity_attributes[prov_key] = activity_node[key]
-
-            activity_timestamp_json = get_json_timestamp(int(activity_node['created_timestamp']))
-
             # Build the activity uri
             activity_uri = build_uri(HUBMAP_NAMESPACE, 'activities', activity_node['uuid'])
             
-            # Add the activity to prov_doc
-            # In our case, prov:startTime is the same as prov:endTime
+            # Register activity if not already registered
             activity = prov_doc.get_record(activity_uri)
             if len(activity) == 0:
-                doc_activity = prov_doc.activity(activity_uri, activity_timestamp_json, activity_timestamp_json, activity_attributes)
+                # Shared attributes to be added to the PROV document       
+                activity_attributes = {
+                    'prov:type': 'Activity'
+                }
+
+                # Convert the timestampt integer to datetime string
+                # Note: in our case, prov:startTime is the same as prov:endTime
+                activity_time = timestamp_to_datetime(activity_node['created_timestamp'])
+
+                # Add prefix to all other attributes
+                for key in activity_node:
+                    prov_key = f'{HUBMAP_NAMESPACE}:{key}'
+                    # Use datetime string instead of timestamp integer
+                    if key == 'created_timestamp':
+                        activity_attributes[prov_key] = activity_time
+                    else:
+                        activity_attributes[prov_key] = activity_node[key]
+
+                # Register activity
+                doc_activity = prov_doc.activity(activity_uri, activity_time, activity_time, activity_attributes)
                 
                 # Relationship: the agent actedOnBehalfOf the org
                 prov_doc.actedOnBehalfOf(doc_agent, doc_org, doc_activity)
             else:
                 doc_activity = activity[0]    
             
-            # Attributes to be added to the PROV document
-            entity_attributes = {
-                'prov:type': 'Entity'
-            }
-
-            # Normalize the result based on schema and skip `label` attribute
-            attributes_to_exclude = ['label']
-            final_entity_node = schema_manager.normalize_entity_result_for_response(entity_node, attributes_to_exclude)
-
-            for key in final_entity_node:
-                # Entity property values can be list, skip
-                # And list is unhashable type when calling `prov_doc.entity()`
-                if not isinstance(final_entity_node[key], list):
-                    prov_key = f'{HUBMAP_NAMESPACE}:{key}'
-                    entity_attributes[prov_key] = final_entity_node[key]
-        
+            # Build the entity uri
             entity_uri = build_uri(HUBMAP_NAMESPACE, 'entities', entity_node['uuid'])
 
-            # Only add once
+            # Register entity is not already registered
             if len(prov_doc.get_record(entity_uri)) == 0:
+                # Shared attributes to be added to the PROV document
+                entity_attributes = {
+                    'prov:type': 'Entity'
+                }
+
+                # Add prefix to all other attributes
+                for key in entity_node:
+                    # Entity property values can be list, skip
+                    # And list is unhashable type when calling `prov_doc.entity()`
+                    if not isinstance(entity_node[key], list):
+                        prov_key = f'{HUBMAP_NAMESPACE}:{key}'
+                        # Use datetime string instead of timestamp integer
+                        if key in ['created_timestamp', 'last_modified_timestamp', 'published_timestamp']:
+                            entity_attributes[prov_key] = activity_time
+                        else:
+                            entity_attributes[prov_key] = entity_node[key]
+            
+                # Register entity
                 prov_doc.entity(entity_uri, entity_attributes)
 
-        # The following relationships apply to all node including Lab entity nodes
-        activity_uri = build_uri(HUBMAP_NAMESPACE, 'activities', activity_node['uuid'])
-        entity_uri = build_uri(HUBMAP_NAMESPACE, 'entities', entity_node['uuid'])
+        # Build activity uri and entity uri if not already built
+        # For the Lab nodes
+        if activity_uri is None:
+            activity_uri = build_uri(HUBMAP_NAMESPACE, 'activities', activity_node['uuid'])
 
+        if entity_uri is None:
+            entity_uri = build_uri(HUBMAP_NAMESPACE, 'entities', entity_node['uuid'])
+
+        # The following relationships apply to all node including Lab entity nodes
         # (Activity) - [ACTIVITY_OUTPUT] -> (Entity)
         if rel_dict['rel_data']['type'] == 'ACTIVITY_OUTPUT':
             # Relationship: the entity wasGeneratedBy the activity
@@ -200,20 +216,20 @@ def build_uri(prefix, uri_type, identifier):
     return f"{prefix}:{str(uri_type)}/{str(identifier)}"
 
 """
-Build the timestamp json
+Convert the timestamp int to formatted datetime string
 
 Parameters
 ----------
-int_timestamp : int
+timestamp : int
     The timestamp in integer form
 
 Returns
 -------
-json
-    The timestamp json
+str
+    The formatted datetime string, e.g., 2001-10-26T21:32:52
 """
-def get_json_timestamp(int_timestamp):
-    date = datetime.datetime.fromtimestamp(int_timestamp / 1e3)
+def timestamp_to_datetime(timestamp):
+    date = datetime.datetime.fromtimestamp(int(timestamp) / 1e3)
     json_date = date.strftime("%Y-%m-%dT%H:%M:%S")
     return json_date
 
@@ -235,9 +251,9 @@ def get_agent_record(node_dict):
     created_by_user_email_prov_key = f'{HUBMAP_NAMESPACE}:userEmail'
     created_by_user_sub_prov_key = f'{HUBMAP_NAMESPACE}:userUUID'
 
-    # All agents share this same PROV_TYPE
+    # Shared attribute
     agent_dict = {
-        PROV_TYPE: 'prov:Person'
+        'prov:type': PROV['Person']
     }
 
     # Add to agent_dict if exists in node_dict
@@ -266,9 +282,6 @@ dict
     The prov dict for organization 
 """
 def get_organization_record(node_dict):
-    logger.debug("=========node_dict")
-    logger.debug(node_dict)
-
     group = {}
 
     # Get the globus groups info based on the groups json file in commons package
@@ -280,9 +293,9 @@ def get_organization_record(node_dict):
     # Return displayname (no dash, space separated) instead of name (dash-connected)
     group_name_prov_key = f'{HUBMAP_NAMESPACE}:groupName'
 
-    # All organizations share this same PROV_TYPE
+    # Shared attribute
     org_dict = {
-        PROV_TYPE: 'prov:Organization'
+        'prov:type': PROV['Organization']
     }
 
     if 'group_uuid' in node_dict:
@@ -314,7 +327,4 @@ def get_organization_record(node_dict):
     if 'displayname' in group:
         org_dict[group_name_prov_key] = group['displayname']
     
-    logger.debug("=========org_dict")
-    logger.debug(org_dict)
-
     return org_dict

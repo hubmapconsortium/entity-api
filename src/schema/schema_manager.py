@@ -182,14 +182,12 @@ def generate_triggered_data(trigger_type, normalized_class, data_dict, propertie
         schema_section = _schema['ENTITIES']
 
     properties = schema_section[normalized_class]['properties']
-    # A list of property keys
-    class_property_keys = list(properties) 
-    
+
     # Set each property value and put all resulting data into a dictionary for:
     # before_create_trigger|before_update_trigger|on_read_trigger
     # No property value to be set for: after_create_trigger|after_update_trigger
     trigger_generated_data_dict = {}
-    for key in class_property_keys:
+    for key in properties:
         # Among those properties that have the target trigger type,
         # we can skip the ones specified in the `properties_to_skip` by not running their triggers
         if (trigger_type in list(properties[key])) and (key not in properties_to_skip):
@@ -318,6 +316,40 @@ def get_complete_entities_list(entities_list, properties_to_skip = []):
 
     return complete_entities_list
 
+"""
+Normalize the activity result by filtering out properties that are not defined in the yaml schema
+and the ones that are marked as `exposed: false` prior to sending the response
+
+Parameters
+----------
+activity_dict : dict
+    A dictionary that contains all activity details
+properties_to_exclude : list
+    Any additional properties to exclude from the response
+
+Returns
+-------
+dict
+    A dictionary of activity information with keys that are all normalized
+"""
+def normalize_activity_result_for_response(activity_dict, properties_to_exclude = []):
+    global _schema
+
+    properties = _schema['ACTIVITIES']['Activity']['properties']
+
+    normalized_activity = {}
+    for key in activity_dict:
+        # Only return the properties defined in the schema yaml
+        # Exclude additional properties if specified
+        if (key in properties) and (key not in properties_to_exclude):
+            # By default, all properties are exposed
+            # It's possible to see `exposed: true`
+            if ('exposed' not in properties[key]) or (('exposed' in properties[key]) and properties[key]['exposed']):
+                # Add to the normalized_activity dict
+                normalized_activity[key] = activity_dict[key]
+
+    return normalized_activity
+
 
 """
 Normalize the entity result by filtering out properties that are not defined in the yaml schema
@@ -325,7 +357,7 @@ and the ones that are marked as `exposed: false` prior to sending the response
 
 Parameters
 ----------
-data_dict : dict
+entity_dict : dict
     A merged dictionary that contains all possible data to be used by the trigger methods
 properties_to_exclude : list
     Any additional properties to exclude from the response
@@ -340,13 +372,12 @@ def normalize_entity_result_for_response(entity_dict, properties_to_exclude = []
 
     normalized_entity_type = entity_dict['entity_type']
     properties = _schema['ENTITIES'][normalized_entity_type]['properties']
-    class_property_keys = properties.keys() 
 
     normalized_entity = {}
     for key in entity_dict:
         # Only return the properties defined in the schema yaml
         # Exclude additional properties if specified
-        if (key in class_property_keys) and (key not in properties_to_exclude):
+        if (key in properties) and (key not in properties_to_exclude):
             # By default, all properties are exposed
             # It's possible to see `exposed: true`
             if ('exposed' not in properties[key]) or (('exposed' in properties[key]) and properties[key]['exposed']):
