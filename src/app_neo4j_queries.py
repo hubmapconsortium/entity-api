@@ -388,7 +388,7 @@ def get_descendants(neo4j_driver, uuid, property_key = None):
                  f"WHERE e.uuid='{uuid}' AND descendant.entity_type <> 'Lab' "
                  # COLLECT() returns a list
                  # apoc.coll.toSet() reruns a set containing unique nodes
-                 "RETURN apoc.coll.toSet(COLLECT(descendant.{property_key})) AS {record_field_name}")
+                 f"RETURN apoc.coll.toSet(COLLECT(descendant.{property_key})) AS {record_field_name}")
     else:
         query = (f"MATCH (e:Entity)-[r:ACTIVITY_INPUT|:ACTIVITY_OUTPUT*]->(descendant:Entity) "
                  # Filter out the Lab entities
