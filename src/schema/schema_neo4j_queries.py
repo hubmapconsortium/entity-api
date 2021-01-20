@@ -80,23 +80,20 @@ def get_dataset_direct_ancestors(neo4j_driver, uuid, property_key = None):
     logger.debug(query)
 
     # Sessions will often be created and destroyed using a with block context
+    record = None
     with neo4j_driver.session() as session:
-        result = session.run(query)
-        record = result.single()
-        result_list = []
+        record = session.read_transaction(_execute_readonly_tx, query)
 
-        if property_key:
-            # Just return the list of property values from each entity node
-            result_list = record[record_field_name]
-        else:
-            # Convert the entity nodes to dicts
-            nodes = record[record_field_name]
+    result_list = []
 
-            for node in nodes:
-                entity_dict = _node_to_dict(node)
-                result_list.append(entity_dict)
+    if property_key:
+        # Just return the list of property values from each entity node
+        result_list = record[record_field_name]
+    else:
+        # Convert the list of nodes to a list of dicts
+        result_list = _nodes_to_dicts(nodes)
 
-        return result_list 
+    return result_list 
 
 
 """
@@ -119,7 +116,7 @@ def link_entity_to_direct_ancestor(neo4j_driver, entity_uuid, ancestor_uuid, act
             tx = session.begin_transaction()
 
             # Create the Acvitity node
-            activity_dict = create_activity_tx(tx, activity_json_list_str)
+            activity_dict = _create_activity_tx(tx, activity_json_list_str)
 
             # Create relationship from ancestor entity node to this Activity node
             _create_relationship_tx(tx, ancestor_uuid, activity_dict['uuid'], 'ACTIVITY_INPUT', '->')
@@ -171,19 +168,20 @@ def get_dataset_collections(neo4j_driver, uuid, property_key = None):
     logger.debug("======get_dataset_collection_uuids() query======")
     logger.debug(query)
 
+    record = None
     with neo4j_driver.session() as session:
-        result = session.run(query)
-        record = result.single()
-        result_list = []
+        record = session.read_transaction(_execute_readonly_tx, query)
 
-        # Convert the entity nodes to dicts
-        nodes = record[record_field_name]
+    result_list = []
 
-        for node in nodes:
-            entity_dict = _node_to_dict(node)
-            result_list.append(entity_dict)
+    if property_key:
+        # Just return the list of property values from each entity node
+        result_list = record[record_field_name]
+    else:
+        # Convert the list of nodes to a list of dicts
+        result_list = _nodes_to_dicts(nodes)
 
-        return result_list
+    return result_list 
 
 """
 Get a list of associated dataset dicts for a given collection
@@ -208,19 +206,17 @@ def get_collection_datasets(neo4j_driver, uuid):
     logger.debug("======get_collection_datasets() query======")
     logger.debug(query)
 
+    record = None
     with neo4j_driver.session() as session:
-        result = session.run(query)
-        record = result.single()
-        result_list = []
+        record = session.read_transaction(_execute_readonly_tx, query)
 
-        # Convert the entity nodes to dicts
-        nodes = record[record_field_name]
+    # Convert the entity nodes to dicts
+    nodes = record[record_field_name]
 
-        for node in nodes:
-            entity_dict = _node_to_dict(node)
-            result_list.append(entity_dict)
+    # Convert the list of nodes to a list of dicts
+    result_list = _nodes_to_dicts(nodes)
 
-        return result_list
+    return result_list
 
 
 """
@@ -253,8 +249,8 @@ def count_attached_published_datasets(neo4j_driver, entity_type, uuid):
     logger.debug(query)
 
     with neo4j_driver.session() as session:
-        result = session.run(query)
-        record = result.single()
+        record = session.read_transaction(_execute_readonly_tx, query)
+
         count = record[record_field_name]
 
         logger.debug("======count_attached_published_datasets() resulting count======")
@@ -340,22 +336,42 @@ def get_sample_direct_ancestor(neo4j_driver, uuid, property_key = None):
     logger.debug("======get_sample_direct_ancestor() query======")
     logger.debug(query)
 
+    record = None
     with neo4j_driver.session() as session:
-        result = session.run(query)
-        record = result.single()
+        record = session.read_transaction(_execute_readonly_tx, query)
 
-        if property_key:
-            return record[record_field_name]
-        else:
-            # Convert the entity node to dict
-            node = record[record_field_name]
-            entity_dict = _node_to_dict(node)
-            return entity_dict               
+    if property_key:
+        return record[record_field_name]
+    else:
+        # Convert the entity node to dict
+        node = record[record_field_name]
+        entity_dict = _node_to_dict(node)
+        return entity_dict               
 
 
 ####################################################################################################
 ## Internal Functions
 ####################################################################################################
+
+"""
+Execute a unit of work in a managed read transaction
+
+Parameters
+----------
+tx : transaction_function
+    a function that takes a transaction as an argument and does work with the transaction
+query : str
+    The target cypher query to run
+
+Returns
+-------
+neo4j.Record or None
+    A single record returned from the Cypher query
+"""
+def _execute_readonly_tx(tx, query):
+    result = tx.run(query)
+    record = result.single()
+    return record
 
 """
 Create a new activity node in neo4j
@@ -372,7 +388,7 @@ Returns
 neo4j.node
     A neo4j node instance of the newly created entity node
 """
-def create_activity_tx(tx, json_list_str):
+def _create_activity_tx(tx, json_list_str):
     # UNWIND expects json.entities to be List<T>
     query = (f"WITH apoc.convert.fromJsonList('{json_list_str}') AS activities_list "
              f"UNWIND activities_list AS data "
@@ -380,14 +396,14 @@ def create_activity_tx(tx, json_list_str):
              f"SET a = data "
              f"RETURN a AS {record_field_name}")
 
-    logger.debug("======create_activity_tx() query======")
+    logger.debug("======_create_activity_tx() query======")
     logger.debug(query)
 
     result = tx.run(query)
     record = result.single()
     node = record[record_field_name]
 
-    logger.debug("======create_activity_tx() resulting node======")
+    logger.debug("======_create_activity_tx() resulting node======")
     logger.debug(node)
 
     return node
@@ -463,3 +479,25 @@ def _node_to_dict(entity_node):
         entity_dict.setdefault(key, value)
 
     return entity_dict
+
+"""
+Convert the list of neo4j nodes into a list of Python dicts
+
+Parameters
+----------
+nodes : list
+    The list of neo4j node to be converted
+
+Returns
+-------
+list
+    A list of target entity dicts containing all property key/value pairs
+"""
+def _nodes_to_dicts(nodes):
+    dicts = []
+
+    for node in nodes:
+        entity_dict = _node_to_dict(node)
+        dicts.append(entity_dict)
+
+    return dicts

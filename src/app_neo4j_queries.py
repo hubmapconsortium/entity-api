@@ -28,17 +28,18 @@ def check_connection(neo4j_driver):
     query = (f"RETURN 1 AS {record_field_name}")
 
     # Sessions will often be created and destroyed using a with block context
+    record = None
     with neo4j_driver.session() as session:
-        result = session.run(query)
-        record = result.single()
-        int_value = record[record_field_name]
-        
-        if int_value == 1:
-            logger.info("Neo4j is connected :)")
-            return True
+        record = session.read_transaction(_execute_readonly_tx, query)
+    
+    int_value = record[record_field_name]
+    
+    if int_value == 1:
+        logger.info("Neo4j is connected :)")
+        return True
 
-        logger.info("Neo4j is NOT connected :(")
-        return False
+    logger.info("Neo4j is NOT connected :(")
+    return False
 
 
 """
@@ -64,15 +65,15 @@ def get_entity(neo4j_driver, uuid):
     logger.debug("======get_entity() query======")
     logger.debug(query)
 
+    record = None
     with neo4j_driver.session() as session:
-        result = session.run(query)
-        record = result.single()
+        record = session.read_transaction(_execute_readonly_tx, query)
 
-        entity_node = record[record_field_name]
-        # Convert the neo4j node into Python dict
-        entity_dict = _node_to_dict(entity_node)
+    entity_node = record[record_field_name]
+    # Convert the neo4j node into Python dict
+    entity_dict = _node_to_dict(entity_node)
 
-        return entity_dict
+    return entity_dict
 
 
 """
@@ -107,24 +108,21 @@ def get_entities_by_type(neo4j_driver, entity_type, property_key = None):
     logger.info("======get_entities_by_type() query======")
     logger.info(query)
 
+    record = None
     with neo4j_driver.session() as session:
-        result = session.run(query)
-        record = result.single()
-        
-        result_list = []
+        record = session.read_transaction(_execute_readonly_tx, query)
+       
+    # Data handling should happen outside the neo4j session 
+    result_list = []
 
-        if property_key:
-            # Just return the list of property values from each entity node
-            result_list = record[record_field_name]
-        else:
-            # Convert the entity nodes to dicts
-            nodes = record[record_field_name]
+    if property_key:
+        # Just return the list of property values from each entity node
+        result_list = record[record_field_name]
+    else:
+        # Convert the list of nodes to a list of dicts
+        result_list = _nodes_to_dicts(nodes)
 
-            for node in nodes:
-                entity_dict = _node_to_dict(node)
-                result_list.append(entity_dict)
-
-        return result_list
+    return result_list
 
 
 
@@ -160,24 +158,20 @@ def get_public_collections(neo4j_driver, property_key = None):
     logger.info("======get_public_collections() query======")
     logger.info(query)
 
+    record = None
     with neo4j_driver.session() as session:
-        result = session.run(query)
-        record = result.single()
-        
-        result_list = []
+        record = session.read_transaction(_execute_readonly_tx, query)
 
-        if property_key:
-            # Just return the list of property values from each entity node
-            result_list = record[record_field_name]
-        else:
-            # Convert the entity nodes to dicts
-            nodes = record[record_field_name]
+    result_list = []
 
-            for node in nodes:
-                entity_dict = _node_to_dict(node)
-                result_list.append(entity_dict)
+    if property_key:
+        # Just return the list of property values from each entity node
+        result_list = record[record_field_name]
+    else:
+        # Convert the list of nodes to a list of dicts
+        result_list = _nodes_to_dicts(nodes)
 
-        return result_list
+    return result_list
 
 
 
@@ -344,24 +338,20 @@ def get_ancestors(neo4j_driver, uuid, property_key = None):
     logger.debug("======get_ancestors() query======")
     logger.debug(query)
 
+    record = None
     with neo4j_driver.session() as session:
-        result = session.run(query)
-        record = result.single()
+        record = session.read_transaction(_execute_readonly_tx, query)
 
-        result_list = []
+    result_list = []
 
-        if property_key:
-            # Just return the list of property values from each entity node
-            result_list = record[record_field_name]
-        else:
-            # Convert the entity nodes to dicts
-            nodes = record[record_field_name]
+    if property_key:
+        # Just return the list of property values from each entity node
+        result_list = record[record_field_name]
+    else:
+        # Convert the list of nodes to a list of dicts
+        result_list = _nodes_to_dicts(nodes)
 
-            for node in nodes:
-                entity_dict = _node_to_dict(node)
-                result_list.append(entity_dict)
-
-        return result_list               
+    return result_list               
 
 
 """
@@ -400,24 +390,20 @@ def get_descendants(neo4j_driver, uuid, property_key = None):
     logger.debug("======get_descendants() query======")
     logger.debug(query)
 
+    record = None
     with neo4j_driver.session() as session:
-        result = session.run(query)
-        record = result.single()
+        record = session.read_transaction(_execute_readonly_tx, query)
 
-        result_list = []
+    result_list = []
 
-        if property_key:
-            # Just return the list of property values from each entity node
-            result_list = record[record_field_name]
-        else:
-            # Convert the entity nodes to dicts
-            nodes = record[record_field_name]
+    if property_key:
+        # Just return the list of property values from each entity node
+        result_list = record[record_field_name]
+    else:
+        # Convert the list of nodes to a list of dicts
+        result_list = _nodes_to_dicts(nodes)
 
-            for node in nodes:
-                entity_dict = _node_to_dict(node)
-                result_list.append(entity_dict)
-
-        return result_list               
+    return result_list               
 
 
 """
@@ -456,24 +442,20 @@ def get_parents(neo4j_driver, uuid, property_key = None):
     logger.debug("======get_parents() query======")
     logger.debug(query)
 
+    record = None
     with neo4j_driver.session() as session:
-        result = session.run(query)
-        record = result.single()
+        record = session.read_transaction(_execute_readonly_tx, query)
 
-        result_list = []
+    result_list = []
 
-        if property_key:
-            # Just return the list of property values from each entity node
-            result_list = record[record_field_name]
-        else:
-            # Convert the entity nodes to dicts
-            nodes = record[record_field_name]
+    if property_key:
+        # Just return the list of property values from each entity node
+        result_list = record[record_field_name]
+    else:
+        # Convert the list of nodes to a list of dicts
+        result_list = _nodes_to_dicts(nodes)
 
-            for node in nodes:
-                entity_dict = _node_to_dict(node)
-                result_list.append(entity_dict)
-
-        return result_list               
+    return result_list               
 
 
 """
@@ -512,23 +494,20 @@ def get_children(neo4j_driver, uuid, property_key = None):
     logger.debug("======get_children() query======")
     logger.debug(query)
 
+    record = None
     with neo4j_driver.session() as session:
-        result = session.run(query)
-        record = result.single()
-        result_list = []
+        record = session.read_transaction(_execute_readonly_tx, query)
 
-        if property_key:
-            # Just return the list of property values from each entity node
-            result_list = record[record_field_name]
-        else:
-            # Convert the entity nodes to dicts
-            nodes = record[record_field_name]
+    result_list = []
 
-            for node in nodes:
-                entity_dict = _node_to_dict(node)
-                result_list.append(entity_dict)
+    if property_key:
+        # Just return the list of property values from each entity node
+        result_list = record[record_field_name]
+    else:
+        # Convert the list of nodes to a list of dicts
+        result_list = _nodes_to_dicts(nodes)
 
-        return result_list             
+    return result_list             
 
 
 """
@@ -612,14 +591,33 @@ def get_provenance(neo4j_driver, uuid, depth):
     logger.debug(query)
 
     with neo4j_driver.session() as session:
-        result = session.run(query)
-        record = result.single()
+        record = session.read_transaction(_execute_readonly_tx, query)
 
         return record
         
 ####################################################################################################
 ## Internal Functions
 ####################################################################################################
+
+"""
+Execute a unit of work in a managed read transaction
+
+Parameters
+----------
+tx : transaction_function
+    a function that takes a transaction as an argument and does work with the transaction
+query : str
+    The target cypher query to run
+
+Returns
+-------
+neo4j.Record or None
+    A single record returned from the Cypher query
+"""
+def _execute_readonly_tx(tx, query):
+    result = tx.run(query)
+    record = result.single()
+    return record
 
 """
 Create a relationship from the source node to the target node in neo4j
@@ -693,5 +691,24 @@ def _node_to_dict(entity_node):
 
     return entity_dict
 
+"""
+Convert the list of neo4j nodes into a list of Python dicts
 
-        
+Parameters
+----------
+nodes : list
+    The list of neo4j node to be converted
+
+Returns
+-------
+list
+    A list of target entity dicts containing all property key/value pairs
+"""
+def _nodes_to_dicts(nodes):
+    dicts = []
+
+    for node in nodes:
+        entity_dict = _node_to_dict(node)
+        dicts.append(entity_dict)
+
+    return dicts
