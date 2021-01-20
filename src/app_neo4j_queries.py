@@ -32,9 +32,7 @@ def check_connection(neo4j_driver):
     with neo4j_driver.session() as session:
         record = session.read_transaction(_execute_readonly_tx, query)
     
-    int_value = record[record_field_name]
-    
-    if int_value == 1:
+    if record[record_field_name] == 1:
         logger.info("Neo4j is connected :)")
         return True
 
@@ -69,12 +67,8 @@ def get_entity(neo4j_driver, uuid):
     with neo4j_driver.session() as session:
         record = session.read_transaction(_execute_readonly_tx, query)
 
-    entity_node = record[record_field_name]
     # Convert the neo4j node into Python dict
-    entity_dict = _node_to_dict(entity_node)
-
-    return entity_dict
-
+    return _node_to_dict(record[record_field_name])
 
 """
 Get all the entity nodes for the given entity type
@@ -113,18 +107,12 @@ def get_entities_by_type(neo4j_driver, entity_type, property_key = None):
         record = session.read_transaction(_execute_readonly_tx, query)
        
     # Data handling should happen outside the neo4j session 
-    result_list = []
-
     if property_key:
         # Just return the list of property values from each entity node
-        result_list = record[record_field_name]
+        return record[record_field_name]
     else:
         # Convert the list of nodes to a list of dicts
-        result_list = _nodes_to_dicts(nodes)
-
-    return result_list
-
-
+        return _nodes_to_dicts(record[record_field_name])
 
 """
 Get all the public collection nodes
@@ -162,17 +150,12 @@ def get_public_collections(neo4j_driver, property_key = None):
     with neo4j_driver.session() as session:
         record = session.read_transaction(_execute_readonly_tx, query)
 
-    result_list = []
-
     if property_key:
         # Just return the list of property values from each entity node
-        result_list = record[record_field_name]
+        return record[record_field_name]
     else:
         # Convert the list of nodes to a list of dicts
-        result_list = _nodes_to_dicts(nodes)
-
-    return result_list
-
+        return _nodes_to_dicts(record[record_field_name])
 
 
 """
@@ -342,17 +325,12 @@ def get_ancestors(neo4j_driver, uuid, property_key = None):
     with neo4j_driver.session() as session:
         record = session.read_transaction(_execute_readonly_tx, query)
 
-    result_list = []
-
     if property_key:
         # Just return the list of property values from each entity node
-        result_list = record[record_field_name]
+        return record[record_field_name]
     else:
         # Convert the list of nodes to a list of dicts
-        result_list = _nodes_to_dicts(nodes)
-
-    return result_list               
-
+        return _nodes_to_dicts(record[record_field_name])
 
 """
 Get all descendants by uuid
@@ -394,17 +372,12 @@ def get_descendants(neo4j_driver, uuid, property_key = None):
     with neo4j_driver.session() as session:
         record = session.read_transaction(_execute_readonly_tx, query)
 
-    result_list = []
-
     if property_key:
         # Just return the list of property values from each entity node
-        result_list = record[record_field_name]
+        return record[record_field_name]
     else:
         # Convert the list of nodes to a list of dicts
-        result_list = _nodes_to_dicts(nodes)
-
-    return result_list               
-
+        return _nodes_to_dicts(record[record_field_name])
 
 """
 Get all parents by uuid
@@ -446,16 +419,12 @@ def get_parents(neo4j_driver, uuid, property_key = None):
     with neo4j_driver.session() as session:
         record = session.read_transaction(_execute_readonly_tx, query)
 
-    result_list = []
-
     if property_key:
         # Just return the list of property values from each entity node
-        result_list = record[record_field_name]
+        return record[record_field_name]
     else:
         # Convert the list of nodes to a list of dicts
-        result_list = _nodes_to_dicts(nodes)
-
-    return result_list               
+        return _nodes_to_dicts(record[record_field_name])
 
 
 """
@@ -498,16 +467,12 @@ def get_children(neo4j_driver, uuid, property_key = None):
     with neo4j_driver.session() as session:
         record = session.read_transaction(_execute_readonly_tx, query)
 
-    result_list = []
-
     if property_key:
         # Just return the list of property values from each entity node
-        result_list = record[record_field_name]
+        return record[record_field_name]
     else:
         # Convert the list of nodes to a list of dicts
-        result_list = _nodes_to_dicts(nodes)
-
-    return result_list             
+        return _nodes_to_dicts(record[record_field_name])
 
 
 """
@@ -591,10 +556,9 @@ def get_provenance(neo4j_driver, uuid, depth):
     logger.debug(query)
 
     with neo4j_driver.session() as session:
-        record = session.read_transaction(_execute_readonly_tx, query)
+        return session.read_transaction(_execute_readonly_tx, query)
 
-        return record
-        
+
 ####################################################################################################
 ## Internal Functions
 ####################################################################################################

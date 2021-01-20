@@ -84,17 +84,12 @@ def get_dataset_direct_ancestors(neo4j_driver, uuid, property_key = None):
     with neo4j_driver.session() as session:
         record = session.read_transaction(_execute_readonly_tx, query)
 
-    result_list = []
-
     if property_key:
         # Just return the list of property values from each entity node
-        result_list = record[record_field_name]
+        return record[record_field_name]
     else:
         # Convert the list of nodes to a list of dicts
-        result_list = _nodes_to_dicts(nodes)
-
-    return result_list 
-
+        return _nodes_to_dicts(record[record_field_name])
 
 """
 Create a linkage (via Activity node) between the target entity node and the ancestor entity node in neo4j
@@ -172,16 +167,12 @@ def get_dataset_collections(neo4j_driver, uuid, property_key = None):
     with neo4j_driver.session() as session:
         record = session.read_transaction(_execute_readonly_tx, query)
 
-    result_list = []
-
     if property_key:
         # Just return the list of property values from each entity node
-        result_list = record[record_field_name]
+        return record[record_field_name]
     else:
         # Convert the list of nodes to a list of dicts
-        result_list = _nodes_to_dicts(nodes)
-
-    return result_list 
+        return _nodes_to_dicts(record[record_field_name])
 
 """
 Get a list of associated dataset dicts for a given collection
@@ -210,13 +201,8 @@ def get_collection_datasets(neo4j_driver, uuid):
     with neo4j_driver.session() as session:
         record = session.read_transaction(_execute_readonly_tx, query)
 
-    # Convert the entity nodes to dicts
-    nodes = record[record_field_name]
-
     # Convert the list of nodes to a list of dicts
-    result_list = _nodes_to_dicts(nodes)
-
-    return result_list
+    return _nodes_to_dicts(record[record_field_name])
 
 
 """
@@ -344,10 +330,7 @@ def get_sample_direct_ancestor(neo4j_driver, uuid, property_key = None):
         return record[record_field_name]
     else:
         # Convert the entity node to dict
-        node = record[record_field_name]
-        entity_dict = _node_to_dict(node)
-        return entity_dict               
-
+        return _node_to_dict(record[record_field_name])
 
 ####################################################################################################
 ## Internal Functions
