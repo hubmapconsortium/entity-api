@@ -52,7 +52,13 @@ valid_yaml_file : file
 neo4j_session_context : neo4j.Session object
     The neo4j database session
 """
-def initialize(valid_yaml_file, neo4j_uri, neo4j_username, neo4j_password, uuid_api_url, globus_app_client_id, globus_app_client_secret):
+def initialize(valid_yaml_file, 
+               neo4j_uri, 
+               neo4j_username, 
+               neo4j_password, 
+               uuid_api_url, 
+               globus_app_client_id, 
+               globus_app_client_secret):
     # Specify as module-scope variables
     global _schema
     global _neo4j_driver

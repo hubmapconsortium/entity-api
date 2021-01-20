@@ -1026,7 +1026,10 @@ def collection_redirect(id):
     redirect_url = app.config['COLLECTION_REDIRECT_URL']
 
     if redirect_url.lower().find('<identifier>') == -1:
-        internal_server_error("Incorrect configuration value for 'COLLECTION_REDIRECT_URL'")
+    	# Log the full stack trace, prepend a line with our message
+        msg = "Incorrect configuration value for 'COLLECTION_REDIRECT_URL'"
+        logger.exception(msg)
+        internal_server_error(msg)
 
     rep_pattern = re.compile(re.escape('<identifier>'), re.RegexFlag.IGNORECASE)
     redirect_url = rep_pattern.sub(uuid, redirect_url)
@@ -1071,7 +1074,7 @@ def get_dataset_globus_url(id):
     
     # Only for dataset
     if entity_dict['entity_type'] != 'Dataset':
-        bad_request_error("The target entity enity of the specified id is not a Dataset")
+        bad_request_error("The target entity of the specified id is not a Dataset")
 
     uuid = entity_dict['uuid']
 
@@ -1083,12 +1086,16 @@ def get_dataset_globus_url(id):
     data_access_level = entity_dict['data_access_level']
 
     if not 'group_uuid' in entity_dict or string_helper.isBlank(entity_dict['group_uuid']):
-        internal_server_error(f"Group uuid not set for dataset with id: {id}")
+    	msg = f"The 'group_uuid' property is not set for dataset with uuid: {uuid}"
+        logger.error(msg)
+        internal_server_error(msg)
 
     #look up the Component's group ID, return an error if not found
-    data_group_id = entity_dict['group_uuid']
-    if not data_group_id in groups_by_id_dict:
-        internal_server_error(f"Can not find dataset group: {data_group_id} for id: {id}")
+    group_uuid = entity_dict['group_uuid']
+    if not group_uuid in groups_by_id_dict:
+    	msg = f"Invalid 'group_uuid': {group_uuid} for dataset with uuid: {uuid}"
+    	logger.error(msg)
+        internal_server_error(msg)
 
     # Get the user information (if available) for the caller
     # getUserDataAccessLevel will return just a "data_access_level" of public
@@ -1105,7 +1112,7 @@ def get_dataset_globus_url(id):
     
     #the user is in the Globus group with full access to thie dataset,
     #so they have protected level access to it
-    if 'hmgroupids' in user_info and data_group_id in user_info['hmgroupids']:
+    if 'hmgroupids' in user_info and group_uuid in user_info['hmgroupids']:
         user_access_level = 'protected'
     else:
         if not 'data_access_level' in user_info:
@@ -1121,15 +1128,12 @@ def get_dataset_globus_url(id):
     elif data_access_level == ACCESS_LEVEL_CONSORTIUM and not user_access_level == ACCESS_LEVEL_PUBLIC:
         globus_server_uuid = app.config['GLOBUS_CONSORTIUM_ENDPOINT_UUID']
         access_dir = access_level_prefix_dir(app.config['CONSORTIUM_DATA_SUBDIR'])
-        dir_path = dir_path + access_dir + groups_by_id_dict[data_group_id]['displayname'] + "/"
+        dir_path = dir_path + access_dir + groups_by_id_dict[group_uuid]['displayname'] + "/"
     #protected access
     elif user_access_level == ACCESS_LEVEL_PROTECTED and data_access_level == ACCESS_LEVEL_PROTECTED:
         globus_server_uuid = app.config['GLOBUS_PROTECTED_ENDPOINT_UUID']
         access_dir = access_level_prefix_dir(app.config['PROTECTED_DATA_SUBDIR'])
-        dir_path = dir_path + access_dir + groups_by_id_dict[data_group_id]['displayname'] + "/"
-        
-    if globus_server_uuid is None:
-        forbidden_error("Access not granted")   
+        dir_path = dir_path + access_dir + groups_by_id_dict[group_uuid]['displayname'] + "/"
 
     dir_path = dir_path + uuid + "/"
     dir_path = urllib.parse.quote(dir_path, safe='')

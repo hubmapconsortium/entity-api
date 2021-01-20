@@ -261,12 +261,17 @@ ENTITIES:
         description: "The metadata returned from the processing at data submission time."
       local_directory_rel_path:
         # Example: protected/<TMC>/<uuid>
-        # Refer to the globus-url call
         type: string
         generated: true
         transient: true
         description: "The path on the local file system, relative to the base data directory, where the data is stored."
         on_read_trigger: get_local_directory_rel_path
+      globus_directory_url_path:
+        type: string
+        generated: true
+        transient: true
+        description: "The Globus URL to this dataset"
+        on_read_trigger: get_globus_directory_url_path
       run_id:
         type: string
       ingest_id:
