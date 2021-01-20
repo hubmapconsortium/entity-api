@@ -1026,7 +1026,7 @@ def collection_redirect(id):
     redirect_url = app.config['COLLECTION_REDIRECT_URL']
 
     if redirect_url.lower().find('<identifier>') == -1:
-    	# Log the full stack trace, prepend a line with our message
+        # Log the full stack trace, prepend a line with our message
         msg = "Incorrect configuration value for 'COLLECTION_REDIRECT_URL'"
         logger.exception(msg)
         internal_server_error(msg)
@@ -1086,15 +1086,15 @@ def get_dataset_globus_url(id):
     data_access_level = entity_dict['data_access_level']
 
     if not 'group_uuid' in entity_dict or string_helper.isBlank(entity_dict['group_uuid']):
-    	msg = f"The 'group_uuid' property is not set for dataset with uuid: {uuid}"
+        msg = f"The 'group_uuid' property is not set for dataset with uuid: {uuid}"
         logger.error(msg)
         internal_server_error(msg)
 
     #look up the Component's group ID, return an error if not found
     group_uuid = entity_dict['group_uuid']
     if not group_uuid in groups_by_id_dict:
-    	msg = f"Invalid 'group_uuid': {group_uuid} for dataset with uuid: {uuid}"
-    	logger.error(msg)
+        msg = f"Invalid 'group_uuid': {group_uuid} for dataset with uuid: {uuid}"
+        logger.error(msg)
         internal_server_error(msg)
 
     # Get the user information (if available) for the caller

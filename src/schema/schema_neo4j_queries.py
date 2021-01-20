@@ -67,6 +67,8 @@ list
     A unique list of uuids of source entities
 """
 def get_dataset_direct_ancestors(neo4j_driver, uuid, property_key = None):
+    results = []
+
     if property_key:
         query = (f"MATCH (s:Dataset)-[:ACTIVITY_INPUT]->(a:Activity)-[:ACTIVITY_OUTPUT]->(t:Entity) " 
                  f"WHERE t.uuid = '{uuid}' "
@@ -84,12 +86,15 @@ def get_dataset_direct_ancestors(neo4j_driver, uuid, property_key = None):
     with neo4j_driver.session() as session:
         record = session.read_transaction(_execute_readonly_tx, query)
 
-    if property_key:
-        # Just return the list of property values from each entity node
-        return record[record_field_name]
-    else:
-        # Convert the list of nodes to a list of dicts
-        return _nodes_to_dicts(record[record_field_name])
+    if record:
+        if property_key:
+            # Just return the list of property values from each entity node
+            results = record[record_field_name]
+        else:
+            # Convert the list of nodes to a list of dicts
+            results = _nodes_to_dicts(record[record_field_name])
+
+    return results
 
 """
 Create a linkage (via Activity node) between the target entity node and the ancestor entity node in neo4j
@@ -151,6 +156,8 @@ list
     A list of collection uuids
 """
 def get_dataset_collections(neo4j_driver, uuid, property_key = None):
+    results = []
+
     if property_key:
         query = (f"MATCH (e:Entity)-[:IN_COLLECTION]->(c:Collection) "
                  f"WHERE e.uuid = '{uuid}' "
@@ -167,12 +174,15 @@ def get_dataset_collections(neo4j_driver, uuid, property_key = None):
     with neo4j_driver.session() as session:
         record = session.read_transaction(_execute_readonly_tx, query)
 
-    if property_key:
-        # Just return the list of property values from each entity node
-        return record[record_field_name]
-    else:
-        # Convert the list of nodes to a list of dicts
-        return _nodes_to_dicts(record[record_field_name])
+    if record:
+        if property_key:
+            # Just return the list of property values from each entity node
+            results = record[record_field_name]
+        else:
+            # Convert the list of nodes to a list of dicts
+            results = _nodes_to_dicts(record[record_field_name])
+
+    return results
 
 """
 Get a list of associated dataset dicts for a given collection
@@ -190,6 +200,8 @@ list
     The list comtaining associated dataset dicts
 """
 def get_collection_datasets(neo4j_driver, uuid):
+    results = []
+
     query = (f"MATCH (e:Entity)-[:IN_COLLECTION]->(c:Collection) "
              f"WHERE c.uuid = '{uuid}' "
              f"RETURN apoc.coll.toSet(COLLECT(e)) AS {record_field_name}")
@@ -201,9 +213,11 @@ def get_collection_datasets(neo4j_driver, uuid):
     with neo4j_driver.session() as session:
         record = session.read_transaction(_execute_readonly_tx, query)
 
-    # Convert the list of nodes to a list of dicts
-    return _nodes_to_dicts(record[record_field_name])
+    if record:
+        # Convert the list of nodes to a list of dicts
+        results = _nodes_to_dicts(record[record_field_name])
 
+    return results
 
 """
 Get count of published Dataset in the provenance hierarchy for a given Sample/Donor
@@ -304,6 +318,8 @@ dict
     The parent dict, can either be a Sample or Donor
 """
 def get_sample_direct_ancestor(neo4j_driver, uuid, property_key = None):
+    result = {}
+
     if property_key:
         query = (f"MATCH (e:Entity)<-[:ACTIVITY_OUTPUT]-(:Activity)<-[:ACTIVITY_INPUT]-(parent:Entity) "
                  # Filter out the Lab entity if it's the ancestor
@@ -326,12 +342,16 @@ def get_sample_direct_ancestor(neo4j_driver, uuid, property_key = None):
     with neo4j_driver.session() as session:
         record = session.read_transaction(_execute_readonly_tx, query)
 
-    if property_key:
-        return record[record_field_name]
-    else:
-        # Convert the entity node to dict
-        return _node_to_dict(record[record_field_name])
+    if record:
+        if property_key:
+            result = record[record_field_name]
+        else:
+            # Convert the entity node to dict
+            result = _node_to_dict(record[record_field_name])
 
+    return result
+
+    
 ####################################################################################################
 ## Internal Functions
 ####################################################################################################

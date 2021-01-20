@@ -32,7 +32,7 @@ def check_connection(neo4j_driver):
     with neo4j_driver.session() as session:
         record = session.read_transaction(_execute_readonly_tx, query)
     
-    if record[record_field_name] == 1:
+    if record and (record[record_field_name] == 1):
         logger.info("Neo4j is connected :)")
         return True
 
@@ -56,6 +56,8 @@ dict
     A dictionary of entity details returned from the Cypher query
 """
 def get_entity(neo4j_driver, uuid):
+    result = {}
+
     query = (f"MATCH (e:Entity) "
              f"WHERE e.uuid = '{uuid}' "
              f"RETURN e AS {record_field_name}")
@@ -66,9 +68,12 @@ def get_entity(neo4j_driver, uuid):
     record = None
     with neo4j_driver.session() as session:
         record = session.read_transaction(_execute_readonly_tx, query)
+    
+    if record:
+        # Convert the neo4j node into Python dict
+        result = _node_to_dict(record[record_field_name])
 
-    # Convert the neo4j node into Python dict
-    return _node_to_dict(record[record_field_name])
+    return result
 
 """
 Get all the entity nodes for the given entity type
@@ -88,6 +93,8 @@ list
     A list of entity dicts of the given type returned from the Cypher query
 """
 def get_entities_by_type(neo4j_driver, entity_type, property_key = None):
+    results = []
+
     if property_key:
         query = (f"MATCH (e:{entity_type}) "
                  # COLLECT() returns a list
@@ -107,12 +114,15 @@ def get_entities_by_type(neo4j_driver, entity_type, property_key = None):
         record = session.read_transaction(_execute_readonly_tx, query)
        
     # Data handling should happen outside the neo4j session 
-    if property_key:
-        # Just return the list of property values from each entity node
-        return record[record_field_name]
-    else:
-        # Convert the list of nodes to a list of dicts
-        return _nodes_to_dicts(record[record_field_name])
+    if record:
+        if property_key:
+            # Just return the list of property values from each entity node
+            results = record[record_field_name]
+        else:
+            # Convert the list of nodes to a list of dicts
+            results = _nodes_to_dicts(record[record_field_name])
+
+    return results
 
 """
 Get all the public collection nodes
@@ -130,6 +140,8 @@ list
     A list of public collections returned from the Cypher query
 """
 def get_public_collections(neo4j_driver, property_key = None):
+    results = []
+
     if property_key:
         query = (f"MATCH (e:Collection) "
                  f"WHERE e.has_doi = true "
@@ -150,13 +162,15 @@ def get_public_collections(neo4j_driver, property_key = None):
     with neo4j_driver.session() as session:
         record = session.read_transaction(_execute_readonly_tx, query)
 
-    if property_key:
-        # Just return the list of property values from each entity node
-        return record[record_field_name]
-    else:
-        # Convert the list of nodes to a list of dicts
-        return _nodes_to_dicts(record[record_field_name])
+    if record:
+        if property_key:
+            # Just return the list of property values from each entity node
+            results = record[record_field_name]
+        else:
+            # Convert the list of nodes to a list of dicts
+            results = _nodes_to_dicts(record[record_field_name])
 
+    return results
 
 """
 Create a new entity node in neo4j
@@ -303,6 +317,8 @@ list
     A list of unique ancestor dictionaries returned from the Cypher query
 """
 def get_ancestors(neo4j_driver, uuid, property_key = None):
+    results = []
+
     if property_key:
         query = (f"MATCH (e:Entity)<-[r:ACTIVITY_INPUT|:ACTIVITY_OUTPUT*]-(ancestor:Entity) "
                  # Filter out the Lab entities
@@ -325,12 +341,15 @@ def get_ancestors(neo4j_driver, uuid, property_key = None):
     with neo4j_driver.session() as session:
         record = session.read_transaction(_execute_readonly_tx, query)
 
-    if property_key:
-        # Just return the list of property values from each entity node
-        return record[record_field_name]
-    else:
-        # Convert the list of nodes to a list of dicts
-        return _nodes_to_dicts(record[record_field_name])
+    if record:
+        if property_key:
+            # Just return the list of property values from each entity node
+            results = record[record_field_name]
+        else:
+            # Convert the list of nodes to a list of dicts
+            results = _nodes_to_dicts(record[record_field_name])
+
+    return results
 
 """
 Get all descendants by uuid
@@ -350,6 +369,8 @@ dict
     A list of unique desendant dictionaries returned from the Cypher query
 """
 def get_descendants(neo4j_driver, uuid, property_key = None):
+    results = []
+
     if property_key:
         query = (f"MATCH (e:Entity)-[r:ACTIVITY_INPUT|:ACTIVITY_OUTPUT*]->(descendant:Entity) "
                  # Filter out the Lab entities
@@ -372,12 +393,15 @@ def get_descendants(neo4j_driver, uuid, property_key = None):
     with neo4j_driver.session() as session:
         record = session.read_transaction(_execute_readonly_tx, query)
 
-    if property_key:
-        # Just return the list of property values from each entity node
-        return record[record_field_name]
-    else:
-        # Convert the list of nodes to a list of dicts
-        return _nodes_to_dicts(record[record_field_name])
+    if record:
+        if property_key:
+            # Just return the list of property values from each entity node
+            results = record[record_field_name]
+        else:
+            # Convert the list of nodes to a list of dicts
+            results = _nodes_to_dicts(record[record_field_name])
+
+    return results
 
 """
 Get all parents by uuid
@@ -397,6 +421,8 @@ dict
     A list of unique parent dictionaries returned from the Cypher query
 """
 def get_parents(neo4j_driver, uuid, property_key = None):
+    results = []
+
     if property_key:
         query = (f"MATCH (e:Entity)<-[:ACTIVITY_OUTPUT]-(:Activity)<-[:ACTIVITY_INPUT]-(parent:Entity) "
                  # Filter out the Lab entities
@@ -419,13 +445,15 @@ def get_parents(neo4j_driver, uuid, property_key = None):
     with neo4j_driver.session() as session:
         record = session.read_transaction(_execute_readonly_tx, query)
 
-    if property_key:
-        # Just return the list of property values from each entity node
-        return record[record_field_name]
-    else:
-        # Convert the list of nodes to a list of dicts
-        return _nodes_to_dicts(record[record_field_name])
-
+    if record:
+        if property_key:
+            # Just return the list of property values from each entity node
+            results = record[record_field_name]
+        else:
+            # Convert the list of nodes to a list of dicts
+            results = _nodes_to_dicts(record[record_field_name])
+ 
+    return results
 
 """
 Get all children by uuid
@@ -445,6 +473,8 @@ dict
     A list of unique child dictionaries returned from the Cypher query
 """
 def get_children(neo4j_driver, uuid, property_key = None):
+    results = []
+
     if property_key:
         query = (f"MATCH (e:Entity)-[:ACTIVITY_INPUT]->(:Activity)-[:ACTIVITY_OUTPUT]->(child:Entity) "
                  # Filter out the Lab entities
@@ -467,13 +497,15 @@ def get_children(neo4j_driver, uuid, property_key = None):
     with neo4j_driver.session() as session:
         record = session.read_transaction(_execute_readonly_tx, query)
 
-    if property_key:
-        # Just return the list of property values from each entity node
-        return record[record_field_name]
-    else:
-        # Convert the list of nodes to a list of dicts
-        return _nodes_to_dicts(record[record_field_name])
+    if record:
+        if property_key:
+            # Just return the list of property values from each entity node
+            results = record[record_field_name]
+        else:
+            # Convert the list of nodes to a list of dicts
+            results = _nodes_to_dicts(record[record_field_name])
 
+    return results
 
 """
 Link the datasets to the target collection
