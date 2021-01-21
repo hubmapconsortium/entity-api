@@ -1060,6 +1060,9 @@ Response
     401 Unauthorized (bad or expired token)
     500 Unexpected server or other error
 """
+# Thd old route for backward compatibility - will be removed later
+@app.route('/entities/dataset/globus-url/<id>', methods = ['GET'])
+# New route
 @app.route('/dataset/globus-url/<id>', methods = ['GET'])
 def get_dataset_globus_url(id):
     # For now, don't use the constants from commons
