@@ -730,51 +730,6 @@ def get_local_directory_rel_path(property_key, normalized_type, neo4j_driver, da
 
     return dir_path
 
-"""
-Trigger event method of getting the Globus URL to the given dataset
-
-Parameters
-----------
-property_key : str
-    The target property key of the value to be generated
-normalized_type : str
-    One of the types defined in the schema yaml: Activity, Collection, Donor, Sample, Dataset
-neo4j_driver : neo4j.Driver object
-    The neo4j database connection pool
-data_dict : dict
-    A merged dictionary that contains all possible input data to be used
-    It's fine if a trigger method doesn't use any input data
-
-Returns
--------
-str
-    The path to be used in globus URL
-"""
-def get_globus_directory_url_path(property_key, normalized_type, neo4j_driver, data_dict):
-    if 'uuid' not in data_dict:
-        raise KeyError("Missing 'uuid' key in 'data_dict' during calling 'get_globus_directory_url_path()' trigger method.")
-    
-    if 'data_access_level' not in data_dict:
-        raise KeyError("Missing 'data_access_level' key in 'data_dict' during calling 'get_globus_directory_url_path()' trigger method.")
-    
-    uuid = data_dict['uuid']
-
-    if (not 'group_uuid' in data_dict) or (not data_dict['group_uuid']):
-        raise KeyError(f"Group uuid not set for dataset with uuid: {uuid}")
-
-    # Validate the group_uuid and make sure it's one of the valid data providers
-    try:
-        schema_manager.validate_entity_group_uuid(data_dict['group_uuid'])
-    except schema_errors.NoDataProviderGroupException as e:
-        # No need to log
-        raise schema_errors.NoDataProviderGroupException(e)
-
-    group_name = schema_manager.get_entity_group_name(data_dict['group_uuid'])
-
-    dir_path = data_dict['data_access_level'] + "/" + group_name + "/" + uuid + "/"
-
-    return dir_path
-
 
 ####################################################################################################
 ## Trigger methods specific to Donor - DO NOT RENAME

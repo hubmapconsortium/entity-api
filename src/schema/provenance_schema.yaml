@@ -25,11 +25,6 @@
 # - If a property has `on_read_trigger`, it must be `transient: true`, meaning it's not stored in neo4j and only available during response
 # - If a property is `transient: true`, it can have `on_read_trigger` or not have one (when `exposed: false`)
 
-# Question: how to handle Dataset.status update
-
-############################################# Attention #############################################
-# Properties that are still stored in neo4j but no longer needed: protocol_file, protocol_info
-
 
 ############################################# Schema #############################################
 # Shared properties across ACTIVITIES and ENTITIES
@@ -266,12 +261,6 @@ ENTITIES:
         transient: true
         description: "The path on the local file system, relative to the base data directory, where the data is stored."
         on_read_trigger: get_local_directory_rel_path
-      globus_directory_url_path:
-        type: string
-        generated: true
-        transient: true
-        description: "The Globus URL to this dataset"
-        on_read_trigger: get_globus_directory_url_path
       run_id:
         type: string
       ingest_id:
