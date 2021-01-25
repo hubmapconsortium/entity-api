@@ -171,20 +171,6 @@ def get_status():
 
     return jsonify(status_data)
 
-"""
-Force delete cache even before it expires
-
-Returns
--------
-str
-    A confirmation message
-"""
-@app.route('/cache', methods = ['DELETE'])
-def delete_cache():
-    cache.clear()
-    msg = "Function cache deleted."
-    logger.info(msg)
-    return msg
 
 """
 Retrive the properties of a given entity by id
