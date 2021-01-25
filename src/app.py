@@ -1,11 +1,10 @@
 from flask import Flask, g, jsonify, abort, request, Response, redirect
-from neo4j import GraphDatabase
 from neo4j.exceptions import TransactionError
-import sys
 import os
 import re
 import json
 import requests
+import urllib3
 from urllib3.exceptions import InsecureRequestWarning
 from pathlib import Path
 import logging
@@ -19,11 +18,13 @@ from schema import schema_errors
 
 # HuBMAP commons
 from hubmap_commons import string_helper
-from hubmap_commons import file_helper
+from hubmap_commons import file_helper as hm_file_helper
 from hubmap_commons import neo4j_driver
 from hubmap_commons import globus_groups
-from hubmap_commons.hm_auth import AuthHelper
+from hubmap_commons.hm_auth import AuthHelper, secured
 from hubmap_commons.exceptions import HTTPException
+
+from file_upload_helper import UploadFileHelper
 
 # Set logging fromat and level (default is warning)
 # All the API logging is forwarded to the uWSGI server and gets written into the log file `uwsgo-entity-api.log`
@@ -41,7 +42,7 @@ app.config['UUID_API_URL'] = app.config['UUID_API_URL'].strip('/')
 app.config['SEARCH_API_URL'] = app.config['SEARCH_API_URL'].strip('/')
 
 # Suppress InsecureRequestWarning warning when requesting status on https with ssl cert verify disabled
-requests.packages.urllib3.disable_warnings(category = InsecureRequestWarning)
+urllib3.disable_warnings(category = InsecureRequestWarning)
 
 
 ####################################################################################################
@@ -78,6 +79,10 @@ try:
                               app.config['UUID_API_URL'],
                               app.config['APP_CLIENT_ID'], 
                               app.config['APP_CLIENT_SECRET'])
+    
+    upload_file_helper = UploadFileHelper(app.config['FILE_UPLOAD_TEMP_DIR'], app.config['FILE_UPLOAD_DIR'])
+    upload_file_helper.clean_temp_dir()
+    
 # Use a broad catch-all here
 except Exception:
     msg = "Failed to initialize the schema_manager module"
@@ -1128,7 +1133,7 @@ def get_dataset_globus_url(id):
     dir_path = urllib.parse.quote(dir_path, safe='')
     
     #https://app.globus.org/file-manager?origin_id=28bbb03c-a87d-4dd7-a661-7ea2fb6ea631&origin_path=%2FIEC%20Testing%20Group%2F03584b3d0f8b46de1b629f04be156879%2F
-    url = file_helper.ensureTrailingSlashURL(app.config['GLOBUS_APP_BASE_URL']) + "file-manager?origin_id=" + globus_server_uuid + "&origin_path=" + dir_path  
+    url = hm_file_helper.ensureTrailingSlashURL(app.config['GLOBUS_APP_BASE_URL']) + "file-manager?origin_id=" + globus_server_uuid + "&origin_path=" + dir_path  
             
     return Response(url, 200)
 
@@ -1531,6 +1536,27 @@ def access_level_prefix_dir(dir_name):
     if string_helper.isBlank(dir_name):
         return ''
     
-    return file_helper.ensureTrailingSlashURL(file_helper.ensureBeginningSlashURL(dir_name))
+    return hm_file_helper.ensureTrailingSlashURL(hm_file_helper.ensureBeginningSlashURL(dir_name))
 
 
+
+@app.route('/file-upload', methods=['POST'])
+@secured(groups="HuBMAP-read")
+def create_file():
+    try:
+        temp_id = upload_file_helper.save_temp_file(request.files['file'])
+        rval = {"temp_file_id": temp_id}
+        return Response(json.dumps(rval) , 201, mimetype='application/json')
+    except Exception as e:
+        eMsg = str(e)
+        logger.error(e, exc_info=True)
+        return(Response("Unexpected error: " + eMsg, 500))
+
+if __name__ == "__main__":
+    try:
+        app.run(host='0.0.0.0', port="5002")
+    except Exception as e:
+        print("Error during starting debug server.")
+        print(str(e))
+        logger.error(e, exc_info=True)
+        print("Error during startup check the log file for further information")
