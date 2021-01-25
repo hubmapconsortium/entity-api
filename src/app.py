@@ -4,10 +4,9 @@ import os
 import re
 import json
 import requests
-# Don't confuse urllib (Python natice library) with urllib3 (3rd-party library, requests uses urllib3 though)
 import urllib
-import urllib3
-from urllib3.exceptions import InsecureRequestWarning
+# Don't confuse urllib (Python natice library) with urllib3 (3rd-party library, requests also uses urllib3)
+from requests.packages.urllib3.exceptions import InsecureRequestWarning
 from pathlib import Path
 import logging
 
@@ -43,11 +42,41 @@ app.config['UUID_API_URL'] = app.config['UUID_API_URL'].strip('/')
 app.config['SEARCH_API_URL'] = app.config['SEARCH_API_URL'].strip('/')
 
 # Suppress InsecureRequestWarning warning when requesting status on https with ssl cert verify disabled
-urllib3.disable_warnings(category = InsecureRequestWarning)
+requests.packages.urllib3.disable_warnings(category = InsecureRequestWarning)
 
 
 ####################################################################################################
-## Neo4j connection
+## Register error handlers
+####################################################################################################
+
+# Error handler for 400 Bad Request with custom error message
+@app.errorhandler(400)
+def http_bad_request(e):
+    return jsonify(error=str(e)), 400
+
+# Error handler for 401 Unauthorized with custom error message
+@app.errorhandler(401)
+def http_unauthorized(e):
+    return jsonify(error=str(e)), 401
+
+# Error handler for 403 Forbidden with custom error message
+@app.errorhandler(403)
+def http_forbidden(e):
+    return jsonify(error=str(e)), 403
+
+# Error handler for 404 Not Found with custom error message
+@app.errorhandler(404)
+def http_not_found(e):
+    return jsonify(error=str(e)), 404
+
+# Error handler for 500 Internal Server Error with custom error message
+@app.errorhandler(500)
+def http_internal_server_error(e):
+    return jsonify(error=str(e)), 500
+
+
+####################################################################################################
+## Neo4j connection initialization
 ####################################################################################################
 
 # The neo4j_driver (from commons package) is a singleton module
@@ -79,7 +108,7 @@ except Exception:
     # Log the full stack trace, prepend a line with our message
     logger.exception(msg)
     # Terminate and let the users know
-    internal_server_error(msg)
+    #internal_server_error(msg)
 
 
 ####################################################################################################
@@ -104,7 +133,7 @@ except Exception:
     # Log the full stack trace, prepend a line with our message
     logger.exception(msg)
     # Terminate and let the users know
-    internal_server_error(msg)
+    #internal_server_error(msg)
 
 
 ####################################################################################################
@@ -118,36 +147,6 @@ if AuthHelper.isInitialized() == False:
     auth_helper = AuthHelper.create(app.config['APP_CLIENT_ID'], app.config['APP_CLIENT_SECRET'])
 else:
     auth_helper = AuthHelper.instance()
-
-
-####################################################################################################
-## Error handlers
-####################################################################################################
-
-# Error handler for 400 Bad Request with custom error message
-@app.errorhandler(400)
-def http_bad_request(e):
-    return jsonify(error=str(e)), 400
-
-# Error handler for 401 Unauthorized with custom error message
-@app.errorhandler(401)
-def http_unauthorized(e):
-    return jsonify(error=str(e)), 401
-
-# Error handler for 403 Forbidden with custom error message
-@app.errorhandler(403)
-def http_forbidden(e):
-    return jsonify(error=str(e)), 403
-
-# Error handler for 404 Not Found with custom error message
-@app.errorhandler(404)
-def http_not_found(e):
-    return jsonify(error=str(e)), 404
-
-# Error handler for 500 Internal Server Error with custom error message
-@app.errorhandler(500)
-def http_internal_server_error(e):
-    return jsonify(error=str(e)), 500
 
 
 ####################################################################################################
@@ -279,7 +278,6 @@ def get_entity_provenance(id):
     # Get user data_access_level based on token
     try:
         # The user_info contains HIGHEST access level of the user based on the token
-        # Default to 'public' if no Authorization header sent
         # This call raises an HTTPException with a 401 if any auth issues encountered
         user_info = auth_helper.getUserDataAccessLevel(request)
     # If returns HTTPException with a 401, invalid header format or expired/invalid token
@@ -1107,10 +1105,14 @@ def get_dataset_globus_url(id):
         internal_server_error(msg)
 
     # Get the user information (if available) for the caller
-    # getUserDataAccessLevel will return just a "data_access_level" of public
-    # if no auth token is found
-    user_info = auth_helper.getUserDataAccessLevel(request)        
-    
+    try:
+        # The user_info contains HIGHEST access level of the user based on the token
+        # This call raises an HTTPException with a 401 if any auth issues encountered
+        user_info = auth_helper.getUserDataAccessLevel(request)
+    # If returns HTTPException with a 401, invalid header format or expired/invalid token
+    except HTTPException:
+        unauthorized_error("Invalid token")
+
     #construct the Globus URL based on the highest level of access that the user has
     #and the level of access allowed for the dataset
     #the first "if" checks to see if the user is a member of the Consortium group
@@ -1157,6 +1159,7 @@ File upload handling for Donor (for now, Sample will need file upload too)
 """
 @app.route('/file-upload', methods=['POST'])
 def create_file():
+    logger.debug(request.files['file'])
     try:
         temp_id = file_upload_helper_instance.save_temp_file(request.files['file'])
         rspn_data = {
