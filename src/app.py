@@ -4,15 +4,17 @@ import os
 import re
 import json
 import requests
+# Don't confuse urllib (Python natice library) with urllib3 (3rd-party library, requests uses urllib3 though)
+import urllib
 import urllib3
 from urllib3.exceptions import InsecureRequestWarning
 from pathlib import Path
 import logging
-import urllib
 
 # Local modules
 import app_neo4j_queries
 import provenance
+from file_upload_helper import UploadFileHelper
 from schema import schema_manager
 from schema import schema_errors
 
@@ -24,7 +26,6 @@ from hubmap_commons import globus_groups
 from hubmap_commons.hm_auth import AuthHelper, secured
 from hubmap_commons.exceptions import HTTPException
 
-from file_upload_helper import UploadFileHelper
 
 # Set logging fromat and level (default is warning)
 # All the API logging is forwarded to the uWSGI server and gets written into the log file `uwsgo-entity-api.log`
@@ -66,6 +67,22 @@ def close_neo4j_driver(error):
 
 
 ####################################################################################################
+## File upload initialization
+####################################################################################################
+
+try:
+    file_upload_helper_instance = UploadFileHelper(app.config['FILE_UPLOAD_TEMP_DIR'], app.config['FILE_UPLOAD_DIR'])
+    file_upload_helper_instance.clean_temp_dir()
+# Use a broad catch-all here
+except Exception:
+    msg = "Failed to initialize the UploadFileHelper"
+    # Log the full stack trace, prepend a line with our message
+    logger.exception(msg)
+    # Terminate and let the users know
+    internal_server_error(msg)
+
+
+####################################################################################################
 ## Schema initialization
 ####################################################################################################
 
@@ -78,11 +95,9 @@ try:
                               app.config['NEO4J_PASSWORD'],
                               app.config['UUID_API_URL'],
                               app.config['APP_CLIENT_ID'], 
-                              app.config['APP_CLIENT_SECRET'])
-    
-    upload_file_helper = UploadFileHelper(app.config['FILE_UPLOAD_TEMP_DIR'], app.config['FILE_UPLOAD_DIR'])
-    upload_file_helper.clean_temp_dir()
-    
+                              app.config['APP_CLIENT_SECRET'],
+                              # Pass file_upload_helper instance to schema_manager
+                              file_upload_helper_instance)
 # Use a broad catch-all here
 except Exception:
     msg = "Failed to initialize the schema_manager module"
@@ -1137,6 +1152,24 @@ def get_dataset_globus_url(id):
             
     return Response(url, 200)
 
+"""
+File upload handling for Donor (for now, Sample will need file upload too)
+"""
+@app.route('/file-upload', methods=['POST'])
+def create_file():
+    try:
+        temp_id = file_upload_helper_instance.save_temp_file(request.files['file'])
+        rspn_data = {
+            "temp_file_id": temp_id
+        }
+
+        return jsonify(rspn_data), 201
+    except Exception as e:
+    	# Log the full stack trace, prepend a line with our message
+        msg = "Failed to upload files"
+        logger.exception(msg)
+        internal_server_error(msg)
+
 
 ####################################################################################################
 ## Internal Functions
@@ -1540,18 +1573,8 @@ def access_level_prefix_dir(dir_name):
 
 
 
-@app.route('/file-upload', methods=['POST'])
-@secured(groups="HuBMAP-read")
-def create_file():
-    try:
-        temp_id = upload_file_helper.save_temp_file(request.files['file'])
-        rval = {"temp_file_id": temp_id}
-        return Response(json.dumps(rval) , 201, mimetype='application/json')
-    except Exception as e:
-        eMsg = str(e)
-        logger.error(e, exc_info=True)
-        return(Response("Unexpected error: " + eMsg, 500))
 
+# For local development/testing
 if __name__ == "__main__":
     try:
         app.run(host='0.0.0.0', port="5002")

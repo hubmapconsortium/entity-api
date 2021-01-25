@@ -1,3 +1,5 @@
+import os
+import json
 import yaml
 import logging
 import requests
@@ -17,6 +19,7 @@ from schema import schema_triggers
 from hubmap_commons.hm_auth import AuthHelper
 from hubmap_commons import neo4j_driver
 from hubmap_commons import globus_groups
+from hubmap_commons import file_helper
 
 logger = logging.getLogger(__name__)
 
@@ -58,12 +61,14 @@ def initialize(valid_yaml_file,
                neo4j_password, 
                uuid_api_url, 
                globus_app_client_id, 
-               globus_app_client_secret):
+               globus_app_client_secret,
+               file_upload_helper_instance):
     # Specify as module-scope variables
     global _schema
     global _neo4j_driver
     global _uuid_api_url
     global _auth_helper
+    global _file_upload_helper
 
     _schema = load_provenance_schema(valid_yaml_file)
     _neo4j_driver = neo4j_driver.instance(neo4j_uri, neo4j_username, neo4j_password)
@@ -73,7 +78,10 @@ def initialize(valid_yaml_file,
     # auth_helper will be used to get the globus user info and 
     # the secret token for making calls to other APIs
     _auth_helper = AuthHelper.create(globus_app_client_id, globus_app_client_secret)
-    
+
+    # Get the file upload helper instance
+    _file_upload_helper = file_upload_helper_instance
+
 
 ####################################################################################################
 ## Provenance yaml schema loading
@@ -1042,3 +1050,61 @@ def _create_request_headers():
     }
 
     return headers_dict
+
+
+####################################################################################################
+## File helper functions
+####################################################################################################
+
+"""
+Create a dict of HTTP Authorization header with Bearer token for making calls to uuid-api
+
+Parameters
+----------
+entity_record : dict
+    The target entity dictionary
+
+Returns
+-------
+dict
+    The headers dict to be used by requests
+"""
+def delete_files(entity_record, saved_to_attribute_name, remove_files_attribute_name):
+    global _file_upload_helper
+
+    if remove_files_attribute_name in entity_record:
+        entity_uuid = entity_record['uuid']
+        # _file_upload_helper.upload_dir is already normalized with trailing slash
+        entity_upload_dir = _file_upload_helper.upload_dir + entity_uuid + os.sep
+        files = json.loads(entity_record[saved_to_attribute_name])
+        
+        for filename in entity_record[remove_files_attribute_name]:
+            files = _file_upload_helper.remove_file(entity_upload_dir, filename, files)
+        
+        entity_record[saved_to_attribute_name] = json.dumps(files)
+    
+    return entity_record
+    
+
+def commit_files(entity_record, save_to_attribute_name, added_files_attribute_name):
+    global _file_upload_helper
+
+    if added_files_attribute_name in entity_record:
+        commit_file_info_arry = entity_record[added_files_attribute_name]
+        if save_to_attribute_name in entity_record:
+            return_file_info_array = json.loads(entity_record[save_to_attribute_name])
+        else:
+            return_file_info_array = []
+            
+        for file_info in commit_file_info_arry:
+            filename = _file_upload_helper.commit_file(file_info['temp_file_id'], entity_record['uuid'])
+            add_file_info = {'filename':filename}
+            
+            if 'description' in file_info:
+                add_file_info['description'] = file_info['description']
+            
+            return_file_info_array.append(add_file_info)
+        
+        entity_record[save_to_attribute_name] = return_file_info_array
+    
+    return entity_record

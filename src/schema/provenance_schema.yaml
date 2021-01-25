@@ -304,19 +304,19 @@ ENTITIES:
       image_files:
         type: json_string
         immutable: true
-        description: "List of uploaded image files and descriptions of the files.  Stored in db as a json array as a string."
+        description: "List of uploaded image files and descriptions of the files. Stored in db as a stringfied json array."
         #todo: migrate to new attribute set as above portal_metadata_upload files
       image_files_to_add:
         type: json
         transient: true
         before_create_trigger: commit_image_files
-        description: 'List of temporary file ids with an optional description.  Provide as a json array with an temp_file_id and description attribute for each element like {[{"temp_file_id":"pihgjaghpergh","description":"This is image file one"},{"temp_file_id":"yrahjadfhadf","description":"This is image file two"}]}'
+        description: 'List of temporary file ids with an optional description. Provide as a json array with an temp_file_id and description attribute for each element like {[{"temp_file_id":"pihgjaghpergh","description":"This is image file one"},{"temp_file_id":"yrahjadfhadf","description":"This is image file two"}]}'
       image_files_to_remove:
-        #todo- this is only valid on a PUT/modify call, not sure how (or if we need to constrain)
+        # This is only valid on a PUT/modify call
         type: json
         transient: true
-        before_create_trigger: delete_image_files
-        description: 'List of image files previously uploaded to delete.  Provide as a json array of filenames like: ["filename1", "filename2"]'
+        description: 'List of image files previously uploaded to delete. Provide as a json array of filenames like: ["filename1", "filename2"]'
+        before_update_trigger: delete_image_files
       metadata:
         type: json_string
         description: "Donor metadata coded as described here: <get donor metadata doc from Chuck>"

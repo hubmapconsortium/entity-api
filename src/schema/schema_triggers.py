@@ -736,6 +736,86 @@ def get_local_directory_rel_path(property_key, normalized_type, neo4j_driver, da
 ####################################################################################################
 
 
+"""
+Trigger event method to commit image files that were previously uploaded with UploadFileHelper.save_file
+
+The information, filename and optional description is saved in the image_files field 
+in the provided entity_record.  The image files needed to be previously uploaded
+using the temp file service (UploadFileHelper.save_file).  The temp file id provided
+from UploadFileHelper, paired with an optional description of the file must be provided
+in the field `image_files_to_add` in the entity_record for each file being committed
+in a json array like: [{"temp_file_id":"eiaja823jafd", "description","Image file 1"}, {"temp_file_id":"pd34hu4spb3lk43usdr"}, {"temp_file_id":"32kafoiw4fbazd", "description","Image file 3"}]
+
+Parameters
+----------
+property_key : str
+    The target property key of the value to be generated
+normalized_type : str
+    One of the types defined in the schema yaml: Activity, Collection, Donor, Sample, Dataset
+neo4j_driver : neo4j.Driver object
+    The neo4j database connection pool
+data_dict : dict
+    A merged dictionary that contains all possible input data to be used
+    It's fine if a trigger method doesn't use any input data
+
+Returns
+-------
+str
+    The relative directory path
+"""
+def commit_image_files(property_key, normalized_type, neo4j_driver, data_dict):
+    if 'image_files' not in data_dict:
+        raise KeyError("Missing 'image_files' key in 'data_dict' during calling 'delete_image_files()' trigger method.")
+    
+    if 'image_files_to_remove' not in data_dict:
+        raise KeyError("Missing 'image_files_to_remove' key in 'data_dict' during calling 'delete_image_files()' trigger method.")
+    
+    try:
+        schema_manager.commit_files(data_dict, 'image_files', 'image_files_to_add')
+    except Exception as e:
+        # No need to log
+        raise
+
+
+"""
+Trigger event method of removing image files from an entity
+
+Image files are stored in a json encoded text field named `image_files` in the entity dict
+The images to remove are specified as filenames in the `image_files_to_remove` field
+
+Parameters
+----------
+property_key : str
+    The target property key
+normalized_type : str
+    One of the types defined in the schema yaml: Activity, Collection, Donor, Sample, Dataset
+neo4j_driver : neo4j.Driver object
+    The neo4j database connection pool
+data_dict : dict
+    A merged dictionary that contains all possible input data to be used
+    It's fine if a trigger method doesn't use any input data
+    In this case, the following properties are required:
+        - uuid
+        - image_files
+        - image_files_to_remove
+"""
+def delete_image_files(property_key, normalized_type, neo4j_driver, data_dict):
+    if 'uuid' not in data_dict:
+        raise KeyError("Missing 'uuid' key in 'data_dict' during calling 'delete_image_files()' trigger method.")
+    
+    if 'image_files' not in data_dict:
+        raise KeyError("Missing 'image_files' key in 'data_dict' during calling 'delete_image_files()' trigger method.")
+    
+    if 'image_files_to_remove' not in data_dict:
+        raise KeyError("Missing 'image_files_to_remove' key in 'data_dict' during calling 'delete_image_files()' trigger method.")
+    
+    try:
+        schema_manager.delete_files(data_dict, 'image_files', 'image_files_to_remove')
+    except Exception as e:
+        # No need to log
+        raise
+
+
 ####################################################################################################
 ## Trigger methods specific to Sample - DO NOT RENAME
 ####################################################################################################
