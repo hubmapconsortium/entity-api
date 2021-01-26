@@ -2,7 +2,7 @@ import os
 import secrets
 import shutil
 import logging
-from werkzeug import secure_filename
+from werkzeug.utils import secure_filename
 
 # HuBMAP commons
 from hubmap_commons import file_helper

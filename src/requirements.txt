@@ -1,5 +1,6 @@
 cachetools==4.1.0
 flask>=1.1.2
+werkzeug>=1.0.1
 neo4j>=4.1.0
 requests>=2.22.0
 pyyaml>=5.2
