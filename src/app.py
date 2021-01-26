@@ -121,7 +121,6 @@ except Exception:
     # Log the full stack trace, prepend a line with our message
     logger.exception(msg)
     # Terminate and let the users know
-    #internal_server_error(msg)
 
 
 ####################################################################################################
@@ -143,7 +142,6 @@ except Exception:
     # Log the full stack trace, prepend a line with our message
     logger.exception(msg)
     # Terminate and let the users know
-    #internal_server_error(msg)
 
 
 ####################################################################################################
