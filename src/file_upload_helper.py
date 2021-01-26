@@ -1,9 +1,13 @@
 import os
 import secrets
 import shutil
+import logging
+from werkzeug import secure_filename
 
 # HuBMAP commons
 from hubmap_commons import file_helper
+
+logger = logging.getLogger(__name__)
 
 ID_CHARS=['2','3','4','5','6','7','8','9','b','c','d','e','g','h','j','k','l','m','n','p','q','r','s','t','v','w','x','z']                 
 
@@ -22,13 +26,16 @@ class UploadFileHelper:
                 shutil.rmtree(dirpath)
     
     def save_temp_file(self, file):
+        logger.debug(file)
+
         temp_id = self.__get_temp_file_id()
         file_dir = self.upload_temp_dir + temp_id + os.sep
         self.temp_files[temp_id] = {}
         self.temp_files[temp_id]['filename'] = file.filename
         self.temp_files[temp_id]['filedir'] = file_dir
+
         file_helper.mkDir(file_dir)
-        file.save(os.path.join(file_dir, file.filename))
+        file.save(os.path.join(file_dir, secure_filename(file.filename)))
         
         return temp_id
     

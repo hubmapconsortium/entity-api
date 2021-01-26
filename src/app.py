@@ -1155,8 +1155,18 @@ File upload handling for Donor (for now, Sample will need file upload too)
 @app.route('/file-upload', methods=['POST'])
 def create_file():
     logger.debug(request.files['file'])
+
+    # Check if the post request has the file part
+    if 'file' not in request.files:
+        bad_request_error('No file part')
+
+    file = request.files['file']
+
+    if file.filename == '':
+        bad_request_error('No selected file')
+
     try:
-        temp_id = file_upload_helper_instance.save_temp_file(request.files['file'])
+        temp_id = file_upload_helper_instance.save_temp_file(file)
         rspn_data = {
             "temp_file_id": temp_id
         }
