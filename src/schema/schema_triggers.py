@@ -775,17 +775,11 @@ def commit_image_files(property_key, normalized_type, data_dict):
 
     if property_key not in data_dict:
         raise KeyError(f"Missing '{property_key}' key in 'data_dict' during calling 'delete_image_files()' trigger method.")
-    
-    # Convert the json string into dict
-    files_dict = json.loads(data_dict[property_key])
 
-    if 'files' not in data_dict[property_key]:
-        raise KeyError(f"Incorrectly formatted value of '{property_key}' key in 'data_dict' during calling 'delete_image_files()' trigger method.")
-    
+    files_info_list = []
+
     try: 
-        files_info_list = []
-
-        for file_info in data_dict[property_key]['files']:
+        for file_info in data_dict[property_key]:
             filename = schema_manager.get_file_upload_helper_instance().commit_file(file_info['temp_file_id'], data_dict['uuid'])
             
             file_info_to_add = {
@@ -794,18 +788,15 @@ def commit_image_files(property_key, normalized_type, data_dict):
             
             # The `description` is optional
             if 'description' in file_info:
+                # Note: it'll break the neo4j query if description contains single quotes
                 file_info_to_add['description'] = file_info['description']
             
             # Add to list
             files_info_list.append(file_info_to_add)
         
-        # Neo4j can only store json string
-        files_info_dict = {
-            "files": files_info_list
-        }
-
         # Assign the target value to a different property key rather than itself
-        return target_property_key, files_info_dict
+        # convert the files_info_list to string to be stored in neo4j
+        return target_property_key, str(files_info_list)
     except Exception as e:
         # No need to log
         raise
@@ -855,7 +846,8 @@ def delete_image_files(property_key, normalized_type, data_dict):
             files_info_list = schema_manager.get_file_upload_helper_instance().remove_file(entity_upload_dir, filename, files_info_list)
         
         # Assign the target value to a different property key rather than itself
-        return target_property_key, json.dumps(files_info_list)
+        # convert the files_info_list to string to be stored in neo4j
+        return target_property_key, str(files_info_list)
     except Exception as e:
         # No need to log
         raise

@@ -1333,6 +1333,9 @@ def create_entity_details(request, normalized_entity_type, json_data_dict):
     # Merge the user json data and generated trigger data into one dictionary
     merged_dict = {**json_data_dict, **generated_before_create_trigger_data_dict}
 
+    logger.debug("==========merged_dict")
+    logger.debug(merged_dict)
+
     # Filter out the merged_dict by getting rid of the properties with None value
     # Meaning the returned target property key is different from the original key
     # E.g., Donor.image_files
@@ -1341,6 +1344,9 @@ def create_entity_details(request, normalized_entity_type, json_data_dict):
         if v is not None:
             filtered_merged_dict[k] = v
 
+    logger.debug("==========filtered_merged_dict")
+    logger.debug(filtered_merged_dict)
+    
     # `UNWIND` in Cypher expects List<T>
     data_list = [filtered_merged_dict]
     
@@ -1364,7 +1370,7 @@ def create_entity_details(request, normalized_entity_type, json_data_dict):
         internal_server_error(msg)
 
     # Add user_info_dict because it may be used by after_update_trigger methods
-    merged_final_dict = {**merged_dict, **user_info_dict}
+    merged_final_dict = {**filtered_merged_dict, **user_info_dict}
 
     # Note: return merged_final_dict instead of entity_dict because 
     # it contains all the user json data that the generated that entity_dict may not have
