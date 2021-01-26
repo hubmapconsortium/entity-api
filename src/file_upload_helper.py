@@ -16,7 +16,11 @@ class UploadFileHelper:
     def __init__(self, upload_temp_dir, upload_dir):
         self.base_temp_dir = file_helper.ensureTrailingSlash(upload_temp_dir)
         self.upload_temp_dir = self.base_temp_dir + 'hm_tmp_uploads' + str(os.getpid()) + os.sep
-        file_helper.mkDir(self.upload_temp_dir)
+
+        # Use pathlib to create dir instead of file_helper.mkDir
+        #file_helper.mkDir(self.upload_temp_dir)
+        pathlib.Path(self.upload_temp_dir).mkdir(parents=True, exist_ok=True)
+
         self.upload_dir = file_helper.ensureTrailingSlash(upload_dir)
         self.temp_files = {}
     
@@ -35,8 +39,8 @@ class UploadFileHelper:
         self.temp_files[temp_id]['filename'] = file.filename
         self.temp_files[temp_id]['filedir'] = file_dir
 
+        # Use pathlib to create dir instead of file_helper.mkDir
         #file_helper.mkDir(file_dir)
-        # mkDir doesn't show permission error, use pathlib
         pathlib.Path(file_dir).mkdir(parents=True, exist_ok=True)
 
         file.save(os.path.join(file_dir, secure_filename(file.filename)))
@@ -58,7 +62,10 @@ class UploadFileHelper:
     def commit_file(self, temp_file_id, entity_uuid):
         entity_dir = self.upload_dir + entity_uuid
         if not os.path.exists(entity_dir):
-            file_helper.mkDir(entity_dir)
+            # Use pathlib to create dir instead of file_helper.mkDir
+            #file_helper.mkDir(entity_dir)
+            pathlib.Path(entity_dir).mkdir(parents=True)
+
         elif not os.path.isdir(entity_dir):
             # ?
             raise Exception("Entity file uploads directory exists and is not a directory: " + entity_dir)

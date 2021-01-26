@@ -704,6 +704,33 @@ def get_local_directory_rel_path(property_key, normalized_type, data_dict):
 
 
 """
+Trigger event method to ONLY update descriptions of existing image files
+
+Parameters
+----------
+property_key : str
+    The target property key of the value to be generated
+normalized_type : str
+    One of the types defined in the schema yaml: Activity, Collection, Donor, Sample, Dataset
+data_dict : dict
+    A merged dictionary that contains all possible input data to be used
+    It's fine if a trigger method doesn't use any input data
+
+Returns
+-------
+str
+    The relative directory path
+"""
+def update_image_files_descriptions(property_key, normalized_type, data_dict):
+    if property_key not in data_dict:
+        raise KeyError(f"Missing '{property_key}' key in 'data_dict' during calling 'delete_image_files()' trigger method.")
+
+    # TODO 
+
+    return property_key, data_dict[property_key]
+
+
+"""
 Trigger event method to commit image files save that were previously uploaded with UploadFileHelper.save_file
 
 The information, filename and optional description is saved in the image_files field 
@@ -711,7 +738,22 @@ in the provided data_dict.  The image files needed to be previously uploaded
 using the temp file service (UploadFileHelper.save_file).  The temp file id provided
 from UploadFileHelper, paired with an optional description of the file must be provided
 in the field `image_files_to_add` in the data_dict for each file being committed
-in a json array like: [{"temp_file_id":"eiaja823jafd", "description","Image file 1"}, {"temp_file_id":"pd34hu4spb3lk43usdr"}, {"temp_file_id":"32kafoiw4fbazd", "description","Image file 3"}]
+in a JSON array like below (image "description" is optional): 
+
+[
+  {
+    "temp_file_id": "eiaja823jafd",
+    "description": "Image file 1"
+  },
+  {
+    "temp_file_id": "pd34hu4spb3lk43usdr"
+  },
+  {
+    "temp_file_id": "32kafoiw4fbazd",
+    "description": "Image file 3"
+  }
+]
+
 
 Parameters
 ----------
@@ -734,10 +776,16 @@ def commit_image_files(property_key, normalized_type, data_dict):
     if property_key not in data_dict:
         raise KeyError(f"Missing '{property_key}' key in 'data_dict' during calling 'delete_image_files()' trigger method.")
     
-    files_info_list = []
+    # Convert the json string into dict
+    files_dict = json.loads(data_dict[property_key])
 
-    try:
-        for file_info in data_dict[property_key]:
+    if 'files' not in data_dict[property_key]:
+        raise KeyError(f"Incorrectly formatted value of '{property_key}' key in 'data_dict' during calling 'delete_image_files()' trigger method.")
+    
+    try: 
+        files_info_list = []
+
+        for file_info in data_dict[property_key]['files']:
             filename = schema_manager.get_file_upload_helper_instance().commit_file(file_info['temp_file_id'], data_dict['uuid'])
             
             file_info_to_add = {
@@ -751,8 +799,13 @@ def commit_image_files(property_key, normalized_type, data_dict):
             # Add to list
             files_info_list.append(file_info_to_add)
         
+        # Neo4j can only store json string
+        files_info_dict = {
+            "files": files_info_list
+        }
+
         # Assign the target value to a different property key rather than itself
-        return target_property_key, files_info_list
+        return target_property_key, files_info_dict
     except Exception as e:
         # No need to log
         raise

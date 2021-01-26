@@ -1314,7 +1314,7 @@ def create_entity_details(request, normalized_entity_type, json_data_dict):
         bad_request_error(e)
 
     # Merge all the above dictionaries and pass to the trigger methods
-    data_dict = {**user_info_dict, **new_ids_dict}
+    data_dict = {**json_data_dict, **user_info_dict, **new_ids_dict}
 
     try:
         generated_before_create_trigger_data_dict = schema_manager.generate_triggered_data('before_create_trigger', normalized_entity_type, data_dict)
@@ -1336,7 +1336,10 @@ def create_entity_details(request, normalized_entity_type, json_data_dict):
     # Filter out the merged_dict by getting rid of the properties with None value
     # Meaning the returned target property key is different from the original key
     # E.g., Donor.image_files
-    filtered_merged_dict = filter_dict(merged_dict, lambda k, v: k is not None)
+    filtered_merged_dict = {}
+    for k, v in merged_dict.items():
+        if v is not None:
+            filtered_merged_dict[k] = v
 
     # `UNWIND` in Cypher expects List<T>
     data_list = [filtered_merged_dict]
@@ -1430,7 +1433,10 @@ def update_entity_details(request, normalized_entity_type, json_data_dict, exist
     # Filter out the merged_dict by getting rid of the properties with None value
     # Meaning the returned target property key is different from the original key
     # E.g., Donor.image_files
-    filtered_merged_dict = filter_dict(merged_dict, lambda k, v: k is not None)
+    filtered_merged_dict = {}
+    for k, v in merged_dict.items():
+        if v is not None:
+            filtered_merged_dict[k] = v
 
     # By now the filtered_merged_dict contains all user updates and all triggered data to be added to the entity node
     # Any properties in filtered_merged_dict that are not on the node will be added.
