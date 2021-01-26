@@ -76,6 +76,19 @@ def http_internal_server_error(e):
 
 
 ####################################################################################################
+## AuthHelper initialization
+####################################################################################################
+
+# Initialize AuthHelper (AuthHelper from HuBMAP commons package)
+# auth_helper_instance will be used to get the globus user info and 
+# the secret token for making calls to other APIs
+if AuthHelper.isInitialized() == False:
+    auth_helper_instance = AuthHelper.create(app.config['APP_CLIENT_ID'], app.config['APP_CLIENT_SECRET'])
+else:
+    auth_helper_instance = AuthHelper.instance()
+
+
+####################################################################################################
 ## Neo4j connection initialization
 ####################################################################################################
 
@@ -119,13 +132,10 @@ try:
     # Pass in the neo4j connection (uri, username, password) parameters in addition to the schema yaml
     # Because some of the schema trigger methods may issue queries to the neo4j.
     schema_manager.initialize(app.config['SCHEMA_YAML_FILE'], 
-                              app.config['NEO4J_URI'], 
-                              app.config['NEO4J_USERNAME'], 
-                              app.config['NEO4J_PASSWORD'],
                               app.config['UUID_API_URL'],
-                              app.config['APP_CLIENT_ID'], 
-                              app.config['APP_CLIENT_SECRET'],
-                              # Pass file_upload_helper instance to schema_manager
+                              # Pass in auth_helper_instance, neo4j_driver instance, and file_upload_helper instance
+                              auth_helper_instance,
+                              neo4j_driver_instance,
                               file_upload_helper_instance)
 # Use a broad catch-all here
 except Exception:
@@ -134,19 +144,6 @@ except Exception:
     logger.exception(msg)
     # Terminate and let the users know
     #internal_server_error(msg)
-
-
-####################################################################################################
-## AuthHelper initialization
-####################################################################################################
-
-# Initialize AuthHelper (AuthHelper from HuBMAP commons package)
-# auth_helper will be used to get the globus user info and 
-# the secret token for making calls to other APIs
-if AuthHelper.isInitialized() == False:
-    auth_helper = AuthHelper.create(app.config['APP_CLIENT_ID'], app.config['APP_CLIENT_SECRET'])
-else:
-    auth_helper = AuthHelper.instance()
 
 
 ####################################################################################################
@@ -279,7 +276,7 @@ def get_entity_provenance(id):
     try:
         # The user_info contains HIGHEST access level of the user based on the token
         # This call raises an HTTPException with a 401 if any auth issues encountered
-        user_info = auth_helper.getUserDataAccessLevel(request)
+        user_info = auth_helper_instance.getUserDataAccessLevel(request)
     # If returns HTTPException with a 401, invalid header format or expired/invalid token
     except HTTPException:
         unauthorized_error("Invalid token")
@@ -449,7 +446,7 @@ def get_collection(id):
         bad_request_error("Target entity of the given id is not a collection")
 
     # Get user data_access_level based on token
-    user_info = auth_helper.getUserDataAccessLevel(request) 
+    user_info = auth_helper_instance.getUserDataAccessLevel(request) 
 
     # If the user can only access public collections, modify the collection result
     # by only returning public datasets attached to this collection
@@ -496,7 +493,7 @@ def get_collections():
     normalized_entity_type = 'Collection'
 
     # Get user data_access_level based on token
-    user_info = auth_helper.getUserDataAccessLevel(request) 
+    user_info = auth_helper_instance.getUserDataAccessLevel(request) 
 
     # If the user can only access public collections, modify the resultss
     # by only returning public datasets attached to each collection
@@ -1108,7 +1105,7 @@ def get_dataset_globus_url(id):
     try:
         # The user_info contains HIGHEST access level of the user based on the token
         # This call raises an HTTPException with a 401 if any auth issues encountered
-        user_info = auth_helper.getUserDataAccessLevel(request)
+        user_info = auth_helper_instance.getUserDataAccessLevel(request)
     # If returns HTTPException with a 401, invalid header format or expired/invalid token
     except HTTPException:
         unauthorized_error("Invalid token")
@@ -1328,8 +1325,13 @@ def create_entity_details(request, normalized_entity_type, json_data_dict):
     # Merge the user json data and generated trigger data into one dictionary
     merged_dict = {**json_data_dict, **generated_before_create_trigger_data_dict}
 
+    # Filter out the merged_dict by getting rid of the properties with None value
+    # Meaning the returned target property key is different from the original key
+    # E.g., Donor.image_files
+    filtered_merged_dict = filter_dict(merged_dict, lambda k, v: k is not None)
+
     # `UNWIND` in Cypher expects List<T>
-    data_list = [merged_dict]
+    data_list = [filtered_merged_dict]
     
     # Convert the list (only contains one entity) to json list string
     json_list_str = json.dumps(data_list)
@@ -1417,12 +1419,17 @@ def update_entity_details(request, normalized_entity_type, json_data_dict, exist
     # Merge dictionaries
     merged_dict = {**json_data_dict, **generated_before_update_trigger_data_dict}
 
-    # By now the merged_dict contains all user updates and all triggered data to be added to the entity node
-    # Any properties in merged_dict that are not on the node will be added.
-    # Any properties not in merged_dict that are on the node will be left as is.
-    # Any properties that are in both merged_dict and the node will be replaced in the node. However, if any property in the map is null, it will be removed from the node.
+    # Filter out the merged_dict by getting rid of the properties with None value
+    # Meaning the returned target property key is different from the original key
+    # E.g., Donor.image_files
+    filtered_merged_dict = filter_dict(merged_dict, lambda k, v: k is not None)
+
+    # By now the filtered_merged_dict contains all user updates and all triggered data to be added to the entity node
+    # Any properties in filtered_merged_dict that are not on the node will be added.
+    # Any properties not in filtered_merged_dict that are on the node will be left as is.
+    # Any properties that are in both filtered_merged_dict and the node will be replaced in the node. However, if any property in the map is null, it will be removed from the node.
     # `UNWIND` in Cypher expects List<T>
-    data_list = [merged_dict]
+    data_list = [filtered_merged_dict]
     
     # Convert the list (only contains one entity) to json list string
     json_list_str = json.dumps(data_list)

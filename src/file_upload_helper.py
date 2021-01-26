@@ -30,7 +30,7 @@ class UploadFileHelper:
         file_helper.mkDir(file_dir)
         file.save(os.path.join(file_dir, file.filename))
         
-        return(temp_id)
+        return temp_id
     
     def __get_temp_file_id(self, iteration=0):
         if iteration == 100:
@@ -41,27 +41,33 @@ class UploadFileHelper:
         while rid in self.temp_files:
             rid = self.get_temp_file_id(iteration = iteration + 1)
         
-        return(rid)
+        return rid
+    
     
     def commit_file(self, temp_file_id, entity_uuid):
         entity_dir = self.upload_dir + entity_uuid
         if not os.path.exists(entity_dir):
             file_helper.mkDir(entity_dir)
         elif not os.path.isdir(entity_dir):
+            # ?
             raise Exception("Entity file uploads directory exists and is not a directory: " + entity_dir)
         
         if not temp_file_id in self.temp_files:
             raise Exception("Temporary file with id " + temp_file_id + " does not exist.")
+        
         shutil.move(self.temp_files[temp_file_id]['filedir'] + self.temp_files[temp_file_id]['filename'], self.upload_dir + self.temp_files[temp_file_id]['filename'])
         
         return self.temp_files[temp_file_id]['filename']
 
-    def remove_file(file_dir, filename, file_info_array):
-        for file_info in file_info_array:
+
+    def remove_file(file_dir, filename, files_info_list):
+        for file_info in files_info_list:
             if file_info['filename'] == filename:
-                file_info_array.remove(file_info)
+                # Remove from the list
+                files_info_list.remove(file_info)
         
+        # Remove from file system
         path_to_file = file_dir + filename
         os.remove(path_to_file)
         
-        return file_info
+        return files_info_list

@@ -27,6 +27,9 @@ services:
       - "../log:/usr/src/app/log"
       # Mount the schema yaml file
       - "../src/schema/provenance_schema.yaml:/usr/src/app/src/schema/provenance_schema.yaml"
+      # Mount the file uploads tmp directory and destination directory
+      - "/hubmap-data/hm_uploads_tmp:/hubmap-data/hm_uploads_tmp"
+      - "/hubmap-data/hm_uploads:/hubmap-data/hm_uploads"
     networks:
       - gateway_hubmap
 

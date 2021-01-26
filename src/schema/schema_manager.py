@@ -18,9 +18,7 @@ from schema import schema_triggers
 
 # HuBMAP commons
 from hubmap_commons.hm_auth import AuthHelper
-from hubmap_commons import neo4j_driver
 from hubmap_commons import globus_groups
-from hubmap_commons import file_helper
 
 logger = logging.getLogger(__name__)
 
@@ -37,9 +35,10 @@ cache = TTLCache(128, ttl=7200)
 # In Python, "privacy" depends on "consenting adults'" levels of agreement, we can't force it.
 # A single leading underscore means you're not supposed to access it "from the outside"
 _schema = None
-_neo4j_driver = None
 _uuid_api_url = None
 _auth_helper = None
+_neo4j_driver = None
+_file_upload_helper = None
 
 ####################################################################################################
 ## Provenance yaml schema initialization
@@ -57,30 +56,23 @@ neo4j_session_context : neo4j.Session object
     The neo4j database session
 """
 def initialize(valid_yaml_file, 
-               neo4j_uri, 
-               neo4j_username, 
-               neo4j_password, 
                uuid_api_url, 
-               globus_app_client_id, 
-               globus_app_client_secret,
+               auth_helper_instance,
+               neo4j_driver_instance,
                file_upload_helper_instance):
     # Specify as module-scope variables
     global _schema
-    global _neo4j_driver
     global _uuid_api_url
     global _auth_helper
+    global _neo4j_driver
     global _file_upload_helper
 
     _schema = load_provenance_schema(valid_yaml_file)
-    _neo4j_driver = neo4j_driver.instance(neo4j_uri, neo4j_username, neo4j_password)
     _uuid_api_url = uuid_api_url
 
-    # Initialize AuthHelper (AuthHelper from HuBMAP commons package)
-    # auth_helper will be used to get the globus user info and 
-    # the secret token for making calls to other APIs
-    _auth_helper = AuthHelper.create(globus_app_client_id, globus_app_client_secret)
-
-    # Get the file upload helper instance
+    # Get the helper instances
+    _auth_helper = auth_helper_instance
+    _neo4j_driver = neo4j_driver_instance
     _file_upload_helper = file_upload_helper_instance
 
 
@@ -180,7 +172,6 @@ dict
 """
 def generate_triggered_data(trigger_type, normalized_class, data_dict, properties_to_skip = []):
     global _schema
-    global _neo4j_driver
 
     schema_section = None
 
@@ -224,7 +215,7 @@ def generate_triggered_data(trigger_type, normalized_class, data_dict, propertie
                         # No return values for 'after_create_trigger' and 'after_update_trigger'
                         # because the property value is already set in `data_dict`
                         # normally it's building linkages between entity nodes
-                        trigger_method_to_call(key, normalized_class, _neo4j_driver, data_dict)
+                        trigger_method_to_call(key, normalized_class, data_dict)
                     except Exception:
                         msg = "Failed to call the " + trigger_type + " method: " + trigger_method_name
                         # Log the full stack trace, prepend a line with our message
@@ -245,8 +236,16 @@ def generate_triggered_data(trigger_type, normalized_class, data_dict, propertie
                 trigger_method_to_call = getattr(schema_triggers, trigger_method_name)
 
                 try:
-                    # Will set the trigger return value as the property value
-                    trigger_generated_data_dict[key] = trigger_method_to_call(key, normalized_class, _neo4j_driver, data_dict)
+                    # Will set the trigger return value as the property value by default
+                    # Unless the return value is to be assigned to another property different target key 
+                    target_key, target_value = trigger_method_to_call(key, normalized_class, data_dict)
+                    trigger_generated_data_dict[target_key] = target_value
+
+                    # Meanwhile, set the original property as None
+                    # This is especially important when the returned target_key is different from the original key
+                    # Because we'll be merging this trigger_generated_data_dict with the original user input
+                    # and this will overwrite the original key so it doesn't get stored in Neo4j
+                    trigger_generated_data_dict[key] = None
                 except schema_errors.NoDataProviderGroupException as e:
                     msg = f"Failed to call the {trigger_type} method: {trigger_method_name}"
                     # Log the full stack trace, prepend a line with our message
@@ -1053,59 +1052,20 @@ def _create_request_headers():
     return headers_dict
 
 
-####################################################################################################
-## File helper functions
-####################################################################################################
+# To be used by trigger methods
+def get_auth_helper_instance():
+    global _auth_helper
+    
+    return _auth_helper
 
-"""
-Create a dict of HTTP Authorization header with Bearer token for making calls to uuid-api
 
-Parameters
-----------
-entity_record : dict
-    The target entity dictionary
+def get_neo4j_driver_instance():
+    global _neo4j_driver
+    
+    return _neo4j_driver
 
-Returns
--------
-dict
-    The headers dict to be used by requests
-"""
-def delete_files(entity_record, saved_to_attribute_name, remove_files_attribute_name):
+
+def get_file_upload_helper_instance():
     global _file_upload_helper
-
-    if remove_files_attribute_name in entity_record:
-        entity_uuid = entity_record['uuid']
-        # _file_upload_helper.upload_dir is already normalized with trailing slash
-        entity_upload_dir = _file_upload_helper.upload_dir + entity_uuid + os.sep
-        files = json.loads(entity_record[saved_to_attribute_name])
-        
-        for filename in entity_record[remove_files_attribute_name]:
-            files = _file_upload_helper.remove_file(entity_upload_dir, filename, files)
-        
-        entity_record[saved_to_attribute_name] = json.dumps(files)
     
-    return entity_record
-    
-
-def commit_files(entity_record, save_to_attribute_name, added_files_attribute_name):
-    global _file_upload_helper
-
-    if added_files_attribute_name in entity_record:
-        commit_file_info_arry = entity_record[added_files_attribute_name]
-        if save_to_attribute_name in entity_record:
-            return_file_info_array = json.loads(entity_record[save_to_attribute_name])
-        else:
-            return_file_info_array = []
-            
-        for file_info in commit_file_info_arry:
-            filename = _file_upload_helper.commit_file(file_info['temp_file_id'], entity_record['uuid'])
-            add_file_info = {'filename':filename}
-            
-            if 'description' in file_info:
-                add_file_info['description'] = file_info['description']
-            
-            return_file_info_array.append(add_file_info)
-        
-        entity_record[save_to_attribute_name] = return_file_info_array
-    
-    return entity_record
+    return _file_upload_helper
