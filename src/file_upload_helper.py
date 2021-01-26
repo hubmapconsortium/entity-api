@@ -2,6 +2,7 @@ import os
 import secrets
 import shutil
 import logging
+import pathlib
 from werkzeug.utils import secure_filename
 
 # HuBMAP commons
@@ -34,7 +35,10 @@ class UploadFileHelper:
         self.temp_files[temp_id]['filename'] = file.filename
         self.temp_files[temp_id]['filedir'] = file_dir
 
-        file_helper.mkDir(file_dir)
+        #file_helper.mkDir(file_dir)
+        # mkDir doesn't show permission error, use pathlib
+        pathlib.Path(file_dir).mkdir(parents=True, exist_ok=True)
+
         file.save(os.path.join(file_dir, secure_filename(file.filename)))
         
         return temp_id
