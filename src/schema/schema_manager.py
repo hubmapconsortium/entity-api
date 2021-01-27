@@ -934,9 +934,6 @@ dict
     The group info (group_uuid and group_name)
 """
 def get_entity_group_info(user_hmgroupids_list):
-    logger.debug("====user_hmgroupids_list====")
-    logger.debug(user_hmgroupids_list)
-
     # Default
     group_info = {
         'uuid': '',
@@ -946,18 +943,12 @@ def get_entity_group_info(user_hmgroupids_list):
     # Get the globus groups info based on the groups json file in commons package
     globus_groups_info = globus_groups.get_globus_groups_info()
     groups_by_id_dict = globus_groups_info['by_id']
-    
-    logger.debug("====groups_by_id_dict====")
-    logger.debug(groups_by_id_dict)
 
     # A list of data provider uuids
     data_provider_uuids = []
     for uuid_key in groups_by_id_dict:
         if ('data_provider' in groups_by_id_dict[uuid_key]) and groups_by_id_dict[uuid_key]['data_provider']:
             data_provider_uuids.append(uuid_key)
-    
-    logger.debug("====data_provider_uuids====")
-    logger.debug(data_provider_uuids)
 
     user_data_provider_uuids = []
     for group_uuid in user_hmgroupids_list:

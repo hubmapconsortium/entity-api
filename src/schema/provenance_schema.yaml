@@ -252,7 +252,7 @@ ENTITIES:
         #todo: where is this attribute sourced from?  Is it stored in the database? <- Not in neo4j
         type: string
       ingest_metadata:
-        type: json_string
+        type: json_string # dict
         description: "The metadata returned from the processing at data submission time."
       local_directory_rel_path:
         # Example: protected/<TMC>/<uuid>
@@ -323,7 +323,7 @@ ENTITIES:
         description: 'List of image files previously uploaded to delete. Provide as a json array of filenames like: ["filename1", "filename2"]'
         before_update_trigger: delete_image_files
       metadata:
-        type: json_string
+        type: json_string # dict
         description: "Donor metadata coded as described here: <get donor metadata doc from Chuck>"
       protocol_url:
         type: string
@@ -353,7 +353,7 @@ ENTITIES:
         before_create_trigger: set_group_name
         #todo: map to provenance_group_name in ES - ? In the current version it's not mapped
       portal_metadata_upload_files:
-        type: json_string
+        type: json_string 
         description: "list of relative paths to metadata files"
         #todo: migrate to new attribute (set, maybe) representing a single uploaded sample_metadata.tsv file using the now file upload methods.  Leave this in place for now, but add new attribute(s) to support new methon.  Need to do a design session.
       next_identifier:
@@ -438,7 +438,7 @@ ENTITIES:
         after_create_trigger: link_sample_to_direct_ancestor
         after_update_trigger: relink_sample_to_direct_ancestor
       direct_ancestor:
-        type: json_string
+        type: json_string # dict
         generated: true
         transient: true
         on_read_trigger: get_sample_direct_ancestor

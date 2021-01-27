@@ -60,6 +60,9 @@ class UploadFileHelper:
     
     
     def commit_file(self, temp_file_id, entity_uuid):
+        logger.debug(self.temp_files)
+        logger.debug(temp_file_id)
+
         entity_dir = self.upload_dir + entity_uuid
         if not os.path.exists(entity_dir):
             # Use pathlib to create dir instead of file_helper.mkDir

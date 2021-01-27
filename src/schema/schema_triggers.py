@@ -29,8 +29,8 @@ data_dict : dict
 
 Returns
 -------
-int
-    A timestamp integer of seconds
+str: The target property key
+int: A timestamp integer of seconds
 """
 def set_timestamp(property_key, normalized_type, data_dict):
     current_time = datetime.datetime.now() 
@@ -52,8 +52,8 @@ data_dict : dict
 
 Returns
 -------
-str
-    The string of normalized entity type
+str: The target property key
+str: The string of normalized entity type
 """
 def set_entity_type(property_key, normalized_type, data_dict):
     return property_key, normalized_type
@@ -74,8 +74,8 @@ data_dict : dict
 
 Returns
 -------
-str
-    The 'sub' string
+str: The target property key
+str: The 'sub' string
 """
 def set_user_sub(property_key, normalized_type, data_dict):
     if 'sub' not in data_dict:
@@ -97,8 +97,8 @@ data_dict : dict
 
 Returns
 -------
-str
-    The 'email' string
+str: The target property key
+str: The 'email' string
 """
 def set_user_email(property_key, normalized_type, data_dict):
     if 'email' not in data_dict:
@@ -120,12 +120,13 @@ data_dict : dict
 
 Returns
 -------
-str
-    The 'name' string
+str: The target property key
+str: The 'name' string
 """
 def set_user_displayname(property_key, normalized_type, data_dict):
     if 'name' not in data_dict:
         raise KeyError("Missing 'name' key in 'data_dict' during calling 'set_user_displayname()' trigger method.")
+    
     return property_key, data_dict['name']
 
 """
@@ -143,12 +144,13 @@ data_dict : dict
 
 Returns
 -------
-str
-    The uuid created via uuid-api
+str: The target property key
+str: The uuid created via uuid-api
 """
 def set_uuid(property_key, normalized_type, data_dict):
     if 'uuid' not in data_dict:
         raise KeyError("Missing 'uuid' key in 'data_dict' during calling 'set_uuid()' trigger method.")
+    
     return property_key, data_dict['uuid']
 
 """
@@ -166,12 +168,13 @@ data_dict : dict
 
 Returns
 -------
-str
-    The hubmap_id created via uuid-api
+str: The target property key
+str: The hubmap_id created via uuid-api
 """
 def set_hubmap_id(property_key, normalized_type, data_dict):
     if 'hubmap_id' not in data_dict:
         raise KeyError("Missing 'hubmap_id' key in 'data_dict' during calling 'set_hubmap_id()' trigger method.")
+    
     return property_key, data_dict['hubmap_id']
 
 
@@ -195,8 +198,8 @@ data_dict : dict
 
 Returns
 -------
-str
-    The data access level string
+str: The target property key
+str: The data access level string
 """
 def set_data_access_level(property_key, normalized_type, data_dict):
     if 'uuid' not in data_dict:
@@ -250,8 +253,8 @@ data_dict : dict
 
 Returns
 -------
-str
-    The group uuid
+str: The target property key
+str: The group uuid
 """
 def set_group_uuid(property_key, normalized_type, data_dict):
     # Use the user input if `group_uuid` is set
@@ -296,8 +299,8 @@ data_dict : dict
 
 Returns
 -------
-str
-    The group name
+str: The target property key
+str: The group name
 """
 def set_group_name(property_key, normalized_type, data_dict):
     # Use the user input if `group_name` is set
@@ -353,8 +356,8 @@ data_dict : dict
 
 Returns
 -------
-str
-    The submission_id
+str: The target property key
+str: The submission_id
 """
 def set_submission_id(property_key, normalized_type, data_dict):
     if 'submission_id' not in data_dict:
@@ -382,8 +385,8 @@ data_dict : dict
 
 Returns
 -------
-list
-    A list of associated dataset dicts with all the normalized information
+str: The target property key
+list: A list of associated dataset dicts with all the normalized information
 """
 def get_collection_datasets(property_key, normalized_type, data_dict):
     if 'uuid' not in data_dict:
@@ -418,8 +421,8 @@ data_dict : dict
 
 Returns
 -------
-str 
-    New
+str: The target property key
+str: Initial status of "New"
 """
 def set_dataset_status(property_key, normalized_type, data_dict):
     return property_key, 'New'
@@ -473,8 +476,8 @@ data_dict : dict
 
 Returns
 -------
-list 
-    A list of associated collections with all the normalized information
+str: The target property key
+list: A list of associated collections with all the normalized information
 """
 def get_dataset_collections(property_key, normalized_type, data_dict):
     if 'uuid' not in data_dict:
@@ -506,8 +509,8 @@ data_dict : dict
 
 Returns
 -------
-str
-    The uuid string of source entity
+str: The target property key
+str: The uuid string of source entity
 """
 def link_dataset_to_direct_ancestors(property_key, normalized_type, data_dict):
     if 'uuid' not in data_dict:
@@ -566,8 +569,8 @@ data_dict : dict
 
 Returns
 -------
-str
-    The uuid string of source entity
+str: The target property key
+str: The uuid string of source entity
 """
 def relink_dataset_to_direct_ancestors(property_key, normalized_type, data_dict):
     if 'uuid' not in data_dict:
@@ -633,8 +636,8 @@ data_dict : dict
 
 Returns
 -------
-list
-    A list of associated direct ancestors with all the normalized information
+str: The target property key
+list: A list of associated direct ancestors with all the normalized information
 """
 def get_dataset_direct_ancestors(property_key, normalized_type, data_dict):
     if 'uuid' not in data_dict:
@@ -669,8 +672,8 @@ data_dict : dict
 
 Returns
 -------
-str
-    The relative directory path
+str: The target property key
+str: The relative directory path
 """
 def get_local_directory_rel_path(property_key, normalized_type, data_dict):
     if 'uuid' not in data_dict:
@@ -718,8 +721,8 @@ data_dict : dict
 
 Returns
 -------
-str
-    The relative directory path
+str: The target property key
+list: The file info dicts (with updated descriptions) in a list
 """
 def update_image_files_descriptions(property_key, normalized_type, data_dict):
     if property_key not in data_dict:
@@ -767,8 +770,8 @@ data_dict : dict
 
 Returns
 -------
-str
-    The relative directory path
+str: The target property key
+list: The file info dicts in a list
 """
 def commit_image_files(property_key, normalized_type, data_dict):
     target_property_key = 'image_files'
@@ -795,8 +798,7 @@ def commit_image_files(property_key, normalized_type, data_dict):
             files_info_list.append(file_info_to_add)
         
         # Assign the target value to a different property key rather than itself
-        # convert the files_info_list to string to be stored in neo4j
-        return target_property_key, str(files_info_list)
+        return target_property_key, files_info_list
     except Exception as e:
         # No need to log
         raise
@@ -821,6 +823,11 @@ data_dict : dict
         - uuid
         - image_files
         - image_files_to_remove
+
+Returns
+-------
+str: The target property key
+list: The file info dicts in a list
 """
 def delete_image_files(property_key, normalized_type, data_dict):
     target_property_key = 'image_files'
@@ -846,8 +853,7 @@ def delete_image_files(property_key, normalized_type, data_dict):
             files_info_list = schema_manager.get_file_upload_helper_instance().remove_file(entity_upload_dir, filename, files_info_list)
         
         # Assign the target value to a different property key rather than itself
-        # convert the files_info_list to string to be stored in neo4j
-        return target_property_key, str(files_info_list)
+        return target_property_key, files_info_list
     except Exception as e:
         # No need to log
         raise
@@ -869,11 +875,6 @@ normalized_type : str
 data_dict : dict
     A merged dictionary that contains all possible input data to be used
     It's fine if a trigger method doesn't use any input data
-
-Returns
--------
-bool
-    True if everything goes well, otherwise False
 """
 def link_sample_to_direct_ancestor(property_key, normalized_type, data_dict):
     if 'uuid' not in data_dict:
@@ -916,7 +917,6 @@ def link_sample_to_direct_ancestor(property_key, normalized_type, data_dict):
         raise
 
 
-
 """
 Trigger event method of rebuilding linkages between this Sample and its direct ancestors 
 
@@ -929,11 +929,6 @@ normalized_type : str
 data_dict : dict
     A merged dictionary that contains all possible input data to be used
     It's fine if a trigger method doesn't use any input data
-
-Returns
--------
-bool
-    True if everything goes well, otherwise False
 """
 def relink_sample_to_direct_ancestor(property_key, normalized_type, data_dict):
     if 'uuid' not in data_dict:
@@ -991,8 +986,8 @@ data_dict : dict
 
 Returns
 -------
-dict
-    The direct ancestor entity (either another Sample or a Donor) with all the normalized information
+str: The target property key
+dict: The direct ancestor entity (either another Sample or a Donor) with all the normalized information
 """
 def get_sample_direct_ancestor(property_key, normalized_type, data_dict):
     if 'uuid' not in data_dict:
@@ -1040,8 +1035,8 @@ data_dict : dict
 
 Returns
 -------
-str
-    The creation_action string
+str: The target property key
+str: The creation_action string
 """
 def set_activity_creation_action(property_key, normalized_type, data_dict):
     if 'normalized_entity_type' not in data_dict:

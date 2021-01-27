@@ -1,5 +1,6 @@
 from neo4j.exceptions import TransactionError
 import logging
+import json
 
 logger = logging.getLogger(__name__)
 
@@ -189,13 +190,54 @@ Returns
 dict
     A dictionary of newly created entity details returned from the Cypher query
 """
-def create_entity(neo4j_driver, entity_type, entity_json_list_str):
-    # UNWIND expects json.entities to be List<T>
-    query = (f"WITH apoc.convert.fromJsonList('{entity_json_list_str}') AS entities_list "
-             f"UNWIND entities_list AS data "
-             # Always define the Entity label in addition to the target `entity_type` label
+def create_entity(neo4j_driver, entity_type, entity_data_dict):
+    logger.debug("77777777777777777777777")
+    logger.debug(entity_data_dict)
+
+    for key, val in entity_data_dict.items():
+        if isinstance(val, (list, dict)):
+            # Convert to json string
+            entity_data_dict[key] = json.dumps(val)
+
+    logger.debug("8888888888888888888888")
+    logger.debug(entity_data_dict)
+
+    # `UNWIND` in Cypher expects List<T>
+    data_list = [entity_data_dict]
+    
+    # Convert the list (only contains one entity) to json list string
+    json_list_str = json.dumps(data_list)
+
+    logger.debug("99999999999999999999999")
+    logger.debug(json_list_str)
+
+    # Must also escape single quotes in the json string to build a valid Cypher query later
+    escaped_json_list_str = json_list_str.replace("'", r"\'")
+
+    logger.debug("0000000000000000000000")
+    logger.debug(escaped_json_list_str)
+
+    # query = (f"WITH apoc.convert.fromJsonList('{escaped_json_list_str}') AS entities_list "
+    #          f"UNWIND entities_list AS data "
+    #          # Always define the Entity label in addition to the target `entity_type` label
+    #          f"CREATE (e:Entity:{entity_type}) "
+    #          f"SET e = data "
+    #          f"RETURN e AS {record_field_name}")
+
+    sep = ','
+    q_list = []
+    for key in entity_data_dict:
+        if isinstance(entity_data_dict[key], int):
+            q = f"e.{key} = {entity_data_dict[key]}"
+        else:
+            str_val = str(entity_data_dict[key]).replace("'", r"\'")
+            q = f"e.{key} = '{str_val}'"
+
+        q_list.append(q)
+
+    query = (# Always define the Entity label in addition to the target `entity_type` label
              f"CREATE (e:Entity:{entity_type}) "
-             f"SET e = data "
+             f"SET {sep.join(q_list)} "
              f"RETURN e AS {record_field_name}")
 
     logger.debug("======create_entity() query======")

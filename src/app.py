@@ -1333,9 +1333,6 @@ def create_entity_details(request, normalized_entity_type, json_data_dict):
     # Merge the user json data and generated trigger data into one dictionary
     merged_dict = {**json_data_dict, **generated_before_create_trigger_data_dict}
 
-    logger.debug("==========merged_dict")
-    logger.debug(merged_dict)
-
     # Filter out the merged_dict by getting rid of the properties with None value
     # Meaning the returned target property key is different from the original key
     # E.g., Donor.image_files
@@ -1344,24 +1341,9 @@ def create_entity_details(request, normalized_entity_type, json_data_dict):
         if v is not None:
             filtered_merged_dict[k] = v
 
-    logger.debug("==========filtered_merged_dict")
-    logger.debug(filtered_merged_dict)
-    
-    # `UNWIND` in Cypher expects List<T>
-    data_list = [filtered_merged_dict]
-    
-    # Convert the list (only contains one entity) to json list string
-    json_list_str = json.dumps(data_list)
-
-    # Must also escape single quotes in the json string to build a valid Cypher query later
-    escaped_json_list_str = json_list_str.replace("'", r"\'")
-
-    logger.debug("======create_entity_details() escaped_json_list_str======")
-    logger.debug(escaped_json_list_str)
-
     # Create new entity
     try:
-        entity_dict = app_neo4j_queries.create_entity(neo4j_driver_instance, normalized_entity_type, escaped_json_list_str)
+        entity_dict = app_neo4j_queries.create_entity(neo4j_driver_instance, normalized_entity_type, filtered_merged_dict)
     except TransactionError:
         msg = "Failed to create the new " + normalized_entity_type
         # Log the full stack trace, prepend a line with our message
@@ -1448,21 +1430,10 @@ def update_entity_details(request, normalized_entity_type, json_data_dict, exist
     # Any properties in filtered_merged_dict that are not on the node will be added.
     # Any properties not in filtered_merged_dict that are on the node will be left as is.
     # Any properties that are in both filtered_merged_dict and the node will be replaced in the node. However, if any property in the map is null, it will be removed from the node.
-    # `UNWIND` in Cypher expects List<T>
-    data_list = [filtered_merged_dict]
-    
-    # Convert the list (only contains one entity) to json list string
-    json_list_str = json.dumps(data_list)
-
-    # Must also escape single quotes in the json string to build a valid Cypher query later
-    escaped_json_list_str = json_list_str.replace("'", r"\'")
-
-    logger.debug("======update_entity_details() json_list_str======")
-    logger.debug(json_list_str)
 
     # Update the exisiting entity
     try:
-        updated_entity_dict = app_neo4j_queries.update_entity(neo4j_driver_instance, normalized_entity_type, escaped_json_list_str, existing_entity_dict['uuid'])
+        updated_entity_dict = app_neo4j_queries.update_entity(neo4j_driver_instance, normalized_entity_type, filtered_merged_dict, existing_entity_dict['uuid'])
     except TransactionError:
         msg = "Failed to update the entity with id " + id
         # Log the full stack trace, prepend a line with our message
@@ -1600,8 +1571,6 @@ def access_level_prefix_dir(dir_name):
         return ''
     
     return hm_file_helper.ensureTrailingSlashURL(hm_file_helper.ensureBeginningSlashURL(dir_name))
-
-
 
 
 # For local development/testing
