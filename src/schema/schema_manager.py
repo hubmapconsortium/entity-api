@@ -1,4 +1,5 @@
 import os
+import ast
 import json
 import yaml
 import logging
@@ -160,8 +161,10 @@ trigger_type : str
     One of the trigger types: on_create_trigger, on_update_trigger, on_read_trigger
 normalized_class : str
     One of the types defined in the schema yaml: Activity, Collection, Donor, Sample, Dataset
-data_dict : dict
-    A dictionary that contains data to be used by the trigger methods
+existing_data_dict : dict
+    A dictionary that contains existing entity data
+new_data_dict : dict
+    A dictionary that contains incoming entity data
 properties_to_skip : list
     Any properties to skip running triggers
 
@@ -170,7 +173,7 @@ Returns
 dict
     A dictionary of trigger event methods generated data
 """
-def generate_triggered_data(trigger_type, normalized_class, data_dict, properties_to_skip = []):
+def generate_triggered_data(trigger_type, normalized_class, existing_data_dict, new_data_dict, properties_to_skip = []):
     global _schema
 
     schema_section = None
@@ -196,14 +199,15 @@ def generate_triggered_data(trigger_type, normalized_class, data_dict, propertie
     for key in properties:
         # Among those properties that have the target trigger type,
         # we can skip the ones specified in the `properties_to_skip` by not running their triggers
-        if (trigger_type in list(properties[key])) and (key not in properties_to_skip):
+        if (trigger_type in properties[key]) and (key not in properties_to_skip):
             # 'after_create_trigger' and 'after_update_trigger' don't generate property values
             # E.g., create relationships between nodes in neo4j
             # So just return the empty trigger_generated_data_dict
             if trigger_type in ['after_create_trigger', 'after_update_trigger']:
                 # Only call the triggers if the propery key presents from the incoming data
                 # E.g., 'direct_ancestor_uuid' for Sample, 'dataset_uuids' for Collection
-                if key in data_dict:
+                # This `existing_data_dict` is the newly created or updated entity dict
+                if key in existing_data_dict:
                     trigger_method_name = properties[key][trigger_type]
 
                     logger.debug(f"Calling schema {trigger_type}: {trigger_method_name} defined for {normalized_class}")
@@ -215,7 +219,8 @@ def generate_triggered_data(trigger_type, normalized_class, data_dict, propertie
                         # No return values for 'after_create_trigger' and 'after_update_trigger'
                         # because the property value is already set in `data_dict`
                         # normally it's building linkages between entity nodes
-                        trigger_method_to_call(key, normalized_class, data_dict)
+                        # Use {} since no incoming new_data_dict 
+                        trigger_method_to_call(key, normalized_class, existing_data_dict, {})
                     except Exception:
                         msg = "Failed to call the " + trigger_type + " method: " + trigger_method_name
                         # Log the full stack trace, prepend a line with our message
@@ -225,9 +230,86 @@ def generate_triggered_data(trigger_type, normalized_class, data_dict, propertie
                             raise schema_errors.AfterCreateTriggerException
                         elif trigger_type == 'after_update_trigger':
                             raise schema_errors.AfterUpdateTriggerException
+            elif trigger_type in ['before_update_trigger']:
+                # Only call the triggers on the properties to be updated
+                if key in new_data_dict:
+                    trigger_method_name = properties[key][trigger_type]
+
+                    logger.debug(f"Calling schema {trigger_type}: {trigger_method_name} defined for {normalized_class}")
+
+                    # Call the target trigger method of schema_triggers.py module
+                    trigger_method_to_call = getattr(schema_triggers, trigger_method_name)
+
+                    try:
+                        # Will set the trigger return value as the property value by default
+                        # Unless the return value is to be assigned to another property different target key 
+                        target_key, target_value = trigger_method_to_call(key, normalized_class, existing_data_dict, new_data_dict)
+                        trigger_generated_data_dict[target_key] = target_value
+
+                        # Meanwhile, set the original property as None if target_key is different
+                        # This is especially important when the returned target_key is different from the original key
+                        # Because we'll be merging this trigger_generated_data_dict with the original user input
+                        # and this will overwrite the original key so it doesn't get stored in Neo4j
+                        if key != target_key:
+                            trigger_generated_data_dict[key] = None
+                    except Exception as e:
+                        msg = f"Failed to call the {trigger_type} method: {trigger_method_name}"
+                        # Log the full stack trace, prepend a line with our message
+                        logger.exception(msg)
+
+                        # We can't create/update the entity 
+                        # without successfully executing this trigger method
+                        raise schema_errors.BeforeUpdateTriggerException
+            elif trigger_type in ['before_create_trigger']:
+                # Run the before_create_trigger for:
+                # - all generated properties
+                # - the property is not auto generated and the property exists in incoming data
+                if (('generated' in properties[key]) and properties[key]['generated']) or ((('generated' not in properties[key]) or (not properties[key]['generated'])) and (key in new_data_dict)): 
+                    # Handling of all other trigger types: on_read_trigger
+                    trigger_method_name = properties[key][trigger_type]
+
+                    logger.debug(f"Calling schema {trigger_type}: {trigger_method_name} defined for {normalized_class}")
+
+                    # Call the target trigger method of schema_triggers.py module
+                    trigger_method_to_call = getattr(schema_triggers, trigger_method_name)
+
+                    try:
+                        # Will set the trigger return value as the property value by default
+                        # Unless the return value is to be assigned to another property different target key 
+                        target_key, target_value = trigger_method_to_call(key, normalized_class, existing_data_dict, new_data_dict)
+                        trigger_generated_data_dict[target_key] = target_value
+
+                        # Meanwhile, set the original property as None if target_key is different
+                        # This is especially important when the returned target_key is different from the original key
+                        # Because we'll be merging this trigger_generated_data_dict with the original user input
+                        # and this will overwrite the original key so it doesn't get stored in Neo4j
+                        if key != target_key:
+                            trigger_generated_data_dict[key] = None
+                    except schema_errors.NoDataProviderGroupException as e:
+                        msg = f"Failed to call the {trigger_type} method: {trigger_method_name}"
+                        # Log the full stack trace, prepend a line with our message
+                        logger.exception(msg)
+                        raise schema_errors.NoDataProviderGroupException
+                    except schema_errors.MultipleDataProviderGroupException as e:
+                        msg = f"Failed to call the {trigger_type} method: {trigger_method_name}"
+                        # Log the full stack trace, prepend a line with our message
+                        logger.exception(msg)
+                        raise schema_errors.MultipleDataProviderGroupException
+                    except Exception as e:
+                        msg = f"Failed to call the {trigger_type} method: {trigger_method_name}"
+                        # Log the full stack trace, prepend a line with our message
+                        logger.exception(msg)
+
+                        if trigger_type == 'before_create_trigger':
+                            # We can't create/update the entity 
+                            # without successfully executing this trigger method
+                            raise schema_errors.BeforeCreateTriggerException
+                        else:
+                            # Assign the error message as the value of this property
+                            # No need to raise exception
+                            trigger_generated_data_dict[key] = msg
             else:
-                # Handling of all other trigger types:
-                # before_create_trigger|before_update_trigger|on_read_trigger
+                # Handling of all other trigger types: on_read_trigger
                 trigger_method_name = properties[key][trigger_type]
 
                 logger.debug(f"Calling schema {trigger_type}: {trigger_method_name} defined for {normalized_class}")
@@ -238,7 +320,7 @@ def generate_triggered_data(trigger_type, normalized_class, data_dict, propertie
                 try:
                     # Will set the trigger return value as the property value by default
                     # Unless the return value is to be assigned to another property different target key 
-                    target_key, target_value = trigger_method_to_call(key, normalized_class, data_dict)
+                    target_key, target_value = trigger_method_to_call(key, normalized_class, existing_data_dict, new_data_dict)
                     trigger_generated_data_dict[target_key] = target_value
 
                     # Meanwhile, set the original property as None if target_key is different
@@ -266,10 +348,6 @@ def generate_triggered_data(trigger_type, normalized_class, data_dict, propertie
                         # We can't create/update the entity 
                         # without successfully executing this trigger method
                         raise schema_errors.BeforeCreateTriggerException
-                    elif trigger_type == 'before_update_trigger':
-                        # We can't create/update the entity 
-                        # without successfully executing this trigger method
-                        raise schema_errors.BeforeUpdateTriggerException
                     else:
                         # Assign the error message as the value of this property
                         # No need to raise exception
@@ -297,14 +375,17 @@ dict
     A dictionary of complete entity with all the generated 'on_read_trigger' data
 """
 def get_complete_entity_result(entity_dict, properties_to_skip = []):
-    # No error handling here since if a 'on_read_trigger' method failed, 
-    # the property value will be the error message
-    generated_on_read_trigger_data_dict = generate_triggered_data('on_read_trigger', entity_dict['entity_type'], entity_dict, properties_to_skip)
+    # In case some incorrectly created entities don't have the `entity_type` property
+    if 'entity_type' in entity_dict:
+        # No error handling here since if a 'on_read_trigger' method failed, 
+        # the property value will be the error message
+        # Pass {} since no new_data_dict for 'on_read_trigger'
+        generated_on_read_trigger_data_dict = generate_triggered_data('on_read_trigger', entity_dict['entity_type'], entity_dict, {}, properties_to_skip)
 
-    # Merge the entity info and the generated on read data into one dictionary
-    complete_entity_dict = {**entity_dict, **generated_on_read_trigger_data_dict}
+        # Merge the entity info and the generated on read data into one dictionary
+        complete_entity_dict = {**entity_dict, **generated_on_read_trigger_data_dict}
 
-    return complete_entity_dict
+        return complete_entity_dict
 
 
 """
@@ -393,12 +474,17 @@ def normalize_entity_result_for_response(entity_dict, properties_to_exclude = []
         # Only return the properties defined in the schema yaml
         # Exclude additional properties if specified
         if (key in properties) and (key not in properties_to_exclude):
+            # Safely evaluate a string containing a Python dict or list literal
+            # instead of returning the json-as-string or array-as-string
+            if isinstance(entity_dict[key], str) and properties[key]['type'] in ['list', 'json_string']:
+                entity_dict[key] = ast.literal_eval(entity_dict[key])
+
             # By default, all properties are exposed
             # It's possible to see `exposed: true`
             if ('exposed' not in properties[key]) or (('exposed' in properties[key]) and properties[key]['exposed']):
                 # Add to the normalized_entity dict
                 normalized_entity[key] = entity_dict[key]
-
+  
     return normalized_entity
 
 

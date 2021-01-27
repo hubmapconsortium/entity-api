@@ -377,25 +377,14 @@ def get_entities_by_type(entity_type):
     if normalized_entity_type == 'Collection':
         bad_request_error("Please use another API endpoint `/collections` to query collections")
 
-    # Get back a list of entity dicts for the given entity type
-    entities_list = app_neo4j_queries.get_entities_by_type(neo4j_driver_instance, normalized_entity_type)
-
-    # Generate trigger data and merge into a big dict
-    # and skip some of the properties that are time-consuming to generate via triggers
-    # direct_ancestor for Sample, and direct_ancestors for Dataset
-    properties_to_skip = ['direct_ancestors', 'direct_ancestor']
-    complete_entities_list = schema_manager.get_complete_entities_list(entities_list, properties_to_skip)
-
-    # Final result after normalization
-    final_result = schema_manager.normalize_entities_list_for_response(complete_entities_list)
-
     # Result filtering based on query string
-    result_filtering_accepted_property_keys = ['uuid']
-    separator = ', '
     if bool(request.args):
         property_key = request.args.get('property')
 
         if property_key is not None:
+            result_filtering_accepted_property_keys = ['uuid']
+            separator = ', '
+
             # Validate the target property
             if property_key not in result_filtering_accepted_property_keys:
                 bad_request_error(f"Only the following property keys are supported in the query string: {separator.join(result_filtering_accepted_property_keys)}")
@@ -407,6 +396,19 @@ def get_entities_by_type(entity_type):
             final_result = property_list
         else:
             bad_request_error("The specified query string is not supported. Use '?property=<key>' to filter the result")
+    # Return all the details if no property filtering
+    else:
+        # Get back a list of entity dicts for the given entity type
+        entities_list = app_neo4j_queries.get_entities_by_type(neo4j_driver_instance, normalized_entity_type)
+
+        # Generate trigger data and merge into a big dict
+        # and skip some of the properties that are time-consuming to generate via triggers
+        # direct_ancestor for Sample, and direct_ancestors for Dataset
+        properties_to_skip = ['direct_ancestors', 'direct_ancestor']
+        complete_entities_list = schema_manager.get_complete_entities_list(entities_list, properties_to_skip)
+
+        # Final result after normalization
+        final_result = schema_manager.normalize_entities_list_for_response(complete_entities_list)
 
     # Response with the final result
     return jsonify(final_result)
@@ -493,36 +495,14 @@ def get_collections():
     # Get user data_access_level based on token
     user_info = auth_helper_instance.getUserDataAccessLevel(request) 
 
-    # If the user can only access public collections, modify the resultss
-    # by only returning public datasets attached to each collection
-    if user_info['data_access_level'] == 'public': 
-        # Get back a list of public collections dicts
-        collections_list = app_neo4j_queries.get_public_collections(neo4j_driver_instance)
-        
-        # Modify the Collection.datasets property for each collection dict 
-        # to contain only public datasets
-        for collection_dict in collections_list:
-            # Only return the public datasets attached to this collection for Collection.datasets property
-            collection_dict = get_complete_public_collection_dict(collection_dict)
-    else:
-        # Get back a list of all collections dicts
-        collections_list = app_neo4j_queries.get_entities_by_type(neo4j_driver_instance, normalized_entity_type)
-
-    # Generate trigger data and merge into a big dict
-    # and skip some of the properties that are time-consuming to generate via triggers
-    properties_to_skip = ['datasets']
-    complete_collections_list = schema_manager.get_complete_entities_list(collections_list, properties_to_skip)
-
-    # Final result after normalization
-    final_result = schema_manager.normalize_entities_list_for_response(complete_collections_list)
-
     # Result filtering based on query string
-    result_filtering_accepted_property_keys = ['uuid']
-    separator = ', '
     if bool(request.args):
         property_key = request.args.get('property')
 
         if property_key is not None:
+            result_filtering_accepted_property_keys = ['uuid']
+            separator = ', '
+
             # Validate the target property
             if property_key not in result_filtering_accepted_property_keys:
                 bad_request_error(f"Only the following property keys are supported in the query string: {separator.join(result_filtering_accepted_property_keys)}")
@@ -538,6 +518,30 @@ def get_collections():
             final_result = property_list
         else:
             bad_request_error("The specified query string is not supported. Use '?property=<key>' to filter the result")
+    # Return all the details if no property filtering
+    else: 
+        # If the user can only access public collections, modify the resultss
+        # by only returning public datasets attached to each collection
+        if user_info['data_access_level'] == 'public': 
+            # Get back a list of public collections dicts
+            collections_list = app_neo4j_queries.get_public_collections(neo4j_driver_instance)
+            
+            # Modify the Collection.datasets property for each collection dict 
+            # to contain only public datasets
+            for collection_dict in collections_list:
+                # Only return the public datasets attached to this collection for Collection.datasets property
+                collection_dict = get_complete_public_collection_dict(collection_dict)
+        else:
+            # Get back a list of all collections dicts
+            collections_list = app_neo4j_queries.get_entities_by_type(neo4j_driver_instance, normalized_entity_type)
+
+        # Generate trigger data and merge into a big dict
+        # and skip some of the properties that are time-consuming to generate via triggers
+        properties_to_skip = ['datasets']
+        complete_collections_list = schema_manager.get_complete_entities_list(collections_list, properties_to_skip)
+
+        # Final result after normalization
+        final_result = schema_manager.normalize_entities_list_for_response(complete_collections_list)
 
     # Response with the final result
     return jsonify(final_result)
@@ -586,11 +590,11 @@ def create_entity(entity_type):
         # A bit more validation for new sample to be linked to existing source entity
         has_direct_ancestor_uuid = False
         if ('direct_ancestor_uuid' in json_data_dict) and json_data_dict['direct_ancestor_uuid']:
-            has_source_uuid = True
+            has_direct_ancestor_uuid = True
 
             direct_ancestor_uuid = json_data_dict['direct_ancestor_uuid']
-            # Check existence of the source entity (either another Sample or Donor)
-            source_dict = query_target_entity(direct_ancestor_uuid)
+            # Check existence of the direct ancestor (either another Sample or Donor)
+            direct_ancestor_dict = query_target_entity(direct_ancestor_uuid)
 
         # Generate 'before_create_triiger' data and create the entity details in Neo4j
         merged_dict = create_entity_details(request, normalized_entity_type, json_data_dict)
@@ -604,7 +608,7 @@ def create_entity(entity_type):
         if ('direct_ancestor_uuids' in json_data_dict) and (json_data_dict['direct_ancestor_uuids']):
             has_direct_ancestor_uuids = True
 
-            # Check existence of those source entities
+            # Check existence of those direct ancestors
             for direct_ancestor_uuid in json_data_dict['direct_ancestor_uuids']:
                 direct_ancestor_dict = query_target_entity(direct_ancestor_uuid)
 
@@ -675,11 +679,11 @@ def update_entity(id):
         # A bit more validation for new sample to be linked to existing source entity
         has_direct_ancestor_uuid = False
         if ('direct_ancestor_uuid' in json_data_dict) and json_data_dict['direct_ancestor_uuid']:
-            has_source_uuid = True
+            has_direct_ancestor_uuid = True
 
             direct_ancestor_uuid = json_data_dict['direct_ancestor_uuid']
             # Check existence of the source entity (either another Sample or Donor)
-            source_dict = query_target_entity(direct_ancestor_uuid)
+            direct_ancestor_dict = query_target_entity(direct_ancestor_uuid)
 
         # Generate 'before_update_triiger' data and update the entity details in Neo4j
         merged_updated_dict = update_entity_details(request, normalized_entity_type, json_data_dict, entity_dict)
@@ -697,7 +701,7 @@ def update_entity(id):
             for direct_ancestor_uuid in json_data_dict['direct_ancestor_uuids']:
                 direct_ancestor_dict = query_target_entity(direct_ancestor_uuid)
         
-        # Generate 'before_update_triiger' data and update the entity details in Neo4j
+        # Generate 'before_update_trigger' data and update the entity details in Neo4j
         merged_updated_dict = update_entity_details(request, normalized_entity_type, json_data_dict, entity_dict)
 
         # Handle direct_ancestor_uuids via `after_update_trigger` methods 
@@ -742,24 +746,14 @@ def get_ancestors(id):
     entity_dict = query_target_entity(id)
     uuid = entity_dict['uuid']
     
-    ancestors_list = app_neo4j_queries.get_ancestors(neo4j_driver_instance, uuid)
-
-    # Generate trigger data and merge into a big dict
-    # and skip some of the properties that are time-consuming to generate via triggers
-    # datasts for Collection, director_ancestor for Sample, and direct_ancestors for Dataset
-    properties_to_skip = ['datasets', 'direct_ancestor', 'direct_ancestors']
-    complete_entities_list = schema_manager.get_complete_entities_list(ancestors_list, properties_to_skip)
-
-    # Final result after normalization
-    final_result = schema_manager.normalize_entities_list_for_response(complete_entities_list)
-
     # Result filtering based on query string
-    result_filtering_accepted_property_keys = ['uuid']
-    separator = ', '
     if bool(request.args):
         property_key = request.args.get('property')
 
         if property_key is not None:
+            result_filtering_accepted_property_keys = ['uuid']
+            separator = ', '
+
             # Validate the target property
             if property_key not in result_filtering_accepted_property_keys:
                 bad_request_error(f"Only the following property keys are supported in the query string: {separator.join(result_filtering_accepted_property_keys)}")
@@ -771,6 +765,18 @@ def get_ancestors(id):
             final_result = property_list
         else:
             bad_request_error("The specified query string is not supported. Use '?property=<key>' to filter the result")
+    # Return all the details if no property filtering
+    else:
+        ancestors_list = app_neo4j_queries.get_ancestors(neo4j_driver_instance, uuid)
+
+        # Generate trigger data and merge into a big dict
+        # and skip some of the properties that are time-consuming to generate via triggers
+        # datasts for Collection, director_ancestor for Sample, and direct_ancestors for Dataset
+        properties_to_skip = ['datasets', 'direct_ancestor', 'direct_ancestors']
+        complete_entities_list = schema_manager.get_complete_entities_list(ancestors_list, properties_to_skip)
+
+        # Final result after normalization
+        final_result = schema_manager.normalize_entities_list_for_response(complete_entities_list)
 
     return jsonify(final_result)
 
@@ -797,24 +803,14 @@ def get_descendants(id):
     entity_dict = query_target_entity(id)
     uuid = entity_dict['uuid']
 
-    descendants_list = app_neo4j_queries.get_descendants(neo4j_driver_instance, uuid)
-
-    # Generate trigger data and merge into a big dict
-    # and skip some of the properties that are time-consuming to generate via triggers
-    # datasts for Collection, director_ancestor for Sample, and direct_ancestors for Dataset
-    properties_to_skip = ['datasets', 'direct_ancestor', 'direct_ancestors']
-    complete_entities_list = schema_manager.get_complete_entities_list(descendants_list, properties_to_skip)
-
-    # Final result after normalization
-    final_result = schema_manager.normalize_entities_list_for_response(complete_entities_list)
-
     # Result filtering based on query string
-    result_filtering_accepted_property_keys = ['uuid']
-    separator = ', '
     if bool(request.args):
         property_key = request.args.get('property')
 
         if property_key is not None:
+            result_filtering_accepted_property_keys = ['uuid']
+            separator = ', '
+
             # Validate the target property
             if property_key not in result_filtering_accepted_property_keys:
                 bad_request_error(f"Only the following property keys are supported in the query string: {separator.join(result_filtering_accepted_property_keys)}")
@@ -826,6 +822,18 @@ def get_descendants(id):
             final_result = property_list
         else:
             bad_request_error("The specified query string is not supported. Use '?property=<key>' to filter the result")
+    # Return all the details if no property filtering
+    else:
+        descendants_list = app_neo4j_queries.get_descendants(neo4j_driver_instance, uuid)
+
+        # Generate trigger data and merge into a big dict
+        # and skip some of the properties that are time-consuming to generate via triggers
+        # datasts for Collection, director_ancestor for Sample, and direct_ancestors for Dataset
+        properties_to_skip = ['datasets', 'direct_ancestor', 'direct_ancestors']
+        complete_entities_list = schema_manager.get_complete_entities_list(descendants_list, properties_to_skip)
+
+        # Final result after normalization
+        final_result = schema_manager.normalize_entities_list_for_response(complete_entities_list)
 
     return jsonify(final_result)
 
@@ -851,24 +859,14 @@ def get_parents(id):
     entity_dict = query_target_entity(id)
     uuid = entity_dict['uuid']
  
-    parents_list = app_neo4j_queries.get_parents(neo4j_driver_instance, uuid)
-
-    # Generate trigger data and merge into a big dict
-    # and skip some of the properties that are time-consuming to generate via triggers
-    # datasts for Collection, director_ancestor for Sample, and direct_ancestors for Dataset
-    properties_to_skip = ['datasets', 'direct_ancestor', 'direct_ancestors']
-    complete_entities_list = schema_manager.get_complete_entities_list(parents_list, properties_to_skip)
-
-    # Final result after normalization
-    final_result = schema_manager.normalize_entities_list_for_response(complete_entities_list)
-
     # Result filtering based on query string
-    result_filtering_accepted_property_keys = ['uuid']
-    separator = ', '
     if bool(request.args):
         property_key = request.args.get('property')
 
         if property_key is not None:
+            result_filtering_accepted_property_keys = ['uuid']
+            separator = ', '
+
             # Validate the target property
             if property_key not in result_filtering_accepted_property_keys:
                 bad_request_error(f"Only the following property keys are supported in the query string: {separator.join(result_filtering_accepted_property_keys)}")
@@ -880,6 +878,18 @@ def get_parents(id):
             final_result = property_list
         else:
             bad_request_error("The specified query string is not supported. Use '?property=<key>' to filter the result")
+    # Return all the details if no property filtering
+    else:
+        parents_list = app_neo4j_queries.get_parents(neo4j_driver_instance, uuid)
+
+        # Generate trigger data and merge into a big dict
+        # and skip some of the properties that are time-consuming to generate via triggers
+        # datasts for Collection, director_ancestor for Sample, and direct_ancestors for Dataset
+        properties_to_skip = ['datasets', 'direct_ancestor', 'direct_ancestors']
+        complete_entities_list = schema_manager.get_complete_entities_list(parents_list, properties_to_skip)
+
+        # Final result after normalization
+        final_result = schema_manager.normalize_entities_list_for_response(complete_entities_list)
 
     return jsonify(final_result)
 
@@ -905,24 +915,14 @@ def get_children(id):
     entity_dict = query_target_entity(id)
     uuid = entity_dict['uuid']
 
-    children_list = app_neo4j_queries.get_children(neo4j_driver_instance, uuid)
-
-    # Generate trigger data and merge into a big dict
-    # and skip some of the properties that are time-consuming to generate via triggers
-    # datasts for Collection, director_ancestor for Sample, and direct_ancestors for Dataset
-    properties_to_skip = ['datasets', 'direct_ancestor', 'direct_ancestors']
-    complete_entities_list = schema_manager.get_complete_entities_list(children_list, properties_to_skip)
-
-    # Final result after normalization
-    final_result = schema_manager.normalize_entities_list_for_response(complete_entities_list)
-
     # Result filtering based on query string
-    result_filtering_accepted_property_keys = ['uuid']
-    separator = ', '
     if bool(request.args):
         property_key = request.args.get('property')
 
         if property_key is not None:
+            result_filtering_accepted_property_keys = ['uuid']
+            separator = ', '
+
             # Validate the target property
             if property_key not in result_filtering_accepted_property_keys:
                 bad_request_error(f"Only the following property keys are supported in the query string: {separator.join(result_filtering_accepted_property_keys)}")
@@ -934,9 +934,20 @@ def get_children(id):
             final_result = property_list
         else:
             bad_request_error("The specified query string is not supported. Use '?property=<key>' to filter the result")
+    # Return all the details if no property filtering
+    else:
+        children_list = app_neo4j_queries.get_children(neo4j_driver_instance, uuid)
+
+        # Generate trigger data and merge into a big dict
+        # and skip some of the properties that are time-consuming to generate via triggers
+        # datasts for Collection, director_ancestor for Sample, and direct_ancestors for Dataset
+        properties_to_skip = ['datasets', 'direct_ancestor', 'direct_ancestors']
+        complete_entities_list = schema_manager.get_complete_entities_list(children_list, properties_to_skip)
+
+        # Final result after normalization
+        final_result = schema_manager.normalize_entities_list_for_response(complete_entities_list)
 
     return jsonify(final_result)
-
 
 
 """
@@ -1314,10 +1325,11 @@ def create_entity_details(request, normalized_entity_type, json_data_dict):
         bad_request_error(e)
 
     # Merge all the above dictionaries and pass to the trigger methods
-    data_dict = {**json_data_dict, **user_info_dict, **new_ids_dict}
+    new_data_dict = {**json_data_dict, **user_info_dict, **new_ids_dict}
 
     try:
-        generated_before_create_trigger_data_dict = schema_manager.generate_triggered_data('before_create_trigger', normalized_entity_type, data_dict)
+        # Use {} since no existing dict
+        generated_before_create_trigger_data_dict = schema_manager.generate_triggered_data('before_create_trigger', normalized_entity_type, {}, new_data_dict)
     # If one of the before_create_trigger methods fails, we can't create the entity
     except schema_errors.BeforeCreateTriggerException:
         # Log the full stack trace, prepend a line with our message
@@ -1365,14 +1377,16 @@ Parameters
 ----------
 normalized_entity_type : str
     One of the normalized entity types: Dataset, Collection, Sample, Donor
-entity_dict: dict
-    The entity dict newly created
+merged_data_dict: dict
+    The merged dict that contains the entity dict newly created and 
+    information from user request json that are not stored in Neo4j
 """
-def after_create(normalized_entity_type, entity_dict):
+def after_create(normalized_entity_type, merged_data_dict):
     try:
         # 'after_create_trigger' and 'after_update_trigger' don't generate property values
         # It just returns the empty dict, no need to assign value
-        schema_manager.generate_triggered_data('after_create_trigger', normalized_entity_type, entity_dict)
+        # Use {} since no new dict
+        schema_manager.generate_triggered_data('after_create_trigger', normalized_entity_type, merged_data_dict, {})
     except schema_errors.AfterCreateTriggerException:
         # Log the full stack trace, prepend a line with our message
         msg = "The entity has been created, but failed to execute one of the 'after_create_trigger' methods"
@@ -1403,11 +1417,11 @@ def update_entity_details(request, normalized_entity_type, json_data_dict, exist
     # Get user info based on request
     user_info_dict = schema_manager.get_user_info(request)
 
-    # Merge user_info_dict and the existing_entity_dict for passing to the trigger methods
-    data_dict = {**user_info_dict, **existing_entity_dict}
+    # Merge user_info_dict and the json_data_dict for passing to the trigger methods
+    new_data_dict = {**user_info_dict, **json_data_dict}
 
     try:
-        generated_before_update_trigger_data_dict = schema_manager.generate_triggered_data('before_update_trigger', normalized_entity_type, data_dict)
+        generated_before_update_trigger_data_dict = schema_manager.generate_triggered_data('before_update_trigger', normalized_entity_type, existing_entity_dict, new_data_dict)
     # If one of the before_update_trigger methods fails, we can't update the entity
     except schema_errors.BeforeUpdateTriggerException:
         # Log the full stack trace, prepend a line with our message
@@ -1465,7 +1479,8 @@ def after_update(normalized_entity_type, entity_dict):
     try:
         # 'after_create_trigger' and 'after_update_trigger' don't generate property values
         # It just returns the empty dict, no need to assign value
-        schema_manager.generate_triggered_data('after_update_trigger', normalized_entity_type, entity_dict)
+        # Use {} sicne no new dict
+        schema_manager.generate_triggered_data('after_update_trigger', normalized_entity_type, entity_dict, {})
     except schema_errors.AfterUpdateTriggerException:
         # Log the full stack trace, prepend a line with our message
         msg = "The entity information has been updated, but failed to execute one of the 'after_update_trigger' methods"

@@ -612,14 +612,16 @@ def _build_cypher_set_clause(entity_data_dict):
         if isinstance(value, int):
             key_value_pair = f"e.{key} = {value}"
         elif isinstance(value, str):
+            # Escape single quote
+            escaped_str = value.replace("'", r"\'")
             # Quote the value
-            key_value_pair = f"e.{key} = '{value}'"
+            key_value_pair = f"e.{key} = '{escaped_str}'"
         else:
             # Convert list and dict to string
             # Must also escape single quotes in the string to build a valid Cypher query
-            str_val = str(value).replace("'", r"\'")
+            escaped_str = str(value).replace("'", r"\'")
             # Also need to quote the string value
-            key_value_pair = f"e.{key} = '{str_val}'"
+            key_value_pair = f"e.{key} = '{escaped_str}'"
 
         node_properties_to_set.append(key_value_pair)
 

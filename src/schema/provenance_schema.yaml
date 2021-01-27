@@ -196,7 +196,7 @@ ENTITIES:
         type: string
         description: "One of: Published|New|QA|Error|Hold|Invalid. Cannot be set directly must be set via ingest-api with a PUT /datasets/<id>/<status> method."
         before_create_trigger: set_dataset_status
-        on_update_trigger: update_dataset_and_ancestors_data_access_level
+        after_update_trigger: update_dataset_and_ancestors_data_access_level
       title:
         type: string
         required_on_create: true # Only required for create via POST, not update via PUT
