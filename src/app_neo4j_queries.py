@@ -173,6 +173,7 @@ def get_public_collections(neo4j_driver, property_key = None):
 
     return results
 
+
 """
 Create a new entity node in neo4j
 
@@ -182,8 +183,8 @@ neo4j_driver : neo4j.Driver object
     The neo4j database connection pool
 entity_type : str
     One of the normalized entity types: Dataset, Collection, Sample, Donor
-entity_json_list_str : str
-    The string representation of a list containing only one Entity node to be created
+entity_data_dict : dict
+    The target Entity node to be created
 
 Returns
 -------
@@ -191,53 +192,12 @@ dict
     A dictionary of newly created entity details returned from the Cypher query
 """
 def create_entity(neo4j_driver, entity_type, entity_data_dict):
-    logger.debug("77777777777777777777777")
-    logger.debug(entity_data_dict)
-
-    for key, val in entity_data_dict.items():
-        if isinstance(val, (list, dict)):
-            # Convert to json string
-            entity_data_dict[key] = json.dumps(val)
-
-    logger.debug("8888888888888888888888")
-    logger.debug(entity_data_dict)
-
-    # `UNWIND` in Cypher expects List<T>
-    data_list = [entity_data_dict]
-    
-    # Convert the list (only contains one entity) to json list string
-    json_list_str = json.dumps(data_list)
-
-    logger.debug("99999999999999999999999")
-    logger.debug(json_list_str)
-
-    # Must also escape single quotes in the json string to build a valid Cypher query later
-    escaped_json_list_str = json_list_str.replace("'", r"\'")
-
-    logger.debug("0000000000000000000000")
-    logger.debug(escaped_json_list_str)
-
-    # query = (f"WITH apoc.convert.fromJsonList('{escaped_json_list_str}') AS entities_list "
-    #          f"UNWIND entities_list AS data "
-    #          # Always define the Entity label in addition to the target `entity_type` label
-    #          f"CREATE (e:Entity:{entity_type}) "
-    #          f"SET e = data "
-    #          f"RETURN e AS {record_field_name}")
-
-    sep = ','
-    q_list = []
-    for key in entity_data_dict:
-        if isinstance(entity_data_dict[key], int):
-            q = f"e.{key} = {entity_data_dict[key]}"
-        else:
-            str_val = str(entity_data_dict[key]).replace("'", r"\'")
-            q = f"e.{key} = '{str_val}'"
-
-        q_list.append(q)
+    separator = ', '
+    node_properties_to_set = _build_cypher_set_clause(entity_data_dict)
 
     query = (# Always define the Entity label in addition to the target `entity_type` label
              f"CREATE (e:Entity:{entity_type}) "
-             f"SET {sep.join(q_list)} "
+             f"SET {separator.join(node_properties_to_set)} "
              f"RETURN e AS {record_field_name}")
 
     logger.debug("======create_entity() query======")
@@ -283,8 +243,8 @@ neo4j_driver : neo4j.Driver object
     The neo4j database connection pool
 entity_type : str
     One of the normalized entity types: Dataset, Collection, Sample, Donor
-json_list_str : str
-    The string representation of a list containing only one entity to be created
+entity_data_dict : dict
+    The target entity with properties to be updated
 uuid : str
     The uuid of target entity 
 
@@ -293,19 +253,15 @@ Returns
 dict
     A dictionary of updated entity details returned from the Cypher query
 """
-def update_entity(neo4j_driver, entity_type, json_list_str, uuid):
-    # UNWIND expects json.entities to be List<T>
-    query = (f"WITH apoc.convert.fromJsonList('{json_list_str}') AS entities_list "
-             f"UNWIND entities_list AS data "
-             f"MATCH (e:{entity_type}) "
-             f"WHERE e.uuid = '{uuid}' "
-             # https://neo4j.com/docs/cypher-manual/current/clauses/set/#set-setting-properties-using-map
-             # `+=` is the magic here:
-             # Any properties in the map that are not on the node will be added.
-             # Any properties not in the map that are on the node will be left as is.
-             # Any properties that are in both the map and the node will be replaced in the node. However, if any property in the map is null, it will be removed from the node.
-             f"SET e += data RETURN e AS {record_field_name}")
+def update_entity(neo4j_driver, entity_type, entity_data_dict, uuid):
+    separator = ', '
+    node_properties_to_set = _build_cypher_set_clause(entity_data_dict)
     
+    query = (f"MATCH (e:{entity_type}) "
+             f"WHERE e.uuid = '{uuid}' "
+             f"SET {separator.join(node_properties_to_set)} "
+             f"RETURN e AS {record_field_name}")
+
     logger.debug("======update_entity() query======")
     logger.debug(query)
 
@@ -636,6 +592,39 @@ def get_provenance(neo4j_driver, uuid, depth):
 ####################################################################################################
 ## Internal Functions
 ####################################################################################################
+
+"""
+Build the property key-value pairs to be used in the SET clause for node creation and update
+
+Parameters
+----------
+entity_data_dict : dict
+    The target Entity node to be created
+
+Returns
+-------
+list
+    A list of key-value pairs to be used after in the SET clause
+"""
+def _build_cypher_set_clause(entity_data_dict):
+    node_properties_to_set = []
+    for key, value in entity_data_dict.items():
+        if isinstance(value, int):
+            key_value_pair = f"e.{key} = {value}"
+        elif isinstance(value, str):
+            # Quote the value
+            key_value_pair = f"e.{key} = '{value}'"
+        else:
+            # Convert list and dict to string
+            # Must also escape single quotes in the string to build a valid Cypher query
+            str_val = str(value).replace("'", r"\'")
+            # Also need to quote the string value
+            key_value_pair = f"e.{key} = '{str_val}'"
+
+        node_properties_to_set.append(key_value_pair)
+
+    return node_properties_to_set
+
 
 """
 Execute a unit of work in a managed read transaction
