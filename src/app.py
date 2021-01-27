@@ -285,6 +285,8 @@ def get_entity_provenance(id):
         unauthorized_error("Invalid token")
 
     user_data_access_level = user_info['data_access_level'].lower()
+
+    logger.debug(f"user_data_access_level: {user_data_access_level}")
     
     # The `data_access_level` of Dataset can be 'public', consortium', or 'protected'
     # The `data_access_level` of Donor/Sample can only be either 'public' or 'consortium'
@@ -1100,7 +1102,6 @@ def get_dataset_globus_url(id):
     globus_groups_info = globus_groups.get_globus_groups_info()
     groups_by_id_dict = globus_groups_info['by_id']
     
-    # 'data_access_level' is always available since it's transint property
     data_access_level = entity_dict['data_access_level']
 
     if not 'group_uuid' in entity_dict or string_helper.isBlank(entity_dict['group_uuid']):
@@ -1129,8 +1130,8 @@ def get_dataset_globus_url(id):
     #the first "if" checks to see if the user is a member of the Consortium group
     #that allows all access to this dataset, if so send them to the "protected"
     #endpoint even if the user doesn't have full access to all protected data
-    globus_server_uuid = None        
-    dir_path = ""
+    globus_server_uuid = ''      
+    dir_path = ''
     
     #the user is in the Globus group with full access to thie dataset,
     #so they have protected level access to it
@@ -1159,7 +1160,8 @@ def get_dataset_globus_url(id):
 
     dir_path = dir_path + uuid + "/"
     dir_path = urllib.parse.quote(dir_path, safe='')
-    
+    logger.debug(globus_server_uuid)
+    logger.debug(dir_path)
     #https://app.globus.org/file-manager?origin_id=28bbb03c-a87d-4dd7-a661-7ea2fb6ea631&origin_path=%2FIEC%20Testing%20Group%2F03584b3d0f8b46de1b629f04be156879%2F
     url = hm_file_helper.ensureTrailingSlashURL(app.config['GLOBUS_APP_BASE_URL']) + "file-manager?origin_id=" + globus_server_uuid + "&origin_path=" + dir_path  
             

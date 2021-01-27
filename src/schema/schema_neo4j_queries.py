@@ -70,11 +70,11 @@ def get_dataset_direct_ancestors(neo4j_driver, uuid, property_key = None):
     results = []
 
     if property_key:
-        query = (f"MATCH (s:Dataset)-[:ACTIVITY_INPUT]->(a:Activity)-[:ACTIVITY_OUTPUT]->(t:Entity) " 
+        query = (f"MATCH (s:Entity)-[:ACTIVITY_INPUT]->(a:Activity)-[:ACTIVITY_OUTPUT]->(t:Dataset) " 
                  f"WHERE t.uuid = '{uuid}' "
                  f"RETURN apoc.coll.toSet(COLLECT(s.{property_key})) AS {record_field_name}")
     else:
-        query = (f"MATCH (s:Dataset)-[:ACTIVITY_INPUT]->(a:Activity)-[:ACTIVITY_OUTPUT]->(t:Entity) "
+        query = (f"MATCH (s:Entity)-[:ACTIVITY_INPUT]->(a:Activity)-[:ACTIVITY_OUTPUT]->(t:Dataset) "
                  f"WHERE t.uuid = '{uuid}' "
                  f"RETURN apoc.coll.toSet(COLLECT(s)) AS {record_field_name}")
 
