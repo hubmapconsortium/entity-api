@@ -114,6 +114,9 @@ def close_neo4j_driver(error):
 
 try:
     file_upload_helper_instance = UploadFileHelper(app.config['FILE_UPLOAD_TEMP_DIR'], app.config['FILE_UPLOAD_DIR'])
+
+    logger.info("Initialized UploadFileHelper successfully :)")
+
     file_upload_helper_instance.clean_temp_dir()
 # Use a broad catch-all here
 except Exception:
@@ -136,6 +139,8 @@ try:
                               auth_helper_instance,
                               neo4j_driver_instance,
                               file_upload_helper_instance)
+
+    logger.info("Initialized schema_manager successfully :)")
 # Use a broad catch-all here
 except Exception:
     msg = "Failed to initialize the schema_manager module"
