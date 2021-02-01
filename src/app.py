@@ -83,7 +83,7 @@ def http_internal_server_error(e):
 # auth_helper_instance will be used to get the globus user info and 
 # the secret token for making calls to other APIs
 if AuthHelper.isInitialized() == False:
-    auth_helper_instance = AuthHelper.create(app.config['APP_CLIENT_ID'], app.config['APP_CLIENT_SECRET'], app.config['UUID_API_URL'])
+    auth_helper_instance = AuthHelper.create(app.config['APP_CLIENT_ID'], app.config['APP_CLIENT_SECRET'])
 else:
     auth_helper_instance = AuthHelper.instance()
 
@@ -113,7 +113,7 @@ def close_neo4j_driver(error):
 ####################################################################################################
 
 try:
-    file_upload_helper_instance = UploadFileHelper(app.config['FILE_UPLOAD_TEMP_DIR'], app.config['FILE_UPLOAD_DIR'])
+    file_upload_helper_instance = UploadFileHelper(app.config['FILE_UPLOAD_TEMP_DIR'], app.config['FILE_UPLOAD_DIR'], app.config['UUID_API_URL'])
 
     logger.info("Initialized UploadFileHelper successfully :)")
 

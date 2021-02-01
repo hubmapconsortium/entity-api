@@ -81,7 +81,7 @@ class UploadFileHelper:
             raise Exception("Temporary file with id " + temp_file_id + " does not exist.")
         
         file_from_path = self.temp_files[temp_file_id]['filedir'] + self.temp_files[temp_file_id]['filename']
-        file_dest_path = self.upload_dir + self.temp_files[temp_file_id]['filename']
+        file_to_dir = self.upload_dir + entity_uuid + os.sep
         
         #get a uuid for the file
         checksum = hashlib.md5(open(file_from_path,'rb').read()).hexdigest()
@@ -91,7 +91,7 @@ class UploadFileHelper:
         data['entity_type'] = 'FILE'
         data['parent_ids'] = [entity_uuid]
         file_info= {}
-        file_info['path'] = file_dest_path
+        file_info['path'] = file_to_dir + '<uuid>' + os.sep + self.temp_files[temp_file_id]['filename']
         file_info['checksum'] = checksum
         file_info['base_dir'] = 'INGEST_PORTAL_UPLOAD'
         file_info['size'] = filesize
@@ -100,19 +100,29 @@ class UploadFileHelper:
         if response is None or response.status_code != 200:
             raise schema_errors.FileUUIDCreateException("Unable to generate uuid for file " + self.temp_files[temp_file_id]['filename'])
         
-        file_uuid = response.json()['uuid']
+        rsjs = response.json()
+        file_uuid = rsjs[0]['uuid']
         
+        file_to_dir = file_to_dir + file_uuid
+        file_dest_path = file_to_dir + os.sep + self.temp_files[temp_file_id]['filename']
+        
+        if not os.path.exists(file_to_dir):
+            os.makedirs(file_to_dir)
+
         shutil.move(file_from_path, file_dest_path)
         
         return {"filename": self.temp_files[temp_file_id]['filename'], "file_uuid": file_uuid}
 
-
+    #the file will be stored at /<base_dir>/<entity_uuid>/<file_uuid>/<filename>
+    #where file_dir = /<base_dir>/<entity_uuid>
     def remove_file(self, file_dir, file_uuid, files_info_list):
         for file_info in files_info_list:
             if file_info['file_uuid'] == file_uuid:
                 # Remove from file system
-                path_to_file = file_helper.ensureTrailingSlash(file_dir) + file_info['filename']
+                file_dir = file_helper.ensureTrailingSlash(file_dir) + file_info['file_uuid']
+                path_to_file = file_dir + os.sep + file_info['filename']
                 os.remove(path_to_file)
+                os.rmdir(file_dir)
                 
                 # Remove from the list
                 files_info_list.remove(file_info)

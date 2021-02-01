@@ -788,8 +788,8 @@ list: The file info dicts in a list
 def commit_image_files(property_key, normalized_type, existing_data_dict, new_data_dict):
     target_property_key = 'image_files'
 
-    if property_key in new_data_dict:
-        raise KeyError(f"Missing '{property_key}' key in 'new_data_dict' during calling 'delete_image_files()' trigger method.")
+    if not property_key in new_data_dict:
+        raise KeyError(f"Missing '{property_key}' key in 'new_data_dict' during calling 'commit_image_files()' trigger method.")
 
     files_info_list = []
 
@@ -842,8 +842,8 @@ list: The file info dicts in a list
 def delete_image_files(property_key, normalized_type, existing_data_dict, new_data_dict):
     target_property_key = 'image_files'
 
-    if 'uuid' not in new_data_dict:
-        raise KeyError("Missing 'uuid' key in 'new_data_dict' during calling 'delete_image_files()' trigger method.")
+    if 'uuid' not in existing_data_dict:
+        raise KeyError("Missing 'uuid' key in 'existing_data_dict' during calling 'delete_image_files()' trigger method.")
     
     if target_property_key not in existing_data_dict:
         raise KeyError(f"Missing '{target_property_key}' key in 'existing_data_dict' during calling 'delete_image_files()' trigger method.")
@@ -855,7 +855,7 @@ def delete_image_files(property_key, normalized_type, existing_data_dict, new_da
         entity_uuid = existing_data_dict['uuid']
         # `upload_dir` is already normalized with trailing slash
         entity_upload_dir = schema_manager.get_file_upload_helper_instance().upload_dir + entity_uuid + os.sep
-        files_info_list = json.loads(existing_data_dict[target_property_key])
+        files_info_list = json.loads(existing_data_dict[target_property_key].replace("'", '"'))
         
         # Remove physical files from the file system
         for filename in new_data_dict[property_key]:
