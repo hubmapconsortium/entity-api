@@ -228,10 +228,10 @@ def set_data_access_level(property_key, normalized_type, existing_data_dict, new
 
         # When `contains_human_genetic_sequences` is true, even if `status` is 'Published', 
         # the `data_access_level` is still 'protected'
-        if data_dict['contains_human_genetic_sequences']:
+        if new_data_dict['contains_human_genetic_sequences']:
             data_access_level = ACCESS_LEVEL_PROTECTED
         else:
-            if data_dict['status'].lower() == 'published':
+            if new_data_dict['status'].lower() == 'published':
                 data_access_level = ACCESS_LEVEL_PUBLIC
             else:
                 data_access_level = ACCESS_LEVEL_CONSORTIUM
@@ -250,7 +250,7 @@ def set_data_access_level(property_key, normalized_type, existing_data_dict, new
 
 
 """
-Trigger event method of getting the group_uuid
+Trigger event method of setting the group_uuid
 
 Parameters
 ----------
@@ -269,18 +269,7 @@ str: The target property key
 str: The group uuid
 """
 def set_group_uuid(property_key, normalized_type, existing_data_dict, new_data_dict):
-    # Use the user input if `group_uuid` is set
-    if 'group_uuid' in new_data_dict:
-        # Validate the group_uuid and make sure it's one of the valid data providers
-        try:
-            schema_manager.validate_entity_group_uuid(new_data_dict['group_uuid'])
-        except schema_errors.NoDataProviderGroupException as e:
-            # No need to log
-            raise schema_errors.NoDataProviderGroupException(e)
-
-        return new_data_dict['group_uuid']
-
-    # If `group_uuid` is not already set, looks for membership in a single "data provider" group and sets to that. 
+    # Look for membership in a single "data provider" group and sets to that. 
     # Otherwise if not set and no single "provider group" membership throws error.  
     # This field is also used to link (Neo4j relationship) to the correct Lab node on creation.
     if 'hmgroupids' not in new_data_dict:
@@ -297,7 +286,7 @@ def set_group_uuid(property_key, normalized_type, existing_data_dict, new_data_d
         raise schema_errors.MultipleDataProviderGroupException(e)
 
 """
-Trigger event method of getting the group_name
+Trigger event method of setting the group_name
 
 Parameters
 ----------
@@ -316,22 +305,6 @@ str: The target property key
 str: The group name
 """
 def set_group_name(property_key, normalized_type, existing_data_dict, new_data_dict):
-    # Use the user input if `group_name` is set
-    if 'group_name' in new_data_dict:
-        return new_data_dict['group_name']
-
-    # Get the `group_name` based on the provided `group_uuid`
-    # when `group_name` is not provided but `group_uuid` is provided
-    if ('group_name' not in new_data_dict) and ('group_uuid' in new_data_dict):
-        # Validate the group_uuid and make sure it's one of the valid data providers
-        try:
-            schema_manager.validate_entity_group_uuid(new_data_dict['group_uuid'])
-        except schema_errors.NoDataProviderGroupException as e:
-            # No need to log
-            raise schema_errors.NoDataProviderGroupException(e)
-
-        return schema_manager.get_entity_group_name(new_data_dict['group_uuid'])
-
     # If `group_uuid` is not already set, looks for membership in a single "data provider" group and sets to that. 
     # Otherwise if not set and no single "provider group" membership throws error.  
     # This field is also used to link (Neo4j relationship) to the correct Lab node on creation.
@@ -441,7 +414,19 @@ str: The target property key
 str: Initial status of "New"
 """
 def set_dataset_status(property_key, normalized_type, existing_data_dict, new_data_dict):
-    return property_key, 'New'
+    status = ''
+    valid_status_list = ['new', 'published', 'qa', 'error', 'hold', 'invalid']
+    separator = ', '
+
+    if 'status' not in new_data_dict:
+        status = 'New'
+    else:
+        if new_data_dict['status'].lower() not in valid_status_list:
+            raise ValueError(f"Invalid 'status' value provided, must be one of the following: {separator.join(valid_status_list)}")
+        
+        status = new_data_dict['status']
+
+    return property_key, status
 
 
 """
@@ -1068,8 +1053,8 @@ str: The target property key
 str: The creation_action string
 """
 def set_activity_creation_action(property_key, normalized_type, existing_data_dict, new_data_dict):
-    if 'normalized_entity_type' not in existing_data_dict:
+    if 'normalized_entity_type' not in new_data_dict:
         raise KeyError("Missing 'normalized_entity_type' key in 'existing_data_dict' during calling 'set_activity_creation_action()' trigger method.")
     
-    return property_key, f"Create {normalized_entity_type} Activity"
+    return property_key, f"Create {new_data_dict['normalized_entity_type']} Activity"
 
