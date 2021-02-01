@@ -4,15 +4,27 @@ import shutil
 import logging
 import pathlib
 import requests
+# Don't confuse urllib (Python natice library) with urllib3 (3rd-party library, requests also uses urllib3)
+from requests.packages.urllib3.exceptions import InsecureRequestWarning
 import hashlib
 import os
 from werkzeug.utils import secure_filename
 
-# HuBMAP commons
-from hubmap_commons import file_helper
+# Local modules
 from schema import schema_errors
 
+# HuBMAP commons
+from hubmap_commons import file_helper
+
 logger = logging.getLogger(__name__)
+
+# Suppress InsecureRequestWarning warning when requesting status on https with ssl cert verify disabled
+requests.packages.urllib3.disable_warnings(category = InsecureRequestWarning)
+
+
+####################################################################################################
+## UploadFileHelper
+####################################################################################################
 
 ID_CHARS=['2','3','4','5','6','7','8','9','b','c','d','e','g','h','j','k','l','m','n','p','q','r','s','t','v','w','x','z']                 
 
@@ -27,6 +39,8 @@ class UploadFileHelper:
 
         self.upload_dir = file_helper.ensureTrailingSlash(upload_dir)
         self.temp_files = {}
+
+        self.uuid_api_url = uuid_api_url
     
     def clean_temp_dir(self):
         for dirname in os.listdir(self.base_temp_dir):
@@ -63,7 +77,7 @@ class UploadFileHelper:
         return rid
     
     
-    def commit_file(self, temp_file_id, entity_uuid, auth_token):
+    def commit_file(self, temp_file_id, entity_uuid, user_token):
         logger.debug(self.temp_files)
         logger.debug(temp_file_id)
 
@@ -84,9 +98,9 @@ class UploadFileHelper:
         file_to_dir = self.upload_dir + entity_uuid + os.sep
         
         #get a uuid for the file
-        checksum = hashlib.md5(open(file_from_path,'rb').read()).hexdigest()
+        checksum = hashlib.md5(open(file_from_path, 'rb').read()).hexdigest()
         filesize = os.path.getsize(file_from_path)
-        headers = {'Authorization': 'Bearer ' + auth_token, 'Content-Type': 'application/json'}
+        headers = {'Authorization': 'Bearer ' + user_token, 'Content-Type': 'application/json'}
         data = {}
         data['entity_type'] = 'FILE'
         data['parent_ids'] = [entity_uuid]
@@ -96,9 +110,9 @@ class UploadFileHelper:
         file_info['base_dir'] = 'INGEST_PORTAL_UPLOAD'
         file_info['size'] = filesize
         data['file_info'] = [file_info]
-        response = requests.post('http://localhost:5001/hmuuid', json=data, headers = headers, verify = False)
+        response = requests.post(self.uuid_api_url, json = data, headers = headers, verify = False)
         if response is None or response.status_code != 200:
-            raise schema_errors.FileUUIDCreateException("Unable to generate uuid for file " + self.temp_files[temp_file_id]['filename'])
+            raise schema_errors.FileUUIDCreateException(f"Unable to generate uuid for file {self.temp_files[temp_file_id]['filename']}")
         
         rsjs = response.json()
         file_uuid = rsjs[0]['uuid']

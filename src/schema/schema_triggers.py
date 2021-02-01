@@ -24,6 +24,8 @@ property_key : str
     The target property key of the value to be generated
 normalized_type : str
     One of the types defined in the schema yaml: Activity, Collection, Donor, Sample, Dataset
+user_token: str
+    The user's globus nexus token
 existing_data_dict : dict
     A dictionary that contains all existing entity properties
 new_data_dict : dict
@@ -34,7 +36,7 @@ Returns
 str: The target property key
 int: A timestamp integer of seconds
 """
-def set_timestamp(property_key, normalized_type, existing_data_dict, new_data_dict):
+def set_timestamp(property_key, normalized_type, user_token, existing_data_dict, new_data_dict):
     current_time = datetime.datetime.now() 
     seconds = int(current_time.timestamp())
     return property_key, seconds
@@ -48,6 +50,8 @@ property_key : str
     The target property key of the value to be generated
 normalized_type : str
     One of the types defined in the schema yaml: Activity, Collection, Donor, Sample, Dataset
+user_token: str
+    The user's globus nexus token
 existing_data_dict : dict
     A dictionary that contains all existing entity properties
 new_data_dict : dict
@@ -58,7 +62,7 @@ Returns
 str: The target property key
 str: The string of normalized entity type
 """
-def set_entity_type(property_key, normalized_type, existing_data_dict, new_data_dict):
+def set_entity_type(property_key, normalized_type, user_token, existing_data_dict, new_data_dict):
     return property_key, normalized_type
 
 
@@ -71,6 +75,8 @@ property_key : str
     The target property key of the value to be generated
 normalized_type : str
     One of the types defined in the schema yaml: Activity, Collection, Donor, Sample, Dataset
+user_token: str
+    The user's globus nexus token
 existing_data_dict : dict
     A dictionary that contains all existing entity properties
 new_data_dict : dict
@@ -81,7 +87,7 @@ Returns
 str: The target property key
 str: The 'sub' string
 """
-def set_user_sub(property_key, normalized_type, existing_data_dict, new_data_dict):
+def set_user_sub(property_key, normalized_type, user_token, existing_data_dict, new_data_dict):
     if 'sub' not in new_data_dict:
         raise KeyError("Missing 'sub' key in 'new_data_dict' during calling 'set_user_sub()' trigger method.")
     
@@ -96,6 +102,8 @@ property_key : str
     The target property key of the value to be generated
 normalized_type : str
     One of the types defined in the schema yaml: Activity, Collection, Donor, Sample, Dataset
+user_token: str
+    The user's globus nexus token
 existing_data_dict : dict
     A dictionary that contains all existing entity properties
 new_data_dict : dict
@@ -106,7 +114,7 @@ Returns
 str: The target property key
 str: The 'email' string
 """
-def set_user_email(property_key, normalized_type, existing_data_dict, new_data_dict):
+def set_user_email(property_key, normalized_type, user_token, existing_data_dict, new_data_dict):
     if 'email' not in new_data_dict:
         raise KeyError("Missing 'email' key in 'new_data_dict' during calling 'set_user_email()' trigger method.")
     
@@ -121,6 +129,8 @@ property_key : str
     The target property key of the value to be generated
 normalized_type : str
     One of the types defined in the schema yaml: Activity, Collection, Donor, Sample, Dataset
+user_token: str
+    The user's globus nexus token
 existing_data_dict : dict
     A dictionary that contains all existing entity properties
 new_data_dict : dict
@@ -131,7 +141,7 @@ Returns
 str: The target property key
 str: The 'name' string
 """
-def set_user_displayname(property_key, normalized_type, existing_data_dict, new_data_dict):
+def set_user_displayname(property_key, normalized_type, user_token, existing_data_dict, new_data_dict):
     if 'name' not in new_data_dict:
         raise KeyError("Missing 'name' key in 'new_data_dict' during calling 'set_user_displayname()' trigger method.")
     
@@ -146,6 +156,8 @@ property_key : str
     The target property key of the value to be generated
 normalized_type : str
     One of the types defined in the schema yaml: Activity, Collection, Donor, Sample, Dataset
+user_token: str
+    The user's globus nexus token
 existing_data_dict : dict
     A dictionary that contains all existing entity properties
 new_data_dict : dict
@@ -156,7 +168,7 @@ Returns
 str: The target property key
 str: The uuid created via uuid-api
 """
-def set_uuid(property_key, normalized_type, existing_data_dict, new_data_dict):
+def set_uuid(property_key, normalized_type, user_token, existing_data_dict, new_data_dict):
     if 'uuid' not in new_data_dict:
         raise KeyError("Missing 'uuid' key in 'new_data_dict' during calling 'set_uuid()' trigger method.")
     
@@ -171,6 +183,8 @@ property_key : str
     The target property key of the value to be generated
 normalized_type : str
     One of the types defined in the schema yaml: Activity, Collection, Donor, Sample, Dataset
+user_token: str
+    The user's globus nexus token
 existing_data_dict : dict
     A dictionary that contains all existing entity properties
 new_data_dict : dict
@@ -181,7 +195,7 @@ Returns
 str: The target property key
 str: The hubmap_id created via uuid-api
 """
-def set_hubmap_id(property_key, normalized_type, existing_data_dict, new_data_dict):
+def set_hubmap_id(property_key, normalized_type, user_token, existing_data_dict, new_data_dict):
     if 'hubmap_id' not in new_data_dict:
         raise KeyError("Missing 'hubmap_id' key in 'new_data_dict' during calling 'set_hubmap_id()' trigger method.")
     
@@ -202,6 +216,8 @@ property_key : str
     The target property key of the value to be generated
 normalized_type : str
     One of the entity types defined in the schema yaml: Donor, Sample, Dataset
+user_token: str
+    The user's globus nexus token
 existing_data_dict : dict
     A dictionary that contains all existing entity properties
 new_data_dict : dict
@@ -212,7 +228,7 @@ Returns
 str: The target property key
 str: The data access level string
 """
-def set_data_access_level(property_key, normalized_type, existing_data_dict, new_data_dict):
+def set_data_access_level(property_key, normalized_type, user_token, existing_data_dict, new_data_dict):
     if 'uuid' not in new_data_dict:
         raise KeyError("Missing 'uuid' key in 'new_data_dict' during calling 'set_data_access_level()' trigger method.")
 
@@ -223,6 +239,10 @@ def set_data_access_level(property_key, normalized_type, existing_data_dict, new
     ACCESS_LEVEL_PROTECTED = 'protected'
     
     if normalized_type == 'Dataset':
+        # 'contains_human_genetic_sequences' is required on create
+        if 'contains_human_genetic_sequences' not in new_data_dict:
+            raise KeyError("Missing 'contains_human_genetic_sequences' key in 'new_data_dict' during calling 'set_data_access_level()' trigger method.")
+
         # Default to protected
         data_access_level = ACCESS_LEVEL_PROTECTED
 
@@ -231,10 +251,9 @@ def set_data_access_level(property_key, normalized_type, existing_data_dict, new
         if new_data_dict['contains_human_genetic_sequences']:
             data_access_level = ACCESS_LEVEL_PROTECTED
         else:
-            if new_data_dict['status'].lower() == 'published':
-                data_access_level = ACCESS_LEVEL_PUBLIC
-            else:
-                data_access_level = ACCESS_LEVEL_CONSORTIUM
+            # When creating a new dataset, status should always be "New"
+            # Thus we don't use Dataset.status == "Published" to determine the data_access_level as public
+            data_access_level = ACCESS_LEVEL_CONSORTIUM
     else:
         # Default to consortium for Donor/Sample
         data_access_level = ACCESS_LEVEL_CONSORTIUM
@@ -258,6 +277,8 @@ property_key : str
     The target property key of the value to be generated
 normalized_type : str
     One of the types defined in the schema yaml: Activity, Collection, Donor, Sample, Dataset
+user_token: str
+    The user's globus nexus token
 existing_data_dict : dict
     A dictionary that contains all existing entity properties
 new_data_dict : dict
@@ -268,7 +289,7 @@ Returns
 str: The target property key
 str: The group uuid
 """
-def set_group_uuid(property_key, normalized_type, existing_data_dict, new_data_dict):
+def set_group_uuid(property_key, normalized_type, user_token, existing_data_dict, new_data_dict):
     # Look for membership in a single "data provider" group and sets to that. 
     # Otherwise if not set and no single "provider group" membership throws error.  
     # This field is also used to link (Neo4j relationship) to the correct Lab node on creation.
@@ -294,6 +315,8 @@ property_key : str
     The target property key of the value to be generated
 normalized_type : str
     One of the types defined in the schema yaml: Activity, Collection, Donor, Sample, Dataset
+user_token: str
+    The user's globus nexus token
 existing_data_dict : dict
     A dictionary that contains all existing entity properties
 new_data_dict : dict
@@ -304,7 +327,7 @@ Returns
 str: The target property key
 str: The group name
 """
-def set_group_name(property_key, normalized_type, existing_data_dict, new_data_dict):
+def set_group_name(property_key, normalized_type, user_token, existing_data_dict, new_data_dict):
     # If `group_uuid` is not already set, looks for membership in a single "data provider" group and sets to that. 
     # Otherwise if not set and no single "provider group" membership throws error.  
     # This field is also used to link (Neo4j relationship) to the correct Lab node on creation.
@@ -336,6 +359,8 @@ property_key : str
     The target property key of the value to be generated
 normalized_type : str
     One of the types defined in the schema yaml: Activity, Collection, Donor, Sample, Dataset
+user_token: str
+    The user's globus nexus token
 existing_data_dict : dict
     A dictionary that contains all existing entity properties
 new_data_dict : dict
@@ -346,7 +371,7 @@ Returns
 str: The target property key
 str: The submission_id
 """
-def set_submission_id(property_key, normalized_type, existing_data_dict, new_data_dict):
+def set_submission_id(property_key, normalized_type, user_token, existing_data_dict, new_data_dict):
     if 'submission_id' not in new_data_dict:
         raise KeyError("Missing 'submission_id' key in 'new_data_dict' during calling 'set_submission_id()' trigger method.")
     
@@ -366,6 +391,8 @@ property_key : str
     The target property key of the value to be generated
 normalized_type : str
     One of the types defined in the schema yaml: Activity, Collection, Donor, Sample, Dataset
+user_token: str
+    The user's globus nexus token
 existing_data_dict : dict
     A dictionary that contains all existing entity properties
 new_data_dict : dict
@@ -376,7 +403,7 @@ Returns
 str: The target property key
 list: A list of associated dataset dicts with all the normalized information
 """
-def get_collection_datasets(property_key, normalized_type, existing_data_dict, new_data_dict):
+def get_collection_datasets(property_key, normalized_type, user_token, existing_data_dict, new_data_dict):
     if 'uuid' not in existing_data_dict:
         raise KeyError("Missing 'uuid' key in 'existing_data_dict' during calling 'get_collection_datasets()' trigger method.")
 
@@ -385,7 +412,7 @@ def get_collection_datasets(property_key, normalized_type, existing_data_dict, n
     # Additional properties of the datasets to exclude 
     # We don't want to show too much nested information
     properties_to_skip = ['direct_ancestors', 'collections']
-    complete_entities_list = schema_manager.get_complete_entities_list(datasets_list, properties_to_skip)
+    complete_entities_list = schema_manager.get_complete_entities_list(user_token, datasets_list, properties_to_skip)
 
     return property_key, schema_manager.normalize_entities_list_for_response(complete_entities_list)
 
@@ -403,6 +430,8 @@ property_key : str
     The target property key
 normalized_type : str
     One of the types defined in the schema yaml: Activity, Collection, Donor, Sample, Dataset
+user_token: str
+    The user's globus nexus token
 existing_data_dict : dict
     A dictionary that contains all existing entity properties
 new_data_dict : dict
@@ -413,20 +442,9 @@ Returns
 str: The target property key
 str: Initial status of "New"
 """
-def set_dataset_status(property_key, normalized_type, existing_data_dict, new_data_dict):
-    status = ''
-    valid_status_list = ['new', 'published', 'qa', 'error', 'hold', 'invalid']
-    separator = ', '
-
-    if 'status' not in new_data_dict:
-        status = 'New'
-    else:
-        if new_data_dict['status'].lower() not in valid_status_list:
-            raise ValueError(f"Invalid 'status' value provided, must be one of the following: {separator.join(valid_status_list)}")
-        
-        status = new_data_dict['status']
-
-    return property_key, status
+def set_dataset_status(property_key, normalized_type, user_token, existing_data_dict, new_data_dict):
+    # Always 'New' on dataset creation
+    return property_key, 'New'
 
 
 """
@@ -439,12 +457,14 @@ property_key : str
     The target property key
 normalized_type : str
     One of the types defined in the schema yaml: Activity, Collection, Donor, Sample, Dataset
+user_token: str
+    The user's globus nexus token
 existing_data_dict : dict
     A dictionary that contains all existing entity properties
 new_data_dict : dict
     A merged dictionary that contains all possible input data to be used
 """
-def update_dataset_and_ancestors_data_access_level(property_key, normalized_type, existing_data_dict, new_data_dict):
+def update_dataset_and_ancestors_data_access_level(property_key, normalized_type, user_token, existing_data_dict, new_data_dict):
     if 'uuid' not in existing_data_dict:
         raise KeyError("Missing 'uuid' key in 'existing_data_dict' during calling 'update_dataset_ancestors_data_access_level()' trigger method.")
 
@@ -472,6 +492,8 @@ property_key : str
     The target property key
 normalized_type : str
     One of the types defined in the schema yaml: Activity, Collection, Donor, Sample, Dataset
+user_token: str
+    The user's globus nexus token
 existing_data_dict : dict
     A dictionary that contains all existing entity properties
 new_data_dict : dict
@@ -482,7 +504,7 @@ Returns
 str: The target property key
 list: A list of associated collections with all the normalized information
 """
-def get_dataset_collections(property_key, normalized_type, existing_data_dict, new_data_dict):
+def get_dataset_collections(property_key, normalized_type, user_token, existing_data_dict, new_data_dict):
     if 'uuid' not in existing_data_dict:
         raise KeyError("Missing 'uuid' key in 'existing_data_dict' during calling 'get_dataset_collections()' trigger method.")
 
@@ -493,7 +515,7 @@ def get_dataset_collections(property_key, normalized_type, existing_data_dict, n
     # Exclude datasets from each resulting collection
     # We don't want to show too much nested information
     properties_to_skip = ['datasets']
-    complete_entities_list = schema_manager.get_complete_entities_list(collections_list, properties_to_skip)
+    complete_entities_list = schema_manager.get_complete_entities_list(user_token, collections_list, properties_to_skip)
 
     return property_key, schema_manager.normalize_entities_list_for_response(complete_entities_list)
 
@@ -506,6 +528,8 @@ property_key : str
     The target property key
 normalized_type : str
     One of the types defined in the schema yaml: Activity, Collection, Donor, Sample, Dataset
+user_token: str
+    The user's globus nexus token
 existing_data_dict : dict
     A dictionary that contains all existing entity properties
 new_data_dict : dict
@@ -516,7 +540,7 @@ Returns
 str: The target property key
 str: The uuid string of source entity
 """
-def link_dataset_to_direct_ancestors(property_key, normalized_type, existing_data_dict, new_data_dict):
+def link_dataset_to_direct_ancestors(property_key, normalized_type, user_token, existing_data_dict, new_data_dict):
     if 'uuid' not in existing_data_dict:
         raise KeyError("Missing 'uuid' key in 'existing_data_dict' during calling 'link_dataset_to_direct_ancestors()' trigger method.")
 
@@ -534,14 +558,14 @@ def link_dataset_to_direct_ancestors(property_key, normalized_type, existing_dat
         normalized_entity_type_dict = {'normalized_entity_type': normalized_type}
 
         # Create new ids for the new Activity
-        new_ids_dict_for_activity = schema_manager.create_hubmap_ids(normalized_activity_type, json_data_dict = None, user_info_dict = None)
+        new_ids_dict_for_activity = schema_manager.create_hubmap_ids(normalized_activity_type, json_data_dict = None, user_token = user_token, user_info_dict = None)
 
         # The `existing_data_dict` should already have user_info
         data_dict_for_activity = {**existing_data_dict, **normalized_entity_type_dict, **new_ids_dict_for_activity}
 
         # Generate property values for Activity
         # Use {} since no existing Activity
-        generated_before_create_trigger_data_dict_for_activity = schema_manager.generate_triggered_data('before_create_trigger', normalized_activity_type, {}, data_dict_for_activity)
+        generated_before_create_trigger_data_dict_for_activity = schema_manager.generate_triggered_data('before_create_trigger', normalized_activity_type, user_token, {}, data_dict_for_activity)
 
         # `UNWIND` in Cypher expects List<T>
         activity_data_list = [generated_before_create_trigger_data_dict_for_activity]
@@ -568,6 +592,8 @@ property_key : str
     The target property key
 normalized_type : str
     One of the types defined in the schema yaml: Activity, Collection, Donor, Sample, Dataset
+user_token: str
+    The user's globus nexus token
 existing_data_dict : dict
     A dictionary that contains all existing entity properties
 new_data_dict : dict
@@ -578,7 +604,7 @@ Returns
 str: The target property key
 str: The uuid string of source entity
 """
-def relink_dataset_to_direct_ancestors(property_key, normalized_type, existing_data_dict, new_data_dict):
+def relink_dataset_to_direct_ancestors(property_key, normalized_type, user_token, existing_data_dict, new_data_dict):
     if 'uuid' not in existing_data_dict:
         raise KeyError("Missing 'uuid' key in 'existing_data_dict' during calling 'relink_dataset_to_direct_ancestors()' trigger method.")
 
@@ -603,14 +629,14 @@ def relink_dataset_to_direct_ancestors(property_key, normalized_type, existing_d
         normalized_entity_type_dict = {'normalized_entity_type': normalized_type}
 
         # Create new ids for the new Activity
-        new_ids_dict_for_activity = schema_manager.create_hubmap_ids(normalized_activity_type, json_data_dict = None, user_info_dict = None)
+        new_ids_dict_for_activity = schema_manager.create_hubmap_ids(normalized_activity_type, json_data_dict = None, user_token = user_token, user_info_dict = None)
 
         # The `existing_data_dict` should already have user_info
         data_dict_for_activity = {**existing_data_dict, **normalized_entity_type_dict, **new_ids_dict_for_activity}
 
         # Generate property values for Activity
         # Use {} since no existing activity 
-        generated_before_create_trigger_data_dict_for_activity = schema_manager.generate_triggered_data('before_create_trigger', normalized_activity_type, {}, data_dict_for_activity)
+        generated_before_create_trigger_data_dict_for_activity = schema_manager.generate_triggered_data('before_create_trigger', normalized_activity_type, user_token, {}, data_dict_for_activity)
 
         # `UNWIND` in Cypher expects List<T>
         activity_data_list = [generated_before_create_trigger_data_dict_for_activity]
@@ -637,6 +663,8 @@ property_key : str
     The target property key of the value to be generated
 normalized_type : str
     One of the types defined in the schema yaml: Activity, Collection, Donor, Sample, Dataset
+user_token: str
+    The user's globus nexus token
 existing_data_dict : dict
     A dictionary that contains all existing entity properties
 new_data_dict : dict
@@ -647,7 +675,7 @@ Returns
 str: The target property key
 list: A list of associated direct ancestors with all the normalized information
 """
-def get_dataset_direct_ancestors(property_key, normalized_type, existing_data_dict, new_data_dict):
+def get_dataset_direct_ancestors(property_key, normalized_type, user_token, existing_data_dict, new_data_dict):
     if 'uuid' not in existing_data_dict:
         raise KeyError("Missing 'uuid' key in 'existing_data_dict' during calling 'get_dataset_direct_ancestors()' trigger method.")
 
@@ -660,7 +688,7 @@ def get_dataset_direct_ancestors(property_key, normalized_type, existing_data_di
     # Skip running the trigger methods for 'direct_ancestors' and 'collections' if the direct ancestor is Dataset
     # Skip running the trigger methods for 'direct_ancestor' if the direct ancestor is Sample
     properties_to_skip = ['direct_ancestors', 'collections', 'direct_ancestor']
-    complete_entities_list = schema_manager.get_complete_entities_list(direct_ancestors_list, properties_to_skip)
+    complete_entities_list = schema_manager.get_complete_entities_list(user_token, direct_ancestors_list, properties_to_skip)
 
     return property_key, schema_manager.normalize_entities_list_for_response(complete_entities_list)
 
@@ -674,6 +702,8 @@ property_key : str
     The target property key of the value to be generated
 normalized_type : str
     One of the types defined in the schema yaml: Activity, Collection, Donor, Sample, Dataset
+user_token: str
+    The user's globus nexus token
 existing_data_dict : dict
     A dictionary that contains all existing entity properties
 new_data_dict : dict
@@ -684,7 +714,7 @@ Returns
 str: The target property key
 str: The relative directory path
 """
-def get_local_directory_rel_path(property_key, normalized_type, existing_data_dict, new_data_dict):
+def get_local_directory_rel_path(property_key, normalized_type, user_token, existing_data_dict, new_data_dict):
     if 'uuid' not in existing_data_dict:
         raise KeyError("Missing 'uuid' key in 'existing_data_dict' during calling 'get_local_directory_rel_path()' trigger method.")
     
@@ -724,6 +754,8 @@ property_key : str
     The target property key of the value to be generated
 normalized_type : str
     One of the types defined in the schema yaml: Activity, Collection, Donor, Sample, Dataset
+user_token: str
+    The user's globus nexus token
 existing_data_dict : dict
     A dictionary that contains all existing entity properties
 new_data_dict : dict
@@ -734,7 +766,7 @@ Returns
 str: The target property key
 list: The file info dicts (with updated descriptions) in a list
 """
-def update_image_files_descriptions(property_key, normalized_type, existing_data_dict, new_data_dict):
+def update_image_files_descriptions(property_key, normalized_type, user_token, existing_data_dict, new_data_dict):
     if property_key not in new_data_dict:
         raise KeyError(f"Missing '{property_key}' key in 'new_data_dict' during calling 'update_image_files_descriptions()' trigger method.")
 
@@ -775,6 +807,8 @@ property_key : str
     The target property key of the value to be generated
 normalized_type : str
     One of the types defined in the schema yaml: Activity, Collection, Donor, Sample, Dataset
+user_token: str
+    The user's globus nexus token
 existing_data_dict : dict
     A dictionary that contains all existing entity properties
 new_data_dict : dict
@@ -785,7 +819,7 @@ Returns
 str: The target property key
 list: The file info dicts in a list
 """
-def commit_image_files(property_key, normalized_type, existing_data_dict, new_data_dict):
+def commit_image_files(property_key, normalized_type, user_token, existing_data_dict, new_data_dict):
     target_property_key = 'image_files'
 
     if not property_key in new_data_dict:
@@ -795,7 +829,7 @@ def commit_image_files(property_key, normalized_type, existing_data_dict, new_da
 
     try: 
         for file_info in new_data_dict[property_key]:
-            file_uuid_info = schema_manager.get_file_upload_helper_instance().commit_file(file_info['temp_file_id'], new_data_dict['uuid'], schema_manager._auth_helper.getProcessSecret())
+            file_uuid_info = schema_manager.get_file_upload_helper_instance().commit_file(file_info['temp_file_id'], new_data_dict['uuid'], user_token)
             
             file_info_to_add = {
                 'filename': file_uuid_info['filename'],
@@ -829,6 +863,8 @@ property_key : str
     The target property key
 normalized_type : str
     One of the types defined in the schema yaml: Activity, Collection, Donor, Sample, Dataset
+user_token: str
+    The user's globus nexus token
 existing_data_dict : dict
     A dictionary that contains all existing entity properties
 new_data_dict : dict
@@ -839,7 +875,7 @@ Returns
 str: The target property key
 list: The file info dicts in a list
 """
-def delete_image_files(property_key, normalized_type, existing_data_dict, new_data_dict):
+def delete_image_files(property_key, normalized_type, user_token, existing_data_dict, new_data_dict):
     target_property_key = 'image_files'
 
     if 'uuid' not in existing_data_dict:
@@ -882,12 +918,14 @@ property_key : str
     The target property key
 normalized_type : str
     One of the types defined in the schema yaml: Activity, Collection, Donor, Sample, Dataset
+user_token: str
+    The user's globus nexus token
 existing_data_dict : dict
     A dictionary that contains all existing entity properties
 new_data_dict : dict
     A merged dictionary that contains all possible input data to be used
 """
-def link_sample_to_direct_ancestor(property_key, normalized_type, existing_data_dict, new_data_dict):
+def link_sample_to_direct_ancestor(property_key, normalized_type, user_token, existing_data_dict, new_data_dict):
     if 'uuid' not in existing_data_dict:
         raise KeyError("Missing 'uuid' key in 'existing_data_dict' during calling 'link_sample_to_direct_ancestor()' trigger method.")
 
@@ -904,13 +942,13 @@ def link_sample_to_direct_ancestor(property_key, normalized_type, existing_data_
     normalized_entity_type_dict = {'normalized_entity_type': normalized_type}
 
     # Create new ids for the new Activity
-    new_ids_dict_for_activity = schema_manager.create_hubmap_ids(normalized_activity_type, json_data_dict = None, user_info_dict = None)
+    new_ids_dict_for_activity = schema_manager.create_hubmap_ids(normalized_activity_type, json_data_dict = None, user_token = user_token, user_info_dict = None)
 
     # The `existing_data_dict` should already have user_info
     data_dict_for_activity = {**existing_data_dict, **normalized_entity_type_dict, **new_ids_dict_for_activity}
     
     # Generate property values for Activity
-    generated_before_create_trigger_data_dict_for_activity = schema_manager.generate_triggered_data('before_create_trigger', normalized_activity_type, data_dict_for_activity)
+    generated_before_create_trigger_data_dict_for_activity = schema_manager.generate_triggered_data('before_create_trigger', normalized_activity_type, user_token, {}, data_dict_for_activity)
 
     # `UNWIND` in Cypher expects List<T>
     activity_data_list = [generated_before_create_trigger_data_dict_for_activity]
@@ -937,12 +975,14 @@ property_key : str
     The target property key
 normalized_type : str
     One of the types defined in the schema yaml: Activity, Collection, Donor, Sample, Dataset
+user_token: str
+    The user's globus nexus token
 existing_data_dict : dict
     A dictionary that contains all existing entity properties
 new_data_dict : dict
     A merged dictionary that contains all possible input data to be used
 """
-def relink_sample_to_direct_ancestor(property_key, normalized_type, existing_data_dict, new_data_dict):
+def relink_sample_to_direct_ancestor(property_key, normalized_type, user_token, existing_data_dict, new_data_dict):
     if 'uuid' not in existing_data_dict:
         raise KeyError("Missing 'uuid' key in 'existing_data_dict' during calling 'relink_sample_to_direct_ancestor()' trigger method.")
 
@@ -959,13 +999,13 @@ def relink_sample_to_direct_ancestor(property_key, normalized_type, existing_dat
     normalized_entity_type_dict = {'normalized_entity_type': normalized_type}
 
     # Create new ids for the new Activity
-    new_ids_dict_for_activity = schema_manager.create_hubmap_ids(normalized_activity_type, json_data_dict = None, user_info_dict = None)
+    new_ids_dict_for_activity = schema_manager.create_hubmap_ids(normalized_activity_type, json_data_dict = None, user_token = user_token, user_info_dict = None)
 
     # The `existing_data_dict` should already have user_info
     data_dict_for_activity = {**existing_data_dict, **normalized_entity_type_dict, **new_ids_dict_for_activity}
     
     # Generate property values for Activity
-    generated_before_create_trigger_data_dict_for_activity = schema_manager.generate_triggered_data('before_create_trigger', normalized_activity_type, data_dict_for_activity)
+    generated_before_create_trigger_data_dict_for_activity = schema_manager.generate_triggered_data('before_create_trigger', normalized_activity_type, user_token, {}, data_dict_for_activity)
 
     # `UNWIND` in Cypher expects List<T>
     activity_data_list = [generated_before_create_trigger_data_dict_for_activity]
@@ -992,6 +1032,8 @@ property_key : str
     The target property key of the value to be generated
 normalized_type : str
     One of the types defined in the schema yaml: Activity, Collection, Donor, Sample, Dataset
+user_token: str
+    The user's globus nexus token
 existing_data_dict : dict
     A dictionary that contains all existing entity properties
 new_data_dict : dict
@@ -1002,7 +1044,7 @@ Returns
 str: The target property key
 dict: The direct ancestor entity (either another Sample or a Donor) with all the normalized information
 """
-def get_sample_direct_ancestor(property_key, normalized_type, existing_data_dict, new_data_dict):
+def get_sample_direct_ancestor(property_key, normalized_type, user_token, existing_data_dict, new_data_dict):
     if 'uuid' not in existing_data_dict:
         raise KeyError("Missing 'uuid' key in 'existing_data_dict' during calling 'get_sample_direct_ancestor()' trigger method.")
 
@@ -1013,7 +1055,7 @@ def get_sample_direct_ancestor(property_key, normalized_type, existing_data_dict
 
     # Generate trigger data for sample's direct_ancestor and skip the direct_ancestor's direct_ancestor
     properties_to_skip = ['direct_ancestor']
-    complete_dict = schema_manager.get_complete_entity_result(direct_ancestor_dict, properties_to_skip)
+    complete_dict = schema_manager.get_complete_entity_result(user_token, direct_ancestor_dict, properties_to_skip)
 
     # Get rid of the entity node properties that are not defined in the yaml schema
     # as well as the ones defined as `exposed: false` in the yaml schema
@@ -1042,6 +1084,8 @@ property_key : str
     The target property key of the value to be generated
 normalized_type : str
     One of the types defined in the schema yaml: Activity, Collection, Donor, Sample, Dataset
+user_token: str
+    The user's globus nexus token
 existing_data_dict : dict
     A dictionary that contains all existing entity properties
 new_data_dict : dict
@@ -1052,7 +1096,7 @@ Returns
 str: The target property key
 str: The creation_action string
 """
-def set_activity_creation_action(property_key, normalized_type, existing_data_dict, new_data_dict):
+def set_activity_creation_action(property_key, normalized_type, user_token, existing_data_dict, new_data_dict):
     if 'normalized_entity_type' not in new_data_dict:
         raise KeyError("Missing 'normalized_entity_type' key in 'existing_data_dict' during calling 'set_activity_creation_action()' trigger method.")
     

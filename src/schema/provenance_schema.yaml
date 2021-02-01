@@ -194,7 +194,7 @@ ENTITIES:
         description: "True if the data contains any human genetic sequence information."
       status:
         type: string
-        description: "One of: Published|New|QA|Error|Hold|Invalid. Cannot be set directly must be set via ingest-api with a PUT /datasets/<id>/<status> method."
+        description: "One of: Published|New|QA|Error|Hold|Invalid"
         before_create_trigger: set_dataset_status
         after_update_trigger: update_dataset_and_ancestors_data_access_level
       title:
@@ -229,25 +229,21 @@ ENTITIES:
         immutable: true
         generated: true
         description: "The timestamp of when the dataset was published.  The format is an integer representing milliseconds since midnight, Jan 1, 1970.  Cannot be set directly must be set with the /datasets/<id>/publish method."
-        before_create_trigger: set_timestamp
       published_user_displayname:
         type: string
         generated: true
         immutable: true
         description: "The name of the authenticated user or process that published the data.  Cannot be set directly must be set with the /datasets/<id>/publish method."
-        before_create_trigger: set_user_displayname
       published_user_sub:
         type: string
         generated: true
         immutable: true
         description: "The subject id as provided by the authorization mechanism for the person or process authenticated when the dataset was publised.  Cannot be set directly must be set with the /datasets/<id>/publish method."
-        before_create_trigger: set_user_sub
       published_user_email:
         type: string
         generated: true
         immutable: true
         description: "The email address provided by the authorization mechanism for the person or process authenticated when published.  Cannot be set directly must be set with the /datasets/<id>/publish method."
-        before_create_trigger: set_user_email
       pipeline_message:
         #todo: where is this attribute sourced from?  Is it stored in the database? <- Not in neo4j
         type: string
