@@ -268,6 +268,7 @@ ENTITIES:
       # Must set in neo4j
       group_uuid:
         type: string
+        generated: true
         immutable: true
         description: "The uuid of globus group which the user who created this entity is a member of"
         before_create_trigger: set_group_uuid #method that, if group_uuid is not already set looks for membership in a single "data provider" group and sets to that. Otherwise if not set and no single "provider group" membership throws error
@@ -275,6 +276,7 @@ ENTITIES:
       group_name:
         # It's not being mapped in the current version, what to do for the existing entities?
         type: string
+        generated: true
         immutable: true
         description: "The displayname of globus group which the user who created this entity is a member of"
         before_create_trigger: set_group_name #same as group_uuid, except set group_name
@@ -342,12 +344,14 @@ ENTITIES:
       # Must set in neo4j
       group_uuid:
         type: string
+        generated: true
         immutable: true
         description: "The uuid of globus group which the user who created this entity is a member of"
         before_create_trigger: set_group_uuid #method that, if group_uuid is not already set looks for membership in a single "data provider" group and sets to that. Otherwise if not set and no single "provider group" membership throws error.  This field is also used to link (Neo4j relationship) to the correct Lab node on creation.
       # Must set in neo4j
       group_name:
         type: string
+        generated: true
         immutable: true
         description: "The displayname of globus group which the user who created this entity is a member of"
         before_create_trigger: set_group_name
@@ -411,12 +415,14 @@ ENTITIES:
       # Must set in neo4j
       group_uuid:
         type: string
+        generated: true
         immutable: true
         description: "The uuid of globus group which the user who created this entity is a member of"
         before_create_trigger: set_group_uuid #method that, if group_uuid is not already set looks for membership in a single "data provider" group and sets to that. Otherwise if not set and no single "provider group" membership throws error.  This field is also used to link (Neo4j relationship) to the correct Lab node on creation.
       # Must set in neo4j
       group_name:
         type: string
+        generated: true
         immutable: true
         description: "The displayname of globus group which the user who created this entity is a member of"
         before_create_trigger: set_group_name
