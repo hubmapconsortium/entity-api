@@ -1130,19 +1130,42 @@ def _create_request_headers():
     return headers_dict
 
 
-# To be used by trigger methods
+"""
+Get the AUthHelper instance to be used by trigger methods
+
+Returns
+-------
+AuthHelper
+    The AuthHelper instance
+"""
 def get_auth_helper_instance():
     global _auth_helper
     
     return _auth_helper
 
 
+"""
+Get the neo4j.Driver instance to be used by trigger methods
+
+Returns
+-------
+neo4j.Driver
+    The neo4j.Driver instance
+"""
 def get_neo4j_driver_instance():
     global _neo4j_driver
     
     return _neo4j_driver
 
 
+"""
+Get the UploadFileHelper instance to be used by trigger methods
+
+Returns
+-------
+UploadFileHelper
+    The UploadFileHelper instance
+"""
 def get_file_upload_helper_instance():
     global _file_upload_helper
     
