@@ -320,7 +320,7 @@ ENTITIES:
         type: list 
         transient: true
         exposed: false
-        description: 'List of image files previously uploaded to delete. Provide as a json array of filenames like: ["filename1", "filename2"]'
+        description: 'List of image files previously uploaded to delete. Provide as a json array of the file_uuids of the file like: ["232934234234234234234270c0ea6c51d604a850558ef2247d0b4", "230948203482234234234a57bfe9c056d08a0f8e6cd612baa3bfa"]'
         before_update_trigger: delete_image_files
       metadata:
         type: json_string # dict
