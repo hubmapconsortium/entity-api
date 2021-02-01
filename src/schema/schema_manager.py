@@ -161,6 +161,8 @@ trigger_type : str
     One of the trigger types: on_create_trigger, on_update_trigger, on_read_trigger
 normalized_class : str
     One of the types defined in the schema yaml: Activity, Collection, Donor, Sample, Dataset
+user_token: str
+    The user's globus nexus token
 existing_data_dict : dict
     A dictionary that contains existing entity data
 new_data_dict : dict
@@ -173,7 +175,7 @@ Returns
 dict
     A dictionary of trigger event methods generated data
 """
-def generate_triggered_data(trigger_type, normalized_class, existing_data_dict, new_data_dict, properties_to_skip = []):
+def generate_triggered_data(trigger_type, normalized_class, user_token, existing_data_dict, new_data_dict, properties_to_skip = []):
     global _schema
 
     schema_section = None
@@ -220,7 +222,7 @@ def generate_triggered_data(trigger_type, normalized_class, existing_data_dict, 
                         # because the property value is already set in `data_dict`
                         # normally it's building linkages between entity nodes
                         # Use {} since no incoming new_data_dict 
-                        trigger_method_to_call(key, normalized_class, existing_data_dict, {})
+                        trigger_method_to_call(key, normalized_class, user_token, existing_data_dict, {})
                     except Exception:
                         msg = "Failed to call the " + trigger_type + " method: " + trigger_method_name
                         # Log the full stack trace, prepend a line with our message
@@ -243,7 +245,7 @@ def generate_triggered_data(trigger_type, normalized_class, existing_data_dict, 
                     try:
                         # Will set the trigger return value as the property value by default
                         # Unless the return value is to be assigned to another property different target key 
-                        target_key, target_value = trigger_method_to_call(key, normalized_class, existing_data_dict, new_data_dict)
+                        target_key, target_value = trigger_method_to_call(key, normalized_class, user_token, existing_data_dict, new_data_dict)
                         trigger_generated_data_dict[target_key] = target_value
 
                         # Meanwhile, set the original property as None if target_key is different
@@ -276,7 +278,7 @@ def generate_triggered_data(trigger_type, normalized_class, existing_data_dict, 
                     try:
                         # Will set the trigger return value as the property value by default
                         # Unless the return value is to be assigned to another property different target key 
-                        target_key, target_value = trigger_method_to_call(key, normalized_class, existing_data_dict, new_data_dict)
+                        target_key, target_value = trigger_method_to_call(key, normalized_class, user_token, existing_data_dict, new_data_dict)
                         trigger_generated_data_dict[target_key] = target_value
 
                         # Meanwhile, set the original property as None if target_key is different
@@ -320,7 +322,7 @@ def generate_triggered_data(trigger_type, normalized_class, existing_data_dict, 
                 try:
                     # Will set the trigger return value as the property value by default
                     # Unless the return value is to be assigned to another property different target key 
-                    target_key, target_value = trigger_method_to_call(key, normalized_class, existing_data_dict, new_data_dict)
+                    target_key, target_value = trigger_method_to_call(key, normalized_class, user_token, existing_data_dict, new_data_dict)
                     trigger_generated_data_dict[target_key] = target_value
 
                     # Meanwhile, set the original property as None if target_key is different
@@ -362,8 +364,8 @@ Generate the complete entity record as well as result filtering for response
 
 Parameters
 ----------
-normalized_class : str
-    One of the types defined in the schema yaml: Collection, Donor, Sample, Dataset
+user_token: str
+    The user's globus nexus token
 entity_dict : dict
     The entity dict based on neo4j record
 properties_to_skip : list
@@ -374,13 +376,13 @@ Returns
 dict
     A dictionary of complete entity with all the generated 'on_read_trigger' data
 """
-def get_complete_entity_result(entity_dict, properties_to_skip = []):
+def get_complete_entity_result(user_token, entity_dict, properties_to_skip = []):
     # In case some incorrectly created entities don't have the `entity_type` property
     if 'entity_type' in entity_dict:
         # No error handling here since if a 'on_read_trigger' method failed, 
         # the property value will be the error message
         # Pass {} since no new_data_dict for 'on_read_trigger'
-        generated_on_read_trigger_data_dict = generate_triggered_data('on_read_trigger', entity_dict['entity_type'], entity_dict, {}, properties_to_skip)
+        generated_on_read_trigger_data_dict = generate_triggered_data('on_read_trigger', entity_dict['entity_type'], user_token, entity_dict, {}, properties_to_skip)
 
         # Merge the entity info and the generated on read data into one dictionary
         complete_entity_dict = {**entity_dict, **generated_on_read_trigger_data_dict}
@@ -393,6 +395,8 @@ Generate the complete entity records as well as result filtering for response
 
 Parameters
 ----------
+user_token: str
+    The user's globus nexus token
 entities_list : list
     A list of entity dictionaries 
 properties_to_skip : list
@@ -403,11 +407,11 @@ Returns
 list
     A list a complete entity dictionaries with all the normalized information
 """
-def get_complete_entities_list(entities_list, properties_to_skip = []):
+def get_complete_entities_list(user_token, entities_list, properties_to_skip = []):
     complete_entities_list = []
 
     for entity_dict in entities_list:
-        complete_entity_dict = get_complete_entity_result(entity_dict, properties_to_skip)
+        complete_entity_dict = get_complete_entity_result(user_token, entity_dict, properties_to_skip)
         complete_entities_list.append(complete_entity_dict)
 
     return complete_entities_list
@@ -810,7 +814,9 @@ Parameters
 ----------
 id : str
     Either the uuid or hubmap_id of target entity 
- 
+user_token: str
+    The user's globus nexus token
+
 Returns
 -------
 dict
@@ -830,11 +836,11 @@ dict
         "user_id": "694c6f6a-1deb-41a6-880f-d1ad8af3705f"
     }
 """
-def get_hubmap_ids(id):
+def get_hubmap_ids(id, user_token):
     global _uuid_api_url
 
     target_url = _uuid_api_url + '/' + id
-    request_headers = _create_request_headers()
+    request_headers = _create_request_headers(user_token)
 
     # Disable ssl certificate verification
     response = requests.get(url = target_url, headers = request_headers, verify = False) 
@@ -865,6 +871,8 @@ normalized_class : str
     One of the types defined in the schema yaml: Activity, Collection, Donor, Sample, Dataset
 json_data_dict: dict
     The json request dict from user input, required when creating ids for Donor/Sample/Dataset only
+user_token: str
+    The user's globus nexus token
 user_info_dict: dict
     A dict containing all the user info, requried when creating ids for Donor only:
     {
@@ -890,7 +898,7 @@ Returns
 dict
     The dictionary of new ids
 """
-def create_hubmap_ids(normalized_class, json_data_dict, user_info_dict):
+def create_hubmap_ids(normalized_class, json_data_dict, user_token, user_info_dict):
     global _uuid_api_url
 
     """
@@ -963,7 +971,7 @@ def create_hubmap_ids(normalized_class, json_data_dict, user_info_dict):
             # Similarly, should `direct_ancestor_uuids` be `required_on_create` in yaml?
             json_to_post['parent_ids'] = json_data_dict['direct_ancestor_uuids']
 
-    request_headers = _create_request_headers()
+    request_headers = _create_request_headers(user_token)
 
     # Disable ssl certificate verification
     response = requests.post(url = _uuid_api_url, headers = request_headers, json = json_to_post, verify = False) 
@@ -1110,21 +1118,25 @@ def get_entity_group_name(group_uuid):
 """
 Create a dict of HTTP Authorization header with Bearer token for making calls to uuid-api
 
+Parameters
+----------
+user_token: str
+    The user's globus nexus token
+
 Returns
 -------
 dict
     The headers dict to be used by requests
 """
-def _create_request_headers():
+def _create_request_headers(user_token):
     global _auth_helper
 
     auth_header_name = 'Authorization'
     auth_scheme = 'Bearer'
-    token = _auth_helper.getProcessSecret()
 
     headers_dict = {
         # Don't forget the space between scheme and the token value
-        auth_header_name: auth_scheme + ' ' + token
+        auth_header_name: auth_scheme + ' ' + user_token
     }
 
     return headers_dict
