@@ -83,7 +83,8 @@ def http_internal_server_error(e):
 # auth_helper_instance will be used to get the globus user info and 
 # the secret token for making calls to other APIs
 if AuthHelper.isInitialized() == False:
-    auth_helper_instance = AuthHelper.create(app.config['APP_CLIENT_ID'], app.config['APP_CLIENT_SECRET'])
+    auth_helper_instance = AuthHelper.create(app.config['APP_CLIENT_ID'], 
+                                             app.config['APP_CLIENT_SECRET'])
 else:
     auth_helper_instance = AuthHelper.instance()
 
@@ -780,6 +781,10 @@ json
 """
 @app.route('/ancestors/<id>', methods = ['GET'])
 def get_ancestors(id):
+    # Get user token from Authorization header
+    # getAuthorizationTokens() also handles MAuthorization header but we are not using that here
+    user_token = auth_helper_instance.getAuthorizationTokens(request.headers)
+
     # Make sure the id exists in uuid-api and 
     # the corresponding entity also exists in neo4j
     entity_dict = query_target_entity(id, user_token)
@@ -806,10 +811,6 @@ def get_ancestors(id):
             bad_request_error("The specified query string is not supported. Use '?property=<key>' to filter the result")
     # Return all the details if no property filtering
     else:
-        # Get user token from Authorization header
-        # getAuthorizationTokens() also handles MAuthorization header but we are not using that here
-        user_token = auth_helper_instance.getAuthorizationTokens(request.headers) 
-
         ancestors_list = app_neo4j_queries.get_ancestors(neo4j_driver_instance, uuid)
 
         # Generate trigger data and merge into a big dict
@@ -841,6 +842,10 @@ json
 """
 @app.route('/descendants/<id>', methods = ['GET'])
 def get_descendants(id):
+    # Get user token from Authorization header
+    # getAuthorizationTokens() also handles MAuthorization header but we are not using that here
+    user_token = auth_helper_instance.getAuthorizationTokens(request.headers)
+
     # Make sure the id exists in uuid-api and 
     # the corresponding entity also exists in neo4j
     entity_dict = query_target_entity(id, user_token)
@@ -867,10 +872,6 @@ def get_descendants(id):
             bad_request_error("The specified query string is not supported. Use '?property=<key>' to filter the result")
     # Return all the details if no property filtering
     else:
-        # Get user token from Authorization header
-        # getAuthorizationTokens() also handles MAuthorization header but we are not using that here
-        user_token = auth_helper_instance.getAuthorizationTokens(request.headers) 
-
         descendants_list = app_neo4j_queries.get_descendants(neo4j_driver_instance, uuid)
 
         # Generate trigger data and merge into a big dict
@@ -901,9 +902,13 @@ json
 """
 @app.route('/parents/<id>', methods = ['GET'])
 def get_parents(id):
+    # Get user token from Authorization header
+    # getAuthorizationTokens() also handles MAuthorization header but we are not using that here
+    user_token = auth_helper_instance.getAuthorizationTokens(request.headers)
+
     # Make sure the id exists in uuid-api and 
     # the corresponding entity also exists in neo4j
-    entity_dict = query_target_entity(id)
+    entity_dict = query_target_entity(id, user_token)
     uuid = entity_dict['uuid']
  
     # Result filtering based on query string
@@ -927,10 +932,6 @@ def get_parents(id):
             bad_request_error("The specified query string is not supported. Use '?property=<key>' to filter the result")
     # Return all the details if no property filtering
     else:
-        # Get user token from Authorization header
-        # getAuthorizationTokens() also handles MAuthorization header but we are not using that here
-        user_token = auth_helper_instance.getAuthorizationTokens(request.headers) 
-
         parents_list = app_neo4j_queries.get_parents(neo4j_driver_instance, uuid)
 
         # Generate trigger data and merge into a big dict
@@ -961,6 +962,10 @@ json
 """
 @app.route('/children/<id>', methods = ['GET'])
 def get_children(id):
+    # Get user token from Authorization header
+    # getAuthorizationTokens() also handles MAuthorization header but we are not using that here
+    user_token = auth_helper_instance.getAuthorizationTokens(request.headers)
+
     # Make sure the id exists in uuid-api and 
     # the corresponding entity also exists in neo4j
     entity_dict = query_target_entity(id, user_token)
@@ -987,10 +992,6 @@ def get_children(id):
             bad_request_error("The specified query string is not supported. Use '?property=<key>' to filter the result")
     # Return all the details if no property filtering
     else:
-        # Get user token from Authorization header
-        # getAuthorizationTokens() also handles MAuthorization header but we are not using that here
-        user_token = auth_helper_instance.getAuthorizationTokens(request.headers) 
-
         children_list = app_neo4j_queries.get_children(neo4j_driver_instance, uuid)
 
         # Generate trigger data and merge into a big dict
