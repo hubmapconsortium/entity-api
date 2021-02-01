@@ -84,7 +84,6 @@ def http_internal_server_error(e):
 # the secret token for making calls to other APIs
 if AuthHelper.isInitialized() == False:
     auth_helper_instance = AuthHelper.create(app.config['APP_CLIENT_ID'], 
-                                             app.config['APP_CLIENT_SECRET'])
 else:
     auth_helper_instance = AuthHelper.instance()
 
