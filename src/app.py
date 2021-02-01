@@ -83,7 +83,7 @@ def http_internal_server_error(e):
 # auth_helper_instance will be used to get the globus user info and 
 # the secret token for making calls to other APIs
 if AuthHelper.isInitialized() == False:
-    auth_helper_instance = AuthHelper.create(app.config['APP_CLIENT_ID'], app.config['APP_CLIENT_SECRET'])
+    auth_helper_instance = AuthHelper.create(app.config['APP_CLIENT_ID'], app.config['APP_CLIENT_SECRET'], app.config['UUID_API_URL'])
 else:
     auth_helper_instance = AuthHelper.instance()
 

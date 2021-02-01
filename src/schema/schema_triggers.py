@@ -2,6 +2,7 @@ import json
 import logging
 import datetime
 from neo4j.exceptions import TransactionError
+import os
 
 # Local modules
 from schema import schema_manager
@@ -809,10 +810,11 @@ def commit_image_files(property_key, normalized_type, existing_data_dict, new_da
 
     try: 
         for file_info in new_data_dict[property_key]:
-            filename = schema_manager.get_file_upload_helper_instance().commit_file(file_info['temp_file_id'], new_data_dict['uuid'])
+            file_uuid_info = schema_manager.get_file_upload_helper_instance().commit_file(file_info['temp_file_id'], new_data_dict['uuid'], schema_manager._auth_helper.getProcessSecret())
             
             file_info_to_add = {
-                'filename': filename
+                'filename': file_uuid_info['filename'],
+                'file_uuid': file_uuid_info['file_uuid']
             }
             
             # The `description` is optional
