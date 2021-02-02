@@ -25,6 +25,9 @@ class NoDataProviderGroupException(Exception):
 
 class MultipleDataProviderGroupException(Exception):
     pass
+
+class UnmatchedDataProviderGroupException(Exception):
+    pass
     
 class FileUUIDCreateException(Exception):
     pass

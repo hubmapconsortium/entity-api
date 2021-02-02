@@ -1388,7 +1388,21 @@ def create_entity_details(request, normalized_entity_type, user_token, json_data
     # When group_uuid is provided by user, it can be invalid
     except schema_errors.NoDataProviderGroupException:
         # Log the full stack trace, prepend a line with our message
-        msg = "The user does not have the correct Globus group associated with, can't create the entity"
+        if 'group_uuid' in json_data_dict:
+            msg = "Invalid 'group_uuid' value, can't create the entity"
+        else:
+            msg = "The user does not have the correct Globus group associated with, can't create the entity"
+        
+        logger.exception(msg)
+        bad_request_error(msg)
+    except schema_errors.UnmatchedDataProviderGroupException:
+        # Log the full stack trace, prepend a line with our message
+        msg = "The user does not belong to the given Globus group, can't create the entity"
+        logger.exception(msg)
+        bad_request_error(msg)
+    except schema_errors.MultipleDataProviderGroupException:
+        # Log the full stack trace, prepend a line with our message
+        msg = "The user has mutiple Globus groups associated with, please specify one using 'group_uuid'"
         logger.exception(msg)
         bad_request_error(msg)
     except KeyError as e:
@@ -1408,11 +1422,29 @@ def create_entity_details(request, normalized_entity_type, user_token, json_data
         msg = "Failed to execute one of the 'before_create_trigger' methods, can't create the entity"
         logger.exception(msg)
         internal_server_error(msg)
-    except (schema_errors.NoDataProviderGroupException, schema_errors.MultipleDataProviderGroupException):
+    except schema_errors.NoDataProviderGroupException:
         # Log the full stack trace, prepend a line with our message
-        msg = "The user does not have the correct Globus group associated with, can't create the entity"
+        if 'group_uuid' in json_data_dict:
+            msg = "Invalid 'group_uuid' value, can't create the entity"
+        else:
+            msg = "The user does not have the correct Globus group associated with, can't create the entity"
+        
         logger.exception(msg)
         bad_request_error(msg)
+    except schema_errors.UnmatchedDataProviderGroupException:
+        # Log the full stack trace, prepend a line with our message
+        msg = "The user does not belong to the given Globus group, can't create the entity"
+        logger.exception(msg)
+        bad_request_error(msg)
+    except schema_errors.MultipleDataProviderGroupException:
+        # Log the full stack trace, prepend a line with our message
+        msg = "The user has mutiple Globus groups associated with, please specify one using 'group_uuid'"
+        logger.exception(msg)
+        bad_request_error(msg)
+    except KeyError as e:
+        # Log the full stack trace, prepend a line with our message
+        logger.exception(e)
+        bad_request_error(e)
 
     # Merge the user json data and generated trigger data into one dictionary
     merged_dict = {**json_data_dict, **generated_before_create_trigger_data_dict}
@@ -1606,7 +1638,7 @@ def query_target_entity(id, user_token):
         entity_dict = app_neo4j_queries.get_entity(neo4j_driver_instance, uuid)
 
         # The uuid exists via uuid-api doesn't mean it's also in Neo4j
-        if not bool(entity_dict):
+        if not entity_dict:
             not_found_error(f"Entity of id: {id} not found in Neo4j")
 
         return entity_dict

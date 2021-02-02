@@ -290,21 +290,42 @@ str: The target property key
 str: The group uuid
 """
 def set_group_uuid(property_key, normalized_type, user_token, existing_data_dict, new_data_dict):
+    group_uuid = None
+
     # Look for membership in a single "data provider" group and sets to that. 
     # Otherwise if not set and no single "provider group" membership throws error.  
     # This field is also used to link (Neo4j relationship) to the correct Lab node on creation.
     if 'hmgroupids' not in new_data_dict:
         raise KeyError("Missing 'hmgroupids' key in 'new_data_dict' during calling 'set_group_uuid()' trigger method.")
 
-    try:
-        group_info = schema_manager.get_entity_group_info(new_data_dict['hmgroupids'])
-        return property_key, group_info['uuid']
-    except schema_errors.NoDataProviderGroupException as e:
-        # No need to log
-        raise schema_errors.NoDataProviderGroupException(e)
-    except schema_errors.MultipleDataProviderGroupException as e:
-        # No need to log
-        raise schema_errors.MultipleDataProviderGroupException(e)
+    user_group_uuids = new_data_dict['hmgroupids']
+
+    # If group_uuid provided from incoming request, validate it
+    if 'group_uuid' in new_data_dict:
+        # A bit validation
+        try:
+            schema_manager.validate_entity_group_uuid(new_data_dict['group_uuid'], user_group_uuids)
+        except schema_errors.NoDataProviderGroupException as e:
+            # No need to log
+            raise schema_errors.NoDataProviderGroupException(e)
+        except schema_errors.UnmatchedDataProviderGroupException as e:
+            raise schema_errors.UnmatchedDataProviderGroupException(e)
+
+        group_uuid = new_data_dict['group_uuid']
+    # When no group_uuid provided
+    else:
+        try:
+            group_info = schema_manager.get_entity_group_info(user_group_uuids)
+        except schema_errors.NoDataProviderGroupException as e:
+            # No need to log
+            raise schema_errors.NoDataProviderGroupException(e)
+        except schema_errors.MultipleDataProviderGroupException as e:
+            # No need to log
+            raise schema_errors.MultipleDataProviderGroupException(e)
+
+        group_uuid = group_info['uuid']
+
+    return property_key, group_uuid
 
 """
 Trigger event method of setting the group_name
@@ -328,6 +349,8 @@ str: The target property key
 str: The group name
 """
 def set_group_name(property_key, normalized_type, user_token, existing_data_dict, new_data_dict):
+    group_name = None
+    
     # If `group_uuid` is not already set, looks for membership in a single "data provider" group and sets to that. 
     # Otherwise if not set and no single "provider group" membership throws error.  
     # This field is also used to link (Neo4j relationship) to the correct Lab node on creation.
@@ -336,13 +359,15 @@ def set_group_name(property_key, normalized_type, user_token, existing_data_dict
     
     try:
         group_info = schema_manager.get_entity_group_info(new_data_dict['hmgroupids'])
-        return property_key, group_info['name']
+        group_name = group_info['name']
     except schema_errors.NoDataProviderGroupException as e:
         # No need to log
         raise schema_errors.NoDataProviderGroupException(e)
     except schema_errors.MultipleDataProviderGroupException as e:
         # No need to log
         raise schema_errors.MultipleDataProviderGroupException(e)
+
+    return property_key, group_name
     
 
 ####################################################################################################

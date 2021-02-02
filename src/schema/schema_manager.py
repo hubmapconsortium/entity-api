@@ -297,6 +297,11 @@ def generate_triggered_data(trigger_type, normalized_class, user_token, existing
                         # Log the full stack trace, prepend a line with our message
                         logger.exception(msg)
                         raise schema_errors.MultipleDataProviderGroupException
+                    except schema_errors.UnmatchedDataProviderGroupException as e:
+                        msg = f"Failed to call the {trigger_type} method: {trigger_method_name}"
+                        # Log the full stack trace, prepend a line with our message
+                        logger.exception(msg)
+                        raise schema_errors.UnmatchedDataProviderGroupException
                     except Exception as e:
                         msg = f"Failed to call the {trigger_type} method: {trigger_method_name}"
                         # Log the full stack trace, prepend a line with our message
@@ -341,6 +346,11 @@ def generate_triggered_data(trigger_type, normalized_class, user_token, existing
                     # Log the full stack trace, prepend a line with our message
                     logger.exception(msg)
                     raise schema_errors.MultipleDataProviderGroupException
+                except schema_errors.UnmatchedDataProviderGroupException as e:
+                    msg = f"Failed to call the {trigger_type} method: {trigger_method_name}"
+                    # Log the full stack trace, prepend a line with our message
+                    logger.exception(msg)
+                    raise schema_errors.UnmatchedDataProviderGroupException
                 except Exception as e:
                     msg = f"Failed to call the {trigger_type} method: {trigger_method_name}"
                     # Log the full stack trace, prepend a line with our message
@@ -559,8 +569,8 @@ def validate_json_data_against_schema(json_data_dict, normalized_entity_type, ex
         # No need to log the validation errors
         raise schema_errors.SchemaValidationException(f"Auto generated keys are not allowed in request json: {separator.join(generated_keys)}")
 
-    # Only check if keys in request json are immutable during entity update
-    if not bool(existing_entity_dict):
+    # Only check if keys in request json are immutable during entity update via HTTP PUT
+    if existing_entity_dict:
         immutable_keys = []
         for key in json_data_keys:
             if ('immutable' in properties[key]) and properties[key]['immutable']:
@@ -573,7 +583,7 @@ def validate_json_data_against_schema(json_data_dict, normalized_entity_type, ex
         
     # Check if any schema keys that are required_on_create but missing from POST request on creating new entity
     # No need to check on entity update
-    if not bool(existing_entity_dict):    
+    if existing_entity_dict:    
         missing_required_keys_on_create = []
         for key in schema_keys:
             # By default, the schema treats all entity properties as optional no creation. 
@@ -922,16 +932,29 @@ def create_hubmap_ids(normalized_class, json_data_dict, user_token, user_info_di
     # Activity and Collection don't require the `parent_ids` in request json
     if normalized_class in ['Donor', 'Sample', 'Dataset']:
         if normalized_class == 'Donor':
+            # If `group_uuid` is not already set, looks for membership in a single "data provider" group and sets to that. 
+            # Otherwise if not set and no single "provider group" membership throws error.  
+            # This field is also used to link (Neo4j relationship) to the correct Lab node on creation.
+            if 'hmgroupids' not in user_info_dict:
+                raise KeyError("Missing 'hmgroupids' key in 'user_info_dict' when calling 'create_hubmap_ids()' to create new ids for this Donor.")
+
+            user_group_uuids = user_info_dict['hmgroupids']
+
             # If group_uuid is provided by the request, use it
             if 'group_uuid' in json_data_dict:
-                # First validate the group_uuid and make sure it's one of the valid data providers
+                group_uuid = json_data_dict['group_uuid']
+                # Validate the group_uuid and make sure it's one of the valid data providers
+                # and the user also belongs to this group
                 try:
-                    schema_manager.validate_entity_group_uuid(json_data_dict['group_uuid'])
+                    schema_manager.validate_entity_group_uuid(group_uuid, user_group_uuids)
                 except schema_errors.NoDataProviderGroupException as e:
                     # No need to log
                     raise schema_errors.NoDataProviderGroupException(e)
+                except schema_errors.UnmatchedDataProviderGroupException as e:
+                    raise schema_errors.UnmatchedDataProviderGroupException(e)
 
-                parent_id = json_data_dict['group_uuid']
+                # Use group_uuid as parent_id for Donor
+                parent_id = group_uuid
             # Otherwise, parse user token to get the group_uuid
             else:
                 # If `group_uuid` is not already set, looks for membership in a single "data provider" group and sets to that. 
@@ -1068,24 +1091,35 @@ def get_entity_group_info(user_hmgroupids_list):
     
     return group_info
 
+
 """
-Get the group_name based on the given group_uuid
+Check if the given group uuid is valid
 
 Parameters
 ----------
+user_token: str
+    The user's globus nexus token
 group_uuid : str
-    UUID of the target group
+    The target group uuid string
 """
-def validate_entity_group_uuid(group_uuid):
+def validate_entity_group_uuid(group_uuid, user_group_uuids):
     # Get the globus groups info based on the groups json file in commons package
     globus_groups_info = globus_groups.get_globus_groups_info()
     groups_by_id_dict = globus_groups_info['by_id']
 
-    if not group_uuid in groups_by_id_dict:
+    # First make sure the group_uuid is one of the valid group UUIDs defiend in the json
+    if group_uuid not in groups_by_id_dict:
         msg = f"No data_provider groups found for the given group_uuid: {group_uuid}. Can't continue."
         # Log the full stack trace, prepend a line with our message
         logger.exception(msg)
         raise schema_errors.NoDataProviderGroupException(msg)
+
+    # Next, make sure the given group_uuid is associated with the user
+    if group_uuid not in user_group_uuids:
+        msg = f"The user doesn't belong to the given group of uuid: {group_uuid}. Can't continue."
+        # Log the full stack trace, prepend a line with our message
+        logger.exception(msg)
+        raise schema_errors.UnmatchedDataProviderGroupException(msg)
 
 
 """

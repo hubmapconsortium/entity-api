@@ -194,6 +194,7 @@ ENTITIES:
         description: "True if the data contains any human genetic sequence information."
       status:
         type: string
+        generated: true
         description: "One of: Published|New|QA|Error|Hold|Invalid"
         before_create_trigger: set_dataset_status
         after_update_trigger: update_dataset_and_ancestors_data_access_level
@@ -261,10 +262,9 @@ ENTITIES:
         type: string
       ingest_id:
         type: string
-      # Must set in neo4j
+      # A user who is a member of multiple groups HAS to send in the group_uuid 
       group_uuid:
         type: string
-        generated: true
         immutable: true
         description: "The uuid of globus group which the user who created this entity is a member of"
         before_create_trigger: set_group_uuid #method that, if group_uuid is not already set looks for membership in a single "data provider" group and sets to that. Otherwise if not set and no single "provider group" membership throws error
@@ -335,12 +335,11 @@ ENTITIES:
         type: string
         immutable: true
         generated: true
-        description: "The hubmap internal id with embedded semantic information e.g.: VAN0003.  This id is generated at creation time which tracks the lab, donor, organ and sample hierarchy per the following: https://docs.google.com/document/d/1DjHgmqWF1VA5-3mfzLFNfabbzmc8KLSG9xWx1DDLlzo/edit?usp=sharing"
+        description: "The hubmap internal id with embedded semantic information e.g.: VAN0003. This id is generated at creation time which tracks the lab, donor, organ and sample hierarchy per the following: https://docs.google.com/document/d/1DjHgmqWF1VA5-3mfzLFNfabbzmc8KLSG9xWx1DDLlzo/edit?usp=sharing"
         before_create_trigger: set_submission_id
-      # Must set in neo4j
+      # A user who is a member of multiple groups HAS to send in the group_uuid 
       group_uuid:
         type: string
-        generated: true
         immutable: true
         description: "The uuid of globus group which the user who created this entity is a member of"
         before_create_trigger: set_group_uuid #method that, if group_uuid is not already set looks for membership in a single "data provider" group and sets to that. Otherwise if not set and no single "provider group" membership throws error.  This field is also used to link (Neo4j relationship) to the correct Lab node on creation.
@@ -408,10 +407,9 @@ ENTITIES:
         #todo: migrate to new attribute set as above portal_metadata_upload files
         type: json_string
         description: "A list of uploaded image files and descriptions of the files."
-      # Must set in neo4j
+      # A user who is a member of multiple groups HAS to send in the group_uuid 
       group_uuid:
         type: string
-        generated: true
         immutable: true
         description: "The uuid of globus group which the user who created this entity is a member of"
         before_create_trigger: set_group_uuid #method that, if group_uuid is not already set looks for membership in a single "data provider" group and sets to that. Otherwise if not set and no single "provider group" membership throws error.  This field is also used to link (Neo4j relationship) to the correct Lab node on creation.
