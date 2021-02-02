@@ -626,6 +626,15 @@ def create_entity(entity_type):
             # Check existence of the direct ancestor (either another Sample or Donor)
             direct_ancestor_dict = query_target_entity(direct_ancestor_uuid, user_token)
 
+
+
+        # # 
+        # if bool(request.args):
+        #     count = request.args.get('count')
+
+
+
+
         # Generate 'before_create_triiger' data and create the entity details in Neo4j
         merged_dict = create_entity_details(request, normalized_entity_type, user_token, json_data_dict)
 
@@ -1326,6 +1335,8 @@ def get_user_token(request_headers):
     if isinstance(user_token, Response):
         # The Response.data returns binary string, need to decode
         bad_request_error(user_token.data.decode())
+
+    return user_token
 
 """
 Return the complete collection dict for a given raw collection dict

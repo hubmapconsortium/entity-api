@@ -1163,8 +1163,6 @@ dict
     The headers dict to be used by requests
 """
 def _create_request_headers(user_token):
-    global _auth_helper
-
     auth_header_name = 'Authorization'
     auth_scheme = 'Bearer'
 
