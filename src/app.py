@@ -1247,7 +1247,7 @@ def create_file():
 
         return jsonify(rspn_data), 201
     except Exception as e:
-    	# Log the full stack trace, prepend a line with our message
+        # Log the full stack trace, prepend a line with our message
         msg = "Failed to upload files"
         logger.exception(msg)
         internal_server_error(msg)
@@ -1404,7 +1404,8 @@ def create_entity_details(request, normalized_entity_type, user_token, json_data
 
     # Create new ids for the new entity
     try:
-        new_ids_dict = schema_manager.create_hubmap_ids(normalized_entity_type, json_data_dict, user_token, user_info_dict)
+        new_ids_dict_list = schema_manager.create_hubmap_ids(normalized_entity_type, json_data_dict, user_token, user_info_dict)
+        new_ids_dict = new_ids_dict_list[0]
     # When group_uuid is provided by user, it can be invalid
     except schema_errors.NoDataProviderGroupException:
         # Log the full stack trace, prepend a line with our message

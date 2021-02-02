@@ -849,13 +849,15 @@ user_info_dict: dict
         "username": "username@pitt.edu",
         "hmscopes": ["urn:globus:auth:scope:nexus.api.globus.org:groups"],
     }
+count : int
+    The optional number of ids to generate. If omitted, defaults to 1 
 
 Returns
 -------
-dict
-    The dictionary of new ids
+list
+    The list of new ids dicts, the number of dicts is based on the count
 """
-def create_hubmap_ids(normalized_class, json_data_dict, user_token, user_info_dict):
+def create_hubmap_ids(normalized_class, json_data_dict, user_token, user_info_dict, count = 1):
     global _uuid_api_url
 
     """
@@ -868,9 +870,12 @@ def create_hubmap_ids(normalized_class, json_data_dict, user_token, user_info_di
                have a single ancestor, not multiple).  For DATASETs at least one ancestor
                UUID is required, but multiple can be specified. (A DATASET can be derived
                from multiple SAMPLEs or DATASETs.) 
-     organ_code - required only in the case where an id is being generated for a SAMPLE that
+    organ_code - required only in the case where an id is being generated for a SAMPLE that
                has a DONOR as a direct ancestor.  Must be one of the codes from:
                https://github.com/hubmapconsortium/search-api/blob/test-release/src/search-schema/data/definitions/enums/organ_types.yaml
+    
+    Query string (in url) arguments:
+        entity_count - optional, the number of ids to generate. If omitted, defaults to 1 
     """
     json_to_post = {
         'entity_type': normalized_class
@@ -943,8 +948,10 @@ def create_hubmap_ids(normalized_class, json_data_dict, user_token, user_info_di
 
     request_headers = _create_request_headers(user_token)
 
+    query_parms = {'entity_count': count}
+
     # Disable ssl certificate verification
-    response = requests.post(url = _uuid_api_url, headers = request_headers, json = json_to_post, verify = False) 
+    response = requests.post(url = _uuid_api_url, headers = request_headers, json = json_to_post, verify = False, params = query_parms) 
     
     if response.status_code == 200:
         # For Collection/Dataset/Activity, the uuid-api response looks like:
@@ -967,9 +974,8 @@ def create_hubmap_ids(normalized_class, json_data_dict, user_token, user_info_di
         }]
         """
         ids_list = response.json()
-        ids_dict = ids_list[0]
 
-        return ids_dict
+        return ids_list
     else:
         msg = f"Failed to create new ids via the uuid-api service during the creation of this new {normalized_class}" 
         

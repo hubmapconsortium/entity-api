@@ -584,7 +584,8 @@ def link_dataset_to_direct_ancestors(property_key, normalized_type, user_token, 
         normalized_entity_type_dict = {'normalized_entity_type': normalized_type}
 
         # Create new ids for the new Activity
-        new_ids_dict_for_activity = schema_manager.create_hubmap_ids(normalized_activity_type, json_data_dict = None, user_token = user_token, user_info_dict = None)
+        new_ids_dict_list_for_activity = schema_manager.create_hubmap_ids(normalized_activity_type, json_data_dict = None, user_token = user_token, user_info_dict = None)
+        new_ids_dict_for_activity = new_ids_dict_list_for_activity[0]
 
         # The `existing_data_dict` should already have user_info
         data_dict_for_activity = {**existing_data_dict, **normalized_entity_type_dict, **new_ids_dict_for_activity}
@@ -655,8 +656,9 @@ def relink_dataset_to_direct_ancestors(property_key, normalized_type, user_token
         normalized_entity_type_dict = {'normalized_entity_type': normalized_type}
 
         # Create new ids for the new Activity
-        new_ids_dict_for_activity = schema_manager.create_hubmap_ids(normalized_activity_type, json_data_dict = None, user_token = user_token, user_info_dict = None)
-
+        new_ids_dict_list_for_activity = schema_manager.create_hubmap_ids(normalized_activity_type, json_data_dict = None, user_token = user_token, user_info_dict = None)
+        new_ids_dict_for_activity = new_ids_dict_list_for_activity[0]
+        
         # The `existing_data_dict` should already have user_info
         data_dict_for_activity = {**existing_data_dict, **normalized_entity_type_dict, **new_ids_dict_for_activity}
 
@@ -752,7 +754,6 @@ def get_local_directory_rel_path(property_key, normalized_type, user_token, exis
     if (not 'group_uuid' in existing_data_dict) or (not existing_data_dict['group_uuid']):
         raise KeyError(f"Group uuid not set for dataset with uuid: {uuid}")
 
-    
     # Validate the group_uuid and make sure it's one of the valid data providers
     try:
         schema_manager.validate_entity_group_uuid(existing_data_dict['group_uuid'])
@@ -984,7 +985,8 @@ def link_sample_to_direct_ancestor(property_key, normalized_type, user_token, ex
     normalized_entity_type_dict = {'normalized_entity_type': normalized_type}
 
     # Create new ids for the new Activity
-    new_ids_dict_for_activity = schema_manager.create_hubmap_ids(normalized_activity_type, json_data_dict = None, user_token = user_token, user_info_dict = None)
+    new_ids_dict_list_for_activity = schema_manager.create_hubmap_ids(normalized_activity_type, json_data_dict = None, user_token = user_token, user_info_dict = None)
+    new_ids_dict_for_activity = new_ids_dict_list_for_activity[0]
 
     # The `existing_data_dict` should already have user_info
     data_dict_for_activity = {**existing_data_dict, **normalized_entity_type_dict, **new_ids_dict_for_activity}
@@ -1041,7 +1043,8 @@ def relink_sample_to_direct_ancestor(property_key, normalized_type, user_token, 
     normalized_entity_type_dict = {'normalized_entity_type': normalized_type}
 
     # Create new ids for the new Activity
-    new_ids_dict_for_activity = schema_manager.create_hubmap_ids(normalized_activity_type, json_data_dict = None, user_token = user_token, user_info_dict = None)
+    new_ids_dict_list_for_activity = schema_manager.create_hubmap_ids(normalized_activity_type, json_data_dict = None, user_token = user_token, user_info_dict = None)
+    new_ids_dict_for_activity = new_ids_dict_list_for_activity[0]
 
     # The `existing_data_dict` should already have user_info
     data_dict_for_activity = {**existing_data_dict, **normalized_entity_type_dict, **new_ids_dict_for_activity}
