@@ -825,11 +825,21 @@ def commit_image_files(property_key, normalized_type, user_token, existing_data_
     if not property_key in new_data_dict:
         raise KeyError(f"Missing '{property_key}' key in 'new_data_dict' during calling 'commit_image_files()' trigger method.")
 
-    files_info_list = []
+    #if POST or PUT where the target doesn't exist create the file info array
+    if not target_property_key in existing_data_dict:
+        files_info_list = []
+    #otherwise this is a PUT where the target array exists already
+    else:
+        files_info_list = json.loads(existing_data_dict[target_property_key].replace("'", '"'))
 
-    try: 
+    try:
+        if 'uuid' in new_data_dict:
+            entity_uuid = new_data_dict['uuid']
+        else:
+            entity_uuid = existing_data_dict['uuid']
+
         for file_info in new_data_dict[property_key]:
-            file_uuid_info = schema_manager.get_file_upload_helper_instance().commit_file(file_info['temp_file_id'], new_data_dict['uuid'], user_token)
+            file_uuid_info = schema_manager.get_file_upload_helper_instance().commit_file(file_info['temp_file_id'], entity_uuid, user_token)
             
             file_info_to_add = {
                 'filename': file_uuid_info['filename'],

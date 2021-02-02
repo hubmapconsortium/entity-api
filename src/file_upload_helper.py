@@ -81,16 +81,6 @@ class UploadFileHelper:
         logger.debug(self.temp_files)
         logger.debug(temp_file_id)
 
-        entity_dir = self.upload_dir + entity_uuid
-        if not os.path.exists(entity_dir):
-            # Use pathlib to create dir instead of file_helper.mkDir
-            #file_helper.mkDir(entity_dir)
-            pathlib.Path(entity_dir).mkdir(parents=True)
-
-        elif not os.path.isdir(entity_dir):
-            # ?
-            raise Exception("Entity file uploads directory exists and is not a directory: " + entity_dir)
-        
         if not temp_file_id in self.temp_files:
             raise Exception("Temporary file with id " + temp_file_id + " does not exist.")
         
