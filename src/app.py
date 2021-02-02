@@ -1162,14 +1162,14 @@ def get_dataset_globus_url(id):
 
     if not 'group_uuid' in entity_dict or string_helper.isBlank(entity_dict['group_uuid']):
         msg = f"The 'group_uuid' property is not set for dataset with uuid: {uuid}"
-        logger.error(msg)
+        logger.exception(msg)
         internal_server_error(msg)
 
     #look up the Component's group ID, return an error if not found
     group_uuid = entity_dict['group_uuid']
     if not group_uuid in groups_by_id_dict:
         msg = f"Invalid 'group_uuid': {group_uuid} for dataset with uuid: {uuid}"
-        logger.error(msg)
+        logger.exception(msg)
         internal_server_error(msg)
 
     # Get the user information (if available) for the caller
@@ -1195,7 +1195,9 @@ def get_dataset_globus_url(id):
         user_access_level = 'protected'
     else:
         if not 'data_access_level' in user_info:
-            internal_server_error(f"Unexpected error, data access level could not be found for user trying to access dataset uuid: {uuid}")        
+            msg = f"Unexpected error, data access level could not be found for user trying to access dataset uuid: {uuid}"
+            logger.exception(msg)
+            internal_server_error(msg)        
         user_access_level = user_info['data_access_level']
 
     #public access
@@ -1216,8 +1218,7 @@ def get_dataset_globus_url(id):
 
     dir_path = dir_path + uuid + "/"
     dir_path = urllib.parse.quote(dir_path, safe='')
-    logger.debug(globus_server_uuid)
-    logger.debug(dir_path)
+
     #https://app.globus.org/file-manager?origin_id=28bbb03c-a87d-4dd7-a661-7ea2fb6ea631&origin_path=%2FIEC%20Testing%20Group%2F03584b3d0f8b46de1b629f04be156879%2F
     url = hm_file_helper.ensureTrailingSlashURL(app.config['GLOBUS_APP_BASE_URL']) + "file-manager?origin_id=" + globus_server_uuid + "&origin_path=" + dir_path  
             
