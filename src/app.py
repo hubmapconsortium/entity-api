@@ -214,8 +214,7 @@ json
 @app.route('/entities/<id>', methods = ['GET'])
 def get_entity_by_id(id):
     # Get user token from Authorization header
-    # getAuthorizationTokens() also handles MAuthorization header but we are not using that here
-    user_token = auth_helper_instance.getAuthorizationTokens(request.headers) 
+    user_token = get_user_token(request.headers) 
 
     # Query target entity against uuid-api and neo4j and return as a dict if exists
     entity_dict = query_target_entity(id, user_token)
@@ -273,8 +272,7 @@ json
 @app.route('/entities/<id>/provenance', methods = ['GET'])
 def get_entity_provenance(id):
     # Get user token from Authorization header
-    # getAuthorizationTokens() also handles MAuthorization header but we are not using that here
-    user_token = auth_helper_instance.getAuthorizationTokens(request.headers)
+    user_token = get_user_token(request.headers)
 
     # Query target entity against uuid-api and neo4j and return as a dict if exists
     entity_dict = query_target_entity(id, user_token)
@@ -419,8 +417,7 @@ def get_entities_by_type(entity_type):
     # Return all the details if no property filtering
     else:
         # Get user token from Authorization header
-        # getAuthorizationTokens() also handles MAuthorization header but we are not using that here
-        user_token = auth_helper_instance.getAuthorizationTokens(request.headers)
+        user_token = get_user_token(request.headers)
 
         # Get back a list of entity dicts for the given entity type
         entities_list = app_neo4j_queries.get_entities_by_type(neo4j_driver_instance, normalized_entity_type)
@@ -463,8 +460,7 @@ json
 @app.route('/collections/<id>', methods = ['GET'])
 def get_collection(id):
     # Get user token from Authorization header
-    # getAuthorizationTokens() also handles MAuthorization header but we are not using that here
-    user_token = auth_helper_instance.getAuthorizationTokens(request.headers) 
+    user_token = get_user_token(request.headers)
 
     # Query target entity against uuid-api and neo4j and return as a dict if exists
     collection_dict = query_target_entity(id, user_token)
@@ -549,8 +545,7 @@ def get_collections():
     # Return all the details if no property filtering
     else: 
         # Get user token from Authorization header
-        # getAuthorizationTokens() also handles MAuthorization header but we are not using that here
-        user_token = auth_helper_instance.getAuthorizationTokens(request.headers)
+        user_token = get_user_token(request.headers)
         
         # If the user can only access public collections, modify the resultss
         # by only returning public datasets attached to each collection
@@ -595,8 +590,7 @@ json
 @app.route('/entities/<entity_type>', methods = ['POST'])
 def create_entity(entity_type):
     # Get user token from Authorization header
-    # getAuthorizationTokens() also handles MAuthorization header but we are not using that here
-    user_token = auth_helper_instance.getAuthorizationTokens(request.headers) 
+    user_token = get_user_token(request.headers)
 
     # Normalize user provided entity_type
     normalized_entity_type = schema_manager.normalize_entity_type(entity_type)
@@ -690,8 +684,7 @@ json
 @app.route('/entities/<id>', methods = ['PUT'])
 def update_entity(id):
     # Get user token from Authorization header
-    # getAuthorizationTokens() also handles MAuthorization header but we are not using that here
-    user_token = auth_helper_instance.getAuthorizationTokens(request.headers)
+    user_token = get_user_token(request.headers)
 
     # Always expect a json body
     require_json(request)
@@ -782,8 +775,7 @@ json
 @app.route('/ancestors/<id>', methods = ['GET'])
 def get_ancestors(id):
     # Get user token from Authorization header
-    # getAuthorizationTokens() also handles MAuthorization header but we are not using that here
-    user_token = auth_helper_instance.getAuthorizationTokens(request.headers)
+    user_token = get_user_token(request.headers)
 
     # Make sure the id exists in uuid-api and 
     # the corresponding entity also exists in neo4j
@@ -843,8 +835,7 @@ json
 @app.route('/descendants/<id>', methods = ['GET'])
 def get_descendants(id):
     # Get user token from Authorization header
-    # getAuthorizationTokens() also handles MAuthorization header but we are not using that here
-    user_token = auth_helper_instance.getAuthorizationTokens(request.headers)
+    user_token = get_user_token(request.headers)
 
     # Make sure the id exists in uuid-api and 
     # the corresponding entity also exists in neo4j
@@ -903,8 +894,7 @@ json
 @app.route('/parents/<id>', methods = ['GET'])
 def get_parents(id):
     # Get user token from Authorization header
-    # getAuthorizationTokens() also handles MAuthorization header but we are not using that here
-    user_token = auth_helper_instance.getAuthorizationTokens(request.headers)
+    user_token = get_user_token(request.headers)
 
     # Make sure the id exists in uuid-api and 
     # the corresponding entity also exists in neo4j
@@ -963,8 +953,7 @@ json
 @app.route('/children/<id>', methods = ['GET'])
 def get_children(id):
     # Get user token from Authorization header
-    # getAuthorizationTokens() also handles MAuthorization header but we are not using that here
-    user_token = auth_helper_instance.getAuthorizationTokens(request.headers)
+    user_token = get_user_token(request.headers)
 
     # Make sure the id exists in uuid-api and 
     # the corresponding entity also exists in neo4j
@@ -1032,8 +1021,7 @@ json
 @app.route('/collections/<collection_uuid>/add-datasets', methods = ['PUT'])
 def add_datasets_to_collection(collection_uuid):
     # Get user token from Authorization header
-    # getAuthorizationTokens() also handles MAuthorization header but we are not using that here
-    user_token = auth_helper_instance.getAuthorizationTokens(request.headers) 
+    user_token = get_user_token(request.headers)
 
     # Query target entity against uuid-api and neo4j and return as a dict if exists
     entity_dict = query_target_entity(collection_uuid, user_token)
@@ -1084,8 +1072,7 @@ id : str
 @app.route('/collection/redirect/<id>', methods = ['GET'])
 def collection_redirect(id):
     # Get user token from Authorization header
-    # getAuthorizationTokens() also handles MAuthorization header but we are not using that here
-    user_token = auth_helper_instance.getAuthorizationTokens(request.headers) 
+    user_token = get_user_token(request.headers)
 
     # Query target entity against uuid-api and neo4j and return as a dict if exists
     entity_dict = query_target_entity(id, user_token)
@@ -1140,8 +1127,7 @@ Response
 @app.route('/dataset/globus-url/<id>', methods = ['GET'])
 def get_dataset_globus_url(id):
     # Get user token from Authorization header
-    # getAuthorizationTokens() also handles MAuthorization header but we are not using that here
-    user_token = auth_helper_instance.getAuthorizationTokens(request.headers) 
+    user_token = get_user_token(request.headers)
 
     # For now, don't use the constants from commons
     ACCESS_LEVEL_PUBLIC = 'public'
@@ -1317,6 +1303,28 @@ err_msg : str
 def internal_server_error(err_msg):
     abort(500, description = err_msg)
 
+
+"""
+Parase the token from Authorization header
+
+Parameters
+----------
+request_headers: request.headers
+    The http request headers
+
+Returns
+-------
+string
+    The token string if valid
+"""
+def get_user_token(request_headers):
+    # Get user token from Authorization header
+    # getAuthorizationTokens() also handles MAuthorization header but we are not using that here
+    user_token = auth_helper_instance.getAuthorizationTokens(request_headers) 
+
+    # The user_token is flask.Response on error
+    if isinstance(user_token, Response):
+        bad_request_error(user_token.data)
 
 """
 Return the complete collection dict for a given raw collection dict
