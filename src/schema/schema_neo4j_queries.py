@@ -167,7 +167,7 @@ def get_dataset_collections(neo4j_driver, uuid, property_key = None):
                  f"WHERE e.uuid = '{uuid}' "
                  f"RETURN apoc.coll.toSet(COLLECT(c)) AS {record_field_name}")
 
-    logger.debug("======get_dataset_collection_uuids() query======")
+    logger.debug("======get_dataset_collections() query======")
     logger.debug(query)
 
     record = None

@@ -213,6 +213,12 @@ json
 """
 @app.route('/entities/<id>', methods = ['GET'])
 def get_entity_by_id(id):
+    # TO-DO: eventually we'll want to allow folks to make that call 
+    # for public/published entities (should work the same way that search works) 
+    # without any token at all. 
+    # We'll just use `get_internal_token()` to query against uuid-api and check the 
+    # data_access_level for Donor/Sample. Use `status`=="Published" for Dataset
+
     # Get user token from Authorization header
     user_token = get_user_token(request.headers) 
 
@@ -271,39 +277,13 @@ json
 """
 @app.route('/entities/<id>/provenance', methods = ['GET'])
 def get_entity_provenance(id):
-    # Get user token from Authorization header
-    user_token = get_user_token(request.headers)
+    token = get_internal_token()
 
     # Query target entity against uuid-api and neo4j and return as a dict if exists
-    entity_dict = query_target_entity(id, user_token)
+    entity_dict = query_target_entity(id, token)
     uuid = entity_dict['uuid']
     normalized_entity_type = entity_dict['entity_type']
     entity_data_access_level = entity_dict['data_access_level']
-
-    # For now, don't use the constants from commons
-    # All lowercase for easy comparision
-    ACCESS_LEVEL_PUBLIC = 'public'
-    ACCESS_LEVEL_CONSORTIUM = 'consortium'
-    ACCESS_LEVEL_PROTECTED = 'protected'
-
-    # Get user data_access_level based on token
-    try:
-        # The user_info contains HIGHEST access level of the user based on the token
-        # This call raises an HTTPException with a 401 if any auth issues encountered
-        user_info = auth_helper_instance.getUserDataAccessLevel(request)
-    # If returns HTTPException with a 401, invalid header format or expired/invalid token
-    except HTTPException:
-        unauthorized_error("Invalid token")
-
-    user_data_access_level = user_info['data_access_level'].lower()
-
-    logger.debug(f"user_data_access_level: {user_data_access_level}")
-    
-    # The `data_access_level` of Dataset can be 'public', consortium', or 'protected'
-    # The `data_access_level` of Donor/Sample can only be either 'public' or 'consortium'
-    if (((entity_data_access_level == ACCESS_LEVEL_CONSORTIUM) and (user_data_access_level == ACCESS_LEVEL_PUBLIC))
-        or ((entity_data_access_level == ACCESS_LEVEL_PROTECTED) and (user_data_access_level != ACCESS_LEVEL_PROTECTED))):
-        forbidden_error(f"Not authorized to retrieve provenance data for Entity of id: {id}")
 
     # A bit validation to prevent Lab or Collection being queried
     supported_entity_types = ['Donor', 'Sample', 'Dataset']
@@ -311,6 +291,63 @@ def get_entity_provenance(id):
     if normalized_entity_type not in supported_entity_types:
         bad_request_error(f"Unable to get the provenance for this {normalized_entity_type}, the requested entity must be one of: {separator.join(supported_entity_types)}")
 
+    # For now, don't use the constants from commons
+    # All lowercase for easy comparision
+    ACCESS_LEVEL_PUBLIC = 'public'
+    ACCESS_LEVEL_CONSORTIUM = 'consortium'
+    ACCESS_LEVEL_PROTECTED = 'protected'
+
+    error_msg_401 = f"A valid globus token is required to retrieve the provenance information for {normalized_entity_type}: {id}"
+    error_msg_403 = f"Not authorized to retrieve the provenance information for {normalized_entity_type}: {id}"
+
+    # The `data_access_level` of Dataset can be 'public', consortium', or 'protected'
+    if normalized_entity_type == 'Dataset':
+        # Only published/public datasets don't require token
+        if entity_dict['status'].lower() != 'published':
+            # Get user data_access_level based on token
+            try:
+                # The user_info contains HIGHEST access level of the user based on the token
+                # This call raises an HTTPException with a 401 if any auth issues encountered
+                user_info = auth_helper_instance.getUserDataAccessLevel(request)
+            # If returns HTTPException with a 401, invalid header format or expired/invalid token
+            except HTTPException:
+                unauthorized_error(error_msg_401)
+
+            # Now there's a valid token, will need to check the access level
+            user_data_access_level = user_info['data_access_level'].lower()
+
+            # Use two checks instead of merging them into one long check for readibility
+            if (entity_data_access_level == ACCESS_LEVEL_CONSORTIUM) and (user_data_access_level == ACCESS_LEVEL_PUBLIC):
+                forbidden_error(error_msg_403)
+
+            if (entity_data_access_level == ACCESS_LEVEL_PROTECTED) and (user_data_access_level != ACCESS_LEVEL_CONSORTIUM):
+                forbidden_error(error_msg_403)
+
+            # Pass the user token instead the internal token for subsequent function calls
+            token = get_user_token(request.headers)
+    else:
+        # The `data_access_level` of Donor/Sample can only be either 'public' or 'consortium'
+        if entity_data_access_level == ACCESS_LEVEL_CONSORTIUM:
+            # Get user data_access_level based on token
+            try:
+                # The user_info contains HIGHEST access level of the user based on the token
+                # This call raises an HTTPException with a 401 if any auth issues encountered
+                user_info = auth_helper_instance.getUserDataAccessLevel(request)
+            # If returns HTTPException with a 401, invalid header format or expired/invalid token
+            except HTTPException:
+                unauthorized_error(error_msg_401)
+
+            # Now there's a valid token, will need to check the access level
+            user_data_access_level = user_info['data_access_level'].lower()
+
+            if user_data_access_level == ACCESS_LEVEL_PUBLIC:
+                forbidden_error(error_msg_403)
+
+            # Pass the user token instead the internal token for subsequent function calls
+            token = get_user_token(request.headers)
+
+    # By now, either the entity is public accessible or the user token has the correct access level
+    # Will just proceed to get the provenance informaiton
     # Get the `depth` from query string if present and it's used by neo4j query
     # to set the maximum number of hops in the traversal
     depth = None
@@ -333,7 +370,7 @@ def get_entity_provenance(id):
             # We'll need to return all the properties including those 
             # generated by `on_read_trigger` to have a complete result
             properties_to_skip = ['direct_ancestors', 'direct_ancestor']
-            complete_entity_dict = schema_manager.get_complete_entity_result(user_token, node_dict, properties_to_skip)
+            complete_entity_dict = schema_manager.get_complete_entity_result(token, node_dict, properties_to_skip)
             # Filter out properties not defined or not to be exposed in the schema yaml
             normalized_entity_dict = schema_manager.normalize_entity_result_for_response(complete_entity_dict)
 
@@ -625,15 +662,6 @@ def create_entity(entity_type):
             direct_ancestor_uuid = json_data_dict['direct_ancestor_uuid']
             # Check existence of the direct ancestor (either another Sample or Donor)
             direct_ancestor_dict = query_target_entity(direct_ancestor_uuid, user_token)
-
-
-
-        # # 
-        # if bool(request.args):
-        #     count = request.args.get('count')
-
-
-
 
         # Generate 'before_create_triiger' data and create the entity details in Neo4j
         merged_dict = create_entity_details(request, normalized_entity_type, user_token, json_data_dict)
@@ -1324,7 +1352,7 @@ request_headers: request.headers
 
 Returns
 -------
-string
+str
     The token string if valid
 """
 def get_user_token(request_headers):
@@ -1338,6 +1366,18 @@ def get_user_token(request_headers):
         bad_request_error(user_token.data.decode())
 
     return user_token
+
+"""
+Get the token for internal use only
+
+Returns
+-------
+str
+    The token string 
+"""
+def get_internal_token():
+    return auth_helper_instance.getProcessSecret()
+
 
 """
 Return the complete collection dict for a given raw collection dict

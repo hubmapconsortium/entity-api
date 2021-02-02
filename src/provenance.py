@@ -152,9 +152,9 @@ def get_provenance_history(normalized_provenance_dict):
 
                 # Add prefix to all other attributes
                 for key in entity_node:
-                    # Entity property values can be list, skip
-                    # And list is unhashable type when calling `prov_doc.entity()`
-                    if not isinstance(entity_node[key], list):
+                    # Entity property values can be list or dict, skip
+                    # And list and dict are unhashable types when calling `prov_doc.entity()`
+                    if not isinstance(entity_node[key], (list, dict)):
                         prov_key = f'{HUBMAP_NAMESPACE}:{key}'
                         # Use datetime string instead of timestamp integer
                         if key in ['created_timestamp', 'last_modified_timestamp', 'published_timestamp']:
