@@ -1363,7 +1363,7 @@ def get_user_token(request_headers):
     # The user_token is flask.Response on error
     if isinstance(user_token, Response):
         # The Response.data returns binary string, need to decode
-        bad_request_error(user_token.data.decode())
+        unauthorized_error(user_token.data.decode())
 
     return user_token
 
