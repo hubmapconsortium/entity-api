@@ -262,61 +262,8 @@ def generate_triggered_data(trigger_type, normalized_class, user_token, existing
                         # We can't create/update the entity 
                         # without successfully executing this trigger method
                         raise schema_errors.BeforeUpdateTriggerException
-            elif trigger_type in ['before_create_trigger']:
-                # Run the before_create_trigger for:
-                # - all generated properties
-                # - the property is not auto generated and the property exists in incoming data
-                if (('generated' in properties[key]) and properties[key]['generated']) or ((('generated' not in properties[key]) or (not properties[key]['generated'])) and (key in new_data_dict)): 
-                    # Handling of all other trigger types: on_read_trigger
-                    trigger_method_name = properties[key][trigger_type]
-
-                    logger.debug(f"Calling schema {trigger_type}: {trigger_method_name} defined for {normalized_class}")
-
-                    # Call the target trigger method of schema_triggers.py module
-                    trigger_method_to_call = getattr(schema_triggers, trigger_method_name)
-
-                    try:
-                        # Will set the trigger return value as the property value by default
-                        # Unless the return value is to be assigned to another property different target key 
-                        target_key, target_value = trigger_method_to_call(key, normalized_class, user_token, existing_data_dict, new_data_dict)
-                        trigger_generated_data_dict[target_key] = target_value
-
-                        # Meanwhile, set the original property as None if target_key is different
-                        # This is especially important when the returned target_key is different from the original key
-                        # Because we'll be merging this trigger_generated_data_dict with the original user input
-                        # and this will overwrite the original key so it doesn't get stored in Neo4j
-                        if key != target_key:
-                            trigger_generated_data_dict[key] = None
-                    except schema_errors.NoDataProviderGroupException as e:
-                        msg = f"Failed to call the {trigger_type} method: {trigger_method_name}"
-                        # Log the full stack trace, prepend a line with our message
-                        logger.exception(msg)
-                        raise schema_errors.NoDataProviderGroupException
-                    except schema_errors.MultipleDataProviderGroupException as e:
-                        msg = f"Failed to call the {trigger_type} method: {trigger_method_name}"
-                        # Log the full stack trace, prepend a line with our message
-                        logger.exception(msg)
-                        raise schema_errors.MultipleDataProviderGroupException
-                    except schema_errors.UnmatchedDataProviderGroupException as e:
-                        msg = f"Failed to call the {trigger_type} method: {trigger_method_name}"
-                        # Log the full stack trace, prepend a line with our message
-                        logger.exception(msg)
-                        raise schema_errors.UnmatchedDataProviderGroupException
-                    except Exception as e:
-                        msg = f"Failed to call the {trigger_type} method: {trigger_method_name}"
-                        # Log the full stack trace, prepend a line with our message
-                        logger.exception(msg)
-
-                        if trigger_type == 'before_create_trigger':
-                            # We can't create/update the entity 
-                            # without successfully executing this trigger method
-                            raise schema_errors.BeforeCreateTriggerException
-                        else:
-                            # Assign the error message as the value of this property
-                            # No need to raise exception
-                            trigger_generated_data_dict[key] = msg
             else:
-                # Handling of all other trigger types: on_read_trigger
+                # Handling of all other trigger types: before_create_trigger|on_read_trigger
                 trigger_method_name = properties[key][trigger_type]
 
                 logger.debug(f"Calling schema {trigger_type}: {trigger_method_name} defined for {normalized_class}")
@@ -1097,12 +1044,12 @@ Check if the given group uuid is valid
 
 Parameters
 ----------
-user_token: str
-    The user's globus nexus token
 group_uuid : str
     The target group uuid string
+user_group_uuids: list
+    An optional list of group uuids to check against, a subset of all the data provider group uuids
 """
-def validate_entity_group_uuid(group_uuid, user_group_uuids):
+def validate_entity_group_uuid(group_uuid, user_group_uuids = None):
     # Get the globus groups info based on the groups json file in commons package
     globus_groups_info = globus_groups.get_globus_groups_info()
     groups_by_id_dict = globus_groups_info['by_id']
@@ -1114,12 +1061,14 @@ def validate_entity_group_uuid(group_uuid, user_group_uuids):
         logger.exception(msg)
         raise schema_errors.NoDataProviderGroupException(msg)
 
-    # Next, make sure the given group_uuid is associated with the user
-    if group_uuid not in user_group_uuids:
-        msg = f"The user doesn't belong to the given group of uuid: {group_uuid}. Can't continue."
-        # Log the full stack trace, prepend a line with our message
-        logger.exception(msg)
-        raise schema_errors.UnmatchedDataProviderGroupException(msg)
+    # Optional check depending if user_group_uuids is provided
+    if user_group_uuids:
+        # Next, make sure the given group_uuid is associated with the user
+        if group_uuid not in user_group_uuids:
+            msg = f"The user doesn't belong to the given group of uuid: {group_uuid}. Can't continue."
+            # Log the full stack trace, prepend a line with our message
+            logger.exception(msg)
+            raise schema_errors.UnmatchedDataProviderGroupException(msg)
 
 
 """

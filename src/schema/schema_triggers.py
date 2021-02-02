@@ -752,6 +752,7 @@ def get_local_directory_rel_path(property_key, normalized_type, user_token, exis
     if (not 'group_uuid' in existing_data_dict) or (not existing_data_dict['group_uuid']):
         raise KeyError(f"Group uuid not set for dataset with uuid: {uuid}")
 
+    
     # Validate the group_uuid and make sure it's one of the valid data providers
     try:
         schema_manager.validate_entity_group_uuid(existing_data_dict['group_uuid'])
@@ -846,10 +847,11 @@ str: The target property key
 list: The file info dicts in a list
 """
 def commit_image_files(property_key, normalized_type, user_token, existing_data_dict, new_data_dict):
-    target_property_key = 'image_files'
-
+    # Do nothing if no `image_files_to_add` provided from request
     if not property_key in new_data_dict:
-        raise KeyError(f"Missing '{property_key}' key in 'new_data_dict' during calling 'commit_image_files()' trigger method.")
+        return property_key, None
+
+    target_property_key = 'image_files'
 
     # If POST or PUT where the target doesn't exist create the file info array
     if not target_property_key in existing_data_dict:
@@ -915,6 +917,10 @@ str: The target property key
 list: The file info dicts in a list
 """
 def delete_image_files(property_key, normalized_type, user_token, existing_data_dict, new_data_dict):
+    # Do nothing if no `image_files_to_delete` provided from request
+    if not property_key in new_data_dict:
+        return property_key, None
+
     target_property_key = 'image_files'
 
     if 'uuid' not in existing_data_dict:
@@ -922,10 +928,7 @@ def delete_image_files(property_key, normalized_type, user_token, existing_data_
     
     if target_property_key not in existing_data_dict:
         raise KeyError(f"Missing '{target_property_key}' key in 'existing_data_dict' during calling 'delete_image_files()' trigger method.")
-    
-    if property_key not in new_data_dict:
-        raise KeyError(f"Missing '{property_key}' key in 'new_data_dict' during calling 'delete_image_files()' trigger method.")
-    
+
     try:
         entity_uuid = existing_data_dict['uuid']
         # `upload_dir` is already normalized with trailing slash
