@@ -4,7 +4,7 @@ import shutil
 import logging
 import pathlib
 import requests
-# Don't confuse urllib (Python natice library) with urllib3 (3rd-party library, requests also uses urllib3)
+# Don't confuse urllib (Python native library) with urllib3 (3rd-party library, requests also uses urllib3)
 from requests.packages.urllib3.exceptions import InsecureRequestWarning
 import hashlib
 import os

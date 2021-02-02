@@ -5,7 +5,7 @@ import re
 import json
 import requests
 import urllib
-# Don't confuse urllib (Python natice library) with urllib3 (3rd-party library, requests also uses urllib3)
+# Don't confuse urllib (Python native library) with urllib3 (3rd-party library, requests also uses urllib3)
 from requests.packages.urllib3.exceptions import InsecureRequestWarning
 from pathlib import Path
 import logging
