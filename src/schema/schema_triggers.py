@@ -1,3 +1,4 @@
+import ast
 import json
 import logging
 import datetime
@@ -850,12 +851,16 @@ def commit_image_files(property_key, normalized_type, user_token, existing_data_
     if not property_key in new_data_dict:
         raise KeyError(f"Missing '{property_key}' key in 'new_data_dict' during calling 'commit_image_files()' trigger method.")
 
-    #if POST or PUT where the target doesn't exist create the file info array
+    # If POST or PUT where the target doesn't exist create the file info array
     if not target_property_key in existing_data_dict:
         files_info_list = []
-    #otherwise this is a PUT where the target array exists already
+    # Otherwise this is a PUT where the target array exists already
     else:
-        files_info_list = json.loads(existing_data_dict[target_property_key].replace("'", '"'))
+        # Note: The property `image_files` value is stored in Neo4j as a string representation of the Python list
+        # It's not stored in Neo4j as a json string! And we can't store it as a json string 
+        # due to the way that Cypher handles single/double quotes.
+        #files_info_list = json.loads(existing_data_dict[target_property_key].replace("'", '"'))
+        files_info_list = ast.literal_eval(existing_data_dict[target_property_key])
 
     try:
         if 'uuid' in new_data_dict:
@@ -873,7 +878,6 @@ def commit_image_files(property_key, normalized_type, user_token, existing_data_
             
             # The `description` is optional
             if 'description' in file_info:
-                # Note: it'll break the neo4j query if description contains single quotes
                 file_info_to_add['description'] = file_info['description']
             
             # Add to list
