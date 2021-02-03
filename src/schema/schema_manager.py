@@ -212,12 +212,12 @@ def generate_triggered_data(trigger_type, normalized_class, user_token, existing
                 if key in existing_data_dict:
                     trigger_method_name = properties[key][trigger_type]
 
-                    logger.debug(f"Calling schema {trigger_type}: {trigger_method_name} defined for {normalized_class}")
-
-                    # Call the target trigger method of schema_triggers.py module
-                    trigger_method_to_call = getattr(schema_triggers, trigger_method_name)
-
                     try:
+                        # Get the target trigger method defined in the schema_triggers.py module
+                        trigger_method_to_call = getattr(schema_triggers, trigger_method_name)
+                        
+                        logger.debug(f"To run {trigger_type}: {trigger_method_name} defined for {normalized_class}")
+
                         # No return values for 'after_create_trigger' and 'after_update_trigger'
                         # because the property value is already set in `data_dict`
                         # normally it's building linkages between entity nodes
@@ -233,16 +233,15 @@ def generate_triggered_data(trigger_type, normalized_class, user_token, existing
                         elif trigger_type == 'after_update_trigger':
                             raise schema_errors.AfterUpdateTriggerException
             elif trigger_type in ['before_update_trigger']:
-                # Only call the triggers on the properties to be updated
+                # Only call the triggers on the properties specified in request JSON to be updated
                 if key in new_data_dict:
                     trigger_method_name = properties[key][trigger_type]
 
-                    logger.debug(f"Calling schema {trigger_type}: {trigger_method_name} defined for {normalized_class}")
-
-                    # Call the target trigger method of schema_triggers.py module
-                    trigger_method_to_call = getattr(schema_triggers, trigger_method_name)
-
                     try:
+                        trigger_method_to_call = getattr(schema_triggers, trigger_method_name)
+
+                        logger.debug(f"To run {trigger_type}: {trigger_method_name} defined for {normalized_class}")
+
                         # Will set the trigger return value as the property value by default
                         # Unless the return value is to be assigned to another property different target key 
                         target_key, target_value = trigger_method_to_call(key, normalized_class, user_token, existing_data_dict, new_data_dict)
@@ -266,12 +265,11 @@ def generate_triggered_data(trigger_type, normalized_class, user_token, existing
                 # Handling of all other trigger types: before_create_trigger|on_read_trigger
                 trigger_method_name = properties[key][trigger_type]
 
-                logger.debug(f"Calling schema {trigger_type}: {trigger_method_name} defined for {normalized_class}")
-
-                # Call the target trigger method of schema_triggers.py module
-                trigger_method_to_call = getattr(schema_triggers, trigger_method_name)
-
                 try:
+                    trigger_method_to_call = getattr(schema_triggers, trigger_method_name)
+
+                    logger.debug(f"To run {trigger_type}: {trigger_method_name} defined for {normalized_class}")
+
                     # Will set the trigger return value as the property value by default
                     # Unless the return value is to be assigned to another property different target key 
                     target_key, target_value = trigger_method_to_call(key, normalized_class, user_token, existing_data_dict, new_data_dict)
@@ -314,15 +312,15 @@ def generate_triggered_data(trigger_type, normalized_class, user_token, existing
     
     # Return after for loop
     return trigger_generated_data_dict
-                
+       
 
 """
 Generate the complete entity record as well as result filtering for response
 
 Parameters
 ----------
-user_token: str
-    The user's globus nexus token
+token: str
+    Either the user's globus nexus token or the internal token
 entity_dict : dict
     The entity dict based on neo4j record
 properties_to_skip : list
@@ -333,13 +331,13 @@ Returns
 dict
     A dictionary of complete entity with all the generated 'on_read_trigger' data
 """
-def get_complete_entity_result(user_token, entity_dict, properties_to_skip = []):
+def get_complete_entity_result(token, entity_dict, properties_to_skip = []):
     # In case some incorrectly created entities don't have the `entity_type` property
     if 'entity_type' in entity_dict:
         # No error handling here since if a 'on_read_trigger' method failed, 
         # the property value will be the error message
         # Pass {} since no new_data_dict for 'on_read_trigger'
-        generated_on_read_trigger_data_dict = generate_triggered_data('on_read_trigger', entity_dict['entity_type'], user_token, entity_dict, {}, properties_to_skip)
+        generated_on_read_trigger_data_dict = generate_triggered_data('on_read_trigger', entity_dict['entity_type'], token, entity_dict, {}, properties_to_skip)
 
         # Merge the entity info and the generated on read data into one dictionary
         complete_entity_dict = {**entity_dict, **generated_on_read_trigger_data_dict}
@@ -352,8 +350,8 @@ Generate the complete entity records as well as result filtering for response
 
 Parameters
 ----------
-user_token: str
-    The user's globus nexus token
+token: str
+    Either the user's globus nexus token or the internal token
 entities_list : list
     A list of entity dictionaries 
 properties_to_skip : list
@@ -364,11 +362,11 @@ Returns
 list
     A list a complete entity dictionaries with all the normalized information
 """
-def get_complete_entities_list(user_token, entities_list, properties_to_skip = []):
+def get_complete_entities_list(token, entities_list, properties_to_skip = []):
     complete_entities_list = []
 
     for entity_dict in entities_list:
-        complete_entity_dict = get_complete_entity_result(user_token, entity_dict, properties_to_skip)
+        complete_entity_dict = get_complete_entity_result(token, entity_dict, properties_to_skip)
         complete_entities_list.append(complete_entity_dict)
 
     return complete_entities_list
