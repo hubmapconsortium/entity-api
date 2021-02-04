@@ -515,11 +515,13 @@ def validate_json_data_against_schema(json_data_dict, normalized_entity_type, ex
         raise schema_errors.SchemaValidationException(f"Unsupported keys in request json: {separator.join(unsupported_keys)}")
 
     # Check if keys in request json are the ones to be auto generated
+    # Disallow direct creation via POST, but allow update via PUT
     generated_keys = []
-    for key in json_data_keys:
-        if ('generated' in properties[key]) and properties[key]['generated']:
-            if properties[key]:
-                generated_keys.append(key)
+    if not existing_entity_dict:
+        for key in json_data_keys:
+            if ('generated' in properties[key]) and properties[key]['generated']:
+                if properties[key]:
+                    generated_keys.append(key)
 
     if len(generated_keys) > 0:
         # No need to log the validation errors

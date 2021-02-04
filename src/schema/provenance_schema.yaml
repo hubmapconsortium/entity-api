@@ -301,7 +301,7 @@ ENTITIES:
         # This property has no trigger method, but will be created via `image_files_to_add` and updated via `image_files_to_delete`
         #todo: migrate to new attribute set as above portal_metadata_upload files
         type: list 
-        generated: true # Disallow direct user input from create via POST
+        generated: true # Disallow direct user input from create via POST, but can be used for update via PUT
         description: "List of uploaded image files and descriptions of the files. Stored in db as a stringfied json array."
         # Only image file descriptions are allowed to be updated
         # Adding or deleting image files must via the other two properties
