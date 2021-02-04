@@ -816,10 +816,12 @@ def update_image_files_descriptions(property_key, normalized_type, user_token, e
 
     for file_info in new_data_dict[property_key]:
         file_uuid = file_info['file_uuid']
-
-        # Keep filename and file_uuid unchanged
-        # Only update the description
-        file_info_by_uuid_dict[file_uuid]['description'] = file_info['description']
+        
+        # Existence check in case the file uuid gets edited in the request
+        if file_uuid in file_info_by_uuid_dict:
+            # Keep filename and file_uuid unchanged
+            # Only update the description
+            file_info_by_uuid_dict[file_uuid]['description'] = file_info['description']
 
     # In Python3, dict.values() returns a view of the dictionary's values instead of list
     return property_key, list(file_info_by_uuid_dict.values())
