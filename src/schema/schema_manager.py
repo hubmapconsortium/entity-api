@@ -101,9 +101,6 @@ def load_provenance_schema(valid_yaml_file):
 
         logger.info("Schema yaml file loaded successfully")
 
-        logger.debug("======schema_dict======")
-        logger.debug(schema_dict)
-
         return schema_dict
 
 

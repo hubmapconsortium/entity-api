@@ -82,11 +82,16 @@ def http_internal_server_error(e):
 # Initialize AuthHelper (AuthHelper from HuBMAP commons package)
 # auth_helper_instance will be used to get the globus user info and 
 # the secret token for making calls to other APIs
-if AuthHelper.isInitialized() == False:
-    auth_helper_instance = AuthHelper.create(app.config['APP_CLIENT_ID'], 
-                                             app.config['APP_CLIENT_SECRET'])
-else:
-    auth_helper_instance = AuthHelper.instance()
+try:
+    if auth_helper_instance is None:
+        auth_helper_instance = AuthHelper.create(app.config['APP_CLIENT_ID'], 
+                                                 app.config['APP_CLIENT_SECRET'])
+
+        logger.info("Initialized AuthHelper successfully :)")
+except Exception:
+    msg = "Failed to initialize the AuthHelper"
+    # Log the full stack trace, prepend a line with our message
+    logger.exception(msg)
 
 
 ####################################################################################################
@@ -95,9 +100,18 @@ else:
 
 # The neo4j_driver (from commons package) is a singleton module
 # This neo4j_driver_instance will be used for application-specifc neo4j queries
-neo4j_driver_instance = neo4j_driver.instance(app.config['NEO4J_URI'], 
-                                              app.config['NEO4J_USERNAME'], 
-                                              app.config['NEO4J_PASSWORD'])
+try:
+    if neo4j_driver_instance is None:
+        neo4j_driver_instance = neo4j_driver.instance(app.config['NEO4J_URI'], 
+                                                      app.config['NEO4J_USERNAME'], 
+                                                      app.config['NEO4J_PASSWORD'])
+
+        logger.info("Initialized neo4j_driver successfully :)")
+except Exception:
+    msg = "Failed to initialize the neo4j_driver"
+    # Log the full stack trace, prepend a line with our message
+    logger.exception(msg)
+
 
 """
 Close the current neo4j connection at the end of every request
@@ -116,11 +130,12 @@ def close_neo4j_driver(error):
 ####################################################################################################
 
 try:
-    file_upload_helper_instance = UploadFileHelper(app.config['FILE_UPLOAD_TEMP_DIR'], 
-                                                   app.config['FILE_UPLOAD_DIR'],
-                                                   app.config['UUID_API_URL'])
+    if file_upload_helper_instance is None:
+        file_upload_helper_instance = UploadFileHelper(app.config['FILE_UPLOAD_TEMP_DIR'], 
+                                                       app.config['FILE_UPLOAD_DIR'],
+                                                       app.config['UUID_API_URL'])
 
-    logger.info("Initialized UploadFileHelper successfully :)")
+        logger.info("Initialized UploadFileHelper successfully :)")
 
     file_upload_helper_instance.clean_temp_dir()
 # Use a broad catch-all here
@@ -128,7 +143,6 @@ except Exception:
     msg = "Failed to initialize the UploadFileHelper"
     # Log the full stack trace, prepend a line with our message
     logger.exception(msg)
-    # Terminate and let the users know
 
 
 ####################################################################################################
@@ -136,22 +150,32 @@ except Exception:
 ####################################################################################################
 
 try:
-    # Pass in the neo4j connection (uri, username, password) parameters in addition to the schema yaml
-    # Because some of the schema trigger methods may issue queries to the neo4j.
-    schema_manager.initialize(app.config['SCHEMA_YAML_FILE'], 
-                              app.config['UUID_API_URL'],
-                              # Pass in auth_helper_instance, neo4j_driver instance, and file_upload_helper instance
-                              auth_helper_instance,
-                              neo4j_driver_instance,
-                              file_upload_helper_instance)
+    if schema_manager is None:
+        # Pass in the neo4j connection (uri, username, password) parameters in addition to the schema yaml
+        # Because some of the schema trigger methods may issue queries to the neo4j.
+        schema_manager.initialize(app.config['SCHEMA_YAML_FILE'], 
+                                  app.config['UUID_API_URL'],
+                                  # Pass in auth_helper_instance, neo4j_driver instance, and file_upload_helper instance
+                                  auth_helper_instance,
+                                  neo4j_driver_instance,
+                                  file_upload_helper_instance)
 
-    logger.info("Initialized schema_manager successfully :)")
+        logger.info("Initialized schema_manager successfully :)")
 # Use a broad catch-all here
 except Exception:
     msg = "Failed to initialize the schema_manager module"
     # Log the full stack trace, prepend a line with our message
     logger.exception(msg)
-    # Terminate and let the users know
+
+####################################################################################################
+## Constants
+####################################################################################################
+
+# For now, don't use the constants from commons
+# All lowercase for easy comparision
+ACCESS_LEVEL_PUBLIC = 'public'
+ACCESS_LEVEL_CONSORTIUM = 'consortium'
+ACCESS_LEVEL_PROTECTED = 'protected'
 
 
 ####################################################################################################
@@ -213,25 +237,72 @@ json
 """
 @app.route('/entities/<id>', methods = ['GET'])
 def get_entity_by_id(id):
-    # TO-DO: eventually we'll want to allow folks to make that call 
-    # for public/published entities (should work the same way that search works) 
-    # without any token at all. 
-    # We'll just use `get_internal_token()` to query against uuid-api and check the 
-    # data_access_level for Donor/Sample. Use `status`=="Published" for Dataset
-
-    # Get user token from Authorization header
-    user_token = get_user_token(request.headers) 
+    # Use the internal token to query the target entity 
+    # since public entities don't require user token
+    token = get_internal_token() 
 
     # Query target entity against uuid-api and neo4j and return as a dict if exists
-    entity_dict = query_target_entity(id, user_token)
+    entity_dict = query_target_entity(id, token)
+    normalized_entity_type = entity_dict['entity_type']
+    entity_data_access_level = entity_dict['data_access_level']
 
     # Handle Collection retrieval using a different endpoint 
     if entity_dict['entity_type'] == 'Collection':
         bad_request_error("Please use another API endpoint `/collections/<id>` to query a collection")
 
+    error_msg_401 = f"A valid globus token is required to retrieve the entity information for {normalized_entity_type}: {id}"
+    error_msg_403 = f"Not authorized to retrieve the entity information for {normalized_entity_type}: {id}"
+
+    # The `data_access_level` of Dataset can be 'public', consortium', or 'protected'
+    if normalized_entity_type == 'Dataset':
+        # Only published/public datasets don't require token
+        if entity_dict['status'].lower() != 'published':
+            # Get user data_access_level based on token
+            try:
+                # The user_info contains HIGHEST access level of the user based on the token
+                # This call raises an HTTPException with a 401 if any auth issues encountered
+                user_info = auth_helper_instance.getUserDataAccessLevel(request)
+            # If returns HTTPException with a 401, invalid header format or expired/invalid token
+            except HTTPException:
+                unauthorized_error(error_msg_401)
+
+            # Now there's a valid token, will need to check the access level
+            user_data_access_level = user_info['data_access_level'].lower()
+
+            # Use two checks instead of merging them into one long check for readibility
+            if (entity_data_access_level == ACCESS_LEVEL_CONSORTIUM) and (user_data_access_level == ACCESS_LEVEL_PUBLIC):
+                forbidden_error(error_msg_403)
+
+            if (entity_data_access_level == ACCESS_LEVEL_PROTECTED) and (user_data_access_level != ACCESS_LEVEL_CONSORTIUM):
+                forbidden_error(error_msg_403)
+
+            # Pass the user token instead the internal token for subsequent function calls
+            token = get_user_token(request.headers)
+    else:
+        # The `data_access_level` of Donor/Sample can only be either 'public' or 'consortium'
+        if entity_data_access_level == ACCESS_LEVEL_CONSORTIUM:
+            # Get user data_access_level based on token
+            try:
+                # The user_info contains HIGHEST access level of the user based on the token
+                # This call raises an HTTPException with a 401 if any auth issues encountered
+                user_info = auth_helper_instance.getUserDataAccessLevel(request)
+            # If returns HTTPException with a 401, invalid header format or expired/invalid token
+            except HTTPException:
+                unauthorized_error(error_msg_401)
+
+            # Now there's a valid token, will need to check the access level
+            user_data_access_level = user_info['data_access_level'].lower()
+
+            if user_data_access_level == ACCESS_LEVEL_PUBLIC:
+                forbidden_error(error_msg_403)
+
+            # Pass the user token instead the internal token for subsequent function calls
+            token = get_user_token(request.headers)
+
+    # By now, either the entity is public accessible or the user token has the correct access level
     # We'll need to return all the properties including those 
     # generated by `on_read_trigger` to have a complete result
-    complete_dict = schema_manager.get_complete_entity_result(user_token, entity_dict)
+    complete_dict = schema_manager.get_complete_entity_result(token, entity_dict)
 
     # Will also filter the result based on schema
     final_result = schema_manager.normalize_entity_result_for_response(complete_dict)
@@ -292,12 +363,6 @@ def get_entity_provenance(id):
     separator = ', '
     if normalized_entity_type not in supported_entity_types:
         bad_request_error(f"Unable to get the provenance for this {normalized_entity_type}, the requested entity must be one of: {separator.join(supported_entity_types)}")
-
-    # For now, don't use the constants from commons
-    # All lowercase for easy comparision
-    ACCESS_LEVEL_PUBLIC = 'public'
-    ACCESS_LEVEL_CONSORTIUM = 'consortium'
-    ACCESS_LEVEL_PROTECTED = 'protected'
 
     error_msg_401 = f"A valid globus token is required to retrieve the provenance information for {normalized_entity_type}: {id}"
     error_msg_403 = f"Not authorized to retrieve the provenance information for {normalized_entity_type}: {id}"
@@ -1188,51 +1253,63 @@ Response
 # New route
 @app.route('/dataset/globus-url/<id>', methods = ['GET'])
 def get_dataset_globus_url(id):
-    # Get user token from Authorization header
-    user_token = get_user_token(request.headers)
-
-    # For now, don't use the constants from commons
-    ACCESS_LEVEL_PUBLIC = 'public'
-    ACCESS_LEVEL_CONSORTIUM = 'consortium'
-    ACCESS_LEVEL_PROTECTED = 'protected'
+    # Use the internal token to query the target entity 
+    # since public entities don't require user token
+    token = get_internal_token()
 
     # Query target entity against uuid-api and neo4j and return as a dict if exists
     # Then retrieve the allowable data access level (public, protected or consortium)
     # for the dataset and HuBMAP Component ID that the dataset belongs to
-    entity_dict = query_target_entity(id, user_token)
+    entity_dict = query_target_entity(id, token)
+    entity_data_access_level = entity_dict['data_access_level']
+    uuid = entity_dict['uuid']
     
     # Only for dataset
     if entity_dict['entity_type'] != 'Dataset':
         bad_request_error("The target entity of the specified id is not a Dataset")
+    
+    # Only published/public datasets don't require token
+    if entity_dict['status'].lower() != 'published':
+        error_msg_401 = f"A valid globus token is required to retrieve the dataset information for {normalized_entity_type}: {id}"
+        error_msg_403 = f"Not authorized to retrieve the dataset information for {normalized_entity_type}: {id}"
 
-    uuid = entity_dict['uuid']
+        # Get user data_access_level based on token
+        try:
+            # The user_info contains HIGHEST access level of the user based on the token
+            # This call raises an HTTPException with a 401 if any auth issues encountered
+            user_info = auth_helper_instance.getUserDataAccessLevel(request)
+        # If returns HTTPException with a 401, invalid header format or expired/invalid token
+        except HTTPException:
+            unauthorized_error(error_msg_401)
+
+        # Now there's a valid token, will need to check the access level
+        user_data_access_level = user_info['data_access_level'].lower()
+
+        # Use two checks instead of merging them into one long check for readibility
+        if (entity_data_access_level == ACCESS_LEVEL_CONSORTIUM) and (user_data_access_level == ACCESS_LEVEL_PUBLIC):
+            forbidden_error(error_msg_403)
+
+        if (entity_data_access_level == ACCESS_LEVEL_PROTECTED) and (user_data_access_level != ACCESS_LEVEL_CONSORTIUM):
+            forbidden_error(error_msg_403)
+
+        # Pass the user token instead the internal token for subsequent function calls
+        token = get_user_token(request.headers)
 
     # Get the globus groups info based on the groups json file in commons package
     globus_groups_info = globus_groups.get_globus_groups_info()
     groups_by_id_dict = globus_groups_info['by_id']
-    
-    data_access_level = entity_dict['data_access_level']
-
+  
     if not 'group_uuid' in entity_dict or string_helper.isBlank(entity_dict['group_uuid']):
         msg = f"The 'group_uuid' property is not set for dataset with uuid: {uuid}"
         logger.exception(msg)
         internal_server_error(msg)
 
-    #look up the Component's group ID, return an error if not found
+    # Look up the Component's group ID, return an error if not found
     group_uuid = entity_dict['group_uuid']
     if not group_uuid in groups_by_id_dict:
         msg = f"Invalid 'group_uuid': {group_uuid} for dataset with uuid: {uuid}"
         logger.exception(msg)
         internal_server_error(msg)
-
-    # Get the user information (if available) for the caller
-    try:
-        # The user_info contains HIGHEST access level of the user based on the token
-        # This call raises an HTTPException with a 401 if any auth issues encountered
-        user_info = auth_helper_instance.getUserDataAccessLevel(request)
-    # If returns HTTPException with a 401, expired/invalid token
-    except HTTPException:
-        unauthorized_error("The token is invalid or expired")
 
     #construct the Globus URL based on the highest level of access that the user has
     #and the level of access allowed for the dataset
@@ -1254,17 +1331,17 @@ def get_dataset_globus_url(id):
         user_access_level = user_info['data_access_level']
 
     #public access
-    if data_access_level == ACCESS_LEVEL_PUBLIC:
+    if entity_data_access_level == ACCESS_LEVEL_PUBLIC:
         globus_server_uuid = app.config['GLOBUS_PUBLIC_ENDPOINT_UUID']
         access_dir = access_level_prefix_dir(app.config['PUBLIC_DATA_SUBDIR'])
         dir_path = dir_path +  access_dir + "/"
     #consortium access
-    elif data_access_level == ACCESS_LEVEL_CONSORTIUM and not user_access_level == ACCESS_LEVEL_PUBLIC:
+    elif entity_data_access_level == ACCESS_LEVEL_CONSORTIUM and not user_data_access_level == ACCESS_LEVEL_PUBLIC:
         globus_server_uuid = app.config['GLOBUS_CONSORTIUM_ENDPOINT_UUID']
         access_dir = access_level_prefix_dir(app.config['CONSORTIUM_DATA_SUBDIR'])
         dir_path = dir_path + access_dir + groups_by_id_dict[group_uuid]['displayname'] + "/"
     #protected access
-    elif user_access_level == ACCESS_LEVEL_PROTECTED and data_access_level == ACCESS_LEVEL_PROTECTED:
+    elif user_data_access_level == ACCESS_LEVEL_PROTECTED and entity_data_access_level == ACCESS_LEVEL_PROTECTED:
         globus_server_uuid = app.config['GLOBUS_PROTECTED_ENDPOINT_UUID']
         access_dir = access_level_prefix_dir(app.config['PROTECTED_DATA_SUBDIR'])
         dir_path = dir_path + access_dir + groups_by_id_dict[group_uuid]['displayname'] + "/"
