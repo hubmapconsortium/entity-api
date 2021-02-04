@@ -435,7 +435,7 @@ def normalize_entity_result_for_response(entity_dict, properties_to_exclude = []
         if (key in properties) and (key not in properties_to_exclude):
             # Safely evaluate a string containing a Python dict or list literal
             # instead of returning the json-as-string or array-as-string
-            if isinstance(entity_dict[key], str) and properties[key]['type'] in ['list', 'json_string']:
+            if isinstance(entity_dict[key], str) and entity_dict[key] and (properties[key]['type'] in ['list', 'json_string']):
                 # ast uses compile to compile the source string (which must be an expression) into an AST
                 # If the source string is not a valid expression (like an empty string), a SyntaxError will be raised by compile
                 # If, on the other hand, the source string would be a valid expression (e.g. a variable name like foo), 
@@ -444,6 +444,7 @@ def normalize_entity_result_for_response(entity_dict, properties_to_exclude = []
                 try:
                     entity_dict[key] = ast.literal_eval(entity_dict[key])
                 except (SyntaxError, ValueError, TypeError) as e:
+                    logger.debug(f"Invalid expression (string value) of key: {key} for ast.literal_eval()")
                     logger.debug(entity_dict[key])
                     msg = "Failed to convert the source string with ast.literal_eval()"
                     logger.exception(msg)
