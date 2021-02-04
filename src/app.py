@@ -1314,6 +1314,8 @@ def get_dataset_globus_url(id):
         logger.exception(msg)
         internal_server_error(msg)
 
+    group_name = groups_by_id_dict[group_uuid]['displayname']
+
     #construct the Globus URL based on the highest level of access that the user has
     #and the level of access allowed for the dataset
     #the first "if" checks to see if the user is a member of the Consortium group
@@ -1331,12 +1333,12 @@ def get_dataset_globus_url(id):
     elif entity_data_access_level == ACCESS_LEVEL_CONSORTIUM:
         globus_server_uuid = app.config['GLOBUS_CONSORTIUM_ENDPOINT_UUID']
         access_dir = access_level_prefix_dir(app.config['CONSORTIUM_DATA_SUBDIR'])
-        dir_path = dir_path + access_dir + groups_by_id_dict[group_uuid]['displayname'] + "/"
+        dir_path = dir_path + access_dir + group_name + "/"
     #protected access
     elif entity_data_access_level == ACCESS_LEVEL_PROTECTED:
         globus_server_uuid = app.config['GLOBUS_PROTECTED_ENDPOINT_UUID']
         access_dir = access_level_prefix_dir(app.config['PROTECTED_DATA_SUBDIR'])
-        dir_path = dir_path + access_dir + groups_by_id_dict[group_uuid]['displayname'] + "/"
+        dir_path = dir_path + access_dir + group_name + "/"
 
     dir_path = dir_path + uuid + "/"
     dir_path = urllib.parse.quote(dir_path, safe='')
