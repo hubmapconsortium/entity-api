@@ -798,17 +798,22 @@ def update_image_files_descriptions(property_key, normalized_type, user_token, e
     if property_key not in new_data_dict:
         raise KeyError(f"Missing '{property_key}' key in 'new_data_dict' during calling 'update_image_files_descriptions()' trigger method.")
 
+    if property_key not in existing_data_dict:
+        raise KeyError(f"Missing '{property_key}' key in 'existing_data_dict' during calling 'update_image_files_descriptions()' trigger method.")
+
     # 'image_files' must be a json array
     if not isinstance(new_data_dict[property_key], list):
         raise TypeError(f"'{property_key}' value in 'new_data_dict' must be a list during calling 'update_image_files_descriptions()' trigger method.")
 
     file_info_by_uuid_dict = {}
-    for file_info in existing_data_dict[property_key]:
+    # Convert the string literal to list
+    existing_image_files_list = ast.literal_eval(existing_data_dict[property_key])
+
+    for file_info in existing_image_files_list:
         file_uuid = file_info['file_uuid']
 
         file_info_by_uuid_dict[file_uuid] = file_info
 
-    files_info_list = []
     for file_info in new_data_dict[property_key]:
         file_uuid = file_info['file_uuid']
 
@@ -816,7 +821,8 @@ def update_image_files_descriptions(property_key, normalized_type, user_token, e
         # Only update the description
         file_info_by_uuid_dict[file_uuid]['description'] = file_info['description']
 
-    return property_key, file_info_by_uuid_dict.values()
+    # In Python3, dict.values() returns a view of the dictionary's values instead of list
+    return property_key, list(file_info_by_uuid_dict.values())
 
 
 """
