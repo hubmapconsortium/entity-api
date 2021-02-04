@@ -798,10 +798,25 @@ def update_image_files_descriptions(property_key, normalized_type, user_token, e
     if property_key not in new_data_dict:
         raise KeyError(f"Missing '{property_key}' key in 'new_data_dict' during calling 'update_image_files_descriptions()' trigger method.")
 
-    # The client should send all the descriptions including the ones have been updated?
-    # So we just store the updated informaiton directly?
+    # 'image_files' must be a json array
+    if not isinstance(new_data_dict[property_key], list):
+        raise TypeError(f"'{property_key}' value in 'new_data_dict' must be a list during calling 'update_image_files_descriptions()' trigger method.")
 
-    return property_key, new_data_dict[property_key]
+    file_info_by_uuid_dict = {}
+    for file_info in existing_data_dict[property_key]:
+        file_uuid = file_info['file_uuid']
+
+        file_info_by_uuid_dict[file_uuid] = file_info
+
+    files_info_list = []
+    for file_info in new_data_dict[property_key]:
+        file_uuid = file_info['file_uuid']
+
+        # Keep filename and file_uuid unchanged
+        # Only update the description
+        file_info_by_uuid_dict[file_uuid]['description'] = file_info['description']
+
+    return property_key, file_info_by_uuid_dict.values()
 
 
 """
