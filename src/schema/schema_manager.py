@@ -436,7 +436,13 @@ def normalize_entity_result_for_response(entity_dict, properties_to_exclude = []
             # Safely evaluate a string containing a Python dict or list literal
             # instead of returning the json-as-string or array-as-string
             if isinstance(entity_dict[key], str) and properties[key]['type'] in ['list', 'json_string']:
-                entity_dict[key] = ast.literal_eval(entity_dict[key])
+                logger.debug(entity_dict[key])
+
+                try:
+                    entity_dict[key] = ast.literal_eval(entity_dict[key])
+                except (SyntaxError, ValueError, TypeError) as e:
+                    msg = "Failed to convert the source string with ast.literal_eval()"
+                    logger.exception(msg)
 
             # By default, all properties are exposed
             # It's possible to see `exposed: true`
