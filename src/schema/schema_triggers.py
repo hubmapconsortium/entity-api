@@ -658,7 +658,7 @@ def relink_dataset_to_direct_ancestors(property_key, normalized_type, user_token
         # Create new ids for the new Activity
         new_ids_dict_list_for_activity = schema_manager.create_hubmap_ids(normalized_activity_type, json_data_dict = None, user_token = user_token, user_info_dict = None)
         new_ids_dict_for_activity = new_ids_dict_list_for_activity[0]
-        
+
         # The `existing_data_dict` should already have user_info
         data_dict_for_activity = {**existing_data_dict, **normalized_entity_type_dict, **new_ids_dict_for_activity}
 
@@ -849,7 +849,8 @@ list: The file info dicts in a list
 """
 def commit_image_files(property_key, normalized_type, user_token, existing_data_dict, new_data_dict):
     # Do nothing if no `image_files_to_add` provided from request
-    if not property_key in new_data_dict:
+    # Or `image_files_to_add` is empty
+    if (not property_key in new_data_dict) or (not new_data_dict[property_key]):
         return property_key, None
 
     target_property_key = 'image_files'
@@ -919,7 +920,8 @@ list: The file info dicts in a list
 """
 def delete_image_files(property_key, normalized_type, user_token, existing_data_dict, new_data_dict):
     # Do nothing if no `image_files_to_delete` provided from request
-    if not property_key in new_data_dict:
+    # Or `image_files_to_delete` is empty
+    if (not property_key in new_data_dict) or (not new_data_dict[property_key]):
         return property_key, None
 
     target_property_key = 'image_files'
