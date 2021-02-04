@@ -863,7 +863,6 @@ def commit_image_files(property_key, normalized_type, user_token, existing_data_
         # Note: The property `image_files` value is stored in Neo4j as a string representation of the Python list
         # It's not stored in Neo4j as a json string! And we can't store it as a json string 
         # due to the way that Cypher handles single/double quotes.
-        #files_info_list = json.loads(existing_data_dict[target_property_key].replace("'", '"'))
         files_info_list = ast.literal_eval(existing_data_dict[target_property_key])
 
     try:
@@ -936,7 +935,11 @@ def delete_image_files(property_key, normalized_type, user_token, existing_data_
         entity_uuid = existing_data_dict['uuid']
         # `upload_dir` is already normalized with trailing slash
         entity_upload_dir = schema_manager.get_file_upload_helper_instance().upload_dir + entity_uuid + os.sep
-        files_info_list = json.loads(existing_data_dict[target_property_key].replace("'", '"'))
+        
+        # Note: The property `image_files` value is stored in Neo4j as a string representation of the Python list
+        # It's not stored in Neo4j as a json string! And we can't store it as a json string 
+        # due to the way that Cypher handles single/double quotes.
+        files_info_list = ast.literal_eval(existing_data_dict[target_property_key])
         
         # Remove physical files from the file system
         for filename in new_data_dict[property_key]:
