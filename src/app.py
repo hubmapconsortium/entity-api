@@ -79,7 +79,7 @@ def http_internal_server_error(e):
 ## AuthHelper initialization
 ####################################################################################################
 
-# Initialize AuthHelper (AuthHelper from HuBMAP commons package)
+# Initialize AuthHelper class (AuthHelper from HuBMAP commons package)
 # auth_helper_instance will be used to get the globus user info and 
 # the secret token for making calls to other APIs
 try:
@@ -87,11 +87,11 @@ try:
         auth_helper_instance = AuthHelper.create(app.config['APP_CLIENT_ID'], 
                                                  app.config['APP_CLIENT_SECRET'])
 
-        logger.info("Initialized AuthHelper successfully :)")
+        logger.info("Initialized AuthHelper class successfully :)")
     else:
         auth_helper_instance = AuthHelper.instance()
 except Exception:
-    msg = "Failed to initialize the AuthHelper"
+    msg = "Failed to initialize the AuthHelper class"
     # Log the full stack trace, prepend a line with our message
     logger.exception(msg)
 
@@ -107,9 +107,9 @@ try:
                                                   app.config['NEO4J_USERNAME'], 
                                                   app.config['NEO4J_PASSWORD'])
 
-    logger.info("Initialized neo4j_driver successfully :)")
+    logger.info("Initialized neo4j_driver module successfully :)")
 except Exception:
-    msg = "Failed to initialize the neo4j_driver"
+    msg = "Failed to initialize the neo4j_driver module"
     # Log the full stack trace, prepend a line with our message
     logger.exception(msg)
 
@@ -131,19 +131,20 @@ def close_neo4j_driver(error):
 ####################################################################################################
 
 try:
+    # Initialize the UploadFileHelper class
     if UploadFileHelper.is_initialized() == False:
         file_upload_helper_instance = UploadFileHelper.create(app.config['FILE_UPLOAD_TEMP_DIR'], 
                                                        app.config['FILE_UPLOAD_DIR'],
                                                        app.config['UUID_API_URL'])
 
-        logger.info("Initialized UploadFileHelper successfully :)")
+        logger.info("Initialized UploadFileHelper class successfully :)")
     else:
         file_upload_helper_instance = UploadFileHelper.instance()
 
     file_upload_helper_instance.clean_temp_dir()
 # Use a broad catch-all here
 except Exception:
-    msg = "Failed to initialize the UploadFileHelper"
+    msg = "Failed to initialize the UploadFileHelper class"
     # Log the full stack trace, prepend a line with our message
     logger.exception(msg)
 
@@ -153,8 +154,7 @@ except Exception:
 ####################################################################################################
 
 try:
-    # Pass in the neo4j connection (uri, username, password) parameters in addition to the schema yaml
-    # Because some of the schema trigger methods may issue queries to the neo4j.
+    # The schema_manager is a singleton module
     schema_manager.initialize(app.config['SCHEMA_YAML_FILE'], 
                               app.config['UUID_API_URL'],
                               # Pass in auth_helper_instance, neo4j_driver instance, and file_upload_helper instance
@@ -162,7 +162,7 @@ try:
                               neo4j_driver_instance,
                               file_upload_helper_instance)
 
-    logger.info("Initialized schema_manager successfully :)")
+    logger.info("Initialized schema_manager module successfully :)")
 # Use a broad catch-all here
 except Exception:
     msg = "Failed to initialize the schema_manager module"
@@ -1350,9 +1350,14 @@ def get_dataset_globus_url(id):
 
 """
 File upload handling for Donor (for now, Sample will need file upload too)
+
+Returns
+-------
+json
+    A JSON containing the temp file uuid
 """
 @app.route('/file-upload', methods=['POST'])
-def create_file():
+def upload_file():
     logger.debug(request.files['file'])
 
     # Check if the post request has the file part

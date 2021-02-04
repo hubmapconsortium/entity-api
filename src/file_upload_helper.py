@@ -42,6 +42,7 @@ class UploadFileHelper:
     def instance():
         if instance is None:
             raise Exception("An instance of UploadFileHelper does not yet exist. Use UploadFileHelper.create(...) to create a new instance")
+        
         return instance
 
     @staticmethod
