@@ -275,7 +275,7 @@ def get_entity_by_id(id):
             if (entity_data_access_level == ACCESS_LEVEL_CONSORTIUM) and (user_data_access_level == ACCESS_LEVEL_PUBLIC):
                 forbidden_error(error_msg_403)
 
-            if (entity_data_access_level == ACCESS_LEVEL_PROTECTED) and (user_data_access_level != ACCESS_LEVEL_CONSORTIUM):
+            if (entity_data_access_level == ACCESS_LEVEL_PROTECTED) and (user_data_access_level != ACCESS_LEVEL_PROTECTED):
                 forbidden_error(error_msg_403)
 
             # Pass the user token instead the internal token for subsequent function calls
@@ -389,7 +389,7 @@ def get_entity_provenance(id):
             if (entity_data_access_level == ACCESS_LEVEL_CONSORTIUM) and (user_data_access_level == ACCESS_LEVEL_PUBLIC):
                 forbidden_error(error_msg_403)
 
-            if (entity_data_access_level == ACCESS_LEVEL_PROTECTED) and (user_data_access_level != ACCESS_LEVEL_CONSORTIUM):
+            if (entity_data_access_level == ACCESS_LEVEL_PROTECTED) and (user_data_access_level != ACCESS_LEVEL_PROTECTED):
                 forbidden_error(error_msg_403)
 
             # Pass the user token instead the internal token for subsequent function calls
@@ -1291,7 +1291,7 @@ def get_dataset_globus_url(id):
         if (entity_data_access_level == ACCESS_LEVEL_CONSORTIUM) and (user_data_access_level == ACCESS_LEVEL_PUBLIC):
             forbidden_error(error_msg_403)
 
-        if (entity_data_access_level == ACCESS_LEVEL_PROTECTED) and (user_data_access_level != ACCESS_LEVEL_CONSORTIUM):
+        if (entity_data_access_level == ACCESS_LEVEL_PROTECTED) and (user_data_access_level != ACCESS_LEVEL_PROTECTED):
             forbidden_error(error_msg_403)
 
     # By now, either the entity is public accessible or the user token has the correct access level
@@ -1304,8 +1304,9 @@ def get_dataset_globus_url(id):
         logger.exception(msg)
         internal_server_error(msg)
 
-    # Validate the group_uuid
     group_uuid = entity_dict['group_uuid']
+
+    # Validate the group_uuid
     try:
         schema_manager.validate_entity_group_uuid(group_uuid)
     except schema_errors.NoDataProviderGroupException:
@@ -1327,12 +1328,12 @@ def get_dataset_globus_url(id):
         access_dir = access_level_prefix_dir(app.config['PUBLIC_DATA_SUBDIR'])
         dir_path = dir_path +  access_dir + "/"
     #consortium access
-    elif entity_data_access_level == ACCESS_LEVEL_CONSORTIUM and not user_data_access_level == ACCESS_LEVEL_PUBLIC:
+    elif entity_data_access_level == ACCESS_LEVEL_CONSORTIUM:
         globus_server_uuid = app.config['GLOBUS_CONSORTIUM_ENDPOINT_UUID']
         access_dir = access_level_prefix_dir(app.config['CONSORTIUM_DATA_SUBDIR'])
         dir_path = dir_path + access_dir + groups_by_id_dict[group_uuid]['displayname'] + "/"
     #protected access
-    elif user_data_access_level == ACCESS_LEVEL_PROTECTED and entity_data_access_level == ACCESS_LEVEL_PROTECTED:
+    elif entity_data_access_level == ACCESS_LEVEL_PROTECTED:
         globus_server_uuid = app.config['GLOBUS_PROTECTED_ENDPOINT_UUID']
         access_dir = access_level_prefix_dir(app.config['PROTECTED_DATA_SUBDIR'])
         dir_path = dir_path + access_dir + groups_by_id_dict[group_uuid]['displayname'] + "/"
