@@ -28,7 +28,26 @@ requests.packages.urllib3.disable_warnings(category = InsecureRequestWarning)
 
 ID_CHARS=['2','3','4','5','6','7','8','9','b','c','d','e','g','h','j','k','l','m','n','p','q','r','s','t','v','w','x','z']                 
 
+instance = None
+
 class UploadFileHelper:
+    @staticmethod
+    def create(upload_temp_dir, upload_dir, uuid_api_url):
+        if instance is not None:
+            raise Exception("An instance of UploadFileHelper exists already. Use the UploadFileHelper.instance() method to retrieve it.")
+        
+        return UploadFileHelper(upload_temp_dir, upload_dir, uuid_api_url)
+
+    @staticmethod
+    def instance():
+        if instance is None:
+            raise Exception("An instance of UploadFileHelper does not yet exist. Use UploadFileHelper.create(...) to create a new instance")
+        return instance
+
+    @staticmethod
+    def is_initialized():
+        return(instance is not None)
+
     def __init__(self, upload_temp_dir, upload_dir, uuid_api_url):
         self.base_temp_dir = file_helper.ensureTrailingSlash(upload_temp_dir)
         self.upload_temp_dir = self.base_temp_dir + 'hm_tmp_uploads' + str(os.getpid()) + os.sep
