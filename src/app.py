@@ -1232,9 +1232,10 @@ Get the Globus URL to the given dataset
 It will provide a Globus URL to the dataset directory in of three Globus endpoints based on the access
 level of the user (public, consortium or protected), public only, of course, if no token is provided.
 If a dataset isn't found a 404 will be returned. There is a chance that a 500 can be returned, but not
-likely under normal circumstances, only for a misconfigured or failing in some way endpoint. If the 
-Auth token is provided but is expired or invalid a 401 is returned.  If access to the dataset is not
-allowed for the user (or lack of user) a 403 is returned.
+likely under normal circumstances, only for a misconfigured or failing in some way endpoint. 
+
+If the Auth token is provided but is expired or invalid a 401 is returned. If access to the dataset 
+is not allowed for the user (or lack of user) a 403 is returned.
 
 Parameters
 ----------
@@ -1263,7 +1264,6 @@ def get_dataset_globus_url(id):
     # Then retrieve the allowable data access level (public, protected or consortium)
     # for the dataset and HuBMAP Component ID that the dataset belongs to
     entity_dict = query_target_entity(id, token)
-    entity_data_access_level = entity_dict['data_access_level']
     uuid = entity_dict['uuid']
     normalized_entity_type = entity_dict['entity_type']
     
@@ -1271,30 +1271,12 @@ def get_dataset_globus_url(id):
     if normalized_entity_type != 'Dataset':
         bad_request_error("The target entity of the specified id is not a Dataset")
     
-    try:
-        # Get user data_access_level based on token if provided
-        # If no Authorization header, default user_info['data_access_level'] == 'public'
-        # The user_info contains HIGHEST access level of the user based on the token
-        # This call raises an HTTPException with a 401 if any auth issues encountered
-        user_info = auth_helper_instance.getUserDataAccessLevel(request)
-    # If returns HTTPException with a 401, expired/invalid token
-    except HTTPException:
-        unauthorized_error("The token is invalid or expired")   
+    # If no access level is present on the dataset default to protected
+    if not 'data_access_level' in entity_dict or string_helper.isBlank(entity_dict['data_access_level']):
+        entity_data_access_level = ACCESS_LEVEL_PROTECTED
+    else:
+        entity_data_access_level = entity_dict['data_access_level']
 
-    error_msg_403 = f"Not authorized to retrieve the dataset information for {normalized_entity_type}: {id}"
-
-    user_data_access_level = user_info['data_access_level'].lower()
-
-    # Only published/public datasets don't require token
-    if entity_dict['status'].lower() != 'published':
-        # Use two checks instead of merging them into one long check for readibility
-        if (entity_data_access_level == ACCESS_LEVEL_CONSORTIUM) and (user_data_access_level == ACCESS_LEVEL_PUBLIC):
-            forbidden_error(error_msg_403)
-
-        if (entity_data_access_level == ACCESS_LEVEL_PROTECTED) and (user_data_access_level != ACCESS_LEVEL_PROTECTED):
-            forbidden_error(error_msg_403)
-
-    # By now, either the entity is public accessible or the user token has the correct access level
     # Get the globus groups info based on the groups json file in commons package
     globus_groups_info = globus_groups.get_globus_groups_info()
     groups_by_id_dict = globus_groups_info['by_id']
@@ -1316,29 +1298,54 @@ def get_dataset_globus_url(id):
 
     group_name = groups_by_id_dict[group_uuid]['displayname']
 
+    try:
+        # Get user data_access_level based on token if provided
+        # If no Authorization header, default user_info['data_access_level'] == 'public'
+        # The user_info contains HIGHEST access level of the user based on the token
+        # This call raises an HTTPException with a 401 if any auth issues encountered
+        user_info = auth_helper_instance.getUserDataAccessLevel(request)
+    # If returns HTTPException with a 401, expired/invalid token
+    except HTTPException:
+        unauthorized_error("The provided token is invalid or expired")   
+
+    # The user is in the Globus group with full access to thie dataset,
+    # so they have protected level access to it
+    if ('hmgroupids' in user_info) and (group_uuid in user_info['hmgroupids']):
+        user_data_access_level = ACCESS_LEVEL_PROTECTED
+    else:
+        if not 'data_access_level' in user_info:
+            msg = f"Unexpected error, data access level could not be found for user trying to access dataset id: {id}"
+            logger.exception(msg)
+            return internal_server_error(msg)        
+        
+        user_data_access_level = user_info['data_access_level'].lower()
+
     #construct the Globus URL based on the highest level of access that the user has
     #and the level of access allowed for the dataset
     #the first "if" checks to see if the user is a member of the Consortium group
     #that allows all access to this dataset, if so send them to the "protected"
     #endpoint even if the user doesn't have full access to all protected data
-    globus_server_uuid = ''      
+    globus_server_uuid = None     
     dir_path = ''
     
-    #public access
+    # public access
     if entity_data_access_level == ACCESS_LEVEL_PUBLIC:
         globus_server_uuid = app.config['GLOBUS_PUBLIC_ENDPOINT_UUID']
         access_dir = access_level_prefix_dir(app.config['PUBLIC_DATA_SUBDIR'])
         dir_path = dir_path +  access_dir + "/"
-    #consortium access
-    elif entity_data_access_level == ACCESS_LEVEL_CONSORTIUM:
+    # consortium access
+    elif (entity_data_access_level == ACCESS_LEVEL_CONSORTIUM) and (not user_data_access_level == ACCESS_LEVEL_PUBLIC):
         globus_server_uuid = app.config['GLOBUS_CONSORTIUM_ENDPOINT_UUID']
         access_dir = access_level_prefix_dir(app.config['CONSORTIUM_DATA_SUBDIR'])
         dir_path = dir_path + access_dir + group_name + "/"
-    #protected access
-    elif entity_data_access_level == ACCESS_LEVEL_PROTECTED:
+    # protected access
+    elif (entity_data_access_level == ACCESS_LEVEL_PROTECTED) and (user_data_access_level == ACCESS_LEVEL_PROTECTED):
         globus_server_uuid = app.config['GLOBUS_PROTECTED_ENDPOINT_UUID']
         access_dir = access_level_prefix_dir(app.config['PROTECTED_DATA_SUBDIR'])
         dir_path = dir_path + access_dir + group_name + "/"
+
+    if globus_server_uuid is None:
+        forbidden_error("Access not granted")
 
     dir_path = dir_path + uuid + "/"
     dir_path = urllib.parse.quote(dir_path, safe='')
