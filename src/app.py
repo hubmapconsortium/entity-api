@@ -79,9 +79,7 @@ def http_internal_server_error(e):
 ## AuthHelper initialization
 ####################################################################################################
 
-# Initialize AuthHelper class (AuthHelper from HuBMAP commons package)
-# auth_helper_instance will be used to get the globus user info and 
-# the secret token for making calls to other APIs
+# Initialize AuthHelper class and ensure singleton
 try:
     if AuthHelper.isInitialized() == False:
         auth_helper_instance = AuthHelper.create(app.config['APP_CLIENT_ID'], 
@@ -102,6 +100,7 @@ except Exception:
 
 # The neo4j_driver (from commons package) is a singleton module
 # This neo4j_driver_instance will be used for application-specifc neo4j queries
+# as well as being passed to the schema_manager
 try:
     neo4j_driver_instance = neo4j_driver.instance(app.config['NEO4J_URI'], 
                                                   app.config['NEO4J_USERNAME'], 
@@ -131,17 +130,18 @@ def close_neo4j_driver(error):
 ####################################################################################################
 
 try:
-    # Initialize the UploadFileHelper class
+    # Initialize the UploadFileHelper class and ensure singleton
     if UploadFileHelper.is_initialized() == False:
         file_upload_helper_instance = UploadFileHelper.create(app.config['FILE_UPLOAD_TEMP_DIR'], 
-                                                       app.config['FILE_UPLOAD_DIR'],
-                                                       app.config['UUID_API_URL'])
+                                                              app.config['FILE_UPLOAD_DIR'],
+                                                              app.config['UUID_API_URL'])
 
         logger.info("Initialized UploadFileHelper class successfully :)")
+
+        # This will delete all the temp dirs on restart
+        file_upload_helper_instance.clean_temp_dir()
     else:
         file_upload_helper_instance = UploadFileHelper.instance()
-
-    file_upload_helper_instance.clean_temp_dir()
 # Use a broad catch-all here
 except Exception:
     msg = "Failed to initialize the UploadFileHelper class"
@@ -155,9 +155,9 @@ except Exception:
 
 try:
     # The schema_manager is a singleton module
+    # Pass in auth_helper_instance, neo4j_driver instance, and file_upload_helper instance
     schema_manager.initialize(app.config['SCHEMA_YAML_FILE'], 
                               app.config['UUID_API_URL'],
-                              # Pass in auth_helper_instance, neo4j_driver instance, and file_upload_helper instance
                               auth_helper_instance,
                               neo4j_driver_instance,
                               file_upload_helper_instance)
@@ -1358,8 +1358,6 @@ json
 """
 @app.route('/file-upload', methods=['POST'])
 def upload_file():
-    logger.debug(request.files['file'])
-
     # Check if the post request has the file part
     if 'file' not in request.files:
         bad_request_error('No file part')

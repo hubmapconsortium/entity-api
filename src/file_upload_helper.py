@@ -47,30 +47,24 @@ class UploadFileHelper:
 
     @staticmethod
     def is_initialized():
-        return(instance is not None)
+        if instance is None:
+            return False
+
+        return True
 
     def __init__(self, upload_temp_dir, upload_dir, uuid_api_url):
-        self.base_temp_dir = file_helper.ensureTrailingSlash(upload_temp_dir)
-        self.upload_temp_dir = self.base_temp_dir + 'hm_tmp_uploads' + str(os.getpid()) + os.sep
-
-        # Use pathlib to create dir instead of file_helper.mkDir
-        #file_helper.mkDir(self.upload_temp_dir)
-        pathlib.Path(self.upload_temp_dir).mkdir(parents=True, exist_ok=True)
-
+        self.upload_temp_dir = file_helper.ensureTrailingSlash(upload_temp_dir)
         self.upload_dir = file_helper.ensureTrailingSlash(upload_dir)
-        self.temp_files = {}
-
         self.uuid_api_url = uuid_api_url
+        self.temp_files = {}
     
     def clean_temp_dir(self):
-        for dirname in os.listdir(self.base_temp_dir):
-            dirpath = self.base_temp_dir + dirname
+        for dirname in os.listdir(self.upload_temp_dir):
+            dirpath = self.upload_temp_dir + dirname
             if os.path.isdir(dirpath):
                 shutil.rmtree(dirpath)
     
     def save_temp_file(self, file):
-        logger.debug(file)
-
         temp_id = self.__get_temp_file_id()
         file_dir = self.upload_temp_dir + temp_id + os.sep
         self.temp_files[temp_id] = {}
@@ -78,7 +72,6 @@ class UploadFileHelper:
         self.temp_files[temp_id]['filedir'] = file_dir
 
         # Use pathlib to create dir instead of file_helper.mkDir
-        #file_helper.mkDir(file_dir)
         pathlib.Path(file_dir).mkdir(parents=True, exist_ok=True)
 
         file.save(os.path.join(file_dir, secure_filename(file.filename)))
