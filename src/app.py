@@ -843,7 +843,9 @@ def create_multiple_samples(count):
             bad_request_error('The key "organ" with a valid organ code is required since the direct ancestor is a Donor')
 
     # Generate 'before_create_triiger' data and create the entity details in Neo4j
-    create_multiple_samples_details(request, normalized_entity_type, user_token, json_data_dict, count)
+    generated_ids_dict_list = create_multiple_samples_details(request, normalized_entity_type, user_token, json_data_dict, count)
+
+    return jsonify(generated_ids_dict_list)
 
 
 def create_multiple_samples_details(request, normalized_entity_type, user_token, json_data_dict, count):

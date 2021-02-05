@@ -278,7 +278,8 @@ def create_multiple_samples(neo4j_driver, samples_dict_list, activity_dict, dire
                 query = (f"MATCH (a:Activity) "
                          f"WHERE a.uuid = '{activity_uuid}' "
                          # Always define the Entity label in addition to the target `entity_type` label
-                         f"CREATE (e:Entity:Sample) { {separator.join(node_properties_to_create)} } "
+                         # Pay attention to the use of {{ }}
+                         f"CREATE (e:Entity:Sample {{ {separator.join(node_properties_to_create)} }}) "
                          f"CREATE (a)-[:ACTIVITY_OUTPUT]->(e)")
 
                 logger.debug("======create_multiple_samples() individual query======")
@@ -711,18 +712,18 @@ def _build_properties_for_create_clause(entity_data_dict):
     node_properties_to_create = []
     for key, value in entity_data_dict.items():
         if isinstance(value, int):
-            key_value_pair = f"e.{key}: {value}"
+            key_value_pair = f"{key}: {value}"
         elif isinstance(value, str):
             # Escape single quote
             escaped_str = value.replace("'", r"\'")
             # Quote the value
-            key_value_pair = f"e.{key}: '{escaped_str}'"
+            key_value_pair = f"{key}: '{escaped_str}'"
         else:
             # Convert list and dict to string
             # Must also escape single quotes in the string to build a valid Cypher query
             escaped_str = str(value).replace("'", r"\'")
             # Also need to quote the string value
-            key_value_pair = f"e.{key}: '{escaped_str}'"
+            key_value_pair = f"{key}: '{escaped_str}'"
 
         node_properties_to_create.append(key_value_pair)
 
