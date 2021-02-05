@@ -116,7 +116,7 @@ def link_entity_to_direct_ancestor(neo4j_driver, entity_uuid, ancestor_uuid, act
             tx = session.begin_transaction()
 
             # Create the Acvitity node
-            activity_dict = _create_activity_tx(tx, activity_json_list_str)
+            activity_dict = _node_to_dict(_create_activity_tx(tx, activity_json_list_str))
 
             # Create relationship from ancestor entity node to this Activity node
             _create_relationship_tx(tx, ancestor_uuid, activity_dict['uuid'], 'ACTIVITY_INPUT', '->')

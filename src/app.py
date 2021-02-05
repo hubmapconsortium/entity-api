@@ -747,20 +747,22 @@ def create_entity(entity_type):
     # Collection and Donor: create entity
     if normalized_entity_type == 'Sample':
         # A bit more validation for new sample to be linked to existing source entity
-        has_direct_ancestor_uuid = False
-        if ('direct_ancestor_uuid' in json_data_dict) and json_data_dict['direct_ancestor_uuid']:
-            has_direct_ancestor_uuid = True
+        direct_ancestor_uuid = json_data_dict['direct_ancestor_uuid']
+        # Check existence of the direct ancestor (either another Sample or Donor)
+        direct_ancestor_dict = query_target_entity(direct_ancestor_uuid, user_token)
 
-            direct_ancestor_uuid = json_data_dict['direct_ancestor_uuid']
-            # Check existence of the direct ancestor (either another Sample or Donor)
-            direct_ancestor_dict = query_target_entity(direct_ancestor_uuid, user_token)
+        # Creating the ids require organ code to be specified for the samples to be created when the 
+        # sample's direct ancestor is a Donor.
+        # Must be one of the codes from: https://github.com/hubmapconsortium/search-api/blob/test-release/src/search-schema/data/definitions/enums/organ_types.yaml
+        if direct_ancestor_dict['entity_type'] == 'Donor':
+            if 'organ' not in json_data_dict:
+                bad_request_error('The key "organ" with a valid organ code is required since the direct ancestor is a Donor')
 
         # Generate 'before_create_triiger' data and create the entity details in Neo4j
         merged_dict = create_entity_details(request, normalized_entity_type, user_token, json_data_dict)
 
         # For new sample to be linked to existing direct ancestor
-        if has_direct_ancestor_uuid:
-            after_create(normalized_entity_type, user_token, merged_dict)
+        after_create(normalized_entity_type, user_token, merged_dict)
     elif normalized_entity_type == 'Dataset':    
         # A bit more validation if `direct_ancestor_uuids` provided
         has_direct_ancestor_uuids = False
@@ -793,6 +795,176 @@ def create_entity(entity_type):
     reindex_entity(complete_dict['uuid'])
 
     return jsonify(normalized_complete_dict)
+
+
+"""
+Create multiple samples from the same source entity
+
+Parameters
+----------
+entity_type : str
+    One of the target entity types (case-insensitive since will be normalized): Dataset, Collection, Sample, but NOT Donor or Collection
+
+Returns
+-------
+json
+    All the properties of the newly created entity
+"""
+@app.route('/entities/multiple-samples/<count>', methods = ['POST'])
+def create_multiple_samples(count):
+    # Get user token from Authorization header
+    user_token = get_user_token(request.headers)
+
+    # Normalize user provided entity_type
+    normalized_entity_type = 'Sample'
+
+    # Always expect a json body
+    require_json(request)
+
+    # Parse incoming json string into json data(python dict object)
+    json_data_dict = request.get_json()
+
+    # Validate request json against the yaml schema
+    try:
+        schema_manager.validate_json_data_against_schema(json_data_dict, normalized_entity_type)
+    except schema_errors.SchemaValidationException as e:
+        # No need to log the validation errors
+        bad_request_error(str(e))
+
+    # `direct_ancestor_uuid` is required on create
+    # Check existence of the direct ancestor (either another Sample or Donor)
+    direct_ancestor_dict = query_target_entity(json_data_dict['direct_ancestor_uuid'], user_token)
+
+    # Creating the ids require organ code to be specified for the samples to be created when the 
+    # sample's direct ancestor is a Donor.
+    # Must be one of the codes from: https://github.com/hubmapconsortium/search-api/blob/test-release/src/search-schema/data/definitions/enums/organ_types.yaml
+    if direct_ancestor_dict['entity_type'] == 'Donor':
+        if 'organ' not in json_data_dict:
+            bad_request_error('The key "organ" with a valid organ code is required since the direct ancestor is a Donor')
+
+    # Generate 'before_create_triiger' data and create the entity details in Neo4j
+    create_multiple_samples_details(request, normalized_entity_type, user_token, json_data_dict, count)
+
+
+def create_multiple_samples_details(request, normalized_entity_type, user_token, json_data_dict, count):
+    # Get user info based on request
+    user_info_dict = schema_manager.get_user_info(request)
+
+    # Create new ids for the new entity
+    try:
+        new_ids_dict_list = schema_manager.create_hubmap_ids(normalized_entity_type, json_data_dict, user_token, user_info_dict, count)
+    # When group_uuid is provided by user, it can be invalid
+    except schema_errors.NoDataProviderGroupException:
+        # Log the full stack trace, prepend a line with our message
+        if 'group_uuid' in json_data_dict:
+            msg = "Invalid 'group_uuid' value, can't create the entity"
+        else:
+            msg = "The user does not have the correct Globus group associated with, can't create the entity"
+        
+        logger.exception(msg)
+        bad_request_error(msg)
+    except schema_errors.UnmatchedDataProviderGroupException:
+        # Log the full stack trace, prepend a line with our message
+        msg = "The user does not belong to the given Globus group, can't create the entity"
+        logger.exception(msg)
+        bad_request_error(msg)
+    except schema_errors.MultipleDataProviderGroupException:
+        # Log the full stack trace, prepend a line with our message
+        msg = "The user has mutiple Globus groups associated with, please specify one using 'group_uuid'"
+        logger.exception(msg)
+        bad_request_error(msg)
+    except KeyError as e:
+        # Log the full stack trace, prepend a line with our message
+        logger.exception(e)
+        bad_request_error(e)
+
+    logger.debug("new_ids_dict_list for multiple samples")
+    logger.debug(new_ids_dict_list)
+    
+    # Use the same json_data_dict and user_info_dict for each sample to be created
+    # Only difference is the hubmap_ids generated
+    samples_dict_list = []
+    for new_ids_dict in new_ids_dict_list:
+        # Merge all the dictionaries and pass to the trigger methods
+        new_data_dict = {**json_data_dict, **user_info_dict, **new_ids_dict}
+
+        try:
+            # Use {} since no existing dict
+            generated_before_create_trigger_data_dict = schema_manager.generate_triggered_data('before_create_trigger', normalized_entity_type, user_token, {}, new_data_dict)
+        # If one of the before_create_trigger methods fails, we can't create the entity
+        except schema_errors.BeforeCreateTriggerException:
+            # Log the full stack trace, prepend a line with our message
+            msg = "Failed to execute one of the 'before_create_trigger' methods, can't create the entity"
+            logger.exception(msg)
+            internal_server_error(msg)
+        except schema_errors.NoDataProviderGroupException:
+            # Log the full stack trace, prepend a line with our message
+            if 'group_uuid' in json_data_dict:
+                msg = "Invalid 'group_uuid' value, can't create the entity"
+            else:
+                msg = "The user does not have the correct Globus group associated with, can't create the entity"
+            
+            logger.exception(msg)
+            bad_request_error(msg)
+        except schema_errors.UnmatchedDataProviderGroupException:
+            # Log the full stack trace, prepend a line with our message
+            msg = "The user does not belong to the given Globus group, can't create the entity"
+            logger.exception(msg)
+            bad_request_error(msg)
+        except schema_errors.MultipleDataProviderGroupException:
+            # Log the full stack trace, prepend a line with our message
+            msg = "The user has mutiple Globus groups associated with, please specify one using 'group_uuid'"
+            logger.exception(msg)
+            bad_request_error(msg)
+        except KeyError as e:
+            # Log the full stack trace, prepend a line with our message
+            logger.exception(e)
+            bad_request_error(e)
+
+        # Merge the user json data and generated trigger data into one dictionary
+        merged_dict = {**json_data_dict, **generated_before_create_trigger_data_dict}
+
+        # Filter out the merged_dict by getting rid of the properties with None value
+        # Meaning the returned target property key is different from the original key
+        # E.g., Donor.image_files
+        filtered_merged_dict = {}
+        for k, v in merged_dict.items():
+            if v is not None:
+                filtered_merged_dict[k] = v
+
+        # Add to the list
+        samples_dict_list.append(filtered_merged_dict)
+
+    # Create new ids for the new Activity node
+    new_ids_dict_list_for_activity = schema_manager.create_hubmap_ids(normalized_activity_type, json_data_dict = None, user_token = user_token, user_info_dict = None)
+    new_ids_dict_for_activity = new_ids_dict_list_for_activity[0]
+
+    # Create a linkage (via Activity node) 
+    normalized_activity_type = 'Activity'
+
+    # Target entity type dict
+    # Will be used when calling set_activity_creation_action() trigger method
+    normalized_entity_type_dict = {'normalized_entity_type': normalized_entity_type}
+
+    # The `existing_data_dict` should already have user_info
+    data_dict_for_activity = {**normalized_entity_type_dict, **new_ids_dict_for_activity}
+    
+    # Generate property values for Activity
+    activity_dict = schema_manager.generate_triggered_data('before_create_trigger', normalized_activity_type, user_token, {}, data_dict_for_activity)
+
+    # Create new sample nodes and needed relationships as well as activity node in one transaction
+    try:
+        # No return value
+        app_neo4j_queries.create_multiple_samples(neo4j_driver_instance, samples_dict_list, activity_dict, json_data_dict['direct_ancestor_uuid'])
+    except TransactionError:
+        msg = "Failed to create multiple samples"
+        # Log the full stack trace, prepend a line with our message
+        logger.exception(msg)
+        # Terminate and let the users know
+        internal_server_error(msg)
+
+    # Return the generated ids for UI
+    return new_ids_dict_list
 
 
 """

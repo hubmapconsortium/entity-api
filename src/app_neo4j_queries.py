@@ -193,7 +193,7 @@ dict
 """
 def create_entity(neo4j_driver, entity_type, entity_data_dict):
     separator = ', '
-    node_properties_to_set = _build_cypher_set_clause(entity_data_dict)
+    node_properties_to_set = _build_properties_for_set_clause(entity_data_dict)
 
     query = (# Always define the Entity label in addition to the target `entity_type` label
              f"CREATE (e:Entity:{entity_type}) "
@@ -235,6 +235,75 @@ def create_entity(neo4j_driver, entity_type, entity_data_dict):
 
 
 """
+Create multiple sample nodes in neo4j
+
+Parameters
+----------
+neo4j_driver : neo4j.Driver object
+    The neo4j database connection pool
+samples_dict_list : list
+    A list of dicts containing the generated data of each sample to be created
+activity_dict : dict
+    The dict containing generated activity data
+direct_ancestor_uuid : str
+    The uuid of the direct ancestor to be linked to
+"""
+def create_multiple_samples(neo4j_driver, samples_dict_list, activity_dict, direct_ancestor_uuid):
+    separator = ', '
+
+    try:
+        with neo4j_driver.session() as session:
+            entity_dict = {}
+
+            tx = session.begin_transaction()
+
+            activity_uuid = activity_dict['uuid']
+
+            # Step 1: create the Activity node
+            # `UNWIND` in Cypher expects List<T>
+            activity_data_list = [activity_dict]
+
+            # Convert the list (only contains one entity) to json list string
+            activity_json_list_str = json.dumps(activity_data_list)
+
+            activity_node = _create_activity_tx(tx, activity_json_list_str)
+
+            # Step 2: create relationship from source entity node to this Activity node
+            _create_relationship_tx(tx, direct_ancestor_uuid, activity_uuid, 'ACTIVITY_INPUT', '->')
+
+            # Step 3: create each new sample node and link to the Activity node at the same time
+            for sample_dict in samples_dict_list:
+                node_properties_to_create = _build_properties_for_create_clause(sample_dict)
+
+                properties_str = f"{{separator.join(node_properties_to_create)}}"
+
+                query = (f"MATCH (a:Activity) "
+                         f"WHERE a.uuid = '{activity_uuid}' "
+                         # Always define the Entity label in addition to the target `entity_type` label
+                         f"CREATE (e:Entity:Sample) {properties_str} "
+                         f"CREATE (a)-[:ACTIVITY_OUTPUT]->(e)")
+
+                logger.debug("======create_multiple_samples() individual query======")
+                logger.debug(query)
+
+                result = tx.run(query)
+
+            # Then 
+            tx.commit()
+    except TransactionError as te:
+        msg = f"TransactionError from calling create_multiple_samples(): {te.value}"
+        # Log the full stack trace, prepend a line with our message
+        logger.exception(msg)
+
+        if tx.closed() == False:
+            logger.info("Failed to commit create_multiple_samples() transaction, rollback")
+
+            tx.rollback()
+
+        raise TransactionError(msg)
+
+
+"""
 Update the properties of an existing entity node in neo4j
 
 Parameters
@@ -255,7 +324,7 @@ dict
 """
 def update_entity(neo4j_driver, entity_type, entity_data_dict, uuid):
     separator = ', '
-    node_properties_to_set = _build_cypher_set_clause(entity_data_dict)
+    node_properties_to_set = _build_properties_for_set_clause(entity_data_dict)
     
     query = (f"MATCH (e:{entity_type}) "
              f"WHERE e.uuid = '{uuid}' "
@@ -606,7 +675,7 @@ Returns
 list
     A list of key-value pairs to be used after in the SET clause
 """
-def _build_cypher_set_clause(entity_data_dict):
+def _build_properties_for_set_clause(entity_data_dict):
     node_properties_to_set = []
     for key, value in entity_data_dict.items():
         if isinstance(value, int):
@@ -626,6 +695,40 @@ def _build_cypher_set_clause(entity_data_dict):
         node_properties_to_set.append(key_value_pair)
 
     return node_properties_to_set
+
+"""
+Build the property key-value pairs to be used in the CREATE clause for node creation
+
+Parameters
+----------
+entity_data_dict : dict
+    The target Entity node to be created
+
+Returns
+-------
+list
+    A list of key-value pairs to be used after in the CREATE clause
+"""
+def _build_properties_for_create_clause(entity_data_dict):
+    node_properties_to_create = []
+    for key, value in entity_data_dict.items():
+        if isinstance(value, int):
+            key_value_pair = f"e.{key}: {value}"
+        elif isinstance(value, str):
+            # Escape single quote
+            escaped_str = value.replace("'", r"\'")
+            # Quote the value
+            key_value_pair = f"e.{key}: '{escaped_str}'"
+        else:
+            # Convert list and dict to string
+            # Must also escape single quotes in the string to build a valid Cypher query
+            escaped_str = str(value).replace("'", r"\'")
+            # Also need to quote the string value
+            key_value_pair = f"e.{key}: '{escaped_str}'"
+
+        node_properties_to_create.append(key_value_pair)
+
+    return node_properties_to_create
 
 
 """
@@ -741,3 +844,38 @@ def _nodes_to_dicts(nodes):
         dicts.append(entity_dict)
 
     return dicts
+
+"""
+Create a new activity node in neo4j
+
+Parameters
+----------
+tx : neo4j.Transaction object
+    The neo4j.Transaction object instance
+json_list_str : str
+    The string representation of a list containing only one entity to be created
+
+Returns
+-------
+neo4j.node
+    A neo4j node instance of the newly created entity node
+"""
+def _create_activity_tx(tx, json_list_str):
+    # UNWIND expects json.entities to be List<T>
+    query = (f"WITH apoc.convert.fromJsonList('{json_list_str}') AS activities_list "
+             f"UNWIND activities_list AS data "
+             f"CREATE (a:Activity) "
+             f"SET a = data "
+             f"RETURN a AS {record_field_name}")
+
+    logger.debug("======_create_activity_tx() query======")
+    logger.debug(query)
+
+    result = tx.run(query)
+    record = result.single()
+    node = record[record_field_name]
+
+    logger.debug("======_create_activity_tx() resulting node======")
+    logger.debug(node)
+
+    return node

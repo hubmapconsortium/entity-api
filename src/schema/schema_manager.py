@@ -538,10 +538,10 @@ def validate_json_data_against_schema(json_data_dict, normalized_entity_type, ex
         
     # Check if any schema keys that are required_on_create but missing from POST request on creating new entity
     # No need to check on entity update
-    if existing_entity_dict:    
+    if not existing_entity_dict:    
         missing_required_keys_on_create = []
         for key in schema_keys:
-            # By default, the schema treats all entity properties as optional no creation. 
+            # By default, the schema treats all entity properties as optional on creation. 
             # Use `required_on_create: true` to mark a property as required for creating a new entity
             if 'required_on_create' in properties[key]:
                 if properties[key]['required_on_create'] and ('trigger' not in properties[key]) and (key not in json_data_keys):
@@ -957,6 +957,8 @@ def create_hubmap_ids(normalized_class, json_data_dict, user_token, user_info_di
     request_headers = _create_request_headers(user_token)
 
     query_parms = {'entity_count': count}
+
+    logger.debug(json_to_post)
 
     # Disable ssl certificate verification
     response = requests.post(url = _uuid_api_url, headers = request_headers, json = json_to_post, verify = False, params = query_parms) 
