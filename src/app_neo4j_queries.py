@@ -275,12 +275,10 @@ def create_multiple_samples(neo4j_driver, samples_dict_list, activity_dict, dire
             for sample_dict in samples_dict_list:
                 node_properties_to_create = _build_properties_for_create_clause(sample_dict)
 
-                properties_str = f"{{separator.join(node_properties_to_create)}}"
-
                 query = (f"MATCH (a:Activity) "
                          f"WHERE a.uuid = '{activity_uuid}' "
                          # Always define the Entity label in addition to the target `entity_type` label
-                         f"CREATE (e:Entity:Sample) {properties_str} "
+                         f"CREATE (e:Entity:Sample) { {separator.join(node_properties_to_create)} } "
                          f"CREATE (a)-[:ACTIVITY_OUTPUT]->(e)")
 
                 logger.debug("======create_multiple_samples() individual query======")

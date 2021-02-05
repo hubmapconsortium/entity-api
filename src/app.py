@@ -880,7 +880,7 @@ def create_multiple_samples_details(request, normalized_entity_type, user_token,
 
     logger.debug("new_ids_dict_list for multiple samples")
     logger.debug(new_ids_dict_list)
-    
+
     # Use the same json_data_dict and user_info_dict for each sample to be created
     # Only difference is the hubmap_ids generated
     samples_dict_list = []
@@ -936,18 +936,17 @@ def create_multiple_samples_details(request, normalized_entity_type, user_token,
         samples_dict_list.append(filtered_merged_dict)
 
     # Create new ids for the new Activity node
-    new_ids_dict_list_for_activity = schema_manager.create_hubmap_ids(normalized_activity_type, json_data_dict = None, user_token = user_token, user_info_dict = None)
-    new_ids_dict_for_activity = new_ids_dict_list_for_activity[0]
-
     # Create a linkage (via Activity node) 
     normalized_activity_type = 'Activity'
+
+    new_ids_dict_list_for_activity = schema_manager.create_hubmap_ids(normalized_activity_type, json_data_dict = None, user_token = user_token, user_info_dict = None)
+    new_ids_dict_for_activity = new_ids_dict_list_for_activity[0]
 
     # Target entity type dict
     # Will be used when calling set_activity_creation_action() trigger method
     normalized_entity_type_dict = {'normalized_entity_type': normalized_entity_type}
 
-    # The `existing_data_dict` should already have user_info
-    data_dict_for_activity = {**normalized_entity_type_dict, **new_ids_dict_for_activity}
+    data_dict_for_activity = {**normalized_entity_type_dict, **user_info_dict, **new_ids_dict_for_activity}
     
     # Generate property values for Activity
     activity_dict = schema_manager.generate_triggered_data('before_create_trigger', normalized_activity_type, user_token, {}, data_dict_for_activity)
