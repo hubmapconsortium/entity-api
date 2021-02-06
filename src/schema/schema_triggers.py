@@ -983,7 +983,7 @@ def link_sample_to_direct_ancestor(property_key, normalized_type, user_token, ex
     activity_data_dict = create_activity_data(normalized_type, user_token)
 
     try:
-        schema_neo4j_queries.link_entity_to_direct_ancestor(schema_manager.get_neo4j_driver_instance(), existing_data_dict['uuid'], existing_data_dict['direct_ancestor_uuid'], activity_json_list_str)
+        schema_neo4j_queries.link_entity_to_direct_ancestor(schema_manager.get_neo4j_driver_instance(), existing_data_dict['uuid'], existing_data_dict['direct_ancestor_uuid'], activity_data_dict)
     except TransactionError:
         # No need to log
         raise
@@ -1018,7 +1018,7 @@ def relink_sample_to_direct_ancestor(property_key, normalized_type, user_token, 
     activity_data_dict = create_activity_data(normalized_type, user_token)
 
     try:
-        schema_neo4j_queries.link_entity_to_direct_ancestor(schema_manager.get_neo4j_driver_instance(), existing_data_dict['uuid'], direct_ancestor_uuid, activity_data_dict)
+        schema_neo4j_queries.link_entity_to_direct_ancestor(schema_manager.get_neo4j_driver_instance(), existing_data_dict['uuid'], existing_data_dict['direct_ancestor_uuid'], activity_data_dict)
     except TransactionError:
         # No need to log
         raise
