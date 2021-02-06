@@ -107,22 +107,22 @@ entity_uuid : str
     The uuid of target entity
 ancestor_uuid : str
     The uuid of ancestor entity
-activity_json_list_str : str
-    The string representation of a list containing only one Activity node to be created
+activity_data_dict : str
+    The activity properties of the activity node to be created
 """
-def link_entity_to_direct_ancestor(neo4j_driver, entity_uuid, ancestor_uuid, activity_json_list_str):
+def link_entity_to_direct_ancestor(neo4j_driver, entity_uuid, ancestor_uuid, activity_data_dict):
     try:
         with neo4j_driver.session() as session:
             tx = session.begin_transaction()
 
             # Create the Acvitity node
-            activity_dict = _node_to_dict(_create_activity_tx(tx, activity_json_list_str))
+            _create_activity_tx(tx, activity_data_dict)
 
             # Create relationship from ancestor entity node to this Activity node
-            _create_relationship_tx(tx, ancestor_uuid, activity_dict['uuid'], 'ACTIVITY_INPUT', '->')
+            _create_relationship_tx(tx, ancestor_uuid, activity_data_dict['uuid'], 'ACTIVITY_INPUT', '->')
                 
             # Create relationship from this Activity node to the target entity node
-            _create_relationship_tx(tx, activity_dict['uuid'], entity_uuid, 'ACTIVITY_OUTPUT', '->')
+            _create_relationship_tx(tx, activity_data_dict['uuid'], entity_uuid, 'ACTIVITY_OUTPUT', '->')
 
             tx.commit()
     except TransactionError as te:
@@ -383,17 +383,22 @@ Parameters
 ----------
 tx : neo4j.Transaction object
     The neo4j.Transaction object instance
-json_list_str : str
-    The string representation of a list containing only one entity to be created
+activity_data_dict : dict
+    The dict containing properties of the Activity node to be created
 
 Returns
 -------
 neo4j.node
     A neo4j node instance of the newly created entity node
 """
-def _create_activity_tx(tx, json_list_str):
-    # UNWIND expects json.entities to be List<T>
-    query = (f"WITH apoc.convert.fromJsonList('{json_list_str}') AS activities_list "
+def _create_activity_tx(tx, activity_data_dict):
+    # `UNWIND` in Cypher expects List<T>
+    activity_data_list = [activity_data_dict]
+
+    # Convert the list (only contains one entity) to json list string
+    activity_json_list_str = json.dumps(activity_data_list)
+
+    query = (f"WITH apoc.convert.fromJsonList('{activity_json_list_str}') AS activities_list "
              f"UNWIND activities_list AS data "
              f"CREATE (a:Activity) "
              f"SET a = data "
@@ -405,9 +410,6 @@ def _create_activity_tx(tx, json_list_str):
     result = tx.run(query)
     record = result.single()
     node = record[record_field_name]
-
-    logger.debug("======_create_activity_tx() resulting node======")
-    logger.debug(node)
 
     return node
 
