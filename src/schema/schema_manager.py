@@ -906,7 +906,7 @@ def create_hubmap_ids(normalized_class, json_data_dict, user_token, user_info_di
                 # Validate the group_uuid and make sure it's one of the valid data providers
                 # and the user also belongs to this group
                 try:
-                    schema_manager.validate_entity_group_uuid(group_uuid, user_group_uuids)
+                    validate_entity_group_uuid(group_uuid, user_group_uuids)
                 except schema_errors.NoDataProviderGroupException as e:
                     # No need to log
                     raise schema_errors.NoDataProviderGroupException(e)
