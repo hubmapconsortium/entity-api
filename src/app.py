@@ -764,21 +764,16 @@ def create_entity(entity_type):
         # For new sample to be linked to existing direct ancestor
         after_create(normalized_entity_type, user_token, merged_dict)
     elif normalized_entity_type == 'Dataset':    
-        # A bit more validation if `direct_ancestor_uuids` provided
-        has_direct_ancestor_uuids = False
-        if ('direct_ancestor_uuids' in json_data_dict) and (json_data_dict['direct_ancestor_uuids']):
-            has_direct_ancestor_uuids = True
-
-            # Check existence of those direct ancestors
-            for direct_ancestor_uuid in json_data_dict['direct_ancestor_uuids']:
-                direct_ancestor_dict = query_target_entity(direct_ancestor_uuid, user_token)
+        # `direct_ancestor_uuids` is required for creating new Dataset
+        # Check existence of those direct ancestors
+        for direct_ancestor_uuid in json_data_dict['direct_ancestor_uuids']:
+            direct_ancestor_dict = query_target_entity(direct_ancestor_uuid, user_token)
 
         # Generate 'before_create_triiger' data and create the entity details in Neo4j
         merged_dict = create_entity_details(request, normalized_entity_type, user_token, json_data_dict)
 
         # Handle direct_ancestor_uuids via `after_create_trigger` methods 
-        if has_direct_ancestor_uuids:
-            after_create(normalized_entity_type, user_token, merged_dict)
+        after_create(normalized_entity_type, user_token, merged_dict)
     else:
         # Generate 'before_create_triiger' data and create the entity details in Neo4j
         merged_dict = create_entity_details(request, normalized_entity_type, user_token, json_data_dict)
@@ -846,126 +841,6 @@ def create_multiple_samples(count):
     generated_ids_dict_list = create_multiple_samples_details(request, normalized_entity_type, user_token, json_data_dict, count)
 
     return jsonify(generated_ids_dict_list)
-
-
-def create_multiple_samples_details(request, normalized_entity_type, user_token, json_data_dict, count):
-    # Get user info based on request
-    user_info_dict = schema_manager.get_user_info(request)
-
-    # Create new ids for the new entity
-    try:
-        new_ids_dict_list = schema_manager.create_hubmap_ids(normalized_entity_type, json_data_dict, user_token, user_info_dict, count)
-    # When group_uuid is provided by user, it can be invalid
-    except schema_errors.NoDataProviderGroupException:
-        # Log the full stack trace, prepend a line with our message
-        if 'group_uuid' in json_data_dict:
-            msg = "Invalid 'group_uuid' value, can't create the entity"
-        else:
-            msg = "The user does not have the correct Globus group associated with, can't create the entity"
-        
-        logger.exception(msg)
-        bad_request_error(msg)
-    except schema_errors.UnmatchedDataProviderGroupException:
-        # Log the full stack trace, prepend a line with our message
-        msg = "The user does not belong to the given Globus group, can't create the entity"
-        logger.exception(msg)
-        bad_request_error(msg)
-    except schema_errors.MultipleDataProviderGroupException:
-        # Log the full stack trace, prepend a line with our message
-        msg = "The user has mutiple Globus groups associated with, please specify one using 'group_uuid'"
-        logger.exception(msg)
-        bad_request_error(msg)
-    except KeyError as e:
-        # Log the full stack trace, prepend a line with our message
-        logger.exception(e)
-        bad_request_error(e)
-
-    logger.debug("new_ids_dict_list for multiple samples")
-    logger.debug(new_ids_dict_list)
-
-    # Use the same json_data_dict and user_info_dict for each sample to be created
-    # Only difference is the hubmap_ids generated
-    samples_dict_list = []
-    for new_ids_dict in new_ids_dict_list:
-        # Merge all the dictionaries and pass to the trigger methods
-        new_data_dict = {**json_data_dict, **user_info_dict, **new_ids_dict}
-
-        try:
-            # Use {} since no existing dict
-            generated_before_create_trigger_data_dict = schema_manager.generate_triggered_data('before_create_trigger', normalized_entity_type, user_token, {}, new_data_dict)
-        # If one of the before_create_trigger methods fails, we can't create the entity
-        except schema_errors.BeforeCreateTriggerException:
-            # Log the full stack trace, prepend a line with our message
-            msg = "Failed to execute one of the 'before_create_trigger' methods, can't create the entity"
-            logger.exception(msg)
-            internal_server_error(msg)
-        except schema_errors.NoDataProviderGroupException:
-            # Log the full stack trace, prepend a line with our message
-            if 'group_uuid' in json_data_dict:
-                msg = "Invalid 'group_uuid' value, can't create the entity"
-            else:
-                msg = "The user does not have the correct Globus group associated with, can't create the entity"
-            
-            logger.exception(msg)
-            bad_request_error(msg)
-        except schema_errors.UnmatchedDataProviderGroupException:
-            # Log the full stack trace, prepend a line with our message
-            msg = "The user does not belong to the given Globus group, can't create the entity"
-            logger.exception(msg)
-            bad_request_error(msg)
-        except schema_errors.MultipleDataProviderGroupException:
-            # Log the full stack trace, prepend a line with our message
-            msg = "The user has mutiple Globus groups associated with, please specify one using 'group_uuid'"
-            logger.exception(msg)
-            bad_request_error(msg)
-        except KeyError as e:
-            # Log the full stack trace, prepend a line with our message
-            logger.exception(e)
-            bad_request_error(e)
-
-        # Merge the user json data and generated trigger data into one dictionary
-        merged_dict = {**json_data_dict, **generated_before_create_trigger_data_dict}
-
-        # Filter out the merged_dict by getting rid of the properties with None value
-        # Meaning the returned target property key is different from the original key
-        # E.g., Donor.image_files
-        filtered_merged_dict = {}
-        for k, v in merged_dict.items():
-            if v is not None:
-                filtered_merged_dict[k] = v
-
-        # Add to the list
-        samples_dict_list.append(filtered_merged_dict)
-
-    # Create new ids for the new Activity node
-    # Create a linkage (via Activity node) 
-    normalized_activity_type = 'Activity'
-
-    new_ids_dict_list_for_activity = schema_manager.create_hubmap_ids(normalized_activity_type, json_data_dict = None, user_token = user_token, user_info_dict = None)
-    new_ids_dict_for_activity = new_ids_dict_list_for_activity[0]
-
-    # Target entity type dict
-    # Will be used when calling set_activity_creation_action() trigger method
-    normalized_entity_type_dict = {'normalized_entity_type': normalized_entity_type}
-
-    data_dict_for_activity = {**normalized_entity_type_dict, **user_info_dict, **new_ids_dict_for_activity}
-    
-    # Generate property values for Activity
-    activity_dict = schema_manager.generate_triggered_data('before_create_trigger', normalized_activity_type, user_token, {}, data_dict_for_activity)
-
-    # Create new sample nodes and needed relationships as well as activity node in one transaction
-    try:
-        # No return value
-        app_neo4j_queries.create_multiple_samples(neo4j_driver_instance, samples_dict_list, activity_dict, json_data_dict['direct_ancestor_uuid'])
-    except TransactionError:
-        msg = "Failed to create multiple samples"
-        # Log the full stack trace, prepend a line with our message
-        logger.exception(msg)
-        # Terminate and let the users know
-        internal_server_error(msg)
-
-    # Return the generated ids for UI
-    return new_ids_dict_list
 
 
 """
@@ -1810,6 +1685,148 @@ def create_entity_details(request, normalized_entity_type, user_token, json_data
     # Note: return merged_final_dict instead of entity_dict because 
     # it contains all the user json data that the generated that entity_dict may not have
     return merged_final_dict
+
+
+"""
+Create multiple sample nodes and relationships with the source entity node
+
+Parameters
+----------
+request : flask.Request object
+    The incoming request
+normalized_entity_type : str
+    One of the normalized entity types: Dataset, Collection, Sample, Donor
+user_token: str
+    The user's globus nexus token
+json_data_dict: dict
+    The json request dict from user input
+count : int
+    The number of samples to create
+
+Returns
+-------
+list
+    A list of all the newly generated ids via uuid-api
+"""
+def create_multiple_samples_details(request, normalized_entity_type, user_token, json_data_dict, count):
+    # Get user info based on request
+    user_info_dict = schema_manager.get_user_info(request)
+
+    # Create new ids for the new entity
+    try:
+        new_ids_dict_list = schema_manager.create_hubmap_ids(normalized_entity_type, json_data_dict, user_token, user_info_dict, count)
+    # When group_uuid is provided by user, it can be invalid
+    except schema_errors.NoDataProviderGroupException:
+        # Log the full stack trace, prepend a line with our message
+        if 'group_uuid' in json_data_dict:
+            msg = "Invalid 'group_uuid' value, can't create the entity"
+        else:
+            msg = "The user does not have the correct Globus group associated with, can't create the entity"
+        
+        logger.exception(msg)
+        bad_request_error(msg)
+    except schema_errors.UnmatchedDataProviderGroupException:
+        # Log the full stack trace, prepend a line with our message
+        msg = "The user does not belong to the given Globus group, can't create the entity"
+        logger.exception(msg)
+        bad_request_error(msg)
+    except schema_errors.MultipleDataProviderGroupException:
+        # Log the full stack trace, prepend a line with our message
+        msg = "The user has mutiple Globus groups associated with, please specify one using 'group_uuid'"
+        logger.exception(msg)
+        bad_request_error(msg)
+    except KeyError as e:
+        # Log the full stack trace, prepend a line with our message
+        logger.exception(e)
+        bad_request_error(e)
+
+    logger.debug("new_ids_dict_list for multiple samples")
+    logger.debug(new_ids_dict_list)
+
+    # Use the same json_data_dict and user_info_dict for each sample to be created
+    # Only difference is the hubmap_ids generated
+    samples_dict_list = []
+    for new_ids_dict in new_ids_dict_list:
+        # Merge all the dictionaries and pass to the trigger methods
+        new_data_dict = {**json_data_dict, **user_info_dict, **new_ids_dict}
+
+        try:
+            # Use {} since no existing dict
+            generated_before_create_trigger_data_dict = schema_manager.generate_triggered_data('before_create_trigger', normalized_entity_type, user_token, {}, new_data_dict)
+        # If one of the before_create_trigger methods fails, we can't create the entity
+        except schema_errors.BeforeCreateTriggerException:
+            # Log the full stack trace, prepend a line with our message
+            msg = "Failed to execute one of the 'before_create_trigger' methods, can't create the entity"
+            logger.exception(msg)
+            internal_server_error(msg)
+        except schema_errors.NoDataProviderGroupException:
+            # Log the full stack trace, prepend a line with our message
+            if 'group_uuid' in json_data_dict:
+                msg = "Invalid 'group_uuid' value, can't create the entity"
+            else:
+                msg = "The user does not have the correct Globus group associated with, can't create the entity"
+            
+            logger.exception(msg)
+            bad_request_error(msg)
+        except schema_errors.UnmatchedDataProviderGroupException:
+            # Log the full stack trace, prepend a line with our message
+            msg = "The user does not belong to the given Globus group, can't create the entity"
+            logger.exception(msg)
+            bad_request_error(msg)
+        except schema_errors.MultipleDataProviderGroupException:
+            # Log the full stack trace, prepend a line with our message
+            msg = "The user has mutiple Globus groups associated with, please specify one using 'group_uuid'"
+            logger.exception(msg)
+            bad_request_error(msg)
+        except KeyError as e:
+            # Log the full stack trace, prepend a line with our message
+            logger.exception(e)
+            bad_request_error(e)
+
+        # Merge the user json data and generated trigger data into one dictionary
+        merged_dict = {**json_data_dict, **generated_before_create_trigger_data_dict}
+
+        # Filter out the merged_dict by getting rid of the properties with None value
+        # Meaning the returned target property key is different from the original key
+        # E.g., Donor.image_files
+        filtered_merged_dict = {}
+        for k, v in merged_dict.items():
+            if v is not None:
+                filtered_merged_dict[k] = v
+
+        # Add to the list
+        samples_dict_list.append(filtered_merged_dict)
+
+    # Create new ids for the new Activity node
+    # Create a linkage (via Activity node) 
+    normalized_activity_type = 'Activity'
+
+    new_ids_dict_list_for_activity = schema_manager.create_hubmap_ids(normalized_activity_type, json_data_dict = None, user_token = user_token, user_info_dict = None)
+    new_ids_dict_for_activity = new_ids_dict_list_for_activity[0]
+
+    # Target entity type dict
+    # Will be used when calling set_activity_creation_action() trigger method
+    normalized_entity_type_dict = {'normalized_entity_type': normalized_entity_type}
+
+    data_dict_for_activity = {**normalized_entity_type_dict, **user_info_dict, **new_ids_dict_for_activity}
+    
+    # Generate property values for Activity
+    activity_dict = schema_manager.generate_triggered_data('before_create_trigger', normalized_activity_type, user_token, {}, data_dict_for_activity)
+
+    # Create new sample nodes and needed relationships as well as activity node in one transaction
+    try:
+        # No return value
+        app_neo4j_queries.create_multiple_samples(neo4j_driver_instance, samples_dict_list, activity_dict, json_data_dict['direct_ancestor_uuid'])
+    except TransactionError:
+        msg = "Failed to create multiple samples"
+        # Log the full stack trace, prepend a line with our message
+        logger.exception(msg)
+        # Terminate and let the users know
+        internal_server_error(msg)
+
+    # Return the generated ids for UI
+    return new_ids_dict_list
+
 
 """
 Execute 'after_create_triiger' methods
