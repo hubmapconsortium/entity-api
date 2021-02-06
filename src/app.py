@@ -1811,12 +1811,12 @@ def create_multiple_samples_details(request, normalized_entity_type, user_token,
     data_dict_for_activity = {**normalized_entity_type_dict, **user_info_dict, **new_ids_dict_for_activity}
     
     # Generate property values for Activity
-    activity_dict = schema_manager.generate_triggered_data('before_create_trigger', normalized_activity_type, user_token, {}, data_dict_for_activity)
+    activity_data_dict = schema_manager.generate_triggered_data('before_create_trigger', normalized_activity_type, user_token, {}, data_dict_for_activity)
 
     # Create new sample nodes and needed relationships as well as activity node in one transaction
     try:
         # No return value
-        app_neo4j_queries.create_multiple_samples(neo4j_driver_instance, samples_dict_list, activity_dict, json_data_dict['direct_ancestor_uuid'])
+        app_neo4j_queries.create_multiple_samples(neo4j_driver_instance, samples_dict_list, activity_data_dict, json_data_dict['direct_ancestor_uuid'])
     except TransactionError:
         msg = "Failed to create multiple samples"
         # Log the full stack trace, prepend a line with our message

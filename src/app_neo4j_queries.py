@@ -248,7 +248,7 @@ activity_dict : dict
 direct_ancestor_uuid : str
     The uuid of the direct ancestor to be linked to
 """
-def create_multiple_samples(neo4j_driver, samples_dict_list, activity_dict, direct_ancestor_uuid):
+def create_multiple_samples(neo4j_driver, samples_dict_list, activity_data_dict, direct_ancestor_uuid):
     separator = ', '
 
     try:
@@ -257,16 +257,10 @@ def create_multiple_samples(neo4j_driver, samples_dict_list, activity_dict, dire
 
             tx = session.begin_transaction()
 
-            activity_uuid = activity_dict['uuid']
+            activity_uuid = activity_data_dict['uuid']
 
             # Step 1: create the Activity node
-            # `UNWIND` in Cypher expects List<T>
-            activity_data_list = [activity_dict]
-
-            # Convert the list (only contains one entity) to json list string
-            activity_json_list_str = json.dumps(activity_data_list)
-
-            activity_node = _create_activity_tx(tx, activity_json_list_str)
+            _create_activity_tx(tx, activity_data_dict)
 
             # Step 2: create relationship from source entity node to this Activity node
             _create_relationship_tx(tx, direct_ancestor_uuid, activity_uuid, 'ACTIVITY_INPUT', '->')
@@ -844,6 +838,7 @@ def _nodes_to_dicts(nodes):
 
     return dicts
 
+
 """
 Create a new activity node in neo4j
 
@@ -851,17 +846,22 @@ Parameters
 ----------
 tx : neo4j.Transaction object
     The neo4j.Transaction object instance
-json_list_str : str
-    The string representation of a list containing only one entity to be created
+activity_data_dict : dict
+    The dict containing properties of the Activity node to be created
 
 Returns
 -------
 neo4j.node
     A neo4j node instance of the newly created entity node
 """
-def _create_activity_tx(tx, json_list_str):
-    # UNWIND expects json.entities to be List<T>
-    query = (f"WITH apoc.convert.fromJsonList('{json_list_str}') AS activities_list "
+def _create_activity_tx(tx, activity_data_dict):
+    # `UNWIND` in Cypher expects List<T>
+    activity_data_list = [activity_data_dict]
+
+    # Convert the list (only contains one entity) to json list string
+    activity_json_list_str = json.dumps(activity_data_list)
+
+    query = (f"WITH apoc.convert.fromJsonList('{activity_json_list_str}') AS activities_list "
              f"UNWIND activities_list AS data "
              f"CREATE (a:Activity) "
              f"SET a = data "
@@ -873,8 +873,5 @@ def _create_activity_tx(tx, json_list_str):
     result = tx.run(query)
     record = result.single()
     node = record[record_field_name]
-
-    logger.debug("======_create_activity_tx() resulting node======")
-    logger.debug(node)
 
     return node

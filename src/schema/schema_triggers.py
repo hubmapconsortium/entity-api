@@ -576,35 +576,11 @@ def link_dataset_to_direct_ancestors(property_key, normalized_type, user_token, 
     # For each source entity, create a linkage (via Activity node) 
     # between the dataset node and the source entity node in neo4j
     for direct_ancestor_uuid in existing_data_dict['direct_ancestor_uuids']:
-        # Activity is not an Entity
-        normalized_activity_type = 'Activity'
-
-        # Target entity type dict
-        # Will be used when calling set_activity_creation_action() trigger method
-        normalized_entity_type_dict = {'normalized_entity_type': normalized_type}
-
-        # Create new ids for the new Activity
-        new_ids_dict_list_for_activity = schema_manager.create_hubmap_ids(normalized_activity_type, json_data_dict = None, user_token = user_token, user_info_dict = None)
-        new_ids_dict_for_activity = new_ids_dict_list_for_activity[0]
-
-        # The `existing_data_dict` should already have user_info
-        data_dict_for_activity = {**existing_data_dict, **normalized_entity_type_dict, **new_ids_dict_for_activity}
-
         # Generate property values for Activity
-        # Use {} since no existing Activity
-        generated_before_create_trigger_data_dict_for_activity = schema_manager.generate_triggered_data('before_create_trigger', normalized_activity_type, user_token, {}, data_dict_for_activity)
-
-        # `UNWIND` in Cypher expects List<T>
-        activity_data_list = [generated_before_create_trigger_data_dict_for_activity]
-
-        # Convert the list (only contains one entity) to json list string
-        activity_json_list_str = json.dumps(activity_data_list)
-
-        logger.debug("======link_dataset_to_direct_ancestors() create activity with activity_json_list_str======")
-        logger.debug(activity_json_list_str)
+        activity_data_dict = create_activity_data(normalized_type, user_token)
 
         try:
-            schema_neo4j_queries.link_entity_to_direct_ancestor(schema_manager.get_neo4j_driver_instance(), existing_data_dict['uuid'], direct_ancestor_uuid, activity_json_list_str)
+            schema_neo4j_queries.link_entity_to_direct_ancestor(schema_manager.get_neo4j_driver_instance(), existing_data_dict['uuid'], direct_ancestor_uuid, activity_data_dict)
         except TransactionError:
             # No need to log
             raise
@@ -648,35 +624,11 @@ def relink_dataset_to_direct_ancestors(property_key, normalized_type, user_token
     # For each source entity, create a linkage (via Activity node) 
     # between the dataset node and the source entity node in neo4j
     for direct_ancestor_uuid in existing_data_dict['direct_ancestor_uuids']:
-        # Activity is not an Entity
-        normalized_activity_type = 'Activity'
-
-        # Target entity type dict
-        # Will be used when calling set_activity_creation_action() trigger method
-        normalized_entity_type_dict = {'normalized_entity_type': normalized_type}
-
-        # Create new ids for the new Activity
-        new_ids_dict_list_for_activity = schema_manager.create_hubmap_ids(normalized_activity_type, json_data_dict = None, user_token = user_token, user_info_dict = None)
-        new_ids_dict_for_activity = new_ids_dict_list_for_activity[0]
-
-        # The `existing_data_dict` should already have user_info
-        data_dict_for_activity = {**existing_data_dict, **normalized_entity_type_dict, **new_ids_dict_for_activity}
-
         # Generate property values for Activity
-        # Use {} since no existing activity 
-        generated_before_create_trigger_data_dict_for_activity = schema_manager.generate_triggered_data('before_create_trigger', normalized_activity_type, user_token, {}, data_dict_for_activity)
-
-        # `UNWIND` in Cypher expects List<T>
-        activity_data_list = [generated_before_create_trigger_data_dict_for_activity]
-
-        # Convert the list (only contains one entity) to json list string
-        activity_json_list_str = json.dumps(activity_data_list)
-
-        logger.debug("======relink_dataset_to_direct_ancestors() create activity with activity_json_list_str======")
-        logger.debug(activity_json_list_str)
+        activity_data_dict = create_activity_data(normalized_type, user_token)
 
         try:
-            schema_neo4j_queries.link_entity_to_direct_ancestor(schema_manager.get_neo4j_driver_instance(), existing_data_dict['uuid'], direct_ancestor_uuid, activity_json_list_str)
+            schema_neo4j_queries.link_entity_to_direct_ancestor(schema_manager.get_neo4j_driver_instance(), existing_data_dict['uuid'], direct_ancestor_uuid, activity_data_dict)
         except TransactionError:
             # No need to log
             raise
@@ -1005,34 +957,11 @@ def link_sample_to_direct_ancestor(property_key, normalized_type, user_token, ex
 
     # Create a linkage (via Activity node) 
     # between the dataset node and the source entity node in neo4j
-    # Activity is not an Entity
-    normalized_activity_type = 'Activity'
-
-    # Target entity type dict
-    # Will be used when calling set_activity_creation_action() trigger method
-    normalized_entity_type_dict = {'normalized_entity_type': normalized_type}
-
-    # Create new ids for the new Activity
-    new_ids_dict_list_for_activity = schema_manager.create_hubmap_ids(normalized_activity_type, json_data_dict = None, user_token = user_token, user_info_dict = None)
-    new_ids_dict_for_activity = new_ids_dict_list_for_activity[0]
-
-    # The `existing_data_dict` should already have user_info
-    data_dict_for_activity = {**existing_data_dict, **normalized_entity_type_dict, **new_ids_dict_for_activity}
-    
     # Generate property values for Activity
-    generated_before_create_trigger_data_dict_for_activity = schema_manager.generate_triggered_data('before_create_trigger', normalized_activity_type, user_token, {}, data_dict_for_activity)
-
-    # `UNWIND` in Cypher expects List<T>
-    activity_data_list = [generated_before_create_trigger_data_dict_for_activity]
-
-    # Convert the list (only contains one entity) to json list string
-    activity_json_list_str = json.dumps(activity_data_list)
-
-    logger.debug("======link_sample_to_direct_ancestor() create activity with activity_json_list_str======")
-    logger.debug(activity_json_list_str)
+    activity_data_dict = create_activity_data(normalized_type, user_token)
 
     try:
-        schema_neo4j_queries.link_entity_to_direct_ancestor(schema_manager.get_neo4j_driver_instance(), existing_data_dict['uuid'], direct_ancestor_uuid, activity_json_list_str)
+        schema_neo4j_queries.link_entity_to_direct_ancestor(schema_manager.get_neo4j_driver_instance(), existing_data_dict['uuid'], direct_ancestor_uuid, activity_data_dict)
     except TransactionError:
         # No need to log
         raise
@@ -1063,34 +992,11 @@ def relink_sample_to_direct_ancestor(property_key, normalized_type, user_token, 
 
     # Create a linkage (via Activity node) 
     # between the dataset node and the source entity node in neo4j
-    # Activity is not an Entity
-    normalized_activity_type = 'Activity'
-
-    # Target entity type dict
-    # Will be used when calling set_activity_creation_action() trigger method
-    normalized_entity_type_dict = {'normalized_entity_type': normalized_type}
-
-    # Create new ids for the new Activity
-    new_ids_dict_list_for_activity = schema_manager.create_hubmap_ids(normalized_activity_type, json_data_dict = None, user_token = user_token, user_info_dict = None)
-    new_ids_dict_for_activity = new_ids_dict_list_for_activity[0]
-
-    # The `existing_data_dict` should already have user_info
-    data_dict_for_activity = {**existing_data_dict, **normalized_entity_type_dict, **new_ids_dict_for_activity}
-    
     # Generate property values for Activity
-    generated_before_create_trigger_data_dict_for_activity = schema_manager.generate_triggered_data('before_create_trigger', normalized_activity_type, user_token, {}, data_dict_for_activity)
+    activity_data_dict = create_activity_data(normalized_type, user_token)
 
-    # `UNWIND` in Cypher expects List<T>
-    activity_data_list = [generated_before_create_trigger_data_dict_for_activity]
-
-    # Convert the list (only contains one entity) to json list string
-    activity_json_list_str = json.dumps(activity_data_list)
-
-    logger.debug("======relink_sample_to_direct_ancestor() create activity with activity_json_list_str======")
-    logger.debug(activity_json_list_str)
- 
     try:
-        schema_neo4j_queries.link_entity_to_direct_ancestor(schema_manager.get_neo4j_driver_instance(), existing_data_dict['uuid'], direct_ancestor_uuid, activity_json_list_str)
+        schema_neo4j_queries.link_entity_to_direct_ancestor(schema_manager.get_neo4j_driver_instance(), existing_data_dict['uuid'], direct_ancestor_uuid, activity_data_dict)
     except TransactionError:
         # No need to log
         raise
@@ -1175,3 +1081,26 @@ def set_activity_creation_action(property_key, normalized_type, user_token, exis
     
     return property_key, f"Create {new_data_dict['normalized_entity_type']} Activity"
 
+
+####################################################################################################
+## Internal functions
+####################################################################################################
+
+
+def create_activity_data(normalized_entity_type, user_token):
+    # Activity is not an Entity
+    normalized_activity_type = 'Activity'
+
+    # Target entity type dict
+    # Will be used when calling `set_activity_creation_action()` trigger method
+    normalized_entity_type_dict = {'normalized_entity_type': normalized_type}
+
+    # Create new ids for the new Activity
+    new_ids_dict_list = schema_manager.create_hubmap_ids(normalized_activity_type, json_data_dict = None, user_token = user_token, user_info_dict = None)
+    new_ids_dict = new_ids_dict_list[0]
+
+    # The `existing_data_dict` should already have user_info
+    data_dict_for_activity = {**existing_data_dict, **normalized_entity_type_dict, **new_ids_dict}
+    
+    # Generate property values for Activity node
+    return schema_manager.generate_triggered_data('before_create_trigger', normalized_activity_type, user_token, {}, data_dict_for_activity)

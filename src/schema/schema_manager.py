@@ -1179,3 +1179,4 @@ def get_file_upload_helper_instance():
     global _file_upload_helper
     
     return _file_upload_helper
+
