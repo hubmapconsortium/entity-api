@@ -359,7 +359,10 @@ def set_group_name(property_key, normalized_type, user_token, existing_data_dict
         raise KeyError("Missing 'hmgroupids' key in 'new_data_dict' during calling 'set_group_name()' trigger method.")
     
     try:
-        group_info = schema_manager.get_entity_group_info(new_data_dict['hmgroupids'])
+        default_group_uuid = None
+        if 'group_uuid' in new_data_dict:
+            default_group_uuid = new_data_dict['group_uuid']
+        group_info = schema_manager.get_entity_group_info(new_data_dict['hmgroupids'], default_group_uuid)
         group_name = group_info['name']
     except schema_errors.NoDataProviderGroupException as e:
         # No need to log
