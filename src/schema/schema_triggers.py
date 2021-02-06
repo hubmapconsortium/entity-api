@@ -1051,7 +1051,7 @@ def link_sample_to_direct_ancestor(property_key, normalized_type, user_token, ex
     logger.debug(activity_json_list_str)
 
     try:
-        schema_neo4j_queries.link_entity_to_direct_ancestor(schema_manager.get_neo4j_driver_instance(), existing_data_dict['uuid'], direct_ancestor_uuid, activity_json_list_str)
+        schema_neo4j_queries.link_entity_to_direct_ancestor(schema_manager.get_neo4j_driver_instance(), existing_data_dict['uuid'], existing_data_dict['direct_ancestor_uuid'], activity_json_list_str)
     except TransactionError:
         # No need to log
         raise
