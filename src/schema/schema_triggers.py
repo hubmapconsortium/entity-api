@@ -580,7 +580,7 @@ def link_dataset_to_direct_ancestors(property_key, normalized_type, user_token, 
     # between the dataset node and the source entity node in neo4j
     for direct_ancestor_uuid in existing_data_dict['direct_ancestor_uuids']:
         # Generate property values for Activity
-        activity_data_dict = create_activity_data(normalized_type, user_token)
+        activity_data_dict = _create_activity_data(normalized_type, user_token, existing_data_dict)
 
         try:
             schema_neo4j_queries.link_entity_to_direct_ancestor(schema_manager.get_neo4j_driver_instance(), existing_data_dict['uuid'], direct_ancestor_uuid, activity_data_dict)
@@ -628,7 +628,7 @@ def relink_dataset_to_direct_ancestors(property_key, normalized_type, user_token
     # between the dataset node and the source entity node in neo4j
     for direct_ancestor_uuid in existing_data_dict['direct_ancestor_uuids']:
         # Generate property values for Activity
-        activity_data_dict = create_activity_data(normalized_type, user_token)
+        activity_data_dict = _create_activity_data(normalized_type, user_token, existing_data_dict)
 
         try:
             schema_neo4j_queries.link_entity_to_direct_ancestor(schema_manager.get_neo4j_driver_instance(), existing_data_dict['uuid'], direct_ancestor_uuid, activity_data_dict)
@@ -980,7 +980,7 @@ def link_sample_to_direct_ancestor(property_key, normalized_type, user_token, ex
     # Create a linkage (via Activity node) 
     # between the dataset node and the source entity node in neo4j
     # Generate property values for Activity
-    activity_data_dict = create_activity_data(normalized_type, user_token)
+    activity_data_dict = _create_activity_data(normalized_type, user_token, existing_data_dict)
 
     try:
         schema_neo4j_queries.link_entity_to_direct_ancestor(schema_manager.get_neo4j_driver_instance(), existing_data_dict['uuid'], existing_data_dict['direct_ancestor_uuid'], activity_data_dict)
@@ -1015,7 +1015,7 @@ def relink_sample_to_direct_ancestor(property_key, normalized_type, user_token, 
     # Create a linkage (via Activity node) 
     # between the dataset node and the source entity node in neo4j
     # Generate property values for Activity
-    activity_data_dict = create_activity_data(normalized_type, user_token)
+    activity_data_dict = _create_activity_data(normalized_type, user_token, existing_data_dict)
 
     try:
         schema_neo4j_queries.link_entity_to_direct_ancestor(schema_manager.get_neo4j_driver_instance(), existing_data_dict['uuid'], existing_data_dict['direct_ancestor_uuid'], activity_data_dict)
@@ -1108,21 +1108,32 @@ def set_activity_creation_action(property_key, normalized_type, user_token, exis
 ## Internal functions
 ####################################################################################################
 
+"""
+Create the Activity node properties
 
-def create_activity_data(normalized_entity_type, user_token):
+Parameters
+----------
+normalized_entity_type : str
+    One of the entity types defined in the schema yaml: Donor, Sample, Dataset
+user_token: str
+    The user's globus nexus token
+data_dict : dict
+    A dictionary that contains all existing entity properties
+"""
+def _create_activity_data(normalized_entity_type, user_token, data_dict):
     # Activity is not an Entity
     normalized_activity_type = 'Activity'
 
     # Target entity type dict
     # Will be used when calling `set_activity_creation_action()` trigger method
-    normalized_entity_type_dict = {'normalized_entity_type': normalized_type}
+    normalized_entity_type_dict = {'normalized_entity_type': normalized_entity_type}
 
     # Create new ids for the new Activity
     new_ids_dict_list = schema_manager.create_hubmap_ids(normalized_activity_type, json_data_dict = None, user_token = user_token, user_info_dict = None)
     new_ids_dict = new_ids_dict_list[0]
 
-    # The `existing_data_dict` should already have user_info
-    data_dict_for_activity = {**existing_data_dict, **normalized_entity_type_dict, **new_ids_dict}
+    # The `data_dict` should already have user_info
+    data_dict_for_activity = {**data_dict, **normalized_entity_type_dict, **new_ids_dict}
     
     # Generate property values for Activity node
     return schema_manager.generate_triggered_data('before_create_trigger', normalized_activity_type, user_token, {}, data_dict_for_activity)
