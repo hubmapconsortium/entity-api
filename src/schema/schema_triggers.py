@@ -451,7 +451,7 @@ str: The target property key
 list: The file info dicts in a list
 """
 def commit_image_files(property_key, normalized_type, user_token, existing_data_dict, new_data_dict):
-    return _commit_image_files('image_files', property_key, normalized_type, user_token, existing_data_dict, new_data_dict)
+    return _commit_files('image_files', property_key, normalized_type, user_token, existing_data_dict, new_data_dict)
 
 
 """
@@ -915,7 +915,7 @@ str: The target property key
 list: The file info dicts in a list
 """
 def commit_metadata_files(property_key, normalized_type, user_token, existing_data_dict, new_data_dict):
-    return _commit_image_files('metadata_files', property_key, normalized_type, user_token, existing_data_dict, new_data_dict)
+    return _commit_files('metadata_files', property_key, normalized_type, user_token, existing_data_dict, new_data_dict)
 
 
 """
@@ -1151,14 +1151,14 @@ in a JSON array like below ("description" is optional):
 [
   {
     "temp_file_id": "eiaja823jafd",
-    "description": "Image file 1"
+    "description": "File 1"
   },
   {
     "temp_file_id": "pd34hu4spb3lk43usdr"
   },
   {
     "temp_file_id": "32kafoiw4fbazd",
-    "description": "Image file 3"
+    "description": "File 3"
   }
 ]
 
@@ -1183,7 +1183,7 @@ Returns
 str: The target property key
 list: The file info dicts in a list
 """
-def _commit_image_files(target_property_key, property_key, normalized_type, user_token, existing_data_dict, new_data_dict):
+def _commit_files(target_property_key, property_key, normalized_type, user_token, existing_data_dict, new_data_dict):
     
     # Do nothing if no files to add are provided (missing or empty property)
     # For image files the property name is "image_files_to_add"
