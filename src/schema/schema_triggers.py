@@ -359,7 +359,10 @@ def set_group_name(property_key, normalized_type, user_token, existing_data_dict
         raise KeyError("Missing 'hmgroupids' key in 'new_data_dict' during calling 'set_group_name()' trigger method.")
     
     try:
-        group_info = schema_manager.get_entity_group_info(new_data_dict['hmgroupids'])
+        default_group_uuid = None
+        if 'group_uuid' in new_data_dict:
+            default_group_uuid = new_data_dict['group_uuid']
+        group_info = schema_manager.get_entity_group_info(new_data_dict['hmgroupids'], default_group_uuid)
         group_name = group_info['name']
     except schema_errors.NoDataProviderGroupException as e:
         # No need to log
@@ -726,7 +729,7 @@ def get_local_directory_rel_path(property_key, normalized_type, user_token, exis
 
 
 """
-Trigger event method to ONLY update descriptions of existing image files
+Trigger event method to ONLY update descriptions of existing files
 
 Parameters
 ----------
@@ -746,22 +749,22 @@ Returns
 str: The target property key
 list: The file info dicts (with updated descriptions) in a list
 """
-def update_image_files_descriptions(property_key, normalized_type, user_token, existing_data_dict, new_data_dict):
+def update_file_descriptions(property_key, normalized_type, user_token, existing_data_dict, new_data_dict):
     if property_key not in new_data_dict:
-        raise KeyError(f"Missing '{property_key}' key in 'new_data_dict' during calling 'update_image_files_descriptions()' trigger method.")
+        raise KeyError(f"Missing '{property_key}' key in 'new_data_dict' during calling 'update_file_descriptions()' trigger method.")
 
     if property_key not in existing_data_dict:
-        raise KeyError(f"Missing '{property_key}' key in 'existing_data_dict' during calling 'update_image_files_descriptions()' trigger method.")
+        raise KeyError(f"Missing '{property_key}' key in 'existing_data_dict' during calling 'update_file_descriptions()' trigger method.")
 
-    # 'image_files' must be a json array
+    # The property holding the file information must be a json array
     if not isinstance(new_data_dict[property_key], list):
-        raise TypeError(f"'{property_key}' value in 'new_data_dict' must be a list during calling 'update_image_files_descriptions()' trigger method.")
+        raise TypeError(f"'{property_key}' value in 'new_data_dict' must be a list during calling 'update_file_descriptions()' trigger method.")
 
     file_info_by_uuid_dict = {}
     # Convert the string literal to list
-    existing_image_files_list = ast.literal_eval(existing_data_dict[property_key])
+    existing_files_list = ast.literal_eval(existing_data_dict[property_key])
 
-    for file_info in existing_image_files_list:
+    for file_info in existing_files_list:
         file_uuid = file_info['file_uuid']
 
         file_info_by_uuid_dict[file_uuid] = file_info
@@ -780,14 +783,14 @@ def update_image_files_descriptions(property_key, normalized_type, user_token, e
 
 
 """
-Trigger event method to commit image files save that were previously uploaded with UploadFileHelper.save_file
+Trigger event method to commit files saved that were previously uploaded with UploadFileHelper.save_file
 
-The information, filename and optional description is saved in the image_files field 
+The information, filename and optional description is saved in the field with name specified by `target_property_key`
 in the provided data_dict.  The image files needed to be previously uploaded
 using the temp file service (UploadFileHelper.save_file).  The temp file id provided
 from UploadFileHelper, paired with an optional description of the file must be provided
 in the field `image_files_to_add` in the data_dict for each file being committed
-in a JSON array like below (image "description" is optional): 
+in a JSON array like below ("description" is optional): 
 
 [
   {
@@ -823,19 +826,27 @@ str: The target property key
 list: The file info dicts in a list
 """
 def commit_image_files(property_key, normalized_type, user_token, existing_data_dict, new_data_dict):
-    # Do nothing if no `image_files_to_add` provided from request
-    # Or `image_files_to_add` is empty
+    return __commit_image_files('image_files', property_key, normalized_type, user_token, existing_data_dict, new_data_dict)
+
+def commit_metadata_files(property_key, normalized_type, user_token, existing_data_dict, new_data_dict):
+    return __commit_image_files('metadata_files', property_key, normalized_type, user_token, existing_data_dict, new_data_dict)
+
+def __commit_image_files(target_property_key, property_key, normalized_type, user_token, existing_data_dict, new_data_dict):
+    
+    # Do nothing if no files to add are provided (missing or empty property)
+    #for image files the property name is "image_files_to_add" for metadata
+    #files the property name is "metadata_files_to_add", but other may be used in
+    #the future
     if (not property_key in new_data_dict) or (not new_data_dict[property_key]):
         return property_key, None
-
-    target_property_key = 'image_files'
-
+    
+    
     # If POST or PUT where the target doesn't exist create the file info array
     if not target_property_key in existing_data_dict:
         files_info_list = []
     # Otherwise this is a PUT where the target array exists already
     else:
-        # Note: The property `image_files` value is stored in Neo4j as a string representation of the Python list
+        # Note: The property, name specified by `target_property_key`, is stored in Neo4j as a string representation of the Python list
         # It's not stored in Neo4j as a json string! And we can't store it as a json string 
         # due to the way that Cypher handles single/double quotes.
         files_info_list = ast.literal_eval(existing_data_dict[target_property_key])
@@ -869,10 +880,13 @@ def commit_image_files(property_key, normalized_type, user_token, existing_data_
 
 
 """
-Trigger event method of removing image files from an entity during update
+Trigger event methods for removing files from an entity during update
 
-Image files are stored in a json encoded text field named `image_files` in the entity dict
-The images to remove are specified as filenames in the `image_files_to_remove` field
+Files are stored in a json encoded text field with property name 'target_property_key' in the entity dict
+The files to remove are specified as file uuids in the `property_key` field
+
+The two outer methods (delete_image_files and delete_metadata_files) pass the target property
+field name to private method, __delete_files along with the other required trigger properties
 
 Parameters
 ----------
@@ -887,31 +901,39 @@ existing_data_dict : dict
 new_data_dict : dict
     A merged dictionary that contains all possible input data to be used
 
+-----------
+target_property_key: str
+    The name of the property where the file information is stored
+
 Returns
 -------
 str: The target property key
 list: The file info dicts in a list
 """
 def delete_image_files(property_key, normalized_type, user_token, existing_data_dict, new_data_dict):
-    # Do nothing if no `image_files_to_delete` provided from request
-    # Or `image_files_to_delete` is empty
+    return __delete_files('image_files', property_key, normalized_type, user_token, existing_data_dict, new_data_dict)
+
+def delete_metadata_files(property_key, normalized_type, user_token, existing_data_dict, new_data_dict):
+    return __delete_files('metadata_files', property_key, normalized_type, user_token, existing_data_dict, new_data_dict)
+    
+def __delete_files(target_property_key, property_key, normalized_type, user_token, existing_data_dict, new_data_dict):
+
+    #do nothing if no files to delete are provided in the field specified by property_key
     if (not property_key in new_data_dict) or (not new_data_dict[property_key]):
         return property_key, None
 
-    target_property_key = 'image_files'
-
     if 'uuid' not in existing_data_dict:
-        raise KeyError("Missing 'uuid' key in 'existing_data_dict' during calling 'delete_image_files()' trigger method.")
+        raise KeyError(f"Missing 'uuid' key in 'existing_data_dict' during calling '__delete_files()' trigger method for property '{target_property_key}'.")
     
     if target_property_key not in existing_data_dict:
-        raise KeyError(f"Missing '{target_property_key}' key in 'existing_data_dict' during calling 'delete_image_files()' trigger method.")
+        raise KeyError(f"Missing '{target_property_key}' key in 'existing_data_dict' during calling '_delete_files()' trigger method.")
 
     try:
         entity_uuid = existing_data_dict['uuid']
         # `upload_dir` is already normalized with trailing slash
         entity_upload_dir = schema_manager.get_file_upload_helper_instance().upload_dir + entity_uuid + os.sep
         
-        # Note: The property `image_files` value is stored in Neo4j as a string representation of the Python list
+        # Note: The property named by target_property_key value is stored in Neo4j as a string representation of the Python list
         # It's not stored in Neo4j as a json string! And we can't store it as a json string 
         # due to the way that Cypher handles single/double quotes.
         files_info_list = ast.literal_eval(existing_data_dict[target_property_key])

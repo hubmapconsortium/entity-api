@@ -906,7 +906,7 @@ def create_hubmap_ids(normalized_class, json_data_dict, user_token, user_info_di
                 # Validate the group_uuid and make sure it's one of the valid data providers
                 # and the user also belongs to this group
                 try:
-                    schema_manager.validate_entity_group_uuid(group_uuid, user_group_uuids)
+                    validate_entity_group_uuid(group_uuid, user_group_uuids)
                 except schema_errors.NoDataProviderGroupException as e:
                     # No need to log
                     raise schema_errors.NoDataProviderGroupException(e)
@@ -1013,7 +1013,7 @@ Returns
 dict
     The group info (group_uuid and group_name)
 """
-def get_entity_group_info(user_hmgroupids_list):
+def get_entity_group_info(user_hmgroupids_list, default_group = None):
     # Default
     group_info = {
         'uuid': '',
@@ -1042,13 +1042,16 @@ def get_entity_group_info(user_hmgroupids_list):
         raise schema_errors.NoDataProviderGroupException(msg)
 
     if len(user_data_provider_uuids) > 1:
-        msg = "More than one data_provider groups found for this user. Can't continue."
-        # Log the full stack trace, prepend a line with our message
-        logger.exception(msg)
-        raise schema_errors.MultipleDataProviderGroupException(msg)
-
-    # By now only one data provider group found, this is what we want
-    uuid = user_data_provider_uuids[0]
+        if not default_group is None and default_group in user_hmgroupids_list:
+            uuid = default_group
+        else:
+                msg = "More than one data_provider groups found for this user and no group_uuid specified. Can't continue."
+                # Log the full stack trace, prepend a line with our message
+                logger.exception(msg)
+                raise schema_errors.MultipleDataProviderGroupException(msg)
+    else:
+        # By now only one data provider group found, this is what we want
+        uuid = user_data_provider_uuids[0]
     group_info['uuid'] = uuid
     group_info['name'] = groups_by_id_dict[uuid]['displayname']
     
