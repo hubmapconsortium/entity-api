@@ -1,3 +1,4 @@
+import json
 from neo4j.exceptions import TransactionError
 import logging
 
@@ -105,12 +106,12 @@ neo4j_driver : neo4j.Driver object
     The neo4j database connection pool
 entity_uuid : str
     The uuid of target entity
-ancestor_uuid : str
-    The uuid of ancestor entity
+direct_ancestor_uuid : str
+    The uuid of direct ancestor entity
 activity_data_dict : str
     The activity properties of the activity node to be created
 """
-def link_entity_to_direct_ancestor(neo4j_driver, entity_uuid, ancestor_uuid, activity_data_dict):
+def link_entity_to_direct_ancestor(neo4j_driver, entity_uuid, direct_ancestor_uuid, activity_data_dict):
     try:
         with neo4j_driver.session() as session:
             tx = session.begin_transaction()
@@ -119,7 +120,7 @@ def link_entity_to_direct_ancestor(neo4j_driver, entity_uuid, ancestor_uuid, act
             _create_activity_tx(tx, activity_data_dict)
 
             # Create relationship from ancestor entity node to this Activity node
-            _create_relationship_tx(tx, ancestor_uuid, activity_data_dict['uuid'], 'ACTIVITY_INPUT', '->')
+            _create_relationship_tx(tx, direct_ancestor_uuid, activity_data_dict['uuid'], 'ACTIVITY_INPUT', '->')
                 
             # Create relationship from this Activity node to the target entity node
             _create_relationship_tx(tx, activity_data_dict['uuid'], entity_uuid, 'ACTIVITY_OUTPUT', '->')
