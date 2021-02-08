@@ -785,7 +785,6 @@ def create_entity(entity_type):
     # Will also filter the result based on schema
     normalized_complete_dict = schema_manager.normalize_entity_result_for_response(complete_dict)
 
-    # How to handle reindex collection?
     # Also index the new entity node in elasticsearch via search-api
     reindex_entity(complete_dict['uuid'])
 
@@ -839,6 +838,10 @@ def create_multiple_samples(count):
 
     # Generate 'before_create_triiger' data and create the entity details in Neo4j
     generated_ids_dict_list = create_multiple_samples_details(request, normalized_entity_type, user_token, json_data_dict, count)
+
+    # Also index the each new Sample node in elasticsearch via search-api
+    for id_dict in generated_ids_dict_list:
+        reindex_entity(id_dict['uuid'])
 
     return jsonify(generated_ids_dict_list)
 
@@ -1797,22 +1800,9 @@ def create_multiple_samples_details(request, normalized_entity_type, user_token,
         # Add to the list
         samples_dict_list.append(filtered_merged_dict)
 
-    # Create new ids for the new Activity node
-    # Create a linkage (via Activity node) 
-    normalized_activity_type = 'Activity'
-
-    new_ids_dict_list_for_activity = schema_manager.create_hubmap_ids(normalized_activity_type, json_data_dict = None, user_token = user_token, user_info_dict = None)
-    new_ids_dict_for_activity = new_ids_dict_list_for_activity[0]
-
-    # Target entity type dict
-    # Will be used when calling set_activity_creation_action() trigger method
-    normalized_entity_type_dict = {'normalized_entity_type': normalized_entity_type}
-
-    data_dict_for_activity = {**normalized_entity_type_dict, **user_info_dict, **new_ids_dict_for_activity}
+    # Generate property values for Activity node
+    activity_data_dict = schema_manager.generate_activity_data(normalized_entity_type, user_token, user_info_dict)
     
-    # Generate property values for Activity
-    activity_data_dict = schema_manager.generate_triggered_data('before_create_trigger', normalized_activity_type, user_token, {}, data_dict_for_activity)
-
     # Create new sample nodes and needed relationships as well as activity node in one transaction
     try:
         # No return value

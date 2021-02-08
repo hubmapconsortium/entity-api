@@ -1113,33 +1113,34 @@ def get_entity_group_name(group_uuid):
     return group_name
 
 
-####################################################################################################
-## Internal functions
-####################################################################################################
-
 """
-Create a dict of HTTP Authorization header with Bearer token for making calls to uuid-api
+Create the Activity node properties
 
 Parameters
 ----------
+normalized_entity_type : str
+    One of the entity types defined in the schema yaml: Donor, Sample, Dataset
 user_token: str
     The user's globus nexus token
-
-Returns
--------
-dict
-    The headers dict to be used by requests
+user_info_dict : dict
+    A dictionary that contains all user info to be used to generate the related properties
 """
-def _create_request_headers(user_token):
-    auth_header_name = 'Authorization'
-    auth_scheme = 'Bearer'
+def generate_activity_data(normalized_entity_type, user_token, user_info_dict):
+    # Activity is not an Entity
+    normalized_activity_type = 'Activity'
 
-    headers_dict = {
-        # Don't forget the space between scheme and the token value
-        auth_header_name: auth_scheme + ' ' + user_token
-    }
+    # Target entity type dict
+    # Will be used when calling `set_activity_creation_action()` trigger method
+    normalized_entity_type_dict = {'normalized_entity_type': normalized_entity_type}
 
-    return headers_dict
+    # Create new ids for the new Activity
+    new_ids_dict_list = create_hubmap_ids(normalized_activity_type, json_data_dict = None, user_token = user_token, user_info_dict = None)
+    new_ids_dict = new_ids_dict_list[0]
+
+    data_dict_for_activity = {**user_info_dict, **normalized_entity_type_dict, **new_ids_dict}
+    
+    # Generate property values for Activity node
+    return generate_triggered_data('before_create_trigger', normalized_activity_type, user_token, {}, data_dict_for_activity)
 
 
 """
@@ -1182,4 +1183,33 @@ def get_file_upload_helper_instance():
     global _file_upload_helper
     
     return _file_upload_helper
+
+
+####################################################################################################
+## Internal functions
+####################################################################################################
+
+"""
+Create a dict of HTTP Authorization header with Bearer token for making calls to uuid-api
+
+Parameters
+----------
+user_token: str
+    The user's globus nexus token
+
+Returns
+-------
+dict
+    The headers dict to be used by requests
+"""
+def _create_request_headers(user_token):
+    auth_header_name = 'Authorization'
+    auth_scheme = 'Bearer'
+
+    headers_dict = {
+        # Don't forget the space between scheme and the token value
+        auth_header_name: auth_scheme + ' ' + user_token
+    }
+
+    return headers_dict
 
