@@ -1667,10 +1667,7 @@ def create_entity_details(request, normalized_entity_type, user_token, json_data
     # Filter out the merged_dict by getting rid of the properties with None value
     # Meaning the returned target property key is different from the original key
     # E.g., Donor.image_files
-    filtered_merged_dict = {}
-    for k, v in merged_dict.items():
-        if v is not None:
-            filtered_merged_dict[k] = v
+    filtered_merged_dict = schema_manager.remove_none_values(merged_dict)
 
     # Create new entity
     try:
@@ -1792,10 +1789,7 @@ def create_multiple_samples_details(request, normalized_entity_type, user_token,
         # Filter out the merged_dict by getting rid of the properties with None value
         # Meaning the returned target property key is different from the original key
         # E.g., Donor.image_files
-        filtered_merged_dict = {}
-        for k, v in merged_dict.items():
-            if v is not None:
-                filtered_merged_dict[k] = v
+        filtered_merged_dict = schema_manager.remove_none_values(merged_dict)
 
         # Add to the list
         samples_dict_list.append(filtered_merged_dict)
@@ -1887,10 +1881,7 @@ def update_entity_details(request, normalized_entity_type, user_token, json_data
     # Filter out the merged_dict by getting rid of the properties with None value
     # Meaning the returned target property key is different from the original key
     # E.g., Donor.image_files
-    filtered_merged_dict = {}
-    for k, v in merged_dict.items():
-        if v is not None:
-            filtered_merged_dict[k] = v
+    filtered_merged_dict = schema_manager.remove_none_values(merged_dict)
 
     # By now the filtered_merged_dict contains all user updates and all triggered data to be added to the entity node
     # Any properties in filtered_merged_dict that are not on the node will be added.

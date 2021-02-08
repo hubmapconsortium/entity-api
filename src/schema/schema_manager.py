@@ -309,7 +309,31 @@ def generate_triggered_data(trigger_type, normalized_class, user_token, existing
     
     # Return after for loop
     return trigger_generated_data_dict
-       
+    
+
+"""
+Filter out the merged_dict by getting rid of the properties with None value
+Meaning the returned target property key is different from the original key
+E.g., Donor.image_files_to_add
+
+Parameters
+----------
+merged_dict : dict
+    A merged dict that may contain properties with None values
+
+Returns
+-------
+dict
+    A filtered dict that removed all properties with None values
+"""
+def remove_none_values(merged_dict):
+    filtered_dict = {}
+    for k, v in merged_dict.items():
+        if v is not None:
+            filtered_dict[k] = v 
+
+    return filtered_dict
+
 
 """
 Generate the complete entity record as well as result filtering for response
