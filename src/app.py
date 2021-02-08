@@ -1740,59 +1740,62 @@ def create_multiple_samples_details(request, normalized_entity_type, user_token,
         logger.exception(e)
         bad_request_error(e)
 
-    logger.debug("new_ids_dict_list for multiple samples")
-    logger.debug(new_ids_dict_list)
+    # Use the same json_data_dict and user_info_dict for each sample
+    # Only difference is the `uuid` and `hubmap_id` that are generated
+    # Merge all the dictionaries and pass to the trigger methods
+    new_data_dict = {**json_data_dict, **user_info_dict, **new_ids_dict_list[0]}
 
-    # Use the same json_data_dict and user_info_dict for each sample to be created
-    # Only difference is the hubmap_ids generated
+    # Instead of calling generate_triggered_data() for each sample, we'll just call it on the first sample
+    # since all other samples will share the same generated data except `uuid` and `hubmap_id`
+    # A bit performance improvement
+    try:
+        # Use {} since no existing dict
+        generated_before_create_trigger_data_dict = schema_manager.generate_triggered_data('before_create_trigger', normalized_entity_type, user_token, {}, new_data_dict)
+    # If one of the before_create_trigger methods fails, we can't create the entity
+    except schema_errors.BeforeCreateTriggerException:
+        # Log the full stack trace, prepend a line with our message
+        msg = "Failed to execute one of the 'before_create_trigger' methods, can't create the entity"
+        logger.exception(msg)
+        internal_server_error(msg)
+    except schema_errors.NoDataProviderGroupException:
+        # Log the full stack trace, prepend a line with our message
+        if 'group_uuid' in json_data_dict:
+            msg = "Invalid 'group_uuid' value, can't create the entity"
+        else:
+            msg = "The user does not have the correct Globus group associated with, can't create the entity"
+        
+        logger.exception(msg)
+        bad_request_error(msg)
+    except schema_errors.UnmatchedDataProviderGroupException:
+        # Log the full stack trace, prepend a line with our message
+        msg = "The user does not belong to the given Globus group, can't create the entity"
+        logger.exception(msg)
+        bad_request_error(msg)
+    except schema_errors.MultipleDataProviderGroupException:
+        # Log the full stack trace, prepend a line with our message
+        msg = "The user has mutiple Globus groups associated with, please specify one using 'group_uuid'"
+        logger.exception(msg)
+        bad_request_error(msg)
+    except KeyError as e:
+        # Log the full stack trace, prepend a line with our message
+        logger.exception(e)
+        bad_request_error(e)
+
+    # Merge the user json data and generated trigger data into one dictionary
+    merged_dict = {**json_data_dict, **generated_before_create_trigger_data_dict}
+
+    # Filter out the merged_dict by getting rid of the properties with None value
+    # Meaning the returned target property key is different from the original key
+    # E.g., Donor.image_files
+    filtered_merged_dict = schema_manager.remove_none_values(merged_dict)
+
     samples_dict_list = []
     for new_ids_dict in new_ids_dict_list:
-        # Merge all the dictionaries and pass to the trigger methods
-        new_data_dict = {**json_data_dict, **user_info_dict, **new_ids_dict}
-
-        try:
-            # Use {} since no existing dict
-            generated_before_create_trigger_data_dict = schema_manager.generate_triggered_data('before_create_trigger', normalized_entity_type, user_token, {}, new_data_dict)
-        # If one of the before_create_trigger methods fails, we can't create the entity
-        except schema_errors.BeforeCreateTriggerException:
-            # Log the full stack trace, prepend a line with our message
-            msg = "Failed to execute one of the 'before_create_trigger' methods, can't create the entity"
-            logger.exception(msg)
-            internal_server_error(msg)
-        except schema_errors.NoDataProviderGroupException:
-            # Log the full stack trace, prepend a line with our message
-            if 'group_uuid' in json_data_dict:
-                msg = "Invalid 'group_uuid' value, can't create the entity"
-            else:
-                msg = "The user does not have the correct Globus group associated with, can't create the entity"
-            
-            logger.exception(msg)
-            bad_request_error(msg)
-        except schema_errors.UnmatchedDataProviderGroupException:
-            # Log the full stack trace, prepend a line with our message
-            msg = "The user does not belong to the given Globus group, can't create the entity"
-            logger.exception(msg)
-            bad_request_error(msg)
-        except schema_errors.MultipleDataProviderGroupException:
-            # Log the full stack trace, prepend a line with our message
-            msg = "The user has mutiple Globus groups associated with, please specify one using 'group_uuid'"
-            logger.exception(msg)
-            bad_request_error(msg)
-        except KeyError as e:
-            # Log the full stack trace, prepend a line with our message
-            logger.exception(e)
-            bad_request_error(e)
-
-        # Merge the user json data and generated trigger data into one dictionary
-        merged_dict = {**json_data_dict, **generated_before_create_trigger_data_dict}
-
-        # Filter out the merged_dict by getting rid of the properties with None value
-        # Meaning the returned target property key is different from the original key
-        # E.g., Donor.image_files
-        filtered_merged_dict = schema_manager.remove_none_values(merged_dict)
-
+        # Just overwrite the `uuid` and `hubmap_id` that are generated
+        # All other generated properties will stay the same across all samples
+        sample_dict = {**filtered_merged_dict, **new_ids_dict}
         # Add to the list
-        samples_dict_list.append(filtered_merged_dict)
+        samples_dict_list.append(sample_dict)
 
     # Generate property values for Activity node
     activity_data_dict = schema_manager.generate_activity_data(normalized_entity_type, user_token, user_info_dict)
