@@ -420,6 +420,7 @@ ENTITIES:
         immutable: true
         description: "The displayname of globus group which the user who created this entity is a member of"
         before_create_trigger: set_group_name
+      # Get rid of this?
       sample_count:
         type: string
       # Should be required on create only when specimen_type==organ

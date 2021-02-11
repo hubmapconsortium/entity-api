@@ -969,10 +969,6 @@ def create_hubmap_ids(normalized_class, json_data_dict, user_token, user_info_di
             # 'Sample.specimen_type' is marked as `required_on_create` in the schema yaml
             if json_data_dict['specimen_type'].lower() == 'organ':
                 # The 'organ' field containing the organ code is required in this case
-                if 'organ' not in json_data_dict:
-                    raise KeyError("Missing 'organ' key in 'json_data_dict' when calling 'create_hubmap_ids()' to create ids for this new Sample.")
-
-                # This is the organ code
                 json_to_post['organ_code'] = json_data_dict['organ']
         else:
             # Similarly, should `direct_ancestor_uuids` be `required_on_create` in yaml?

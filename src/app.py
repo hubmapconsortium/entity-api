@@ -755,7 +755,12 @@ def create_entity(entity_type):
         # sample's direct ancestor is a Donor.
         # Must be one of the codes from: https://github.com/hubmapconsortium/search-api/blob/test-release/src/search-schema/data/definitions/enums/organ_types.yaml
         if direct_ancestor_dict['entity_type'] == 'Donor':
-            if 'organ' not in json_data_dict:
+            # `specimen_type` is required on create
+            if json_data_dict['specimen_type'].lower() != 'organ':
+                bad_request_error('The "specimen_type" value must be organ since the direct ancestor is a Donor')
+
+            # Currently we don't validate the provided organ code though
+            if ('organ' not in json_data_dict) or (not json_data_dict['organ']):
                 bad_request_error('The key "organ" with a valid organ code is required since the direct ancestor is a Donor')
 
         # Generate 'before_create_triiger' data and create the entity details in Neo4j
@@ -833,7 +838,12 @@ def create_multiple_samples(count):
     # sample's direct ancestor is a Donor.
     # Must be one of the codes from: https://github.com/hubmapconsortium/search-api/blob/test-release/src/search-schema/data/definitions/enums/organ_types.yaml
     if direct_ancestor_dict['entity_type'] == 'Donor':
-        if 'organ' not in json_data_dict:
+        # `specimen_type` is required on create
+        if json_data_dict['specimen_type'].lower() != 'organ':
+            bad_request_error('The "specimen_type" value must be organ since the direct ancestor is a Donor')
+
+        # Currently we don't validate the provided organ code though
+        if ('organ' not in json_data_dict) or (not json_data_dict['organ']):
             bad_request_error('The key "organ" with a valid organ code is required since the direct ancestor is a Donor')
 
     # Generate 'before_create_triiger' data and create the entity details in Neo4j
