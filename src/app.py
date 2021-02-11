@@ -757,11 +757,11 @@ def create_entity(entity_type):
         if direct_ancestor_dict['entity_type'] == 'Donor':
             # `specimen_type` is required on create
             if json_data_dict['specimen_type'].lower() != 'organ':
-                bad_request_error('The "specimen_type" value must be organ since the direct ancestor is a Donor')
+                bad_request_error("The specimen_type must be organ since the direct ancestor is a Donor")
 
             # Currently we don't validate the provided organ code though
             if ('organ' not in json_data_dict) or (not json_data_dict['organ']):
-                bad_request_error('The key "organ" with a valid organ code is required since the direct ancestor is a Donor')
+                bad_request_error("A valid organ code is required since the direct ancestor is a Donor")
 
         # Generate 'before_create_triiger' data and create the entity details in Neo4j
         merged_dict = create_entity_details(request, normalized_entity_type, user_token, json_data_dict)
@@ -840,11 +840,11 @@ def create_multiple_samples(count):
     if direct_ancestor_dict['entity_type'] == 'Donor':
         # `specimen_type` is required on create
         if json_data_dict['specimen_type'].lower() != 'organ':
-            bad_request_error('The "specimen_type" value must be organ since the direct ancestor is a Donor')
+            bad_request_error("The specimen_type must be organ since the direct ancestor is a Donor")
 
         # Currently we don't validate the provided organ code though
         if ('organ' not in json_data_dict) or (not json_data_dict['organ']):
-            bad_request_error('The key "organ" with a valid organ code is required since the direct ancestor is a Donor')
+            bad_request_error("A valid organ code is required since the direct ancestor is a Donor")
 
     # Generate 'before_create_triiger' data and create the entity details in Neo4j
     generated_ids_dict_list = create_multiple_samples_details(request, normalized_entity_type, user_token, json_data_dict, count)
