@@ -1611,19 +1611,20 @@ def create_entity_details(request, normalized_entity_type, user_token, json_data
         logger.exception(msg)
         bad_request_error(msg)
     except schema_errors.UnmatchedDataProviderGroupException:
-        # Log the full stack trace, prepend a line with our message
         msg = "The user does not belong to the given Globus group, can't create the entity"
         logger.exception(msg)
         bad_request_error(msg)
     except schema_errors.MultipleDataProviderGroupException:
-        # Log the full stack trace, prepend a line with our message
         msg = "The user has mutiple Globus groups associated with, please specify one using 'group_uuid'"
         logger.exception(msg)
         bad_request_error(msg)
     except KeyError as e:
-        # Log the full stack trace, prepend a line with our message
         logger.exception(e)
         bad_request_error(e)
+    except requests.exceptions.RequestException:
+        msg = f"Failed to create new HuBMAP ids via the uuid-api service" 
+        logger.exception(msg)
+        internal_server_error(msg)
 
     # Merge all the above dictionaries and pass to the trigger methods
     new_data_dict = {**json_data_dict, **user_info_dict, **new_ids_dict}

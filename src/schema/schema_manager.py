@@ -1016,10 +1016,10 @@ def create_hubmap_ids(normalized_class, json_data_dict, user_token, user_info_di
         # Log the full stack trace, prepend a line with our message
         logger.exception(msg)
 
-        logger.debug("======create_new_ids() status code======")
+        logger.debug("======create_hubmap_ids() status code from uuid-api======")
         logger.debug(response.status_code)
 
-        logger.debug("======create_new_ids() response text======")
+        logger.debug("======create_hubmap_ids() response text from uuid-api======")
         logger.debug(response.text)
 
         raise requests.exceptions.RequestException(msg)
