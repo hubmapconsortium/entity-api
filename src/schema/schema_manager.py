@@ -580,11 +580,11 @@ def validate_json_data_against_schema(json_data_dict, normalized_entity_type, ex
     invalid_data_type_keys = []
     for key in json_data_keys:
         # boolean starts with bool, string starts with str, integer starts with int, list is list
-        if not properties[key]['type'].startswith(type(json_data_dict[key]).__name__):
+        if (properties[key]['type'] in ['string', 'integer', 'list']) and (not properties[key]['type'].startswith(type(json_data_dict[key]).__name__)):
             invalid_data_type_keys.append(key)
-
+            
         # Handling json_string as dict
-        if (properties[key]['type'] == 'json_string') and (not isinstance(json_data_dict[key], dict)): 
+        if (properties[key]['type'] == 'json_string') and (not isinstance(json_data_dict[key], dict)):
             invalid_data_type_keys.append(key)
     
     if len(invalid_data_type_keys) > 0:
@@ -1018,7 +1018,8 @@ def create_hubmap_ids(normalized_class, json_data_dict, user_token, user_info_di
         logger.debug("======create_hubmap_ids() response text from uuid-api======")
         logger.debug(response.text)
 
-        raise requests.exceptions.RequestException(msg)
+        # Also bubble up the error message from uuid-api
+        raise requests.exceptions.RequestException(response.text)
 
 """
 Get the group info (group_uuid and group_name) based on user's hmgroupids list

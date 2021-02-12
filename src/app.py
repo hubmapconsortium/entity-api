@@ -1631,10 +1631,10 @@ def create_entity_details(request, normalized_entity_type, user_token, json_data
     except KeyError as e:
         logger.exception(e)
         bad_request_error(e)
-    except requests.exceptions.RequestException:
+    except requests.exceptions.RequestException as e:
         msg = f"Failed to create new HuBMAP ids via the uuid-api service" 
         logger.exception(msg)
-        internal_server_error(msg)
+        internal_server_error(e)
 
     # Merge all the above dictionaries and pass to the trigger methods
     new_data_dict = {**json_data_dict, **user_info_dict, **new_ids_dict}
