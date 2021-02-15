@@ -4,8 +4,9 @@ import shutil
 import logging
 import pathlib
 import requests
+from requests.urllib3.exceptions import InsecureRequestWarning
 # Don't confuse urllib (Python native library) with urllib3 (3rd-party library, requests also uses urllib3)
-from requests.packages.urllib3.exceptions import InsecureRequestWarning
+#from requests.packages.urllib3.exceptions import InsecureRequestWarning
 import hashlib
 import os
 from werkzeug.utils import secure_filename
@@ -19,7 +20,7 @@ from hubmap_commons import file_helper
 logger = logging.getLogger(__name__)
 
 # Suppress InsecureRequestWarning warning when requesting status on https with ssl cert verify disabled
-requests.packages.urllib3.disable_warnings(category = InsecureRequestWarning)
+requests.urllib3.disable_warnings(category = InsecureRequestWarning)
 
 
 ####################################################################################################
