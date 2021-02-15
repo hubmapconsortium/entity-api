@@ -407,6 +407,143 @@ def set_submission_id(property_key, normalized_type, user_token, existing_data_d
     return property_key, new_data_dict['submission_id']
 
 
+"""
+Trigger event method to commit files saved that were previously uploaded with UploadFileHelper.save_file
+
+The information, filename and optional description is saved in the field with name specified by `target_property_key`
+in the provided data_dict.  The image files needed to be previously uploaded
+using the temp file service (UploadFileHelper.save_file).  The temp file id provided
+from UploadFileHelper, paired with an optional description of the file must be provided
+in the field `image_files_to_add` in the data_dict for each file being committed
+in a JSON array like below ("description" is optional): 
+
+[
+  {
+    "temp_file_id": "eiaja823jafd",
+    "description": "Image file 1"
+  },
+  {
+    "temp_file_id": "pd34hu4spb3lk43usdr"
+  },
+  {
+    "temp_file_id": "32kafoiw4fbazd",
+    "description": "Image file 3"
+  }
+]
+
+
+Parameters
+----------
+property_key : str
+    The target property key of the value to be generated
+normalized_type : str
+    One of the types defined in the schema yaml: Activity, Collection, Donor, Sample, Dataset
+user_token: str
+    The user's globus nexus token
+existing_data_dict : dict
+    A dictionary that contains all existing entity properties
+new_data_dict : dict
+    A merged dictionary that contains all possible input data to be used
+
+Returns
+-------
+str: The target property key
+list: The file info dicts in a list
+"""
+def commit_image_files(property_key, normalized_type, user_token, existing_data_dict, new_data_dict):
+    return _commit_files('image_files', property_key, normalized_type, user_token, existing_data_dict, new_data_dict)
+
+
+"""
+Trigger event methods for removing files from an entity during update
+
+Files are stored in a json encoded text field with property name 'target_property_key' in the entity dict
+The files to remove are specified as file uuids in the `property_key` field
+
+The two outer methods (delete_image_files and delete_metadata_files) pass the target property
+field name to private method, _delete_files along with the other required trigger properties
+
+Parameters
+----------
+property_key : str
+    The target property key
+normalized_type : str
+    One of the types defined in the schema yaml: Donor, Sample
+user_token: str
+    The user's globus nexus token
+existing_data_dict : dict
+    A dictionary that contains all existing entity properties
+new_data_dict : dict
+    A merged dictionary that contains all possible input data to be used
+
+-----------
+target_property_key: str
+    The name of the property where the file information is stored
+
+Returns
+-------
+str: The target property key
+list: The file info dicts in a list
+"""
+def delete_image_files(property_key, normalized_type, user_token, existing_data_dict, new_data_dict):
+    return _delete_files('image_files', property_key, normalized_type, user_token, existing_data_dict, new_data_dict)
+
+
+"""
+Trigger event method to ONLY update descriptions of existing files
+
+Parameters
+----------
+property_key : str
+    The target property key of the value to be generated
+normalized_type : str
+    One of the types defined in the schema yaml: Donor, Sample
+user_token: str
+    The user's globus nexus token
+existing_data_dict : dict
+    A dictionary that contains all existing entity properties
+new_data_dict : dict
+    A merged dictionary that contains all possible input data to be used
+
+Returns
+-------
+str: The target property key
+list: The file info dicts (with updated descriptions) in a list
+"""
+def update_file_descriptions(property_key, normalized_type, user_token, existing_data_dict, new_data_dict):
+    if property_key not in new_data_dict:
+        raise KeyError(f"Missing '{property_key}' key in 'new_data_dict' during calling 'update_file_descriptions()' trigger method.")
+
+    if property_key not in existing_data_dict:
+        raise KeyError(f"Missing '{property_key}' key in 'existing_data_dict' during calling 'update_file_descriptions()' trigger method.")
+
+    # The property holding the file information must be a json array
+    if not isinstance(new_data_dict[property_key], list):
+        raise TypeError(f"'{property_key}' value in 'new_data_dict' must be a list during calling 'update_file_descriptions()' trigger method.")
+
+    file_info_by_uuid_dict = {}
+    # Convert the string literal to list
+    existing_files_list = ast.literal_eval(existing_data_dict[property_key])
+
+    for file_info in existing_files_list:
+        file_uuid = file_info['file_uuid']
+
+        file_info_by_uuid_dict[file_uuid] = file_info
+
+    for file_info in new_data_dict[property_key]:
+        file_uuid = file_info['file_uuid']
+        
+        # Existence check in case the file uuid gets edited in the request
+        if file_uuid in file_info_by_uuid_dict:
+            # Keep filename and file_uuid unchanged
+            # Only update the description
+            file_info_by_uuid_dict[file_uuid]['description'] = file_info['description']
+
+    # In Python3, dict.values() returns a view of the dictionary's values instead of list
+    return property_key, list(file_info_by_uuid_dict.values())
+
+
+
 ####################################################################################################
 ## Trigger methods specific to Collection - DO NOT RENAME
 ####################################################################################################
@@ -580,7 +717,7 @@ def link_dataset_to_direct_ancestors(property_key, normalized_type, user_token, 
     # between the dataset node and the source entity node in neo4j
     for direct_ancestor_uuid in existing_data_dict['direct_ancestor_uuids']:
         # Generate property values for Activity
-        activity_data_dict = create_activity_data(normalized_type, user_token)
+        activity_data_dict = _create_activity_data(normalized_type, user_token, existing_data_dict)
 
         try:
             schema_neo4j_queries.link_entity_to_direct_ancestor(schema_manager.get_neo4j_driver_instance(), existing_data_dict['uuid'], direct_ancestor_uuid, activity_data_dict)
@@ -628,7 +765,7 @@ def relink_dataset_to_direct_ancestors(property_key, normalized_type, user_token
     # between the dataset node and the source entity node in neo4j
     for direct_ancestor_uuid in existing_data_dict['direct_ancestor_uuids']:
         # Generate property values for Activity
-        activity_data_dict = create_activity_data(normalized_type, user_token)
+        activity_data_dict = _create_activity_data(normalized_type, user_token, existing_data_dict)
 
         try:
             schema_neo4j_queries.link_entity_to_direct_ancestor(schema_manager.get_neo4j_driver_instance(), existing_data_dict['uuid'], direct_ancestor_uuid, activity_data_dict)
@@ -728,59 +865,11 @@ def get_local_directory_rel_path(property_key, normalized_type, user_token, exis
 ####################################################################################################
 
 
-"""
-Trigger event method to ONLY update descriptions of existing files
 
-Parameters
-----------
-property_key : str
-    The target property key of the value to be generated
-normalized_type : str
-    One of the types defined in the schema yaml: Activity, Collection, Donor, Sample, Dataset
-user_token: str
-    The user's globus nexus token
-existing_data_dict : dict
-    A dictionary that contains all existing entity properties
-new_data_dict : dict
-    A merged dictionary that contains all possible input data to be used
 
-Returns
--------
-str: The target property key
-list: The file info dicts (with updated descriptions) in a list
-"""
-def update_file_descriptions(property_key, normalized_type, user_token, existing_data_dict, new_data_dict):
-    if property_key not in new_data_dict:
-        raise KeyError(f"Missing '{property_key}' key in 'new_data_dict' during calling 'update_file_descriptions()' trigger method.")
-
-    if property_key not in existing_data_dict:
-        raise KeyError(f"Missing '{property_key}' key in 'existing_data_dict' during calling 'update_file_descriptions()' trigger method.")
-
-    # The property holding the file information must be a json array
-    if not isinstance(new_data_dict[property_key], list):
-        raise TypeError(f"'{property_key}' value in 'new_data_dict' must be a list during calling 'update_file_descriptions()' trigger method.")
-
-    file_info_by_uuid_dict = {}
-    # Convert the string literal to list
-    existing_files_list = ast.literal_eval(existing_data_dict[property_key])
-
-    for file_info in existing_files_list:
-        file_uuid = file_info['file_uuid']
-
-        file_info_by_uuid_dict[file_uuid] = file_info
-
-    for file_info in new_data_dict[property_key]:
-        file_uuid = file_info['file_uuid']
-        
-        # Existence check in case the file uuid gets edited in the request
-        if file_uuid in file_info_by_uuid_dict:
-            # Keep filename and file_uuid unchanged
-            # Only update the description
-            file_info_by_uuid_dict[file_uuid]['description'] = file_info['description']
-
-    # In Python3, dict.values() returns a view of the dictionary's values instead of list
-    return property_key, list(file_info_by_uuid_dict.values())
-
+####################################################################################################
+## Trigger methods specific to Sample - DO NOT RENAME
+####################################################################################################
 
 """
 Trigger event method to commit files saved that were previously uploaded with UploadFileHelper.save_file
@@ -795,14 +884,14 @@ in a JSON array like below ("description" is optional):
 [
   {
     "temp_file_id": "eiaja823jafd",
-    "description": "Image file 1"
+    "description": "Metadata file 1"
   },
   {
     "temp_file_id": "pd34hu4spb3lk43usdr"
   },
   {
     "temp_file_id": "32kafoiw4fbazd",
-    "description": "Image file 3"
+    "description": "Metadata file 3"
   }
 ]
 
@@ -812,7 +901,7 @@ Parameters
 property_key : str
     The target property key of the value to be generated
 normalized_type : str
-    One of the types defined in the schema yaml: Activity, Collection, Donor, Sample, Dataset
+    One of the types defined in the schema yaml: Sample
 user_token: str
     The user's globus nexus token
 existing_data_dict : dict
@@ -825,58 +914,8 @@ Returns
 str: The target property key
 list: The file info dicts in a list
 """
-def commit_image_files(property_key, normalized_type, user_token, existing_data_dict, new_data_dict):
-    return __commit_image_files('image_files', property_key, normalized_type, user_token, existing_data_dict, new_data_dict)
-
 def commit_metadata_files(property_key, normalized_type, user_token, existing_data_dict, new_data_dict):
-    return __commit_image_files('metadata_files', property_key, normalized_type, user_token, existing_data_dict, new_data_dict)
-
-def __commit_image_files(target_property_key, property_key, normalized_type, user_token, existing_data_dict, new_data_dict):
-    
-    # Do nothing if no files to add are provided (missing or empty property)
-    #for image files the property name is "image_files_to_add" for metadata
-    #files the property name is "metadata_files_to_add", but other may be used in
-    #the future
-    if (not property_key in new_data_dict) or (not new_data_dict[property_key]):
-        return property_key, None
-    
-    
-    # If POST or PUT where the target doesn't exist create the file info array
-    if not target_property_key in existing_data_dict:
-        files_info_list = []
-    # Otherwise this is a PUT where the target array exists already
-    else:
-        # Note: The property, name specified by `target_property_key`, is stored in Neo4j as a string representation of the Python list
-        # It's not stored in Neo4j as a json string! And we can't store it as a json string 
-        # due to the way that Cypher handles single/double quotes.
-        files_info_list = ast.literal_eval(existing_data_dict[target_property_key])
-
-    try:
-        if 'uuid' in new_data_dict:
-            entity_uuid = new_data_dict['uuid']
-        else:
-            entity_uuid = existing_data_dict['uuid']
-
-        for file_info in new_data_dict[property_key]:
-            file_uuid_info = schema_manager.get_file_upload_helper_instance().commit_file(file_info['temp_file_id'], entity_uuid, user_token)
-            
-            file_info_to_add = {
-                'filename': file_uuid_info['filename'],
-                'file_uuid': file_uuid_info['file_uuid']
-            }
-            
-            # The `description` is optional
-            if 'description' in file_info:
-                file_info_to_add['description'] = file_info['description']
-            
-            # Add to list
-            files_info_list.append(file_info_to_add)
-        
-        # Assign the target value to a different property key rather than itself
-        return target_property_key, files_info_list
-    except Exception as e:
-        # No need to log
-        raise
+    return _commit_files('metadata_files', property_key, normalized_type, user_token, existing_data_dict, new_data_dict)
 
 
 """
@@ -886,14 +925,14 @@ Files are stored in a json encoded text field with property name 'target_propert
 The files to remove are specified as file uuids in the `property_key` field
 
 The two outer methods (delete_image_files and delete_metadata_files) pass the target property
-field name to private method, __delete_files along with the other required trigger properties
+field name to private method, _delete_files along with the other required trigger properties
 
 Parameters
 ----------
 property_key : str
     The target property key
 normalized_type : str
-    One of the types defined in the schema yaml: Activity, Collection, Donor, Sample, Dataset
+    One of the types defined in the schema yaml: Sample
 user_token: str
     The user's globus nexus token
 existing_data_dict : dict
@@ -910,49 +949,9 @@ Returns
 str: The target property key
 list: The file info dicts in a list
 """
-def delete_image_files(property_key, normalized_type, user_token, existing_data_dict, new_data_dict):
-    return __delete_files('image_files', property_key, normalized_type, user_token, existing_data_dict, new_data_dict)
-
 def delete_metadata_files(property_key, normalized_type, user_token, existing_data_dict, new_data_dict):
-    return __delete_files('metadata_files', property_key, normalized_type, user_token, existing_data_dict, new_data_dict)
+    return _delete_files('metadata_files', property_key, normalized_type, user_token, existing_data_dict, new_data_dict)
     
-def __delete_files(target_property_key, property_key, normalized_type, user_token, existing_data_dict, new_data_dict):
-
-    #do nothing if no files to delete are provided in the field specified by property_key
-    if (not property_key in new_data_dict) or (not new_data_dict[property_key]):
-        return property_key, None
-
-    if 'uuid' not in existing_data_dict:
-        raise KeyError(f"Missing 'uuid' key in 'existing_data_dict' during calling '__delete_files()' trigger method for property '{target_property_key}'.")
-    
-    if target_property_key not in existing_data_dict:
-        raise KeyError(f"Missing '{target_property_key}' key in 'existing_data_dict' during calling '_delete_files()' trigger method.")
-
-    try:
-        entity_uuid = existing_data_dict['uuid']
-        # `upload_dir` is already normalized with trailing slash
-        entity_upload_dir = schema_manager.get_file_upload_helper_instance().upload_dir + entity_uuid + os.sep
-        
-        # Note: The property named by target_property_key value is stored in Neo4j as a string representation of the Python list
-        # It's not stored in Neo4j as a json string! And we can't store it as a json string 
-        # due to the way that Cypher handles single/double quotes.
-        files_info_list = ast.literal_eval(existing_data_dict[target_property_key])
-        
-        # Remove physical files from the file system
-        for filename in new_data_dict[property_key]:
-            # Get back the updated files_info_list
-            files_info_list = schema_manager.get_file_upload_helper_instance().remove_file(entity_upload_dir, filename, files_info_list)
-        
-        # Assign the target value to a different property key rather than itself
-        return target_property_key, files_info_list
-    except Exception as e:
-        # No need to log
-        raise
-
-
-####################################################################################################
-## Trigger methods specific to Sample - DO NOT RENAME
-####################################################################################################
 
 """
 Trigger event method of building linkages between this new Sample and its ancestor
@@ -980,7 +979,7 @@ def link_sample_to_direct_ancestor(property_key, normalized_type, user_token, ex
     # Create a linkage (via Activity node) 
     # between the dataset node and the source entity node in neo4j
     # Generate property values for Activity
-    activity_data_dict = create_activity_data(normalized_type, user_token)
+    activity_data_dict = _create_activity_data(normalized_type, user_token, existing_data_dict)
 
     try:
         schema_neo4j_queries.link_entity_to_direct_ancestor(schema_manager.get_neo4j_driver_instance(), existing_data_dict['uuid'], existing_data_dict['direct_ancestor_uuid'], activity_data_dict)
@@ -1015,7 +1014,7 @@ def relink_sample_to_direct_ancestor(property_key, normalized_type, user_token, 
     # Create a linkage (via Activity node) 
     # between the dataset node and the source entity node in neo4j
     # Generate property values for Activity
-    activity_data_dict = create_activity_data(normalized_type, user_token)
+    activity_data_dict = _create_activity_data(normalized_type, user_token, existing_data_dict)
 
     try:
         schema_neo4j_queries.link_entity_to_direct_ancestor(schema_manager.get_neo4j_driver_instance(), existing_data_dict['uuid'], existing_data_dict['direct_ancestor_uuid'], activity_data_dict)
@@ -1108,21 +1107,191 @@ def set_activity_creation_action(property_key, normalized_type, user_token, exis
 ## Internal functions
 ####################################################################################################
 
+"""
+Create the Activity node properties
 
-def create_activity_data(normalized_entity_type, user_token):
+Parameters
+----------
+normalized_entity_type : str
+    One of the entity types defined in the schema yaml: Donor, Sample, Dataset
+user_token: str
+    The user's globus nexus token
+data_dict : dict
+    A dictionary that contains all existing entity properties
+"""
+def _create_activity_data(normalized_entity_type, user_token, data_dict):
     # Activity is not an Entity
     normalized_activity_type = 'Activity'
 
     # Target entity type dict
     # Will be used when calling `set_activity_creation_action()` trigger method
-    normalized_entity_type_dict = {'normalized_entity_type': normalized_type}
+    normalized_entity_type_dict = {'normalized_entity_type': normalized_entity_type}
 
     # Create new ids for the new Activity
     new_ids_dict_list = schema_manager.create_hubmap_ids(normalized_activity_type, json_data_dict = None, user_token = user_token, user_info_dict = None)
     new_ids_dict = new_ids_dict_list[0]
 
-    # The `existing_data_dict` should already have user_info
-    data_dict_for_activity = {**existing_data_dict, **normalized_entity_type_dict, **new_ids_dict}
+    # The `data_dict` should already have user_info
+    data_dict_for_activity = {**data_dict, **normalized_entity_type_dict, **new_ids_dict}
     
     # Generate property values for Activity node
     return schema_manager.generate_triggered_data('before_create_trigger', normalized_activity_type, user_token, {}, data_dict_for_activity)
+
+
+"""
+Trigger event method to commit files saved that were previously uploaded with UploadFileHelper.save_file
+
+The information, filename and optional description is saved in the field with name specified by `target_property_key`
+in the provided data_dict.  The image files needed to be previously uploaded
+using the temp file service (UploadFileHelper.save_file).  The temp file id provided
+from UploadFileHelper, paired with an optional description of the file must be provided
+in the field `image_files_to_add` in the data_dict for each file being committed
+in a JSON array like below ("description" is optional): 
+
+[
+  {
+    "temp_file_id": "eiaja823jafd",
+    "description": "File 1"
+  },
+  {
+    "temp_file_id": "pd34hu4spb3lk43usdr"
+  },
+  {
+    "temp_file_id": "32kafoiw4fbazd",
+    "description": "File 3"
+  }
+]
+
+
+Parameters
+----------
+target_property_key : str
+    The target property key of the value to be generated
+property_key : str
+    The property key for which the original trigger method is defined
+normalized_type : str
+    One of the types defined in the schema yaml: Donor, Sample
+user_token: str
+    The user's globus nexus token
+existing_data_dict : dict
+    A dictionary that contains all existing entity properties
+new_data_dict : dict
+    A merged dictionary that contains all possible input data to be used
+
+Returns
+-------
+str: The target property key
+list: The file info dicts in a list
+"""
+def _commit_files(target_property_key, property_key, normalized_type, user_token, existing_data_dict, new_data_dict):
+    
+    # Do nothing if no files to add are provided (missing or empty property)
+    # For image files the property name is "image_files_to_add"
+    # For metadata files the property name is "metadata_files_to_add"
+    # But other may be used in the future
+    if (not property_key in new_data_dict) or (not new_data_dict[property_key]):
+        return property_key, None
+    
+    # If POST or PUT where the target doesn't exist create the file info array
+    if not target_property_key in existing_data_dict:
+        files_info_list = []
+    # Otherwise this is a PUT where the target array exists already
+    else:
+        # Note: The property, name specified by `target_property_key`, is stored in Neo4j as a string representation of the Python list
+        # It's not stored in Neo4j as a json string! And we can't store it as a json string 
+        # due to the way that Cypher handles single/double quotes.
+        files_info_list = ast.literal_eval(existing_data_dict[target_property_key])
+
+    try:
+        if 'uuid' in new_data_dict:
+            entity_uuid = new_data_dict['uuid']
+        else:
+            entity_uuid = existing_data_dict['uuid']
+
+        for file_info in new_data_dict[property_key]:
+            file_uuid_info = schema_manager.get_file_upload_helper_instance().commit_file(file_info['temp_file_id'], entity_uuid, user_token)
+            
+            file_info_to_add = {
+                'filename': file_uuid_info['filename'],
+                'file_uuid': file_uuid_info['file_uuid']
+            }
+            
+            # The `description` is optional
+            if 'description' in file_info:
+                file_info_to_add['description'] = file_info['description']
+            
+            # Add to list
+            files_info_list.append(file_info_to_add)
+        
+        # Assign the target value to a different property key rather than itself
+        return target_property_key, files_info_list
+    except Exception as e:
+        # No need to log
+        raise
+
+
+"""
+Trigger event methods for removing files from an entity during update
+
+Files are stored in a json encoded text field with property name 'target_property_key' in the entity dict
+The files to remove are specified as file uuids in the `property_key` field
+
+The two outer methods (delete_image_files and delete_metadata_files) pass the target property
+field name to private method, _delete_files along with the other required trigger properties
+
+Parameters
+----------
+target_property_key : str
+    The target property key of the value to be generated
+property_key : str
+    The property key for which the original trigger method is defined
+normalized_type : str
+    One of the types defined in the schema yaml: Donor, Sample
+user_token: str
+    The user's globus nexus token
+existing_data_dict : dict
+    A dictionary that contains all existing entity properties
+new_data_dict : dict
+    A merged dictionary that contains all possible input data to be used
+
+-----------
+target_property_key: str
+    The name of the property where the file information is stored
+
+Returns
+-------
+str: The target property key
+list: The file info dicts in a list
+"""
+def _delete_files(target_property_key, property_key, normalized_type, user_token, existing_data_dict, new_data_dict):
+
+    #do nothing if no files to delete are provided in the field specified by property_key
+    if (not property_key in new_data_dict) or (not new_data_dict[property_key]):
+        return property_key, None
+
+    if 'uuid' not in existing_data_dict:
+        raise KeyError(f"Missing 'uuid' key in 'existing_data_dict' during calling '_delete_files()' trigger method for property '{target_property_key}'.")
+    
+    if target_property_key not in existing_data_dict:
+        raise KeyError(f"Missing '{target_property_key}' key in 'existing_data_dict' during calling '_delete_files()' trigger method.")
+
+    try:
+        entity_uuid = existing_data_dict['uuid']
+        # `upload_dir` is already normalized with trailing slash
+        entity_upload_dir = schema_manager.get_file_upload_helper_instance().upload_dir + entity_uuid + os.sep
+        
+        # Note: The property named by target_property_key value is stored in Neo4j as a string representation of the Python list
+        # It's not stored in Neo4j as a json string! And we can't store it as a json string 
+        # due to the way that Cypher handles single/double quotes.
+        files_info_list = ast.literal_eval(existing_data_dict[target_property_key])
+        
+        # Remove physical files from the file system
+        for filename in new_data_dict[property_key]:
+            # Get back the updated files_info_list
+            files_info_list = schema_manager.get_file_upload_helper_instance().remove_file(entity_upload_dir, filename, files_info_list)
+        
+        # Assign the target value to a different property key rather than itself
+        return target_property_key, files_info_list
+    except Exception as e:
+        # No need to log
+        raise
