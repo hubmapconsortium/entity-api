@@ -6,7 +6,7 @@ import json
 import requests
 import urllib
 # Don't confuse urllib (Python native library) with urllib3 (3rd-party library, requests also uses urllib3)
-from requests.urllib3.exceptions import InsecureRequestWarning
+from requests.packages.urllib3.exceptions import InsecureRequestWarning
 from pathlib import Path
 import logging
 
@@ -42,7 +42,7 @@ app.config['UUID_API_URL'] = app.config['UUID_API_URL'].strip('/')
 app.config['SEARCH_API_URL'] = app.config['SEARCH_API_URL'].strip('/')
 
 # Suppress InsecureRequestWarning warning when requesting status on https with ssl cert verify disabled
-requests.urllib3.disable_warnings(category = InsecureRequestWarning)
+requests.packages.urllib3.disable_warnings(category = InsecureRequestWarning)
 
 
 ####################################################################################################
