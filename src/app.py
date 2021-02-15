@@ -755,8 +755,13 @@ def create_entity(entity_type):
         # sample's direct ancestor is a Donor.
         # Must be one of the codes from: https://github.com/hubmapconsortium/search-api/blob/test-release/src/search-schema/data/definitions/enums/organ_types.yaml
         if direct_ancestor_dict['entity_type'] == 'Donor':
-            if 'organ' not in json_data_dict:
-                bad_request_error('The key "organ" with a valid organ code is required since the direct ancestor is a Donor')
+            # `specimen_type` is required on create
+            if json_data_dict['specimen_type'].lower() != 'organ':
+                bad_request_error("The specimen_type must be organ since the direct ancestor is a Donor")
+
+            # Currently we don't validate the provided organ code though
+            if ('organ' not in json_data_dict) or (not json_data_dict['organ']):
+                bad_request_error("A valid organ code is required since the direct ancestor is a Donor")
 
         # Generate 'before_create_triiger' data and create the entity details in Neo4j
         merged_dict = create_entity_details(request, normalized_entity_type, user_token, json_data_dict)
@@ -785,7 +790,6 @@ def create_entity(entity_type):
     # Will also filter the result based on schema
     normalized_complete_dict = schema_manager.normalize_entity_result_for_response(complete_dict)
 
-    # How to handle reindex collection?
     # Also index the new entity node in elasticsearch via search-api
     reindex_entity(complete_dict['uuid'])
 
@@ -834,11 +838,20 @@ def create_multiple_samples(count):
     # sample's direct ancestor is a Donor.
     # Must be one of the codes from: https://github.com/hubmapconsortium/search-api/blob/test-release/src/search-schema/data/definitions/enums/organ_types.yaml
     if direct_ancestor_dict['entity_type'] == 'Donor':
-        if 'organ' not in json_data_dict:
-            bad_request_error('The key "organ" with a valid organ code is required since the direct ancestor is a Donor')
+        # `specimen_type` is required on create
+        if json_data_dict['specimen_type'].lower() != 'organ':
+            bad_request_error("The specimen_type must be organ since the direct ancestor is a Donor")
+
+        # Currently we don't validate the provided organ code though
+        if ('organ' not in json_data_dict) or (not json_data_dict['organ']):
+            bad_request_error("A valid organ code is required since the direct ancestor is a Donor")
 
     # Generate 'before_create_triiger' data and create the entity details in Neo4j
     generated_ids_dict_list = create_multiple_samples_details(request, normalized_entity_type, user_token, json_data_dict, count)
+
+    # Also index the each new Sample node in elasticsearch via search-api
+    for id_dict in generated_ids_dict_list:
+        reindex_entity(id_dict['uuid'])
 
     return jsonify(generated_ids_dict_list)
 
@@ -1608,19 +1621,20 @@ def create_entity_details(request, normalized_entity_type, user_token, json_data
         logger.exception(msg)
         bad_request_error(msg)
     except schema_errors.UnmatchedDataProviderGroupException:
-        # Log the full stack trace, prepend a line with our message
         msg = "The user does not belong to the given Globus group, can't create the entity"
         logger.exception(msg)
         bad_request_error(msg)
     except schema_errors.MultipleDataProviderGroupException:
-        # Log the full stack trace, prepend a line with our message
         msg = "The user has mutiple Globus groups associated with, please specify one using 'group_uuid'"
         logger.exception(msg)
         bad_request_error(msg)
     except KeyError as e:
-        # Log the full stack trace, prepend a line with our message
         logger.exception(e)
         bad_request_error(e)
+    except requests.exceptions.RequestException as e:
+        msg = f"Failed to create new HuBMAP ids via the uuid-api service" 
+        logger.exception(msg)
+        internal_server_error(e)
 
     # Merge all the above dictionaries and pass to the trigger methods
     new_data_dict = {**json_data_dict, **user_info_dict, **new_ids_dict}
@@ -1664,10 +1678,7 @@ def create_entity_details(request, normalized_entity_type, user_token, json_data
     # Filter out the merged_dict by getting rid of the properties with None value
     # Meaning the returned target property key is different from the original key
     # E.g., Donor.image_files
-    filtered_merged_dict = {}
-    for k, v in merged_dict.items():
-        if v is not None:
-            filtered_merged_dict[k] = v
+    filtered_merged_dict = schema_manager.remove_none_values(merged_dict)
 
     # Create new entity
     try:
@@ -1740,79 +1751,66 @@ def create_multiple_samples_details(request, normalized_entity_type, user_token,
         logger.exception(e)
         bad_request_error(e)
 
-    logger.debug("new_ids_dict_list for multiple samples")
-    logger.debug(new_ids_dict_list)
+    # Use the same json_data_dict and user_info_dict for each sample
+    # Only difference is the `uuid` and `hubmap_id` that are generated
+    # Merge all the dictionaries and pass to the trigger methods
+    new_data_dict = {**json_data_dict, **user_info_dict, **new_ids_dict_list[0]}
 
-    # Use the same json_data_dict and user_info_dict for each sample to be created
-    # Only difference is the hubmap_ids generated
+    # Instead of calling generate_triggered_data() for each sample, we'll just call it on the first sample
+    # since all other samples will share the same generated data except `uuid` and `hubmap_id`
+    # A bit performance improvement
+    try:
+        # Use {} since no existing dict
+        generated_before_create_trigger_data_dict = schema_manager.generate_triggered_data('before_create_trigger', normalized_entity_type, user_token, {}, new_data_dict)
+    # If one of the before_create_trigger methods fails, we can't create the entity
+    except schema_errors.BeforeCreateTriggerException:
+        # Log the full stack trace, prepend a line with our message
+        msg = "Failed to execute one of the 'before_create_trigger' methods, can't create the entity"
+        logger.exception(msg)
+        internal_server_error(msg)
+    except schema_errors.NoDataProviderGroupException:
+        # Log the full stack trace, prepend a line with our message
+        if 'group_uuid' in json_data_dict:
+            msg = "Invalid 'group_uuid' value, can't create the entity"
+        else:
+            msg = "The user does not have the correct Globus group associated with, can't create the entity"
+        
+        logger.exception(msg)
+        bad_request_error(msg)
+    except schema_errors.UnmatchedDataProviderGroupException:
+        # Log the full stack trace, prepend a line with our message
+        msg = "The user does not belong to the given Globus group, can't create the entity"
+        logger.exception(msg)
+        bad_request_error(msg)
+    except schema_errors.MultipleDataProviderGroupException:
+        # Log the full stack trace, prepend a line with our message
+        msg = "The user has mutiple Globus groups associated with, please specify one using 'group_uuid'"
+        logger.exception(msg)
+        bad_request_error(msg)
+    except KeyError as e:
+        # Log the full stack trace, prepend a line with our message
+        logger.exception(e)
+        bad_request_error(e)
+
+    # Merge the user json data and generated trigger data into one dictionary
+    merged_dict = {**json_data_dict, **generated_before_create_trigger_data_dict}
+
+    # Filter out the merged_dict by getting rid of the properties with None value
+    # Meaning the returned target property key is different from the original key
+    # E.g., Donor.image_files
+    filtered_merged_dict = schema_manager.remove_none_values(merged_dict)
+
     samples_dict_list = []
     for new_ids_dict in new_ids_dict_list:
-        # Merge all the dictionaries and pass to the trigger methods
-        new_data_dict = {**json_data_dict, **user_info_dict, **new_ids_dict}
-
-        try:
-            # Use {} since no existing dict
-            generated_before_create_trigger_data_dict = schema_manager.generate_triggered_data('before_create_trigger', normalized_entity_type, user_token, {}, new_data_dict)
-        # If one of the before_create_trigger methods fails, we can't create the entity
-        except schema_errors.BeforeCreateTriggerException:
-            # Log the full stack trace, prepend a line with our message
-            msg = "Failed to execute one of the 'before_create_trigger' methods, can't create the entity"
-            logger.exception(msg)
-            internal_server_error(msg)
-        except schema_errors.NoDataProviderGroupException:
-            # Log the full stack trace, prepend a line with our message
-            if 'group_uuid' in json_data_dict:
-                msg = "Invalid 'group_uuid' value, can't create the entity"
-            else:
-                msg = "The user does not have the correct Globus group associated with, can't create the entity"
-            
-            logger.exception(msg)
-            bad_request_error(msg)
-        except schema_errors.UnmatchedDataProviderGroupException:
-            # Log the full stack trace, prepend a line with our message
-            msg = "The user does not belong to the given Globus group, can't create the entity"
-            logger.exception(msg)
-            bad_request_error(msg)
-        except schema_errors.MultipleDataProviderGroupException:
-            # Log the full stack trace, prepend a line with our message
-            msg = "The user has mutiple Globus groups associated with, please specify one using 'group_uuid'"
-            logger.exception(msg)
-            bad_request_error(msg)
-        except KeyError as e:
-            # Log the full stack trace, prepend a line with our message
-            logger.exception(e)
-            bad_request_error(e)
-
-        # Merge the user json data and generated trigger data into one dictionary
-        merged_dict = {**json_data_dict, **generated_before_create_trigger_data_dict}
-
-        # Filter out the merged_dict by getting rid of the properties with None value
-        # Meaning the returned target property key is different from the original key
-        # E.g., Donor.image_files
-        filtered_merged_dict = {}
-        for k, v in merged_dict.items():
-            if v is not None:
-                filtered_merged_dict[k] = v
-
+        # Just overwrite the `uuid` and `hubmap_id` that are generated
+        # All other generated properties will stay the same across all samples
+        sample_dict = {**filtered_merged_dict, **new_ids_dict}
         # Add to the list
-        samples_dict_list.append(filtered_merged_dict)
+        samples_dict_list.append(sample_dict)
 
-    # Create new ids for the new Activity node
-    # Create a linkage (via Activity node) 
-    normalized_activity_type = 'Activity'
-
-    new_ids_dict_list_for_activity = schema_manager.create_hubmap_ids(normalized_activity_type, json_data_dict = None, user_token = user_token, user_info_dict = None)
-    new_ids_dict_for_activity = new_ids_dict_list_for_activity[0]
-
-    # Target entity type dict
-    # Will be used when calling set_activity_creation_action() trigger method
-    normalized_entity_type_dict = {'normalized_entity_type': normalized_entity_type}
-
-    data_dict_for_activity = {**normalized_entity_type_dict, **user_info_dict, **new_ids_dict_for_activity}
+    # Generate property values for Activity node
+    activity_data_dict = schema_manager.generate_activity_data(normalized_entity_type, user_token, user_info_dict)
     
-    # Generate property values for Activity
-    activity_data_dict = schema_manager.generate_triggered_data('before_create_trigger', normalized_activity_type, user_token, {}, data_dict_for_activity)
-
     # Create new sample nodes and needed relationships as well as activity node in one transaction
     try:
         # No return value
@@ -1897,10 +1895,7 @@ def update_entity_details(request, normalized_entity_type, user_token, json_data
     # Filter out the merged_dict by getting rid of the properties with None value
     # Meaning the returned target property key is different from the original key
     # E.g., Donor.image_files
-    filtered_merged_dict = {}
-    for k, v in merged_dict.items():
-        if v is not None:
-            filtered_merged_dict[k] = v
+    filtered_merged_dict = schema_manager.remove_none_values(merged_dict)
 
     # By now the filtered_merged_dict contains all user updates and all triggered data to be added to the entity node
     # Any properties in filtered_merged_dict that are not on the node will be added.

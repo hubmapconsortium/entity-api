@@ -309,7 +309,31 @@ def generate_triggered_data(trigger_type, normalized_class, user_token, existing
     
     # Return after for loop
     return trigger_generated_data_dict
-       
+    
+
+"""
+Filter out the merged_dict by getting rid of the properties with None value
+Meaning the returned target property key is different from the original key
+E.g., Donor.image_files_to_add
+
+Parameters
+----------
+merged_dict : dict
+    A merged dict that may contain properties with None values
+
+Returns
+-------
+dict
+    A filtered dict that removed all properties with None values
+"""
+def remove_none_values(merged_dict):
+    filtered_dict = {}
+    for k, v in merged_dict.items():
+        if v is not None:
+            filtered_dict[k] = v 
+
+    return filtered_dict
+
 
 """
 Generate the complete entity record as well as result filtering for response
@@ -556,11 +580,11 @@ def validate_json_data_against_schema(json_data_dict, normalized_entity_type, ex
     invalid_data_type_keys = []
     for key in json_data_keys:
         # boolean starts with bool, string starts with str, integer starts with int, list is list
-        if not properties[key]['type'].startswith(type(json_data_dict[key]).__name__):
+        if (properties[key]['type'] in ['string', 'integer', 'list']) and (not properties[key]['type'].startswith(type(json_data_dict[key]).__name__)):
             invalid_data_type_keys.append(key)
-
+            
         # Handling json_string as dict
-        if (properties[key]['type'] == 'json_string') and (not isinstance(json_data_dict[key], dict)): 
+        if (properties[key]['type'] == 'json_string') and (not isinstance(json_data_dict[key], dict)):
             invalid_data_type_keys.append(key)
     
     if len(invalid_data_type_keys) > 0:
@@ -945,10 +969,6 @@ def create_hubmap_ids(normalized_class, json_data_dict, user_token, user_info_di
             # 'Sample.specimen_type' is marked as `required_on_create` in the schema yaml
             if json_data_dict['specimen_type'].lower() == 'organ':
                 # The 'organ' field containing the organ code is required in this case
-                if 'organ' not in json_data_dict:
-                    raise KeyError("Missing 'organ' key in 'json_data_dict' when calling 'create_hubmap_ids()' to create ids for this new Sample.")
-
-                # This is the organ code
                 json_to_post['organ_code'] = json_data_dict['organ']
         else:
             # Similarly, should `direct_ancestor_uuids` be `required_on_create` in yaml?
@@ -992,13 +1012,14 @@ def create_hubmap_ids(normalized_class, json_data_dict, user_token, user_info_di
         # Log the full stack trace, prepend a line with our message
         logger.exception(msg)
 
-        logger.debug("======create_new_ids() status code======")
+        logger.debug("======create_hubmap_ids() status code from uuid-api======")
         logger.debug(response.status_code)
 
-        logger.debug("======create_new_ids() response text======")
+        logger.debug("======create_hubmap_ids() response text from uuid-api======")
         logger.debug(response.text)
 
-        raise requests.exceptions.RequestException(msg)
+        # Also bubble up the error message from uuid-api
+        raise requests.exceptions.RequestException(response.text)
 
 """
 Get the group info (group_uuid and group_name) based on user's hmgroupids list
@@ -1113,33 +1134,34 @@ def get_entity_group_name(group_uuid):
     return group_name
 
 
-####################################################################################################
-## Internal functions
-####################################################################################################
-
 """
-Create a dict of HTTP Authorization header with Bearer token for making calls to uuid-api
+Create the Activity node properties
 
 Parameters
 ----------
+normalized_entity_type : str
+    One of the entity types defined in the schema yaml: Donor, Sample, Dataset
 user_token: str
     The user's globus nexus token
-
-Returns
--------
-dict
-    The headers dict to be used by requests
+user_info_dict : dict
+    A dictionary that contains all user info to be used to generate the related properties
 """
-def _create_request_headers(user_token):
-    auth_header_name = 'Authorization'
-    auth_scheme = 'Bearer'
+def generate_activity_data(normalized_entity_type, user_token, user_info_dict):
+    # Activity is not an Entity
+    normalized_activity_type = 'Activity'
 
-    headers_dict = {
-        # Don't forget the space between scheme and the token value
-        auth_header_name: auth_scheme + ' ' + user_token
-    }
+    # Target entity type dict
+    # Will be used when calling `set_activity_creation_action()` trigger method
+    normalized_entity_type_dict = {'normalized_entity_type': normalized_entity_type}
 
-    return headers_dict
+    # Create new ids for the new Activity
+    new_ids_dict_list = create_hubmap_ids(normalized_activity_type, json_data_dict = None, user_token = user_token, user_info_dict = None)
+    new_ids_dict = new_ids_dict_list[0]
+
+    data_dict_for_activity = {**user_info_dict, **normalized_entity_type_dict, **new_ids_dict}
+    
+    # Generate property values for Activity node
+    return generate_triggered_data('before_create_trigger', normalized_activity_type, user_token, {}, data_dict_for_activity)
 
 
 """
@@ -1182,4 +1204,33 @@ def get_file_upload_helper_instance():
     global _file_upload_helper
     
     return _file_upload_helper
+
+
+####################################################################################################
+## Internal functions
+####################################################################################################
+
+"""
+Create a dict of HTTP Authorization header with Bearer token for making calls to uuid-api
+
+Parameters
+----------
+user_token: str
+    The user's globus nexus token
+
+Returns
+-------
+dict
+    The headers dict to be used by requests
+"""
+def _create_request_headers(user_token):
+    auth_header_name = 'Authorization'
+    auth_scheme = 'Bearer'
+
+    headers_dict = {
+        # Don't forget the space between scheme and the token value
+        auth_header_name: auth_scheme + ' ' + user_token
+    }
+
+    return headers_dict
 
