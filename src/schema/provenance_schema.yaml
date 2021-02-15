@@ -178,6 +178,9 @@ ENTITIES:
     properties:
       <<: *shared_properties
       <<: *shared_entity_properties
+      antibodies:
+        type: list
+        description: "A list of antibodies used in the assay that created the dataset"
       description:
         type: string
         description: "Free text description of the dataset"
@@ -214,7 +217,7 @@ ENTITIES:
         on_read_trigger: get_dataset_collections
       contributors:
         type: list
-        description: "A list of people who contributed to the creation of this dataset.  Returned as an array of contributor where the structure of a contributor is diescribed  "
+        description: "A list of people who contributed to the creation of this dataset.  Returned as an array of contributor where the structure of a contributor is"
       direct_ancestor_uuids:
         required_on_create: true # Only required for create via POST, not update via PUT
         type: list
