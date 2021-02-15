@@ -212,6 +212,9 @@ ENTITIES:
         generated: true
         description: "A list of collections that this dataset belongs to. Will be returned in response"
         on_read_trigger: get_dataset_collections
+      contributors:
+        type: json_string
+        description: "A list of people who contributed to the creation of this dataset.  Returned as an array of contributor where the structure of a contributor is diescribed  "
       direct_ancestor_uuids:
         required_on_create: true # Only required for create via POST, not update via PUT
         type: list
