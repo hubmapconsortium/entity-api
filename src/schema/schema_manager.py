@@ -250,6 +250,12 @@ def generate_triggered_data(trigger_type, normalized_class, user_token, existing
                         # and this will overwrite the original key so it doesn't get stored in Neo4j
                         if key != target_key:
                             trigger_generated_data_dict[key] = None
+                    # If something wrong with file upload
+                    except schema_errors.FileUploadException as e:
+                        msg = f"Failed to call the {trigger_type} method: {trigger_method_name}"
+                        # Log the full stack trace, prepend a line with our message
+                        logger.exception(msg)
+                        raise schema_errors.FileUploadException
                     except Exception as e:
                         msg = f"Failed to call the {trigger_type} method: {trigger_method_name}"
                         # Log the full stack trace, prepend a line with our message
@@ -293,6 +299,12 @@ def generate_triggered_data(trigger_type, normalized_class, user_token, existing
                     # Log the full stack trace, prepend a line with our message
                     logger.exception(msg)
                     raise schema_errors.UnmatchedDataProviderGroupException
+                # If something wrong with file upload
+                except schema_errors.FileUploadException as e:
+                    msg = f"Failed to call the {trigger_type} method: {trigger_method_name}"
+                    # Log the full stack trace, prepend a line with our message
+                    logger.exception(msg)
+                    raise schema_errors.FileUploadException
                 except Exception as e:
                     msg = f"Failed to call the {trigger_type} method: {trigger_method_name}"
                     # Log the full stack trace, prepend a line with our message

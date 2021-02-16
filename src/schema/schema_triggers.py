@@ -1194,6 +1194,8 @@ def _commit_files(target_property_key, property_key, normalized_type, user_token
         
         # Assign the target value to a different property key rather than itself
         return target_property_key, files_info_list
+    except schema_errors.FileUploadException as e:
+        raise
     except Exception as e:
         # No need to log
         raise

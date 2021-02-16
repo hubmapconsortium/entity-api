@@ -1667,6 +1667,10 @@ def create_entity_details(request, normalized_entity_type, user_token, json_data
         msg = "The user has mutiple Globus groups associated with, please specify one using 'group_uuid'"
         logger.exception(msg)
         bad_request_error(msg)
+    # If something wrong with file upload
+    except schema_errors.FileUploadException as e:
+        logger.exception(e)
+        internal_server_error(e)
     except KeyError as e:
         # Log the full stack trace, prepend a line with our message
         logger.exception(e)
@@ -1882,6 +1886,10 @@ def update_entity_details(request, normalized_entity_type, user_token, json_data
 
     try:
         generated_before_update_trigger_data_dict = schema_manager.generate_triggered_data('before_update_trigger', normalized_entity_type, user_token, existing_entity_dict, new_data_dict)
+    # If something wrong with file upload
+    except schema_errors.FileUploadException as e:
+        logger.exception(e)
+        internal_server_error(e)
     # If one of the before_update_trigger methods fails, we can't update the entity
     except schema_errors.BeforeUpdateTriggerException:
         # Log the full stack trace, prepend a line with our message

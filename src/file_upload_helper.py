@@ -96,7 +96,7 @@ class UploadFileHelper:
         logger.debug(temp_file_id)
 
         if not temp_file_id in self.temp_files:
-            raise Exception("Temporary file with id " + temp_file_id + " does not exist.")
+            raise schema_errors.FileUploadException("Temporary file with id " + temp_file_id + " does not exist.")
         
         file_from_path = self.temp_files[temp_file_id]['filedir'] + self.temp_files[temp_file_id]['filename']
         file_to_dir = self.upload_dir + entity_uuid + os.sep
@@ -116,7 +116,7 @@ class UploadFileHelper:
         data['file_info'] = [file_info]
         response = requests.post(self.uuid_api_url, json = data, headers = headers, verify = False)
         if response is None or response.status_code != 200:
-            raise schema_errors.FileUUIDCreateException(f"Unable to generate uuid for file {self.temp_files[temp_file_id]['filename']}")
+            raise schema_errors.FileUploadException(f"Unable to generate uuid for file {self.temp_files[temp_file_id]['filename']}")
         
         rsjs = response.json()
         file_uuid = rsjs[0]['uuid']
