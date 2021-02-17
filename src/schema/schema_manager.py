@@ -255,7 +255,7 @@ def generate_triggered_data(trigger_type, normalized_class, user_token, existing
                         msg = f"Failed to call the {trigger_type} method: {trigger_method_name}"
                         # Log the full stack trace, prepend a line with our message
                         logger.exception(msg)
-                        raise schema_errors.FileUploadException
+                        raise schema_errors.FileUploadException(e)
                     except Exception as e:
                         msg = f"Failed to call the {trigger_type} method: {trigger_method_name}"
                         # Log the full stack trace, prepend a line with our message
@@ -304,7 +304,7 @@ def generate_triggered_data(trigger_type, normalized_class, user_token, existing
                     msg = f"Failed to call the {trigger_type} method: {trigger_method_name}"
                     # Log the full stack trace, prepend a line with our message
                     logger.exception(msg)
-                    raise schema_errors.FileUploadException
+                    raise schema_errors.FileUploadException(e)
                 except Exception as e:
                     msg = f"Failed to call the {trigger_type} method: {trigger_method_name}"
                     # Log the full stack trace, prepend a line with our message
