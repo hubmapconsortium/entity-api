@@ -791,7 +791,7 @@ def create_entity(entity_type):
     normalized_complete_dict = schema_manager.normalize_entity_result_for_response(complete_dict)
 
     # Also index the new entity node in elasticsearch via search-api
-    reindex_entity(complete_dict['uuid'])
+    reindex_entity(complete_dict['uuid'], user_token)
 
     return jsonify(normalized_complete_dict)
 
@@ -851,7 +851,7 @@ def create_multiple_samples(count):
 
     # Also index the each new Sample node in elasticsearch via search-api
     for id_dict in generated_ids_dict_list:
-        reindex_entity(id_dict['uuid'])
+        reindex_entity(id_dict['uuid'], user_token)
 
     return jsonify(generated_ids_dict_list)
 
@@ -943,7 +943,7 @@ def update_entity(id):
 
     # How to handle reindex collection?
     # Also reindex the updated entity node in elasticsearch via search-api
-    reindex_entity(entity_dict['uuid'])
+    reindex_entity(entity_dict['uuid'], user_token)
 
     return jsonify(normalized_complete_dict)
 
@@ -2022,10 +2022,14 @@ Parameters
 ----------
 uuid : str
     The uuid of the target entity
+user_token: str
+    The user's globus nexus token
 """
-def reindex_entity(uuid):
+def reindex_entity(uuid, user_token):
     try:
-        response = requests.put(app.config['SEARCH_API_URL'] + "/reindex/" + uuid)
+        headers = _create_request_headers(user_token)
+
+        response = requests.put(app.config['SEARCH_API_URL'] + "/reindex/" + uuid, headers = headers)
         # The reindex takes time, so 202 Accepted response status code indicates that 
         # the request has been accepted for processing, but the processing has not been completed
         if response.status_code == 202:
@@ -2038,6 +2042,30 @@ def reindex_entity(uuid):
         logger.exception(msg)
         # Terminate and let the users know
         internal_server_error(msg)
+
+"""
+Create a dict of HTTP Authorization header with Bearer token for making calls to uuid-api
+
+Parameters
+----------
+user_token: str
+    The user's globus nexus token
+
+Returns
+-------
+dict
+    The headers dict to be used by requests
+"""
+def create_request_headers(user_token):
+    auth_header_name = 'Authorization'
+    auth_scheme = 'Bearer'
+
+    headers_dict = {
+        # Don't forget the space between scheme and the token value
+        auth_header_name: auth_scheme + ' ' + user_token
+    }
+
+    return headers_dict
 
 """
 Ensure the access level dir with leading and trailing slashes
