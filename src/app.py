@@ -252,18 +252,26 @@ def get_entity_by_id(id):
     if entity_dict['entity_type'] == 'Collection':
         bad_request_error("Please use another API endpoint `/collections/<id>` to query a collection")
 
+    # Get user token from Authorization header
+    # getAuthorizationTokens() also handles MAuthorization header but we are not using that here
+    user_token = auth_helper_instance.getAuthorizationTokens(request.headers) 
+
     # The `data_access_level` of Dataset can be 'public', consortium', or 'protected'
     if normalized_entity_type == 'Dataset':
         # Only published/public datasets don't require token
         if entity_dict['status'].lower() != 'published':
             # Check if user token is provided
-            # this will throw 401 is no token or invalid token
-            user_token = get_user_token(request.headers)
+            # The user_token is flask.Response on error
+            # Without token, the user can only access public collections, modify the collection result
+            # by only returning public datasets attached to this collection
+            if isinstance(user_token, Response):
+                bad_request_error("A valid globus token is required")
     else:
         # The `data_access_level` of Donor/Sample can only be either 'public' or 'consortium'
         if entity_data_access_level == ACCESS_LEVEL_CONSORTIUM:
             # Require token to access the Donor/Sample that are not public
-            user_token = get_user_token(request.headers)
+            if isinstance(user_token, Response):
+                bad_request_error("A valid globus token is required")
 
     # By now, either the entity is public accessible or the user token has the correct access level
     # We'll need to return all the properties including those 
@@ -330,18 +338,25 @@ def get_entity_provenance(id):
     if normalized_entity_type not in supported_entity_types:
         bad_request_error(f"Unable to get the provenance for this {normalized_entity_type}, the requested entity must be one of: {separator.join(supported_entity_types)}")
 
+    # Get user token from Authorization header
+    # getAuthorizationTokens() also handles MAuthorization header but we are not using that here
+    user_token = auth_helper_instance.getAuthorizationTokens(request.headers) 
+
     # The `data_access_level` of Dataset can be 'public', consortium', or 'protected'
     if normalized_entity_type == 'Dataset':
         # Only published/public datasets don't require token
         if entity_dict['status'].lower() != 'published':
             # Check if user token is provided
-            # this will throw 401 is no token or invalid token
-            user_token = get_user_token(request.headers)
+            # The user_token is flask.Response on error
+            # Without token, the user can only access public collections, modify the collection result
+            # by only returning public datasets attached to this collection
+            if isinstance(user_token, Response):
+                bad_request_error("A valid globus token is required")
     else:
         # The `data_access_level` of Donor/Sample can only be either 'public' or 'consortium'
         if entity_data_access_level == ACCESS_LEVEL_CONSORTIUM:
-            # Require token to access the Donor/Sample that are not public
-            user_token = get_user_token(request.headers)
+            if isinstance(user_token, Response):
+                bad_request_error("A valid globus token is required")
 
     # By now, either the entity is public accessible or the user token has the correct access level
     # Will just proceed to get the provenance informaiton
