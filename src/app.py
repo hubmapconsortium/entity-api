@@ -1960,7 +1960,7 @@ user_token: str
 """
 def reindex_entity(uuid, user_token):
     try:
-        headers = _create_request_headers(user_token)
+        headers = create_request_headers(user_token)
 
         response = requests.put(app.config['SEARCH_API_URL'] + "/reindex/" + uuid, headers = headers)
         # The reindex takes time, so 202 Accepted response status code indicates that 
