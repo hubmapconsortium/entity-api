@@ -139,7 +139,7 @@ try:
         logger.info("Initialized UploadFileHelper class successfully :)")
 
         # This will delete all the temp dirs on restart
-        file_upload_helper_instance.clean_temp_dir()
+        #file_upload_helper_instance.clean_temp_dir()
     else:
         file_upload_helper_instance = UploadFileHelper.instance()
 # Use a broad catch-all here
