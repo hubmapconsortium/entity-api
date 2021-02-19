@@ -1,4 +1,5 @@
 import os
+from os import listdir
 import secrets
 import shutil
 import logging
@@ -57,20 +58,16 @@ class UploadFileHelper:
         self.upload_temp_dir = file_helper.ensureTrailingSlash(upload_temp_dir)
         self.upload_dir = file_helper.ensureTrailingSlash(upload_dir)
         self.uuid_api_url = uuid_api_url
-        self.temp_files = {}
     
-    def clean_temp_dir(self):
-        for dirname in os.listdir(self.upload_temp_dir):
-            dirpath = self.upload_temp_dir + dirname
-            if os.path.isdir(dirpath):
-                shutil.rmtree(dirpath)
+    #def clean_temp_dir(self):
+    #    for dirname in os.listdir(self.upload_temp_dir):
+    #        dirpath = self.upload_temp_dir + dirname
+    #        if os.path.isdir(dirpath):
+    #            shutil.rmtree(dirpath)
     
     def save_temp_file(self, file):
         temp_id = self.__get_temp_file_id()
-        file_dir = self.upload_temp_dir + temp_id + os.sep
-        self.temp_files[temp_id] = {}
-        self.temp_files[temp_id]['filename'] = file.filename
-        self.temp_files[temp_id]['filedir'] = file_dir
+        file_dir = self.__get_temp_file_dir(temp_id)
 
         # Use pathlib to create dir instead of file_helper.mkDir
         pathlib.Path(file_dir).mkdir(parents=True, exist_ok=True)
@@ -79,27 +76,44 @@ class UploadFileHelper:
         
         return temp_id
     
+    def __get_temp_file_dir(self, temp_id):
+        return self.upload_temp_dir + temp_id + os.sep
+    
     def __get_temp_file_id(self, iteration=0):
         if iteration == 100:
             raise Exception("Unable to get a temporary file id after 100 attempts")
         rid = ''
         for _ in range(20):                                                                                                                
             rid = rid + secrets.choice(ID_CHARS)
-        while rid in self.temp_files:
+        while os.path.exists(self.__get_temp_file_dir(rid)):
             rid = self.get_temp_file_id(iteration = iteration + 1)
         
         return rid
     
     
     def commit_file(self, temp_file_id, entity_uuid, user_token):
-        logger.debug(self.temp_files)
         logger.debug(temp_file_id)
 
-        if not temp_file_id in self.temp_files:
-            raise schema_errors.FileUploadException("Temporary file with id " + temp_file_id + " does not exist.")
+        file_temp_dir = self.__get_temp_file_dir(temp_file_id.strip())
+        if not os.path.exists(file_temp_dir):
+            raise schema_errors.FileUploadException("Temporary file with id " + temp_file_id + " does not have a temp directory.")
         
-        file_from_path = self.temp_files[temp_file_id]['filedir'] + self.temp_files[temp_file_id]['filename']
+        fcount = 0
+        temp_file_name = None
+        for tfile in listdir(file_temp_dir):
+            fcount = fcount + 1
+            temp_file_name = tfile
+        
+        if fcount == 0:
+            raise schema_errors.FileUploadException("File not found for temporary file with id " + temp_file_id)
+        if fcount > 1:
+            raise schema_errors.FileUploadException("Multiple files found in temporary file path for temp file id " + temp_file_id)
+        
+        
+        file_from_path = file_temp_dir + temp_file_name
         file_to_dir = self.upload_dir + entity_uuid + os.sep
+        
+        
         
         #get a uuid for the file
         checksum = hashlib.md5(open(file_from_path, 'rb').read()).hexdigest()
@@ -109,27 +123,29 @@ class UploadFileHelper:
         data['entity_type'] = 'FILE'
         data['parent_ids'] = [entity_uuid]
         file_info= {}
-        file_info['path'] = file_to_dir + '<uuid>' + os.sep + self.temp_files[temp_file_id]['filename']
+        file_info['path'] = file_to_dir + '<uuid>' + os.sep + temp_file_name
         file_info['checksum'] = checksum
         file_info['base_dir'] = 'INGEST_PORTAL_UPLOAD'
         file_info['size'] = filesize
         data['file_info'] = [file_info]
         response = requests.post(self.uuid_api_url, json = data, headers = headers, verify = False)
         if response is None or response.status_code != 200:
-            raise schema_errors.FileUploadException(f"Unable to generate uuid for file {self.temp_files[temp_file_id]['filename']}")
+            raise schema_errors.FileUploadException(f"Unable to generate uuid for file {file_temp_dir}{temp_file_name}")
         
         rsjs = response.json()
         file_uuid = rsjs[0]['uuid']
         
         file_to_dir = file_to_dir + file_uuid
-        file_dest_path = file_to_dir + os.sep + self.temp_files[temp_file_id]['filename']
+        file_dest_path = file_to_dir + os.sep + temp_file_name
         
         if not os.path.exists(file_to_dir):
             os.makedirs(file_to_dir)
 
         shutil.move(file_from_path, file_dest_path)
+        os.rmdir(file_temp_dir)
         
-        return {"filename": self.temp_files[temp_file_id]['filename'], "file_uuid": file_uuid}
+        #self.temp_files[temp_file_id]['filename']
+        return {"filename": temp_file_name, "file_uuid": file_uuid}
 
     #the file will be stored at /<base_dir>/<entity_uuid>/<file_uuid>/<filename>
     #where file_dir = /<base_dir>/<entity_uuid>
