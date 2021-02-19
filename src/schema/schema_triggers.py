@@ -865,6 +865,40 @@ def get_local_directory_rel_path(property_key, normalized_type, user_token, exis
 ####################################################################################################
 
 
+"""
+Trigger event method of building linkage between this new Donor and Lab
+
+Parameters
+----------
+property_key : str
+    The target property key
+normalized_type : str
+    One of the types defined in the schema yaml: Activity, Collection, Donor, Sample, Dataset
+user_token: str
+    The user's globus nexus token
+existing_data_dict : dict
+    A dictionary that contains all existing entity properties
+new_data_dict : dict
+    A merged dictionary that contains all possible input data to be used
+"""
+def link_donor_to_lab(property_key, normalized_type, user_token, existing_data_dict, new_data_dict):
+    if 'uuid' not in existing_data_dict:
+        raise KeyError("Missing 'uuid' key in 'existing_data_dict' during calling 'link_donor_to_lab()' trigger method.")
+
+    if 'group_uuid' not in existing_data_dict:
+        raise KeyError("Missing 'group_uuid' key in 'existing_data_dict' during calling 'link_donor_to_lab()' trigger method.")
+
+    # Create a linkage (via Activity node) 
+    # between the Donor node and the parent Lab node in neo4j
+    # Generate property values for Activity
+    activity_data_dict = schema_manager.generate_activity_data(normalized_type, user_token, existing_data_dict)
+
+    try:
+        schema_neo4j_queries.link_entity_to_direct_ancestor(schema_manager.get_neo4j_driver_instance(), existing_data_dict['uuid'], existing_data_dict['group_uuid'], activity_data_dict)
+    except TransactionError:
+        # No need to log
+        raise
+
 
 
 ####################################################################################################
@@ -977,7 +1011,7 @@ def link_sample_to_direct_ancestor(property_key, normalized_type, user_token, ex
         raise KeyError("Missing 'direct_ancestor_uuid' key in 'existing_data_dict' during calling 'link_sample_to_direct_ancestor()' trigger method.")
 
     # Create a linkage (via Activity node) 
-    # between the dataset node and the source entity node in neo4j
+    # between the Sample node and the source entity node in neo4j
     # Generate property values for Activity
     activity_data_dict = schema_manager.generate_activity_data(normalized_type, user_token, existing_data_dict)
 
@@ -1012,7 +1046,7 @@ def relink_sample_to_direct_ancestor(property_key, normalized_type, user_token, 
         raise KeyError("Missing 'direct_ancestor_uuid' key in 'existing_data_dict' during calling 'relink_sample_to_direct_ancestor()' trigger method.")
 
     # Create a linkage (via Activity node) 
-    # between the dataset node and the source entity node in neo4j
+    # between the Sample node and the source entity node in neo4j
     # Generate property values for Activity
     activity_data_dict = schema_manager.generate_activity_data(normalized_type, user_token, existing_data_dict)
 
