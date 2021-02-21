@@ -192,12 +192,11 @@ dict
     A dictionary of newly created entity details returned from the Cypher query
 """
 def create_entity(neo4j_driver, entity_type, entity_data_dict):
-    separator = ', '
-    node_properties_to_set = _build_properties_for_set_clause(entity_data_dict)
+    node_properties_map = _build_properties_map(entity_data_dict)
 
     query = (# Always define the Entity label in addition to the target `entity_type` label
              f"CREATE (e:Entity:{entity_type}) "
-             f"SET {separator.join(node_properties_to_set)} "
+             f"SET e = {node_properties_map} "
              f"RETURN e AS {record_field_name}")
 
     logger.debug("======create_entity() query======")
@@ -249,8 +248,6 @@ direct_ancestor_uuid : str
     The uuid of the direct ancestor to be linked to
 """
 def create_multiple_samples(neo4j_driver, samples_dict_list, activity_data_dict, direct_ancestor_uuid):
-    separator = ', '
-
     try:
         with neo4j_driver.session() as session:
             entity_dict = {}
@@ -267,13 +264,12 @@ def create_multiple_samples(neo4j_driver, samples_dict_list, activity_data_dict,
 
             # Step 3: create each new sample node and link to the Activity node at the same time
             for sample_dict in samples_dict_list:
-                node_properties_to_create = _build_properties_for_create_clause(sample_dict)
+                node_properties_map = _build_properties_map(sample_dict)
 
                 query = (f"MATCH (a:Activity) "
                          f"WHERE a.uuid = '{activity_uuid}' "
                          # Always define the Entity label in addition to the target `entity_type` label
-                         # Pay attention to the use of {{ }}
-                         f"CREATE (e:Entity:Sample {{ {separator.join(node_properties_to_create)} }}) "
+                         f"CREATE (e:Entity:Sample {node_properties_map} ) "
                          f"CREATE (a)-[:ACTIVITY_OUTPUT]->(e)")
 
                 logger.debug("======create_multiple_samples() individual query======")
@@ -290,6 +286,73 @@ def create_multiple_samples(neo4j_driver, samples_dict_list, activity_data_dict,
 
         if tx.closed() == False:
             logger.info("Failed to commit create_multiple_samples() transaction, rollback")
+
+            tx.rollback()
+
+        raise TransactionError(msg)
+
+"""
+Create a new activity node in neo4j
+
+Parameters
+----------
+neo4j_driver : neo4j.Driver object
+    The neo4j database connection pool
+samples_data_dict : dict
+    A dict containing the sample properties to be updated
+    {
+      "<sample-uuid-1>": {
+        "rui_location": "<info-1>",
+        "lab_tissue_sample_id": "<id-1>"
+      },
+      "<sample-uuid-2>": {
+        "rui_location": "<info-2>",
+        "lab_tissue_sample_id": "<id-2>"
+      }
+    }
+
+"""
+def update_multiple_samples(neo4j_driver, samples_data_dict):
+    separator = ', '
+    # Build the string literal of samples data list to be used by Cypher
+    sample_maps_list = []
+
+    # The key is uuid, value is data_dict
+    for uuid, data_dict in samples_data_dict.items():
+        node_properties_map = _build_properties_map(data_dict)
+        # Example: {uuid: 'eab7fd6911029122d9bbd4d96116db9b', properties: {rui_location: 'Joe <info>', lab_tissue_sample_id: 'dadsadsd'}}
+        # Note: all the keys are not quoted, otherwise Cypher syntax error
+        # Don't forget to quote {uuid}
+        sample_map = f"{{ uuid: '{uuid}', properties: {node_properties_map} }}"
+        # Add to the list literal with comma
+        sample_maps_list.append(sample_map)
+
+    # Remove the trailing comma and add [] around the string
+    sample_maps_list_literal = f"[{separator.join(sample_maps_list)}]"
+        
+    # `UNWIND` in Cypher expects List<T>
+    query = (f"WITH {sample_maps_list_literal} AS samples_list "
+             f"UNWIND samples_list AS data "
+             f"MATCH (e:Sample) "
+             f"WHERE e.uuid = data.uuid "
+             f"SET e += data.properties ")
+
+    logger.debug("======update_multiple_samples() query======")
+    logger.debug(query)
+
+    try:
+        with neo4j_driver.session() as session:
+            tx = session.begin_transaction()
+
+            tx.run(query)
+            tx.commit()
+    except TransactionError as te:
+        msg = f"TransactionError from calling update_multiple_samples(): {te.value}"
+        # Log the full stack trace, prepend a line with our message
+        logger.exception(msg)
+
+        if tx.closed() == False:
+            logger.info("Failed to commit update_multiple_samples() transaction, rollback")
 
             tx.rollback()
 
@@ -316,12 +379,11 @@ dict
     A dictionary of updated entity details returned from the Cypher query
 """
 def update_entity(neo4j_driver, entity_type, entity_data_dict, uuid):
-    separator = ', '
-    node_properties_to_set = _build_properties_for_set_clause(entity_data_dict)
+    node_properties_map = _build_properties_map(entity_data_dict)
     
     query = (f"MATCH (e:{entity_type}) "
              f"WHERE e.uuid = '{uuid}' "
-             f"SET {separator.join(node_properties_to_set)} "
+             f"SET e += {node_properties_map} "
              f"RETURN e AS {record_field_name}")
 
     logger.debug("======update_entity() query======")
@@ -656,7 +718,7 @@ def get_provenance(neo4j_driver, uuid, depth):
 ####################################################################################################
 
 """
-Build the property key-value pairs to be used in the SET clause for node creation and update
+Build the property key-value pairs to be used in the Cypher clause for node creation/update
 
 Parameters
 ----------
@@ -665,47 +727,17 @@ entity_data_dict : dict
 
 Returns
 -------
-list
-    A list of key-value pairs to be used after in the SET clause
+str
+    A string representation of the node properties map containing 
+    key-value pairs to be used in Cypher clause
 """
-def _build_properties_for_set_clause(entity_data_dict):
-    node_properties_to_set = []
+def _build_properties_map(entity_data_dict):
+    separator = ', '
+    node_properties_list = []
+
     for key, value in entity_data_dict.items():
-        if isinstance(value, int):
-            key_value_pair = f"e.{key} = {value}"
-        elif isinstance(value, str):
-            # Escape single quote
-            escaped_str = value.replace("'", r"\'")
-            # Quote the value
-            key_value_pair = f"e.{key} = '{escaped_str}'"
-        else:
-            # Convert list and dict to string
-            # Must also escape single quotes in the string to build a valid Cypher query
-            escaped_str = str(value).replace("'", r"\'")
-            # Also need to quote the string value
-            key_value_pair = f"e.{key} = '{escaped_str}'"
-
-        node_properties_to_set.append(key_value_pair)
-
-    return node_properties_to_set
-
-"""
-Build the property key-value pairs to be used in the CREATE clause for node creation
-
-Parameters
-----------
-entity_data_dict : dict
-    The target Entity node to be created
-
-Returns
--------
-list
-    A list of key-value pairs to be used after in the CREATE clause
-"""
-def _build_properties_for_create_clause(entity_data_dict):
-    node_properties_to_create = []
-    for key, value in entity_data_dict.items():
-        if isinstance(value, int):
+        if isinstance(value, (int, bool)):
+            # Treat integer and boolean as is
             key_value_pair = f"{key}: {value}"
         elif isinstance(value, str):
             # Escape single quote
@@ -719,9 +751,14 @@ def _build_properties_for_create_clause(entity_data_dict):
             # Also need to quote the string value
             key_value_pair = f"{key}: '{escaped_str}'"
 
-        node_properties_to_create.append(key_value_pair)
+        # Add to the list
+        node_properties_list.append(key_value_pair)
 
-    return node_properties_to_create
+    # Example: {uuid: 'eab7fd6911029122d9bbd4d96116db9b', rui_location: 'Joe <info>', lab_tissue_sample_id: 'dadsadsd'}
+    # Note: all the keys are not quoted, otherwise Cypher syntax error
+    node_properties_map = f"{{ {separator.join(node_properties_list)} }}"
+
+    return node_properties_map
 
 
 """

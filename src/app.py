@@ -733,8 +733,8 @@ Create multiple samples from the same source entity
 
 Parameters
 ----------
-entity_type : str
-    One of the target entity types (case-insensitive since will be normalized): Dataset, Collection, Sample, but NOT Donor or Collection
+count : str
+    The number of samples to be created
 
 Returns
 -------
@@ -786,6 +786,71 @@ def create_multiple_samples(count):
         reindex_entity(id_dict['uuid'], user_token)
 
     return jsonify(generated_ids_dict_list)
+
+"""
+Update properties of multiple samples via one API request
+
+Request json:
+{
+  "<sample-uuid-1>": {
+    "rui_location": "<info-1>",
+    "lab_tissue_sample_id": "<id-1>"
+  },
+  "<sample-uuid-2>": {
+    "rui_location": "<info-2>",
+    "lab_tissue_sample_id": "<id-2>"
+  }
+}
+
+Returns
+-------
+json
+    A success message. No need to return the uuids of successfully updated samples
+    since it's a transaction, all updated or none updated
+"""
+@app.route('/entities/multiple-samples', methods = ['PUT'])
+def update_multiple_samples():
+    # Get user token from Authorization header
+    user_token = get_user_token(request.headers)
+
+    # Normalize user provided entity_type
+    normalized_entity_type = 'Sample'
+
+    # Always expect a json body
+    require_json(request)
+
+    # Parse incoming json string into json data(python dict object)
+    samples_data_dict = request.get_json()
+
+    # The key is the sample uuid, value is the properties to be updated
+    for key, value in samples_data_dict.items():
+        # This checks the existence of the sample, 404 if not found
+        target_entity_dict = query_target_entity(key, user_token)
+
+        # Validate properties specified in request json against the yaml schema
+        try:
+            schema_manager.validate_json_data_against_schema(value, normalized_entity_type, target_entity_dict)
+        except schema_errors.SchemaValidationException as e:
+            # No need to log the validation errors
+            bad_request_error(str(e))
+
+    # Pass to neo4j to update
+    try:
+        # No return
+        app_neo4j_queries.update_multiple_samples(neo4j_driver_instance, samples_data_dict)
+    except TransactionError:
+        msg = "Failed to create the linkage between the given datasets and the target collection"
+        # Log the full stack trace, prepend a line with our message
+        logger.exception(msg)
+        # Terminate and let the users know
+        internal_server_error(msg)
+
+    # If all good by now, index the updated Sample nodes in elasticsearch via search-api
+    for uuid in samples_data_dict.keys():
+        reindex_entity(uuid, user_token)
+
+    # If all good by now, return a simple success message
+    return jsonify({'message': 'All the samples have been updated successfully :)'})
 
 
 """
