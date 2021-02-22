@@ -421,7 +421,7 @@ For example: /<entity_type>/entities?property=uuid
 Parameters
 ----------
 entity_type : str
-    One of the normalized entity types: Dataset, Sample, Donor
+    One of the supported entity types: Dataset, Sample, Donor
     Will handle Collection via API endpoint `/collections`
 
 Returns
@@ -642,7 +642,7 @@ Create an entity of the target type in neo4j
 Parameters
 ----------
 entity_type : str
-    One of the target entity types (case-insensitive since will be normalized): Dataset, Collection, Sample, but NOT Donor or Collection
+    One of the target entity types (case-insensitive since will be normalized): Dataset, Donor, Sample
 
 Returns
 -------
@@ -1254,7 +1254,7 @@ Redirect a request from a doi service for a collection of data
 Parameters
 ----------
 id : str
-    The HuBMAP ID (e.g. HBM123.ABCD.456) or UUID of given entity
+    The HuBMAP ID (e.g. HBM123.ABCD.456) or UUID of the target collection
 """
 @app.route('/collection/redirect/<id>', methods = ['GET'])
 def collection_redirect(id):
@@ -1414,7 +1414,7 @@ def get_dataset_globus_url(id):
     return Response(url, 200)
 
 """
-File upload handling for Donor (for now, Sample will need file upload too)
+File upload handling for Donor and Sample
 
 Returns
 -------
