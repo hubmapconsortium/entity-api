@@ -857,18 +857,27 @@ def get_hubmap_ids(id, user_token):
     if response.status_code == 200:
         ids_dict = response.json()
         return ids_dict
+    # Handle 404 separately so the end users wouldn't get 500 error
     elif response.status_code == 404:
         msg = f"Could not find the target id via uuid-api: {id}"
         # Log the full stack trace, prepend a line with our message
         logger.exception(msg)
         raise requests.exceptions.HTTPError(msg)
     else:
-        # uuid-api will also return 400 if the gien id is invalid
+        # uuid-api will also return 400 if the given id is invalid
         # We'll just hanle that and all other cases all together here
-        msg = f"Failed to make a request to query the id via uuid-api: {id}"
+        msg = f"Unable to make a request to query the id via uuid-api: {id}"
         # Log the full stack trace, prepend a line with our message
         logger.exception(msg)
-        raise requests.exceptions.RequestException(msg)
+
+        logger.debug("======get_hubmap_ids() status code from uuid-api======")
+        logger.debug(response.status_code)
+
+        logger.debug("======get_hubmap_ids() response text from uuid-api======")
+        logger.debug(response.text)
+
+        # Also bubble up the error message from uuid-api
+        raise requests.exceptions.RequestException(response.text)
 
 
 """
@@ -1027,7 +1036,7 @@ def create_hubmap_ids(normalized_class, json_data_dict, user_token, user_info_di
 
         return ids_list
     else:
-        msg = f"Failed to create new ids via the uuid-api service during the creation of this new {normalized_class}" 
+        msg = f"Unable to create new ids via the uuid-api service during the creation of this new {normalized_class}" 
         
         # Log the full stack trace, prepend a line with our message
         logger.exception(msg)
