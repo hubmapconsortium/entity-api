@@ -173,6 +173,12 @@ def get_public_collections(neo4j_driver, property_key = None):
 
     return results
 
+def get_ancestor_organs(neo4j_driver, entity_uuid):    
+    query = f"match (e {{uuid:'{entity_uuid}'}})<-[*]-(organ:Sample {{specimen_type:'organ'}}) return organ as {record_field_name}"
+    with neo4j_driver.session() as session:
+        record = session.read_transaction(_execute_readonly_tx, query)
+    results = _nodes_to_dicts(record[record_field_name])
+    return results
 
 """
 Create a new entity node in neo4j
@@ -655,7 +661,7 @@ def add_datasets_to_collection(neo4j_driver, collection_uuid, dataset_uuids_list
             logger.info("Create relationships between the target Collection and the given Datasets")
 
             query = (f"MATCH (c:Collection), (d:Dataset) "
-                     f"WHERE c.uuid = '{uuid}' AND d.uuid IN {dataset_uuids_list_str} "
+                     f"WHERE c.uuid = '{collection_uuid}' AND d.uuid IN {dataset_uuids_list_str} "
                      # Use MERGE instead of CREATE to avoid creating the relationship multiple times
                      # MERGE creates the relationship only if there is no existing relationship
                      f"MERGE (c)<-[r:IN_COLLECTION]-(d)") 

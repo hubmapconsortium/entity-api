@@ -221,6 +221,74 @@ def get_status():
 
     return jsonify(status_data)
 
+"""
+Retrieve the ancestor organ(s) of a given uuid
+Result filtering is supported based on query string
+For example: /entities/<id>/ancestor-organs
+
+Parameters
+----------
+id : str
+    The HuBMAP ID (e.g. HBM123.ABCD.456) or UUID of target entity 
+
+Returns
+-------
+json
+    List of organs that are ancestors of the given entity
+    - Only dataset entities can return multiple ancestor organs
+      as Samples can only have one parent.
+    - If no organ ancestors are found an empty list is returned
+    - If requesting the ancestor organ of a Sample of type Organ or Donor a 400
+      response is returned.
+"""
+@app.route('/entities/<id>/ancestor-organs', methods = ['GET'])
+def get_ancestor_organs(id):
+    # Use the internal token to query the target entity 
+    # since public entities don't require user token
+    token = get_internal_token()
+
+    # Query target entity against uuid-api and neo4j and return as a dict if exists
+    entity_dict = query_target_entity(id, token)
+    normalized_entity_type = entity_dict['entity_type']
+    entity_data_access_level = entity_dict['data_access_level']
+
+    # Handle Collection retrieval using a different endpoint 
+    if normalized_entity_type == 'Collection' or normalized_entity_type == 'Donor':
+        bad_request_error("Cannot get the ancestor organs for an entity of type Collection or Donor")
+
+    if normalized_entity_type == 'Sample' and entity_dict['specimen_type'] == 'organ':
+        bad_request_error("Cannot get the ancestor organ of an organ.")
+        
+    # Get user token from Authorization header
+    # getAuthorizationTokens() also handles MAuthorization header but we are not using that here
+    user_token = auth_helper_instance.getAuthorizationTokens(request.headers) 
+
+    # The `data_access_level` of Dataset can be 'public', consortium', or 'protected'
+    if normalized_entity_type == 'Dataset':
+        # Only published/public datasets don't require token
+        if entity_dict['status'].lower() != 'published':
+            # Check if user token is provided
+            # The user_token is flask.Response on error
+            # Without token, the user can only access public collections, modify the collection result
+            # by only returning public datasets attached to this collection
+            if isinstance(user_token, Response):
+                bad_request_error("A valid globus token is required")
+    else:
+        # The `data_access_level` of Donor/Sample can only be either 'public' or 'consortium'
+        if entity_data_access_level == ACCESS_LEVEL_CONSORTIUM:
+            # Require token to access the Donor/Sample that are not public
+            if isinstance(user_token, Response):
+                bad_request_error("A valid globus token is required")
+
+    # By now, either the entity is public accessible or the user token has the correct access level
+
+    properties_to_skip = ['direct_ancestor']
+    organs = app_neo4j_queries.get_ancestor_organs(neo4j_driver_instance, entity_dict['uuid'])    
+    return_results = schema_manager.get_complete_entities_list(user_token, organs, properties_to_skip)
+
+    final_result = schema_manager.normalize_entities_list_for_response(return_results)
+    return jsonify(final_result)
+
 
 """
 Retrive the properties of a given entity by id
