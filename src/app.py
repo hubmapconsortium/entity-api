@@ -270,13 +270,13 @@ def get_ancestor_organs(id):
             # Without token, the user can only access public collections, modify the collection result
             # by only returning public datasets attached to this collection
             if isinstance(user_token, Response):
-                bad_request_error("A valid globus token is required")
+                forbidden_error("A valid token is required ")
     else:
         # The `data_access_level` of Donor/Sample can only be either 'public' or 'consortium'
         if entity_data_access_level == ACCESS_LEVEL_CONSORTIUM:
             # Require token to access the Donor/Sample that are not public
             if isinstance(user_token, Response):
-                bad_request_error("A valid globus token is required")
+                forbidden_error("A valid token is required ")
 
     # By now, either the entity is public accessible or the user token has the correct access level
     organs = app_neo4j_queries.get_ancestor_organs(neo4j_driver_instance, entity_dict['uuid'])  
