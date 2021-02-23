@@ -173,12 +173,36 @@ def get_public_collections(neo4j_driver, property_key = None):
 
     return results
 
+
+"""
+Retrieve the ancestor organ(s) of a given entity
+
+Parameters
+----------
+neo4j_driver : neo4j.Driver object
+    The neo4j database connection pool
+entity_uuid : str
+    The HuBMAP ID (e.g. HBM123.ABCD.456) or UUID of target entity 
+
+Returns
+-------
+list
+    A list of organs that are ancestors of the given entity returned from the Cypher query
+"""
 def get_ancestor_organs(neo4j_driver, entity_uuid):    
-    query = f"match (e {{uuid:'{entity_uuid}'}})<-[*]-(organ:Sample {{specimen_type:'organ'}}) return organ as {record_field_name}"
+    query = (f"MATCH (e:Entity {{uuid:'{entity_uuid}'}})<-[*]-(organ:Sample {{specimen_type:'organ'}}) "
+             f"RETURN organ AS {record_field_name}")
+    
+    logger.debug("======create_entity() query======")
+    logger.debug(query)
+
+    record = None
     with neo4j_driver.session() as session:
         record = session.read_transaction(_execute_readonly_tx, query)
-    results = _nodes_to_dicts(record[record_field_name])
-    return results
+
+    # Convert the list of nodes to a list of dicts
+    return _nodes_to_dicts(record[record_field_name])
+
 
 """
 Create a new entity node in neo4j

@@ -223,8 +223,6 @@ def get_status():
 
 """
 Retrieve the ancestor organ(s) of a given uuid
-Result filtering is supported based on query string
-For example: /entities/<id>/ancestor-organs
 
 Parameters
 ----------
@@ -252,11 +250,11 @@ def get_ancestor_organs(id):
     normalized_entity_type = entity_dict['entity_type']
     entity_data_access_level = entity_dict['data_access_level']
 
-    # Handle Collection retrieval using a different endpoint 
-    if normalized_entity_type == 'Collection' or normalized_entity_type == 'Donor':
+    # Checks 
+    if normalized_entity_type in ['Collection', 'Donor']:
         bad_request_error("Cannot get the ancestor organs for an entity of type Collection or Donor")
 
-    if normalized_entity_type == 'Sample' and entity_dict['specimen_type'] == 'organ':
+    if normalized_entity_type == 'Sample' and entity_dict['specimen_type'].lower() == 'organ':
         bad_request_error("Cannot get the ancestor organ of an organ.")
         
     # Get user token from Authorization header
@@ -281,12 +279,15 @@ def get_ancestor_organs(id):
                 bad_request_error("A valid globus token is required")
 
     # By now, either the entity is public accessible or the user token has the correct access level
+    organs = app_neo4j_queries.get_ancestor_organs(neo4j_driver_instance, entity_dict['uuid'])  
 
+    # Skip executing the trigger method to get 'direct_ancestor'
     properties_to_skip = ['direct_ancestor']
-    organs = app_neo4j_queries.get_ancestor_organs(neo4j_driver_instance, entity_dict['uuid'])    
-    return_results = schema_manager.get_complete_entities_list(user_token, organs, properties_to_skip)
+    complete_entities_list = schema_manager.get_complete_entities_list(user_token, organs, properties_to_skip)
 
-    final_result = schema_manager.normalize_entities_list_for_response(return_results)
+    # Final result after normalization
+    final_result = schema_manager.normalize_entities_list_for_response(complete_entities_list)
+
     return jsonify(final_result)
 
 
@@ -317,7 +318,7 @@ def get_entity_by_id(id):
     entity_data_access_level = entity_dict['data_access_level']
 
     # Handle Collection retrieval using a different endpoint 
-    if entity_dict['entity_type'] == 'Collection':
+    if normalized_entity_type == 'Collection':
         bad_request_error("Please use another API endpoint `/collections/<id>` to query a collection")
 
     # Get user token from Authorization header
