@@ -191,6 +191,8 @@ list
 """
 def get_ancestor_organs(neo4j_driver, entity_uuid):    
     query = (f"MATCH (e:Entity {{uuid:'{entity_uuid}'}})<-[*]-(organ:Sample {{specimen_type:'organ'}}) "
+             # COLLECT() returns a list
+             # apoc.coll.toSet() reruns a set containing unique nodes
              f"RETURN apoc.coll.toSet(COLLECT(organ)) AS {record_field_name}")
     
     logger.debug("======create_entity() query======")
