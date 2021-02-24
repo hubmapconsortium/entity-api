@@ -775,9 +775,9 @@ def create_entity(entity_type):
         if 'previous_version_uuid' in json_data_dict:
         	previous_version_dict = query_target_entity(json_data_dict['previous_version_uuid'], user_token)
 
-        	# Make sure the previous version entity is also a Dataset
-        	if previous_version_dict['entity_type'] != 'Dataset':
-        		bad_request_error(f"The previous_version_uuid specified for this dataset must be a dataset too")
+        	# Make sure the previous version entity is either a Dataset or Sample
+        	if previous_version_dict['entity_type'] not in ['Dataset', 'Sample']:
+        		bad_request_error(f"The previous_version_uuid specified for this dataset must be either a Dataset or Sample")
 
         # Generate 'before_create_triiger' data and create the entity details in Neo4j
         merged_dict = create_entity_details(request, normalized_entity_type, user_token, json_data_dict)
