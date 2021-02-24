@@ -771,6 +771,14 @@ def create_entity(entity_type):
         for direct_ancestor_uuid in json_data_dict['direct_ancestor_uuids']:
             direct_ancestor_dict = query_target_entity(direct_ancestor_uuid, user_token)
 
+        # Also check existence of the previous verion dataset if specified
+        if 'previous_version_uuid' in json_data_dict:
+        	previous_version_dict = query_target_entity(json_data_dict['previous_version_uuid'], user_token)
+
+        	# Make sure the previous version entity is also a Dataset
+        	if previous_version_dict['entity_type'] != 'Dataset':
+        		bad_request_error(f"The previous_version_uuid specified for this dataset must be a dataset too")
+
         # Generate 'before_create_triiger' data and create the entity details in Neo4j
         merged_dict = create_entity_details(request, normalized_entity_type, user_token, json_data_dict)
     else:

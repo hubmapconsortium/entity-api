@@ -138,7 +138,111 @@ def link_entity_to_direct_ancestor(neo4j_driver, entity_uuid, direct_ancestor_uu
 
         raise TransactionError(msg)
 
+"""
+Create a revision linkage from the target entity node to the entity node 
+of the previous version in neo4j
 
+Parameters
+----------
+neo4j_driver : neo4j.Driver object
+    The neo4j database connection pool
+entity_uuid : str
+    The uuid of target entity
+previous_version_entity_uuid : str
+    The uuid of previous version entity
+"""
+def link_entity_to_previous_version(neo4j_driver, entity_uuid, previous_version_entity_uuid):
+    try:
+        with neo4j_driver.session() as session:
+            tx = session.begin_transaction()
+
+            # Create relationship from ancestor entity node to this Activity node
+            _create_relationship_tx(tx, entity_uuid, previous_version_entity_uuid, 'REVISION_OF', '->')
+
+            tx.commit()
+    except TransactionError as te:
+        msg = "TransactionError from calling link_entity_to_previous_version(): "
+        # Log the full stack trace, prepend a line with our message
+        logger.exception(msg)
+
+        if tx.closed() == False:
+            # Log the full stack trace, prepend a line with our message
+            logger.info("Failed to commit link_entity_to_previous_version() transaction, rollback")
+            tx.rollback()
+
+        raise TransactionError(msg)
+
+
+"""
+Get the uuid of previous version entity for a given entity
+
+Parameters
+----------
+neo4j_driver : neo4j.Driver object
+    The neo4j database connection pool
+uuid : str
+    The uuid of previous version entity 
+
+Returns
+-------
+dict
+    The parent dict, can either be a Sample or Donor
+"""
+def get_previous_version_uuid(neo4j_driver, uuid):
+    result = None
+
+    query = (f"MATCH (e:Entity)-[:REVISION_OF]->(pre_ver:Entity) "
+             f"WHERE e.uuid='{uuid}' "
+             f"RETURN pre_ver.uuid AS {record_field_name}")
+
+    logger.debug("======get_previous_version_uuid() query======")
+    logger.debug(query)
+
+    record = None
+    with neo4j_driver.session() as session:
+        record = session.read_transaction(_execute_readonly_tx, query)
+
+    if record:
+        result = record[record_field_name]
+
+    return result
+
+
+"""
+Get the uuid of next version entity for a given entity
+
+Parameters
+----------
+neo4j_driver : neo4j.Driver object
+    The neo4j database connection pool
+uuid : str
+    The uuid of previous version entity 
+
+Returns
+-------
+dict
+    The parent dict, can either be a Sample or Donor
+"""
+def get_next_version_uuid(neo4j_driver, uuid):
+    result = None
+
+    query = (f"MATCH (e:Entity)<-[:REVISION_OF]-(next_ver:Entity) "
+             f"WHERE e.uuid='{uuid}' "
+             f"RETURN next_ver.uuid AS {record_field_name}")
+
+    logger.debug("======get_next_version_uuid() query======")
+    logger.debug(query)
+
+    record = None
+    with neo4j_driver.session() as session:
+        record = session.read_transaction(_execute_readonly_tx, query)
+
+    if record:
+        result = record[record_field_name]
+
+    return result
+
+    
 """
 Get a list of associated collection uuids for a given dataset
 

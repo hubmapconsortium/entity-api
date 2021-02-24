@@ -860,6 +860,101 @@ def get_local_directory_rel_path(property_key, normalized_type, user_token, exis
     return property_key, dir_path
 
 
+"""
+Trigger event method of building linkage from this new Dataset to the dataset of its previous version
+
+Parameters
+----------
+property_key : str
+    The target property key
+normalized_type : str
+    One of the types defined in the schema yaml: Activity, Collection, Donor, Sample, Dataset
+user_token: str
+    The user's globus nexus token
+existing_data_dict : dict
+    A dictionary that contains all existing entity properties
+new_data_dict : dict
+    A merged dictionary that contains all possible input data to be used
+
+Returns
+-------
+str: The target property key
+str: The uuid string of source entity
+"""
+def link_to_previous_version(property_key, normalized_type, user_token, existing_data_dict, new_data_dict):
+    if 'uuid' not in existing_data_dict:
+        raise KeyError("Missing 'uuid' key in 'existing_data_dict' during calling 'link_to_previous_version_dataset()' trigger method.")
+
+    if 'previous_version_uuid' not in existing_data_dict:
+        raise KeyError("Missing 'previous_version_dataset_uuid' key in 'existing_data_dict' during calling 'link_to_previous_version_dataset()' trigger method.")
+
+    # Create a revision reltionship from this new Dataset node and its previous version of dataset node in neo4j
+    try:
+        schema_neo4j_queries.link_entity_to_previous_version(schema_manager.get_neo4j_driver_instance(), existing_data_dict['uuid'], existing_data_dict['previous_version_uuid'])
+    except TransactionError:
+        # No need to log
+        raise
+
+"""
+Trigger event method of getting the uuid of the previous version dataset if exists
+
+Parameters
+----------
+property_key : str
+    The target property key
+normalized_type : str
+    One of the types defined in the schema yaml: Activity, Collection, Donor, Sample, Dataset
+user_token: str
+    The user's globus nexus token
+existing_data_dict : dict
+    A dictionary that contains all existing entity properties
+new_data_dict : dict
+    A merged dictionary that contains all possible input data to be used
+
+Returns
+-------
+str: The target property key
+str: The uuid string of previous version entity or None if not found
+"""
+def get_previous_version_uuid(property_key, normalized_type, user_token, existing_data_dict, new_data_dict):
+    if 'uuid' not in existing_data_dict:
+        raise KeyError("Missing 'uuid' key in 'existing_data_dict' during calling 'get_previous_version_uuid()' trigger method.")
+
+    prev_ver_uuid = schema_neo4j_queries.get_previous_version_uuid(schema_manager.get_neo4j_driver_instance(), existing_data_dict['uuid'])
+    
+    return property_key, prev_ver_uuid
+
+
+"""
+Trigger event method of getting the uuid of the next version dataset if exists
+
+Parameters
+----------
+property_key : str
+    The target property key
+normalized_type : str
+    One of the types defined in the schema yaml: Activity, Collection, Donor, Sample, Dataset
+user_token: str
+    The user's globus nexus token
+existing_data_dict : dict
+    A dictionary that contains all existing entity properties
+new_data_dict : dict
+    A merged dictionary that contains all possible input data to be used
+
+Returns
+-------
+str: The target property key
+str: The uuid string of next version entity or None if not found
+"""
+def get_next_version_uuid(property_key, normalized_type, user_token, existing_data_dict, new_data_dict):
+    if 'uuid' not in existing_data_dict:
+        raise KeyError("Missing 'uuid' key in 'existing_data_dict' during calling 'get_next_version_uuid()' trigger method.")
+
+    next_ver_uuid = schema_neo4j_queries.get_next_version_uuid(schema_manager.get_neo4j_driver_instance(), existing_data_dict['uuid'])
+    
+    return property_key, next_ver_uuid
+
+
 ####################################################################################################
 ## Trigger methods specific to Donor - DO NOT RENAME
 ####################################################################################################
