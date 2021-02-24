@@ -614,7 +614,8 @@ def validate_json_data_against_schema(json_data_dict, normalized_entity_type, ex
     # For now only make sure it's not empty
     invalid_data_value_keys = []
     for key in json_data_keys:
-        if not json_data_dict[key]:
+        # Skip bool since it can be false
+        if (not isinstance(json_data_dict[key], bool)) and (not json_data_dict[key]):
             invalid_data_value_keys.append(key)
 
     if len(invalid_data_value_keys) > 0:
