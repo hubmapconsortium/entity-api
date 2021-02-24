@@ -615,7 +615,7 @@ def validate_json_data_against_schema(json_data_dict, normalized_entity_type, ex
     invalid_data_value_keys = []
     for key in json_data_keys:
         if not json_data_dict[key]:
-            invalid_data_type_keys.append(key)
+            invalid_data_value_keys.append(key)
 
     if len(invalid_data_value_keys) > 0:
         # No need to log the validation errors
