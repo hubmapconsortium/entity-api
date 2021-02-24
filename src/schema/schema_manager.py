@@ -580,7 +580,7 @@ def validate_json_data_against_schema(json_data_dict, normalized_entity_type, ex
             # No need to log the validation errors
             raise schema_errors.SchemaValidationException(f"Immutable keys are not allowed in request json: {separator.join(immutable_keys)}")
         
-    # Check if any schema keys that are required_on_create but missing from POST request on creating new entity
+    # Check if any schema keys that are `required_on_create: true` but missing from POST request on creating new entity
     # No need to check on entity update
     if not existing_entity_dict:    
         missing_required_keys_on_create = []
@@ -595,8 +595,7 @@ def validate_json_data_against_schema(json_data_dict, normalized_entity_type, ex
             # No need to log the validation errors
             raise schema_errors.SchemaValidationException(f"Missing required keys in request json: {separator.join(missing_required_keys_on_create)}")
 
-    # By now all the keys in request json have passed the above two checks: existence cehck in schema and required check in schema
-    # Verify data types of keys
+    # Verify data type of each key
     invalid_data_type_keys = []
     for key in json_data_keys:
         # boolean starts with bool, string starts with str, integer starts with int, list is list
@@ -610,6 +609,17 @@ def validate_json_data_against_schema(json_data_dict, normalized_entity_type, ex
     if len(invalid_data_type_keys) > 0:
         # No need to log the validation errors
         raise schema_errors.SchemaValidationException(f"Keys in request json with invalid data types: {separator.join(invalid_data_type_keys)}")
+    
+    # Verify the data value of each key
+    # For now only make sure it's not empty
+    invalid_data_value_keys = []
+    for key in json_data_keys:
+        if not json_data_dict[key]:
+            invalid_data_type_keys.append(key)
+
+    if len(invalid_data_value_keys) > 0:
+        # No need to log the validation errors
+        raise schema_errors.SchemaValidationException(f"Keys in request json with invalid data values: {separator.join(invalid_data_value_keys)}")
 
 
 """
