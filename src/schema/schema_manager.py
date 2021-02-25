@@ -611,11 +611,11 @@ def validate_json_data_against_schema(json_data_dict, normalized_entity_type, ex
         raise schema_errors.SchemaValidationException(f"Keys in request json with invalid data types: {separator.join(invalid_data_type_keys)}")
     
     # Verify the data value of each key
-    # For now only make sure it's not empty
     invalid_data_value_keys = []
     for key in json_data_keys:
-        # Skip bool since it can be false
-        if (not isinstance(json_data_dict[key], bool)) and (not json_data_dict[key]):
+        # Only ensure the json array is not empty or null if provided
+        # Will still take empty string and empty object
+        if isinstance(json_data_dict[key], list) and (not json_data_dict[key]):
             invalid_data_value_keys.append(key)
 
     if len(invalid_data_value_keys) > 0:

@@ -1765,9 +1765,12 @@ def create_entity_details(request, normalized_entity_type, user_token, json_data
     # Meaning the returned target property key is different from the original key
     # E.g., Donor.image_files
     filtered_merged_dict = schema_manager.remove_none_values(merged_dict)
-
+    
     # Create new entity
     try:
+        # Important: `entity_dict` is the resulting neo4j dict, Python list and dicts are stored
+        # as string expression literals in it. That's why properties like entity_dict['direct_ancestor_uuids']
+        # will need to use ast.literal_eval() in the schema_triggers.py
         entity_dict = app_neo4j_queries.create_entity(neo4j_driver_instance, normalized_entity_type, filtered_merged_dict)
     except TransactionError:
         msg = "Failed to create the new " + normalized_entity_type
@@ -1777,7 +1780,9 @@ def create_entity_details(request, normalized_entity_type, user_token, json_data
         internal_server_error(msg)
 
     # Add user_info_dict because it may be used by after_update_trigger methods
-    merged_final_dict = {**filtered_merged_dict, **user_info_dict}
+    # Important: use `entity_dict` instead of `filtered_merged_dict` to keep consistent with the stored
+    # string expression literals of Python list/dict being used with entity update
+    merged_final_dict = {**entity_dict, **user_info_dict}
 
     # Note: return merged_final_dict instead of entity_dict because 
     # it contains all the user json data that the generated that entity_dict may not have
