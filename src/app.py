@@ -1698,7 +1698,17 @@ def create_entity_details(request, normalized_entity_type, user_token, json_data
     except requests.exceptions.RequestException as e:
         msg = f"Failed to create new HuBMAP ids via the uuid-api service" 
         logger.exception(msg)
-        internal_server_error(e)
+        
+        # Due to the use of response.raise_for_status() in schema_manager.create_hubmap_ids()
+        # we can access the status codes from the exception
+        status_code = e.response.status_code
+
+        if status_code == 400:
+            bad_request_error(e.response.text)
+        if status_code == 404:
+            not_found_error(e.response.text)
+        else:
+            internal_server_error(e.response.text)
 
     # Merge all the above dictionaries and pass to the trigger methods
     new_data_dict = {**json_data_dict, **user_info_dict, **new_ids_dict}
@@ -2064,11 +2074,17 @@ def query_target_entity(id, user_token):
             not_found_error(f"Entity of id: {id} not found in Neo4j")
 
         return entity_dict
-    except requests.exceptions.HTTPError as e:
-        not_found_error(e)
     except requests.exceptions.RequestException as e:
-        # Something wrong with the request to uuid-api
-        internal_server_error(e)
+        # Due to the use of response.raise_for_status() in schema_manager.get_hubmap_ids()
+        # we can access the status codes from the exception
+        status_code = e.response.status_code
+
+        if status_code == 400:
+            bad_request_error(e.response.text)
+        if status_code == 404:
+            not_found_error(e.response.text)
+        else:
+            internal_server_error(e.response.text)
 
 """
 Always expect a json body from user request

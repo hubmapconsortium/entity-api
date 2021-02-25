@@ -865,15 +865,12 @@ def get_hubmap_ids(id, user_token):
     # Disable ssl certificate verification
     response = requests.get(url = target_url, headers = request_headers, verify = False) 
     
+    # Invoke .raise_for_status(), an HTTPError will be raised with certain status codes
+    response.raise_for_status()
+
     if response.status_code == 200:
         ids_dict = response.json()
         return ids_dict
-    # Handle 404 separately so the end users wouldn't get 500 error
-    elif response.status_code == 404:
-        msg = f"Could not find the target id via uuid-api: {id}"
-        # Log the full stack trace, prepend a line with our message
-        logger.exception(msg)
-        raise requests.exceptions.HTTPError(msg)
     else:
         # uuid-api will also return 400 if the given id is invalid
         # We'll just hanle that and all other cases all together here
@@ -1022,6 +1019,9 @@ def create_hubmap_ids(normalized_class, json_data_dict, user_token, user_info_di
 
     # Disable ssl certificate verification
     response = requests.post(url = _uuid_api_url, headers = request_headers, json = json_to_post, verify = False, params = query_parms) 
+    
+    # Invoke .raise_for_status(), an HTTPError will be raised with certain status codes
+    response.raise_for_status()
     
     if response.status_code == 200:
         # For Collection/Dataset/Activity, the uuid-api response looks like:
