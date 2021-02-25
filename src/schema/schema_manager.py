@@ -1175,7 +1175,7 @@ def get_entity_group_name(group_uuid):
 
 
 """
-Create the Activity node properties
+Generate properties data of one or more Activity nodes
 
 Parameters
 ----------
@@ -1185,8 +1185,14 @@ user_token: str
     The user's globus nexus token
 user_info_dict : dict
     A dictionary that contains all user info to be used to generate the related properties
+count : int
+    The number of Activities to be generated
+
+Returns
+-------
+list: A list of gnerated Activity data dicts
 """
-def generate_activity_data(normalized_entity_type, user_token, user_info_dict):
+def generate_activity_data(normalized_entity_type, user_token, user_info_dict, count = 1):
     # Activity is not an Entity
     normalized_activity_type = 'Activity'
 
@@ -1194,14 +1200,20 @@ def generate_activity_data(normalized_entity_type, user_token, user_info_dict):
     # Will be used when calling `set_activity_creation_action()` trigger method
     normalized_entity_type_dict = {'normalized_entity_type': normalized_entity_type}
 
-    # Create new ids for the new Activity
-    new_ids_dict_list = create_hubmap_ids(normalized_activity_type, json_data_dict = None, user_token = user_token, user_info_dict = None)
-    new_ids_dict = new_ids_dict_list[0]
-
-    data_dict_for_activity = {**user_info_dict, **normalized_entity_type_dict, **new_ids_dict}
+    # Create new ids for each new Activity node
+    new_ids_dict_list = create_hubmap_ids(normalized_activity_type, json_data_dict = None, user_token = user_token, user_info_dict = None, count = count)
     
-    # Generate property values for Activity node
-    return generate_triggered_data('before_create_trigger', normalized_activity_type, user_token, {}, data_dict_for_activity)
+    activity_data_dict_list = []
+    for new_ids_dict in new_ids_dict_list:
+        data_dict_for_activity = {**user_info_dict, **normalized_entity_type_dict, **new_ids_dict}
+    
+        # Generate property values for Activity node
+        generated_activity_data_dict = generate_triggered_data('before_create_trigger', normalized_activity_type, user_token, {}, data_dict_for_activity)
+
+        # Add to list
+        activity_data_dict_list.append(generated_activity_data_dict)
+    
+    return activity_data_dict_list
 
 
 """

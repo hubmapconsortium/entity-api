@@ -224,8 +224,9 @@ ENTITIES:
         transient: true
         exposed: false
         description: "The uuids of source entities from which this new entity is derived.  Used to pass source entity ids in on POST or PUT calls used to create the linkages."
+        # Note: link_dataset_to_direct_ancestors() will always delete all the old linkages first
         after_create_trigger: link_dataset_to_direct_ancestors
-        after_update_trigger: relink_dataset_to_direct_ancestors
+        after_update_trigger: link_dataset_to_direct_ancestors
       direct_ancestors:
         type: list
         generated: true
@@ -349,6 +350,7 @@ ENTITIES:
         immutable: true
         description: "The uuid of globus group which the user who created this entity is a member of"
         before_create_trigger: set_group_uuid #method that, if group_uuid is not already set looks for membership in a single "data provider" group and sets to that. Otherwise if not set and no single "provider group" membership throws error.  This field is also used to link (Neo4j relationship) to the correct Lab node on creation.
+        # Note: link_dataset_to_direct_ancestors() will always delete all the old linkages first
         after_create_trigger: link_donor_to_lab
       # Must set in neo4j
       group_name:
@@ -440,8 +442,9 @@ ENTITIES:
         transient: true
         exposed: false
         description: "The uuid of source entity from which this new entity is derived from. Used on creation or edit to create an action and relationship to the ancestor"
+        # Note: link_dataset_to_direct_ancestors() will always delete all the old linkages first
         after_create_trigger: link_sample_to_direct_ancestor
-        after_update_trigger: relink_sample_to_direct_ancestor
+        after_update_trigger: link_sample_to_direct_ancestor
       direct_ancestor:
         type: json_string # dict
         generated: true
