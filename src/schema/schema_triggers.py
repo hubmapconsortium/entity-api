@@ -713,14 +713,18 @@ def link_dataset_to_direct_ancestors(property_key, normalized_type, user_token, 
     if 'direct_ancestor_uuids' not in existing_data_dict:
         raise KeyError("Missing 'direct_ancestor_uuids' key in 'existing_data_dict' during calling 'link_dataset_to_direct_ancestors()' trigger method.")
 
+    # Important: existing_data_dict['direct_ancestor_uuids'] is stored as a string literal, not an array
+    #  We need to convert it into a Python list
+    direct_ancestor_uuids = ast.literal_eval(existing_data_dict['direct_ancestor_uuids'])
+
     # Generate property values for each Activity node
-    count = len(existing_data_dict['direct_ancestor_uuids'])
+    count = len(direct_ancestor_uuids)
     activity_data_dict_list = schema_manager.generate_activity_data(normalized_type, user_token, existing_data_dict, count)
 
     try:
         # Create a linkage (via Activity node) between the dataset node 
         # and each direct ancestor node in neo4j
-        schema_neo4j_queries.link_entity_to_direct_ancestors(schema_manager.get_neo4j_driver_instance(), existing_data_dict['uuid'], existing_data_dict['direct_ancestor_uuids'], activity_data_dict_list)
+        schema_neo4j_queries.link_entity_to_direct_ancestors(schema_manager.get_neo4j_driver_instance(), existing_data_dict['uuid'], direct_ancestor_uuids, activity_data_dict_list)
     except TransactionError:
         # No need to log
         raise
