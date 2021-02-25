@@ -11,43 +11,6 @@ record_field_name = 'result'
 ## Directly called by schema_triggers.py
 ####################################################################################################
 
-"""
-Unlink the linkages between the target entity and its direct ancestors
-
-Parameters
-----------
-neo4j_driver : neo4j.Driver object
-    The neo4j database connection pool
-uuid : str
-    The uuid of target entity 
-"""
-def unlink_entity_to_direct_ancestors(neo4j_driver, uuid):
-    query = (f"MATCH (s:Entity)-[in:ACTIVITY_INPUT]->(a:Activity)-[out:ACTIVITY_OUTPUT]->(t:Entity) "
-             f"WHERE t.uuid = '{uuid}' "
-             # Delete the Activity node and in input/out relationships
-             f"DELETE in, a, out")
-
-    logger.debug("======unlink_entity_to_direct_ancestors() query======")
-    logger.debug(query)
-
-    try:
-        # Sessions will often be created and destroyed using a with block context
-        with neo4j_driver.session() as session:
-            tx = session.begin_transaction()
-
-            tx.run(query)
-            tx.commit()
-    except TransactionError:
-        msg = "TransactionError from calling unlink_entity_to_direct_ancestors(): "
-        # Log the full stack trace, prepend a line with our message
-        logger.exception(msg)
-
-        if tx.closed() == False:
-            # Log the full stack trace, prepend a line with our message
-            logger.info("Failed to commit unlink_entity_to_direct_ancestors() transaction, rollback")
-            tx.rollback()
-
-        raise TransactionError(msg)
 
 
 """
@@ -98,32 +61,44 @@ def get_dataset_direct_ancestors(neo4j_driver, uuid, property_key = None):
     return results
 
 """
-Create a linkage (via Activity node) between the target entity node and the ancestor entity node in neo4j
+Create or recreate one or more linkages (via Activity nodes) 
+between the target entity node and the direct ancestor nodes in neo4j
+
+Note: the size of direct_ancestor_uuids equals to that of activity_data_dict_list
 
 Parameters
 ----------
 neo4j_driver : neo4j.Driver object
     The neo4j database connection pool
 entity_uuid : str
-    The uuid of target entity
-direct_ancestor_uuid : str
-    The uuid of direct ancestor entity
-activity_data_dict : str
-    The activity properties of the activity node to be created
+    The uuid of target child entity
+direct_ancestor_uuids : list
+    A list of uuids of direct ancestors
+activity_data_dict_list : list
+    A list of activity properties for each activity node to be created
 """
-def link_entity_to_direct_ancestor(neo4j_driver, entity_uuid, direct_ancestor_uuid, activity_data_dict):
+def link_entity_to_direct_ancestors(neo4j_driver, entity_uuid, direct_ancestor_uuids, activity_data_dict_list):
     try:
         with neo4j_driver.session() as session:
             tx = session.begin_transaction()
 
-            # Create the Acvitity node
-            _create_activity_tx(tx, activity_data_dict)
+            # First delete all the old linkages between this entity node and its direct ancestors
+            _delete_direct_ancestor_linkages_tx(tx, entity_uuid)
 
-            # Create relationship from ancestor entity node to this Activity node
-            _create_relationship_tx(tx, direct_ancestor_uuid, activity_data_dict['uuid'], 'ACTIVITY_INPUT', '->')
-                
-            # Create relationship from this Activity node to the target entity node
-            _create_relationship_tx(tx, activity_data_dict['uuid'], entity_uuid, 'ACTIVITY_OUTPUT', '->')
+            # Loop over two lists at the same time using indexes to look up corresponding elements
+            for index, direct_ancestor_uuid in enumerate(direct_ancestor_uuids):
+                # Get the corresponding activity uuid
+                activity_data_dict = activity_data_dict_list[index]
+                activity_uuid = activity_data_dict['uuid']
+
+                # Create the Acvitity node
+                _create_activity_tx(tx, activity_data_dict)
+
+                # Create relationship from ancestor entity node to this Activity node
+                _create_relationship_tx(tx, direct_ancestor_uuid, activity_uuid, 'ACTIVITY_INPUT', '->')
+                    
+                # Create relationship from this Activity node to the target entity node
+                _create_relationship_tx(tx, activity_uuid, entity_uuid, 'ACTIVITY_OUTPUT', '->')
 
             tx.commit()
     except TransactionError as te:
@@ -462,6 +437,50 @@ def get_sample_direct_ancestor(neo4j_driver, uuid, property_key = None):
 ####################################################################################################
 
 """
+Build the property key-value pairs to be used in the Cypher clause for node creation/update
+
+Parameters
+----------
+entity_data_dict : dict
+    The target Entity node to be created
+
+Returns
+-------
+str
+    A string representation of the node properties map containing 
+    key-value pairs to be used in Cypher clause
+"""
+def _build_properties_map(entity_data_dict):
+    separator = ', '
+    node_properties_list = []
+
+    for key, value in entity_data_dict.items():
+        if isinstance(value, (int, bool)):
+            # Treat integer and boolean as is
+            key_value_pair = f"{key}: {value}"
+        elif isinstance(value, str):
+            # Escape single quote
+            escaped_str = value.replace("'", r"\'")
+            # Quote the value
+            key_value_pair = f"{key}: '{escaped_str}'"
+        else:
+            # Convert list and dict to string
+            # Must also escape single quotes in the string to build a valid Cypher query
+            escaped_str = str(value).replace("'", r"\'")
+            # Also need to quote the string value
+            key_value_pair = f"{key}: '{escaped_str}'"
+
+        # Add to the list
+        node_properties_list.append(key_value_pair)
+
+    # Example: {uuid: 'eab7fd6911029122d9bbd4d96116db9b', rui_location: 'Joe <info>', lab_tissue_sample_id: 'dadsadsd'}
+    # Note: all the keys are not quoted, otherwise Cypher syntax error
+    node_properties_map = f"{{ {separator.join(node_properties_list)} }}"
+
+    return node_properties_map
+
+
+"""
 Execute a unit of work in a managed read transaction
 
 Parameters
@@ -497,17 +516,11 @@ neo4j.node
     A neo4j node instance of the newly created entity node
 """
 def _create_activity_tx(tx, activity_data_dict):
-    # `UNWIND` in Cypher expects List<T>
-    activity_data_list = [activity_data_dict]
+    node_properties_map = _build_properties_map(activity_data_dict)
 
-    # Convert the list (only contains one entity) to json list string
-    activity_json_list_str = json.dumps(activity_data_list)
-
-    query = (f"WITH apoc.convert.fromJsonList('{activity_json_list_str}') AS activities_list "
-             f"UNWIND activities_list AS data "
-             f"CREATE (a:Activity) "
-             f"SET a = data "
-             f"RETURN a AS {record_field_name}")
+    query = (f"CREATE (e:Activity) "
+             f"SET e = {node_properties_map} "
+             f"RETURN e AS {record_field_name}")
 
     logger.debug("======_create_activity_tx() query======")
     logger.debug(query)
@@ -517,6 +530,27 @@ def _create_activity_tx(tx, activity_data_dict):
     node = record[record_field_name]
 
     return node
+
+"""
+Delete thelinkages between an entity and its direct ancestors
+
+Parameters
+----------
+tx : neo4j.Transaction object
+    The neo4j.Transaction object instance
+uuid : str
+    The uuid to target entity (child of those direct ancestors)
+"""
+def _delete_direct_ancestor_linkages_tx(tx, uuid):
+    query = (f"MATCH (s:Entity)-[in:ACTIVITY_INPUT]->(a:Activity)-[out:ACTIVITY_OUTPUT]->(t:Entity) "
+             f"WHERE t.uuid = '{uuid}' "
+             # Delete the Activity node and in input/output relationships
+             f"DELETE in, a, out")
+
+    logger.debug("======_delete_direct_ancestor_linkages_tx() query======")
+    logger.debug(query)
+
+    result = tx.run(query)
 
 """
 Create a relationship from the source node to the target node in neo4j
@@ -534,17 +568,11 @@ relationship : str
 direction: str
     The relationship direction from source node to target node: outgoing `->` or incoming `<-`
     Neo4j CQL CREATE command supports only directional relationships
-
-
-Returns
--------
-str
-    The relationship type name
 """
 def _create_relationship_tx(tx, source_node_uuid, target_node_uuid, relationship, direction):
     incoming = "-"
     outgoing = "-"
-    
+
     if direction == "<-":
         incoming = direction
 
@@ -560,13 +588,6 @@ def _create_relationship_tx(tx, source_node_uuid, target_node_uuid, relationship
     logger.debug(query)
 
     result = tx.run(query)
-    record = result.single()
-    relationship = record[record_field_name]
-
-    logger.debug("======_create_relationship_tx() resulting relationship======")
-    logger.debug(f"(source node) {incoming} [:{relationship}] {outgoing} (target node)")
-
-    return relationship
 
 
 """

@@ -829,12 +829,6 @@ relationship : str
 direction: str
     The relationship direction from source node to target node: outgoing `->` or incoming `<-`
     Neo4j CQL CREATE command supports only directional relationships
-
-
-Returns
--------
-str
-    The relationship type name
 """
 def _create_relationship_tx(tx, source_node_uuid, target_node_uuid, relationship, direction):
     incoming = "-"
@@ -855,13 +849,6 @@ def _create_relationship_tx(tx, source_node_uuid, target_node_uuid, relationship
     logger.debug(query)
 
     result = tx.run(query)
-    record = result.single()
-    relationship = record[record_field_name]
-
-    logger.debug("======_create_relationship_tx() resulting relationship======")
-    logger.debug(f"(source node) {incoming} [:{relationship}] {outgoing} (target node)")
-
-    return relationship
 
 
 """
@@ -924,17 +911,11 @@ neo4j.node
     A neo4j node instance of the newly created entity node
 """
 def _create_activity_tx(tx, activity_data_dict):
-    # `UNWIND` in Cypher expects List<T>
-    activity_data_list = [activity_data_dict]
+    node_properties_map = _build_properties_map(activity_data_dict)
 
-    # Convert the list (only contains one entity) to json list string
-    activity_json_list_str = json.dumps(activity_data_list)
-
-    query = (f"WITH apoc.convert.fromJsonList('{activity_json_list_str}') AS activities_list "
-             f"UNWIND activities_list AS data "
-             f"CREATE (a:Activity) "
-             f"SET a = data "
-             f"RETURN a AS {record_field_name}")
+    query = (f"CREATE (e:Activity) "
+             f"SET e = {node_properties_map} "
+             f"RETURN e AS {record_field_name}")
 
     logger.debug("======_create_activity_tx() query======")
     logger.debug(query)
