@@ -834,7 +834,7 @@ def get_local_directory_rel_path(property_key, normalized_type, user_token, exis
 
 
 """
-Trigger event method of building linkage from this new Dataset to the dataset of its previous version
+Trigger event method of building linkage from this new Dataset to the dataset of its previous revision
 
 Parameters
 ----------
@@ -854,22 +854,22 @@ Returns
 str: The target property key
 str: The uuid string of source entity
 """
-def link_to_previous_version(property_key, normalized_type, user_token, existing_data_dict, new_data_dict):
+def link_to_previous_revision(property_key, normalized_type, user_token, existing_data_dict, new_data_dict):
     if 'uuid' not in existing_data_dict:
         raise KeyError("Missing 'uuid' key in 'existing_data_dict' during calling 'link_to_previous_version_dataset()' trigger method.")
 
-    if 'previous_version_uuid' not in existing_data_dict:
-        raise KeyError("Missing 'previous_version_dataset_uuid' key in 'existing_data_dict' during calling 'link_to_previous_version_dataset()' trigger method.")
+    if 'previous_revision_uuid' not in existing_data_dict:
+        raise KeyError("Missing 'previous_revision_dataset_uuid' key in 'existing_data_dict' during calling 'link_to_previous_version_dataset()' trigger method.")
 
-    # Create a revision reltionship from this new Dataset node and its previous version of dataset node in neo4j
+    # Create a revision reltionship from this new Dataset node and its previous revision of dataset node in neo4j
     try:
-        schema_neo4j_queries.link_entity_to_previous_version(schema_manager.get_neo4j_driver_instance(), existing_data_dict['uuid'], existing_data_dict['previous_version_uuid'])
+        schema_neo4j_queries.link_entity_to_previous_revision(schema_manager.get_neo4j_driver_instance(), existing_data_dict['uuid'], existing_data_dict['previous_revision_uuid'])
     except TransactionError:
         # No need to log
         raise
 
 """
-Trigger event method of getting the uuid of the previous version dataset if exists
+Trigger event method of getting the uuid of the previous revision dataset if exists
 
 Parameters
 ----------
@@ -887,13 +887,13 @@ new_data_dict : dict
 Returns
 -------
 str: The target property key
-str: The uuid string of previous version entity or None if not found
+str: The uuid string of previous revision entity or None if not found
 """
-def get_previous_version_uuid(property_key, normalized_type, user_token, existing_data_dict, new_data_dict):
+def get_previous_revision_uuid(property_key, normalized_type, user_token, existing_data_dict, new_data_dict):
     if 'uuid' not in existing_data_dict:
-        raise KeyError("Missing 'uuid' key in 'existing_data_dict' during calling 'get_previous_version_uuid()' trigger method.")
+        raise KeyError("Missing 'uuid' key in 'existing_data_dict' during calling 'get_previous_revision_uuid()' trigger method.")
 
-    prev_ver_uuid = schema_neo4j_queries.get_previous_version_uuid(schema_manager.get_neo4j_driver_instance(), existing_data_dict['uuid'])
+    prev_ver_uuid = schema_neo4j_queries.get_previous_revision_uuid(schema_manager.get_neo4j_driver_instance(), existing_data_dict['uuid'])
     
     return property_key, prev_ver_uuid
 
@@ -919,11 +919,11 @@ Returns
 str: The target property key
 str: The uuid string of next version entity or None if not found
 """
-def get_next_version_uuid(property_key, normalized_type, user_token, existing_data_dict, new_data_dict):
+def get_next_revision_uuid(property_key, normalized_type, user_token, existing_data_dict, new_data_dict):
     if 'uuid' not in existing_data_dict:
-        raise KeyError("Missing 'uuid' key in 'existing_data_dict' during calling 'get_next_version_uuid()' trigger method.")
+        raise KeyError("Missing 'uuid' key in 'existing_data_dict' during calling 'get_next_revision_uuid()' trigger method.")
 
-    next_ver_uuid = schema_neo4j_queries.get_next_version_uuid(schema_manager.get_neo4j_driver_instance(), existing_data_dict['uuid'])
+    next_ver_uuid = schema_neo4j_queries.get_next_revision_uuid(schema_manager.get_neo4j_driver_instance(), existing_data_dict['uuid'])
     
     return property_key, next_ver_uuid
 

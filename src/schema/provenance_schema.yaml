@@ -283,20 +283,20 @@ ENTITIES:
         immutable: true
         description: "The displayname of globus group which the user who created this entity is a member of"
         before_create_trigger: set_group_name #same as group_uuid, except set group_name
-      previous_version_uuid:
+      previous_revision_uuid:
         type: string
         transient: true
         immutable: true
-        description: "The uuid of previous version dataset"
-        after_create_trigger: link_to_previous_version
-        on_read_trigger: get_previous_version_uuid
-      next_version_uuid:
+        description: "The uuid of previous revision dataset"
+        after_create_trigger: link_to_previous_revision
+        on_read_trigger: get_previous_revision_uuid
+      next_revision_uuid:
         type: string
         generated: true
         transient: true
         immutable: true
-        description: "The uuid of next version dataset"
-        on_read_trigger: get_next_version_uuid
+        description: "The uuid of next revision dataset"
+        on_read_trigger: get_next_revision_uuid
 
 
   ############################################# Donor #############################################
