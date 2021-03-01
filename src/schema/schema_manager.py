@@ -325,8 +325,8 @@ def generate_triggered_data(trigger_type, normalized_class, user_token, existing
 
 """
 Filter out the merged_dict by getting rid of the properties with None value
-Meaning the returned target property key is different from the original key
-E.g., Donor.image_files_to_add
+Meaning the returned target property key is different from the original key 
+in the trigger method, e.g., Donor.image_files_to_add
 
 Parameters
 ----------
@@ -492,7 +492,6 @@ def normalize_entity_result_for_response(entity_dict, properties_to_exclude = []
 
                 # Final step: remove properties with empty string value, empty dict {}, and empty list []
                 if (isinstance(normalized_entity[key], (str, dict, list)) and (not normalized_entity[key])):
-                    # Add to the normalized_entity dict
                     normalized_entity.pop(key)
 
     return normalized_entity

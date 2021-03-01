@@ -893,9 +893,11 @@ def get_previous_revision_uuid(property_key, normalized_type, user_token, existi
     if 'uuid' not in existing_data_dict:
         raise KeyError("Missing 'uuid' key in 'existing_data_dict' during calling 'get_previous_revision_uuid()' trigger method.")
 
-    prev_ver_uuid = schema_neo4j_queries.get_previous_revision_uuid(schema_manager.get_neo4j_driver_instance(), existing_data_dict['uuid'])
+    previous_revision_uuid = schema_neo4j_queries.get_previous_revision_uuid(schema_manager.get_neo4j_driver_instance(), existing_data_dict['uuid'])
     
-    return property_key, prev_ver_uuid
+    # previous_revision_uuid can be None, but will be filtered out by 
+    # schema_manager.normalize_entity_result_for_response()
+    return property_key, previous_revision_uuid
 
 
 """
@@ -923,9 +925,11 @@ def get_next_revision_uuid(property_key, normalized_type, user_token, existing_d
     if 'uuid' not in existing_data_dict:
         raise KeyError("Missing 'uuid' key in 'existing_data_dict' during calling 'get_next_revision_uuid()' trigger method.")
 
-    next_ver_uuid = schema_neo4j_queries.get_next_revision_uuid(schema_manager.get_neo4j_driver_instance(), existing_data_dict['uuid'])
+    next_revision_uuid = schema_neo4j_queries.get_next_revision_uuid(schema_manager.get_neo4j_driver_instance(), existing_data_dict['uuid'])
     
-    return property_key, next_ver_uuid
+    # next_revision_uuid can be None, but will be filtered out by 
+    # schema_manager.normalize_entity_result_for_response()
+    return property_key, next_revision_uuid
 
 
 ####################################################################################################
