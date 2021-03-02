@@ -17,7 +17,7 @@ servers:
 paths:
   /entities/{id}:
     get:
-      summary: 'Get the information for an Entity using an identifier'
+      summary: 'Retrive the metadata information of a given entity by id'
       parameters:
         - name: id
           in: path
@@ -29,11 +29,34 @@ paths:
         "200":
           description: successful operation
         "400":
-          description: Invalid entity identifier or a system error
+          description: Invalid or misformatted entity identifier
         "401":
-          description: The user's token has expired
+          description: "The user's token has expired or the user did not supply a valid token"
         "404":
           description: The target entity could not be found
+        "500":
+          description: Internal error
+    
+    put:
+      summary: 'Update the properties of a given entity, no Collection stuff'
+      parameters:
+        - name: id
+          in: path
+          description: 'The HuBMAP ID (e.g. HBM123.ABCD.456) or UUID of target entity'
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: successful operation
+        "400":
+          description: Invalid or misformatted entity identifier
+        "401":
+          description: "The user's token has expired or the user did not supply a valid token"
+        "404":
+          description: The target entity could not be found
+        "500":
+          description: Internal error
   
   /entity-types:
     get:
@@ -41,10 +64,10 @@ paths:
       responses:
         "200":
           description: successful operation
-        "400":
-          description: A system error occurred
         "401":
-          description: "The user's token has expired or the user did not supply a token"
+          description: "The user's token has expired or the user did not supply a valid token"
+        "500":
+          description: Internal error
   
   /{entity_type}/entities:
     get:
@@ -60,32 +83,12 @@ paths:
         "200":
           description: successful operation
         "400":
-          description: Invalid type code or a system error
+          description: Invalid entity type provided
         "401":
-          description: "The user's token has expired or the user did not supply a token"
-  
-  /collections/{id}:
-    get:
-      summary: 'Retrive the collection detail by id'
-      parameters:
-        - name: id
-          in: path
-          description:  'The unique identifier of entity.  This identifier can be either an HuBMAP ID (e.g. HBM123.ABCD.456) or UUID'
-          required: true
-          schema:
-            type: string
-      responses:
-        "200":
-          description: successful operation
-        "400":
-          description: Invalid entity identifier or a system error
-        "401":
-          description: The user's token has expired
-        "404":
-          description: The identifier could not be found
+          description: "The user's token has expired or the user did not supply a valid token"
         "500":
-          description: An unexpected error occurred
-  
+          description: Internal error
+
   /ancestors/{id}:
     get:
       summary: 'Get the ancestor list for an Entity.  The ancestors are the nodes connected "upstream" from the current node.  This list traverses all the levels in the graph.'
@@ -100,13 +103,13 @@ paths:
         "200":
           description: successful operation
         "400":
-          description: Invalid entity identifier or a system error
+          description: Invalid or misformatted entity identifier
         "401":
-          description: The user's token has expired
+          description: "The user's token has expired or the user did not supply a valid token"
         "404":
-          description: The identifier could not be found
+          description: The target entity could not be found
         "500":
-          description: An unexpected error occurred
+          description: Internal error
   
   /descendants/{id}:
     get:
@@ -122,11 +125,13 @@ paths:
         "200":
           description: successful operation
         "400":
-          description: Invalid entity identifier or a system error
+          description: Invalid or misformatted entity identifier
         "401":
-          description: The user's token has expired
+          description: "The user's token has expired or the user did not supply a valid token"
         "404":
-          description: The identifier could not be found
+          description: The target entity could not be found
+        "500":
+          description: Internal error
   
   /parents/{id}:
     get:
@@ -142,11 +147,13 @@ paths:
         "200":
           description: successful operation
         "400":
-          description: Invalid entity identifier or a system error
+          description: Invalid or misformatted entity identifier
         "401":
-          description: The user's token has expired
+          description: "The user's token has expired or the user did not supply a valid token"
         "404":
-          description: The identifier could not be found
+          description: The target entity could not be found
+        "500":
+          description: Internal error
   
   /children/{id}:
     get:
@@ -162,11 +169,13 @@ paths:
         "200":
           description: successful operation
         "400":
-          description: Invalid entity identifier or a system error
+          description: Invalid or misformatted entity identifier
         "401":
-          description: The user's token has expired
+          description: "The user's token has expired or the user did not supply a valid token"
         "404":
-          description: The identifier could not be found
+          description: The target entity could not be found
+        "500":
+          description: Internal error
   
   /entities/{id}/provenance:
     get:
@@ -181,16 +190,37 @@ paths:
       responses:
         "200":
           description: successful operation
-          content:
-            application/json:
-              schema:
-                type: object
-
         "400":
-          description: Invalid entity identifier or a system error
+          description: Invalid or misformatted entity identifier
         "401":
-          description: The user's token has expired
+          description: "The user's token has expired or the user did not supply a valid token"
+        "404":
+          description: The target entity could not be found
+        "500":
+          description: Internal error
   
+  /entities/{id}/ancestor-organs:
+    get:
+      summary: "Retrievea list of ancestor organ(s) of a given uuid"
+      parameters:
+        - name: id
+          in: path
+          description: 'The unique identifier of entity.  This identifier can be either an HuBMAP ID (e.g. HBM123.ABCD.456) or UUID'
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: successful operation
+        "400":
+          description: Invalid or misformatted entity identifier
+        "401":
+          description: "The user's token has expired or the user did not supply a valid token"
+        "404":
+          description: The target entity could not be found
+        "500":
+          description: Internal error
+          
   /collections:
     get:
       summary: "Returns a list of Collections which include the basic Collection information and the uuids of all connected datasets.  If the component argument is omitted all Collections are returned.  For this call, the JWT is optional. If a valid token is provided with group membership in the HuBMAP-Read group any collection matching the id will be returned.  Otherwise if no token is provided or a valid token with no HuBMAP-Read group membership then only a public collection will be returned.  Public collections are defined as being published via a DOI (collection.doi_registered == true) and at least one of the connected datasets is public (dataset.metadata.data_access_level == 'public'). For public collections only connected datasets that are public are returned with it."
@@ -204,10 +234,10 @@ paths:
       responses:
         "200":
           description: successful operation
-        "400":
-          description: Invalid entity identifier or a system error
         "401":
-          description: The user's token has expired
+          description: "The user's token has expired or the user did not supply a valid token"
+        "500":
+          description: Internal error
   
   /collections/{id}:
     get:
@@ -223,9 +253,13 @@ paths:
         "200":
           description: successful operation
         "400":
-          description: Invalid entity identifier or a system error
+          description: Invalid or misformatted entity identifier
         "401":
-          description: The user's token has expired
+          description: "The user's token has expired or the user did not supply a valid token"
+        "404":
+          description: The target entity could not be found
+        "500":
+          description: Internal error
           
   /entities/{entity_type}:
     post:
@@ -241,9 +275,11 @@ paths:
         "200":
           description: successful operation
         "400":
-          description: Invalid type code or a system error
+          description: Invalid entity type provided
         "401":
-          description: "The user's token has expired or the user did not supply a token"
+          description: "The user's token has expired or the user did not supply a valid token"
+        "500":
+          description: Internal error
   
   /entities/multiple-samples/{count}:
     post:
@@ -259,9 +295,11 @@ paths:
         "200":
           description: successful operation
         "400":
-          description: Invalid type code or a system error
+          description: Invalid json input
         "401":
-          description: "The user's token has expired or the user did not supply a token"
+          description: "The user's token has expired or the user did not supply a valid token"
+        "500":
+          description: Internal error
 
   /entities/multiple-samples:
     put:
@@ -270,28 +308,14 @@ paths:
         "200":
           description: successful operation
         "400":
-          description: Invalid type code or a system error
+          description: Invalid json input
         "401":
-          description: "The user's token has expired or the user did not supply a token"
-  
-  /entities/{id}:
-    put:
-      summary: 'Update the properties of a given entity, no Collection stuff'
-      parameters:
-        - name: id
-          in: path
-          description: 'The HuBMAP ID (e.g. HBM123.ABCD.456) or UUID of target entity'
-          required: true
-          schema:
-            type: string
-      responses:
-        "200":
-          description: successful operation
-        "400":
-          description: Invalid type code or a system error
-        "401":
-          description: "The user's token has expired or the user did not supply a token"
-          
+          description: "The user's token has expired or the user did not supply a valid token"
+        "404":
+          description: The target entity could not be found
+        "500":
+          description: Internal error
+
   /collections/{collection_uuid}}/add-datasets:
     put:
       summary: 'Link the given list of datasets to the target collection'
@@ -306,9 +330,13 @@ paths:
         "200":
           description: successful operation
         "400":
-          description: Invalid type code or a system error
+          description: Invalid or misformatted collection uuid
         "401":
-          description: "The user's token has expired or the user did not supply a token"
+          description: "The user's token has expired or the user did not supply a valid token"
+        "404":
+          description: The target entity could not be found
+        "500":
+          description: Internal error
           
   /collection/redirect/{id}:
     put:
@@ -324,11 +352,15 @@ paths:
         "200":
           description: successful operation
         "400":
-          description: Invalid type code or a system error
+          description: Invalid or misformatted collection identifier
         "401":
-          description: "The user's token has expired or the user did not supply a token"
+          description: "The user's token has expired or the user did not supply a valid token"
+        "404":
+          description: The target entity could not be found
+        "500":
+          description: Internal error
           
-/entities/dataset/globus-url/{id}:
+  /entities/dataset/globus-url/{id}:
     put:
       summary: 'Get the Globus URL to the given dataset'
       parameters:
@@ -342,9 +374,13 @@ paths:
         "200":
           description: successful operation
         "400":
-          description: Invalid type code or a system error
+          description: Invalid or misformatted entity identifier
         "401":
-          description: "The user's token has expired or the user did not supply a token"
+          description: "The user's token has expired or the user did not supply a valid token"
+        "404":
+          description: The target entity could not be found
+        "500":
+          description: Internal error
           
   /file-upload:
     put:
@@ -353,6 +389,8 @@ paths:
         "200":
           description: successful operation
         "400":
-          description: Invalid type code or a system error
+          description: Missing file
         "401":
-          description: "The user's token has expired or the user did not supply a token"
+          description: "The user's token has expired or the user did not supply a valid token"
+        "500":
+          description: Internal error

@@ -292,7 +292,7 @@ def get_ancestor_organs(id):
 
 
 """
-Retrive the properties of a given entity by id
+Retrive the metadata information of a given entity by id
 Result filtering is supported based on query string
 For example: /entities/<id>?property=data_access_level
 
