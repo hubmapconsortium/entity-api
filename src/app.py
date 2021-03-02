@@ -362,13 +362,14 @@ def get_entity_by_id(id):
             if property_key not in result_filtering_accepted_property_keys:
                 bad_request_error(f"Only the following property keys are supported in the query string: {separator.join(result_filtering_accepted_property_keys)}")
             
-            # Only return the property value
-            final_result = complete_dict[property_key]
+            # Response with the property value directly
+            # Don't use jsonify() on string value
+            return complete_dict[property_key]
         else:
             bad_request_error("The specified query string is not supported. Use '?property=<key>' to filter the result")
-
-    # Response with the final result
-    return jsonify(final_result)
+    else:
+        # Response with the dict
+        return jsonify(final_result)
 
 
 """
