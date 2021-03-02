@@ -582,16 +582,26 @@ def validate_json_data_against_schema(json_data_dict, normalized_entity_type, ex
     # No need to check on entity update
     if not existing_entity_dict:    
         missing_required_keys_on_create = []
+        empty_value_of_required_keys_on_create = []
         for key in schema_keys:
             # By default, the schema treats all entity properties as optional on creation. 
             # Use `required_on_create: true` to mark a property as required for creating a new entity
-            if 'required_on_create' in properties[key]:
-                if properties[key]['required_on_create'] and ('trigger' not in properties[key]) and (key not in json_data_keys):
+            if ('required_on_create' in properties[key]) and properties[key]['required_on_create'] and ('trigger' not in properties[key]):
+                if key not in json_data_keys:
                     missing_required_keys_on_create.append(key)
+                else:
+                    # Empty values or None(null in request json) of required keys are invalid too
+                    # The data type check will be handled later regardless of it's required or not
+                    if (json_data_dict[key] is None) or (isinstance(json_data_dict[key], (list, dict)) and (not json_data_dict[key])) or (isinstance(json_data_dict[key], str) and (not json_data_dict[key].strip())):
+                        empty_value_of_required_keys_on_create.append(key)
 
         if len(missing_required_keys_on_create) > 0:
             # No need to log the validation errors
             raise schema_errors.SchemaValidationException(f"Missing required keys in request json: {separator.join(missing_required_keys_on_create)}")
+
+        if len(empty_value_of_required_keys_on_create) > 0:
+            # No need to log the validation errors
+            raise schema_errors.SchemaValidationException(f"Required keys in request json with empty values: {separator.join(empty_value_of_required_keys_on_create)}")
 
     # Verify data type of each key
     invalid_data_type_keys = []
@@ -608,18 +618,6 @@ def validate_json_data_against_schema(json_data_dict, normalized_entity_type, ex
         # No need to log the validation errors
         raise schema_errors.SchemaValidationException(f"Keys in request json with invalid data types: {separator.join(invalid_data_type_keys)}")
     
-    # Verify the data value of each key
-    invalid_data_value_keys = []
-    for key in json_data_keys:
-        # Only ensure the json array is not empty or null if provided
-        # Will still take empty string and empty object
-        if isinstance(json_data_dict[key], list) and (not json_data_dict[key]):
-            invalid_data_value_keys.append(key)
-
-    if len(invalid_data_value_keys) > 0:
-        # No need to log the validation errors
-        raise schema_errors.SchemaValidationException(f"Keys in request json with invalid data values: {separator.join(invalid_data_value_keys)}")
-
 
 """
 Get a list of entity types that can be used as derivation source in the schmea yaml
