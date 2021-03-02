@@ -325,8 +325,8 @@ def generate_triggered_data(trigger_type, normalized_class, user_token, existing
 
 """
 Filter out the merged_dict by getting rid of the properties with None value
-Meaning the returned target property key is different from the original key
-E.g., Donor.image_files_to_add
+Meaning the returned target property key is different from the original key 
+in the trigger method, e.g., Donor.image_files_to_add
 
 Parameters
 ----------
@@ -466,11 +466,14 @@ def normalize_entity_result_for_response(entity_dict, properties_to_exclude = []
         # Only return the properties defined in the schema yaml
         # Exclude additional properties if specified
         if (key in properties) and (key not in properties_to_exclude):
-            # Safely evaluate a string containing a Python dict or list literal
-            # instead of returning the json-as-string or array-as-string
-            if isinstance(entity_dict[key], str) and (properties[key]['type'] in ['list', 'json_string']):
+            # Skip properties with None value and the ones that are marked as not to be exposed.
+            # By default, all properties are exposed if not marked as `exposed: false`
+            # It's still possible to see `exposed: true` marked explictly
+            if (entity_dict[key] is not None) and ('exposed' not in properties[key]) or (('exposed' in properties[key]) and properties[key]['exposed']):
+                # Safely evaluate a string containing a Python dict or list literal
                 # Only convert to Python list/dict when the string literal is not empty
-                if entity_dict[key]:
+                # instead of returning the json-as-string or array-as-string
+                if isinstance(entity_dict[key], str) and entity_dict[key] and (properties[key]['type'] in ['list', 'json_string']):
                     # ast uses compile to compile the source string (which must be an expression) into an AST
                     # If the source string is not a valid expression (like an empty string), a SyntaxError will be raised by compile
                     # If, on the other hand, the source string would be a valid expression (e.g. a variable name like foo), 
@@ -483,19 +486,14 @@ def normalize_entity_result_for_response(entity_dict, properties_to_exclude = []
                         logger.debug(entity_dict[key])
                         msg = "Failed to convert the source string with ast.literal_eval()"
                         logger.exception(msg)
-                else:
-                    # Convert to empty list or empty dict when the string literal is empty
-                    if properties[key]['type'] == 'list':
-                        entity_dict[key] = []
-                    elif properties[key]['type'] == 'json_string':
-                        entity_dict[key] = {}
-
-            # By default, all properties are exposed
-            # It's possible to see `exposed: true`
-            if ('exposed' not in properties[key]) or (('exposed' in properties[key]) and properties[key]['exposed']):
-                # Add to the normalized_entity dict
+                
+                # Add the target key with correct value of data type to the normalized_entity dict
                 normalized_entity[key] = entity_dict[key]
-  
+
+                # Final step: remove properties with empty string value, empty dict {}, and empty list []
+                if (isinstance(normalized_entity[key], (str, dict, list)) and (not normalized_entity[key])):
+                    normalized_entity.pop(key)
+
     return normalized_entity
 
 

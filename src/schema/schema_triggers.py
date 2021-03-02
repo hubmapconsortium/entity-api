@@ -833,6 +833,105 @@ def get_local_directory_rel_path(property_key, normalized_type, user_token, exis
     return property_key, dir_path
 
 
+"""
+Trigger event method of building linkage from this new Dataset to the dataset of its previous revision
+
+Parameters
+----------
+property_key : str
+    The target property key
+normalized_type : str
+    One of the types defined in the schema yaml: Activity, Collection, Donor, Sample, Dataset
+user_token: str
+    The user's globus nexus token
+existing_data_dict : dict
+    A dictionary that contains all existing entity properties
+new_data_dict : dict
+    A merged dictionary that contains all possible input data to be used
+
+Returns
+-------
+str: The target property key
+str: The uuid string of source entity
+"""
+def link_to_previous_revision(property_key, normalized_type, user_token, existing_data_dict, new_data_dict):
+    if 'uuid' not in existing_data_dict:
+        raise KeyError("Missing 'uuid' key in 'existing_data_dict' during calling 'link_to_previous_version_dataset()' trigger method.")
+
+    if 'previous_revision_uuid' not in existing_data_dict:
+        raise KeyError("Missing 'previous_revision_dataset_uuid' key in 'existing_data_dict' during calling 'link_to_previous_version_dataset()' trigger method.")
+
+    # Create a revision reltionship from this new Dataset node and its previous revision of dataset node in neo4j
+    try:
+        schema_neo4j_queries.link_entity_to_previous_revision(schema_manager.get_neo4j_driver_instance(), existing_data_dict['uuid'], existing_data_dict['previous_revision_uuid'])
+    except TransactionError:
+        # No need to log
+        raise
+
+"""
+Trigger event method of getting the uuid of the previous revision dataset if exists
+
+Parameters
+----------
+property_key : str
+    The target property key
+normalized_type : str
+    One of the types defined in the schema yaml: Activity, Collection, Donor, Sample, Dataset
+user_token: str
+    The user's globus nexus token
+existing_data_dict : dict
+    A dictionary that contains all existing entity properties
+new_data_dict : dict
+    A merged dictionary that contains all possible input data to be used
+
+Returns
+-------
+str: The target property key
+str: The uuid string of previous revision entity or None if not found
+"""
+def get_previous_revision_uuid(property_key, normalized_type, user_token, existing_data_dict, new_data_dict):
+    if 'uuid' not in existing_data_dict:
+        raise KeyError("Missing 'uuid' key in 'existing_data_dict' during calling 'get_previous_revision_uuid()' trigger method.")
+
+    previous_revision_uuid = schema_neo4j_queries.get_previous_revision_uuid(schema_manager.get_neo4j_driver_instance(), existing_data_dict['uuid'])
+    
+    # previous_revision_uuid can be None, but will be filtered out by 
+    # schema_manager.normalize_entity_result_for_response()
+    return property_key, previous_revision_uuid
+
+
+"""
+Trigger event method of getting the uuid of the next version dataset if exists
+
+Parameters
+----------
+property_key : str
+    The target property key
+normalized_type : str
+    One of the types defined in the schema yaml: Activity, Collection, Donor, Sample, Dataset
+user_token: str
+    The user's globus nexus token
+existing_data_dict : dict
+    A dictionary that contains all existing entity properties
+new_data_dict : dict
+    A merged dictionary that contains all possible input data to be used
+
+Returns
+-------
+str: The target property key
+str: The uuid string of next version entity or None if not found
+"""
+def get_next_revision_uuid(property_key, normalized_type, user_token, existing_data_dict, new_data_dict):
+    if 'uuid' not in existing_data_dict:
+        raise KeyError("Missing 'uuid' key in 'existing_data_dict' during calling 'get_next_revision_uuid()' trigger method.")
+
+    next_revision_uuid = schema_neo4j_queries.get_next_revision_uuid(schema_manager.get_neo4j_driver_instance(), existing_data_dict['uuid'])
+    
+    # next_revision_uuid can be None, but will be filtered out by 
+    # schema_manager.normalize_entity_result_for_response()
+    return property_key, next_revision_uuid
+
+
 ####################################################################################################
 ## Trigger methods specific to Donor - DO NOT RENAME
 ####################################################################################################

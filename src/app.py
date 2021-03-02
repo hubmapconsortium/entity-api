@@ -772,6 +772,14 @@ def create_entity(entity_type):
         for direct_ancestor_uuid in json_data_dict['direct_ancestor_uuids']:
             direct_ancestor_dict = query_target_entity(direct_ancestor_uuid, user_token)
 
+        # Also check existence of the previous verion dataset if specified
+        if 'previous_version_uuid' in json_data_dict:
+        	previous_version_dict = query_target_entity(json_data_dict['previous_version_uuid'], user_token)
+
+        	# Make sure the previous version entity is either a Dataset or Sample
+        	if previous_version_dict['entity_type'] not in ['Dataset', 'Sample']:
+        		bad_request_error(f"The previous_version_uuid specified for this dataset must be either a Dataset or Sample")
+
         # Generate 'before_create_triiger' data and create the entity details in Neo4j
         merged_dict = create_entity_details(request, normalized_entity_type, user_token, json_data_dict)
     else:
@@ -1755,8 +1763,8 @@ def create_entity_details(request, normalized_entity_type, user_token, json_data
     merged_dict = {**json_data_dict, **generated_before_create_trigger_data_dict}
 
     # Filter out the merged_dict by getting rid of the properties with None value
-    # Meaning the returned target property key is different from the original key
-    # E.g., Donor.image_files
+    # Meaning the returned target property key is different from the original key 
+    # in the trigger method, e.g., Donor.image_files_to_add
     filtered_merged_dict = schema_manager.remove_none_values(merged_dict)
     
     # Create new entity
@@ -1880,8 +1888,8 @@ def create_multiple_samples_details(request, normalized_entity_type, user_token,
     merged_dict = {**json_data_dict, **generated_before_create_trigger_data_dict}
 
     # Filter out the merged_dict by getting rid of the properties with None value
-    # Meaning the returned target property key is different from the original key
-    # E.g., Donor.image_files
+    # Meaning the returned target property key is different from the original key 
+    # in the trigger method, e.g., Donor.image_files_to_add
     filtered_merged_dict = schema_manager.remove_none_values(merged_dict)
 
     samples_dict_list = []
@@ -1982,8 +1990,8 @@ def update_entity_details(request, normalized_entity_type, user_token, json_data
     merged_dict = {**json_data_dict, **generated_before_update_trigger_data_dict}
 
     # Filter out the merged_dict by getting rid of the properties with None value
-    # Meaning the returned target property key is different from the original key
-    # E.g., Donor.image_files
+    # Meaning the returned target property key is different from the original key 
+    # in the trigger method, e.g., Donor.image_files_to_add
     filtered_merged_dict = schema_manager.remove_none_values(merged_dict)
 
     # By now the filtered_merged_dict contains all user updates and all triggered data to be added to the entity node
