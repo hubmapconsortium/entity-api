@@ -35,13 +35,13 @@ new_data_dict : dict
 Returns
 -------
 str: The target property key
-int: A timestamp integer of milliseconds
+str: The neo4j TIMESTAMP() function as string
 """
 def set_timestamp(property_key, normalized_type, user_token, existing_data_dict, new_data_dict):
-    current_time = datetime.datetime.now() 
-    # Note neo4j uses milliseconds as the result of `TIMESTAMP()`
-    milliseconds = int(current_time.timestamp() * 1000)
-    return property_key, milliseconds
+    # Use the neo4j TIMESTAMP() function during entity creation
+    # Will be proessed in app_neo4j_queries._build_properties_map() 
+    # and schema_neo4j_queries._build_properties_map()
+    return property_key, 'TIMESTAMP()'
 
 """
 Trigger event method of setting the entity type of a given entity

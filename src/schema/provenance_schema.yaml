@@ -105,7 +105,9 @@ shared_entity_properties: &shared_entity_properties
     generated: true
     description: "The timestamp of when the object was last modified.  The format is an integer representing milliseconds since midnight, Jan 1, 1970"
     # Set on both create and update
-    before_create_trigger: set_timestamp # This will be slightly different (milliseconds) from the created_timestamp
+    # These two properties will have the same timestamp due to the use of 
+    # neo4j function TIMESTAMP() instead of generating the timestamp in Python
+    before_create_trigger: set_timestamp
     before_update_trigger: set_timestamp
   last_modified_user_sub:
     type: string

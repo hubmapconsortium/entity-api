@@ -230,8 +230,10 @@ def generate_triggered_data(trigger_type, normalized_class, user_token, existing
                         elif trigger_type == 'after_update_trigger':
                             raise schema_errors.AfterUpdateTriggerException
             elif trigger_type in ['before_update_trigger']:
-                # Only call the triggers on the properties specified in request JSON to be updated
-                if key in new_data_dict:
+                # IMPORTANT! Call the triggers for the properties:
+                # Case 1: specified in request JSON to be updated explicitly
+                # Case 2: defined as `generated: true` in the schema yaml
+                if (key in new_data_dict) or (('generated' in properties[key]) and properties[key]['generated']):
                     trigger_method_name = properties[key][trigger_type]
 
                     try:

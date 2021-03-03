@@ -772,10 +772,15 @@ def _build_properties_map(entity_data_dict):
             # Treat integer and boolean as is
             key_value_pair = f"{key}: {value}"
         elif isinstance(value, str):
-            # Escape single quote
-            escaped_str = value.replace("'", r"\'")
-            # Quote the value
-            key_value_pair = f"{key}: '{escaped_str}'"
+            # Special case is the value is 'TIMESTAMP()' string
+            # Remove the quotes since neo4j only takes TIMESTAMP() as a function
+            if value == 'TIMESTAMP()':
+                key_value_pair = f"{key}: {value}"
+            else:
+                # Escape single quote
+                escaped_str = value.replace("'", r"\'")
+                # Quote the value
+                key_value_pair = f"{key}: '{escaped_str}'"
         else:
             # Convert list and dict to string
             # Must also escape single quotes in the string to build a valid Cypher query
