@@ -6,7 +6,7 @@ A set of standard RESTful web service that provides CRUD operations into our ent
 
 The yaml file `src/resources/hubmap-entities.yaml` contains all the attributes of each entity type and generated metadata information of attributes via trigger methods. This file is being used to validate the user input and also as a way of standarding all the details of entities.
 
-## Development and deployment environments
+## Docker development and deployment environments
 
 We have the following 5 development and deployment environments:
 
