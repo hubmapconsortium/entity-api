@@ -1,4 +1,4 @@
-# entity-api for HuBMAP
+# HuBMAP Entity API
 
 A set of standard RESTful web service that provides CRUD operations into our entity metadata store. A description of the API calls is found here: [Entities API](https://smart-api.info/ui/0065e419668f3336a40d1f5ab89c6ba3).
 
