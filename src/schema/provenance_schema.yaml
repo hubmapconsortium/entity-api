@@ -104,21 +104,29 @@ shared_entity_properties: &shared_entity_properties
     type: integer
     generated: true
     description: "The timestamp of when the object was last modified.  The format is an integer representing milliseconds since midnight, Jan 1, 1970"
+    # Set on both create and update
+    before_create_trigger: set_timestamp # This will be slightly different (milliseconds) from the created_timestamp
     before_update_trigger: set_timestamp
   last_modified_user_sub:
     type: string
     generated: true
     description: "The subject id as provided by the authorization mechanism for the person or process authenticated when the object was modified."
+    # Set on both create and update
+    before_create_trigger: set_user_sub
     before_update_trigger: set_user_sub
   last_modified_user_email:
     type: string
     generated: true
     description: "The email address of the person or process authenticated when the object was last modified."
+    # Set on both create and update
+    before_create_trigger: set_user_email
     before_update_trigger: set_user_email
   last_modified_user_displayname:
     type: string
     generated: true
     description: "The name of the person or process authenticated when the object was last modified."
+    # Set on both create and update
+    before_create_trigger: set_user_displayname
     before_update_trigger: set_user_displayname
   ###### All other shared properties ######
   entity_type:
