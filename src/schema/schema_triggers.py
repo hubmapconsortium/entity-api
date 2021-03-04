@@ -523,7 +523,7 @@ def update_file_descriptions(property_key, normalized_type, user_token, existing
         if property_key not in existing_data_dict:
             return property_key, None
         else:
-            return property_key, existing_data_dict['property_key']
+            return property_key, existing_data_dict[property_key]
 
     # The property holding the file information must be a json array
     if not isinstance(new_data_dict[property_key], list):
