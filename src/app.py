@@ -1,1068 +1,2191 @@
-'''
-Created on May 15, 2019
-
-@author: chb69
-'''
-from flask import Flask, jsonify, abort, request, session, Response, redirect
-import sys
+from flask import Flask, g, jsonify, abort, request, Response, redirect
+from neo4j.exceptions import TransactionError
 import os
-from pathlib import Path
-from neo4j import CypherError
-import argparse
-from specimen import Specimen
-from dataset import Dataset
-import requests
-import logging
-import time
-import traceback
-import json
-import urllib
 import re
+import json
+import requests
+import urllib
+# Don't confuse urllib (Python native library) with urllib3 (3rd-party library, requests also uses urllib3)
+from requests.packages.urllib3.exceptions import InsecureRequestWarning
+from pathlib import Path
+import logging
+
+# Local modules
+import app_neo4j_queries
+import provenance
+from file_upload_helper import UploadFileHelper
+from schema import schema_manager
+from schema import schema_errors
 
 # HuBMAP commons
-from hubmap_commons.hubmap_const import HubmapConst 
-from hubmap_commons.neo4j_connection import Neo4jConnection
-from hubmap_commons.uuid_generator import UUID_Generator
-from hubmap_commons.hm_auth import AuthHelper, secured, isAuthorized
-from hubmap_commons.entity import Entity
-from hubmap_commons.autherror import AuthError
-from hubmap_commons.provenance import Provenance
-from hubmap_commons.exceptions import HTTPException
 from hubmap_commons import string_helper
-from hubmap_commons import file_helper
-from py2neo import Graph
+from hubmap_commons import file_helper as hm_file_helper
+from hubmap_commons import neo4j_driver
+from hubmap_commons import globus_groups
+from hubmap_commons.hm_auth import AuthHelper
+from hubmap_commons.exceptions import HTTPException
 
-# For debugging
-from pprint import pprint
 
-#from hubmap_commons import HubmapConst, Neo4jConnection, uuid_generator, AuthHelper, secured, Entity, AuthError
+# Set logging fromat and level (default is warning)
+# All the API logging is forwarded to the uWSGI server and gets written into the log file `uwsgo-entity-api.log`
+# Log rotation is handled via logrotate on the host system with a configuration file
+# Do NOT handle log file and rotation via the Python logging to avoid issues with multi-worker processes
+logging.basicConfig(format='[%(asctime)s] %(levelname)s in %(module)s: %(message)s', level=logging.DEBUG, datefmt='%Y-%m-%d %H:%M:%S')
+logger = logging.getLogger(__name__)
 
 # Specify the absolute path of the instance folder and use the config file relative to the instance path
 app = Flask(__name__, instance_path=os.path.join(os.path.abspath(os.path.dirname(__file__)), 'instance'), instance_relative_config=True)
 app.config.from_pyfile('app.cfg')
 
-if AuthHelper.isInitialized() == False:
-    authcache = AuthHelper.create(
-        app.config['APP_CLIENT_ID'], app.config['APP_CLIENT_SECRET'])
-else:
-    authcache = AuthHelper.instance()
+# Remove trailing slash / from URL base to avoid "//" caused by config with trailing slash
+app.config['UUID_API_URL'] = app.config['UUID_API_URL'].strip('/')
+app.config['SEARCH_API_URL'] = app.config['SEARCH_API_URL'].strip('/')
 
-logger = ''
-prov_helper = None
+# Suppress InsecureRequestWarning warning when requesting status on https with ssl cert verify disabled
+requests.packages.urllib3.disable_warnings(category = InsecureRequestWarning)
 
-LOG_FILE_NAME = "../log/entity-api-" + time.strftime("%d-%m-%Y-%H-%M-%S") + ".log"
 
-ALLOWED_SAMPLE_UPDATE_ATTRIBUTES = [HubmapConst.METADATA_ATTRIBUTE]
+####################################################################################################
+## Register error handlers
+####################################################################################################
 
-@app.before_first_request
-def init():
-    global logger
-    global prov_helper
-    try:
-        logger = logging.getLogger('entity.service')
-        logger.setLevel(logging.INFO)
-        logFH = logging.FileHandler(LOG_FILE_NAME)
-        logger.addHandler(logFH)
-        prov_helper = Provenance(app.config['APP_CLIENT_ID'], app.config['APP_CLIENT_SECRET'], app.config['UUID_WEBSERVICE_URL'])
-        logger.info("started")
-    except Exception as e:
-        print("Error initializing service")
-        print(str(e))
-        traceback.print_exc()
-        
+# Error handler for 400 Bad Request with custom error message
+@app.errorhandler(400)
+def http_bad_request(e):
+    return jsonify(error=str(e)), 400
+
+# Error handler for 401 Unauthorized with custom error message
+@app.errorhandler(401)
+def http_unauthorized(e):
+    return jsonify(error=str(e)), 401
+
+# Error handler for 403 Forbidden with custom error message
+@app.errorhandler(403)
+def http_forbidden(e):
+    return jsonify(error=str(e)), 403
+
+# Error handler for 404 Not Found with custom error message
+@app.errorhandler(404)
+def http_not_found(e):
+    return jsonify(error=str(e)), 404
+
+# Error handler for 500 Internal Server Error with custom error message
+@app.errorhandler(500)
+def http_internal_server_error(e):
+    return jsonify(error=str(e)), 500
+
+
+####################################################################################################
+## AuthHelper initialization
+####################################################################################################
+
+# Initialize AuthHelper class and ensure singleton
+try:
+    if AuthHelper.isInitialized() == False:
+        auth_helper_instance = AuthHelper.create(app.config['APP_CLIENT_ID'], 
+                                                 app.config['APP_CLIENT_SECRET'])
+
+        logger.info("Initialized AuthHelper class successfully :)")
+    else:
+        auth_helper_instance = AuthHelper.instance()
+except Exception:
+    msg = "Failed to initialize the AuthHelper class"
+    # Log the full stack trace, prepend a line with our message
+    logger.exception(msg)
+
+
+####################################################################################################
+## Neo4j connection initialization
+####################################################################################################
+
+# The neo4j_driver (from commons package) is a singleton module
+# This neo4j_driver_instance will be used for application-specifc neo4j queries
+# as well as being passed to the schema_manager
+try:
+    neo4j_driver_instance = neo4j_driver.instance(app.config['NEO4J_URI'], 
+                                                  app.config['NEO4J_USERNAME'], 
+                                                  app.config['NEO4J_PASSWORD'])
+
+    logger.info("Initialized neo4j_driver module successfully :)")
+except Exception:
+    msg = "Failed to initialize the neo4j_driver module"
+    # Log the full stack trace, prepend a line with our message
+    logger.exception(msg)
+
+
+"""
+Close the current neo4j connection at the end of every request
+"""
+@app.teardown_appcontext
+def close_neo4j_driver(error):
+    if hasattr(g, 'neo4j_driver_instance'):
+        # Close the driver instance
+        neo4j_driver.close()
+        # Also remove neo4j_driver_instance from Flask's application context
+        g.neo4j_driver_instance = None
+
+
+####################################################################################################
+## File upload initialization
+####################################################################################################
+
+try:
+    # Initialize the UploadFileHelper class and ensure singleton
+    if UploadFileHelper.is_initialized() == False:
+        file_upload_helper_instance = UploadFileHelper.create(app.config['FILE_UPLOAD_TEMP_DIR'], 
+                                                              app.config['FILE_UPLOAD_DIR'],
+                                                              app.config['UUID_API_URL'])
+
+        logger.info("Initialized UploadFileHelper class successfully :)")
+
+        # This will delete all the temp dirs on restart
+        #file_upload_helper_instance.clean_temp_dir()
+    else:
+        file_upload_helper_instance = UploadFileHelper.instance()
+# Use a broad catch-all here
+except Exception:
+    msg = "Failed to initialize the UploadFileHelper class"
+    # Log the full stack trace, prepend a line with our message
+    logger.exception(msg)
+
+
+####################################################################################################
+## Schema initialization
+####################################################################################################
+
+try:
+    # The schema_manager is a singleton module
+    # Pass in auth_helper_instance, neo4j_driver instance, and file_upload_helper instance
+    schema_manager.initialize(app.config['SCHEMA_YAML_FILE'], 
+                              app.config['UUID_API_URL'],
+                              auth_helper_instance,
+                              neo4j_driver_instance,
+                              file_upload_helper_instance)
+
+    logger.info("Initialized schema_manager module successfully :)")
+# Use a broad catch-all here
+except Exception:
+    msg = "Failed to initialize the schema_manager module"
+    # Log the full stack trace, prepend a line with our message
+    logger.exception(msg)
+
+####################################################################################################
+## Constants
+####################################################################################################
+
+# For now, don't use the constants from commons
+# All lowercase for easy comparision
+ACCESS_LEVEL_PUBLIC = 'public'
+ACCESS_LEVEL_CONSORTIUM = 'consortium'
+ACCESS_LEVEL_PROTECTED = 'protected'
+
+
+####################################################################################################
+## API Endpoints
+####################################################################################################
+
+"""
+The default route
+
+Returns
+-------
+str
+    A welcome message
+"""
 @app.route('/', methods = ['GET'])
 def index():
     return "Hello! This is HuBMAP Entity API service :)"
 
-# Show status of neo4j connection
+"""
+Show status of neo4j connection with the current VERSION and BUILD
+
+Returns
+-------
+json
+    A json containing the status details
+"""
 @app.route('/status', methods = ['GET'])
-def status():
-    response_data = {
+def get_status():
+    status_data = {
         # Use strip() to remove leading and trailing spaces, newlines, and tabs
-        'version': (Path(__file__).parent / 'VERSION').read_text().strip(),
-        'build': (Path(__file__).parent / 'BUILD').read_text().strip(),
+        'version': (Path(__file__).absolute().parent.parent / 'VERSION').read_text().strip(),
+        'build': (Path(__file__).absolute().parent.parent / 'BUILD').read_text().strip(),
         'neo4j_connection': False
     }
-
-    conn = Neo4jConnection(app.config['NEO4J_SERVER'], app.config['NEO4J_USERNAME'], app.config['NEO4J_PASSWORD'])
-    driver = conn.get_driver()
-    is_connected = conn.check_connection(driver)
+    
+    # Don't use try/except here
+    is_connected = app_neo4j_queries.check_connection(neo4j_driver_instance)
     
     if is_connected:
-        response_data['neo4j_connection'] = True
+        status_data['neo4j_connection'] = True
 
-    return jsonify(response_data)
+    return jsonify(status_data)
 
-@app.route('/entities/types/<type_code>', methods = ['GET'])
-# @cross_origin(origins=[app.config['UUID_UI_URL']], methods=['GET'])
-def get_entity_by_type(type_code):
-    try:
-        conn = Neo4jConnection(app.config['NEO4J_SERVER'], app.config['NEO4J_USERNAME'], app.config['NEO4J_PASSWORD'])
-        driver = conn.get_driver()
-        entity_list = Entity.get_entities_by_type(driver, type_code)
-        return jsonify( {'uuids' : entity_list}), 200
-    except:
-        msg = 'An error occurred: '
-        for x in sys.exc_info():
-            msg += str(x)
-        abort(400, msg)
+"""
+Retrieve the ancestor organ(s) of a given uuid
 
-@app.route('/entities/types', methods = ['GET'])
-# @cross_origin(origins=[app.config['UUID_UI_URL']], methods=['GET'])
+Parameters
+----------
+id : str
+    The HuBMAP ID (e.g. HBM123.ABCD.456) or UUID of target entity 
+
+Returns
+-------
+json
+    List of organs that are ancestors of the given entity
+    - Only dataset entities can return multiple ancestor organs
+      as Samples can only have one parent.
+    - If no organ ancestors are found an empty list is returned
+    - If requesting the ancestor organ of a Sample of type Organ or Donor a 400
+      response is returned.
+"""
+@app.route('/entities/<id>/ancestor-organs', methods = ['GET'])
+def get_ancestor_organs(id):
+    # Use the internal token to query the target entity 
+    # since public entities don't require user token
+    token = get_internal_token()
+
+    # Query target entity against uuid-api and neo4j and return as a dict if exists
+    entity_dict = query_target_entity(id, token)
+    normalized_entity_type = entity_dict['entity_type']
+    entity_data_access_level = entity_dict['data_access_level']
+
+    # Checks 
+    if normalized_entity_type in ['Collection', 'Donor']:
+        bad_request_error("Cannot get the ancestor organs for an entity of type Collection or Donor")
+
+    if normalized_entity_type == 'Sample' and entity_dict['specimen_type'].lower() == 'organ':
+        bad_request_error("Cannot get the ancestor organ of an organ.")
+        
+    # Get user token from Authorization header
+    # getAuthorizationTokens() also handles MAuthorization header but we are not using that here
+    user_token = auth_helper_instance.getAuthorizationTokens(request.headers) 
+
+    # The `data_access_level` of Dataset can be 'public', consortium', or 'protected'
+    if normalized_entity_type == 'Dataset':
+        # Only published/public datasets don't require token
+        if entity_dict['status'].lower() != 'published':
+            # Check if user token is provided
+            # The user_token is flask.Response on error
+            # Without token, the user can only access public collections, modify the collection result
+            # by only returning public datasets attached to this collection
+            if isinstance(user_token, Response):
+                forbidden_error("A valid token is required ")
+    else:
+        # The `data_access_level` of Donor/Sample can only be either 'public' or 'consortium'
+        if entity_data_access_level == ACCESS_LEVEL_CONSORTIUM:
+            # Require token to access the Donor/Sample that are not public
+            if isinstance(user_token, Response):
+                forbidden_error("A valid token is required ")
+
+    # By now, either the entity is public accessible or the user token has the correct access level
+    organs = app_neo4j_queries.get_ancestor_organs(neo4j_driver_instance, entity_dict['uuid'])  
+
+    # Skip executing the trigger method to get 'direct_ancestor'
+    properties_to_skip = ['direct_ancestor']
+    complete_entities_list = schema_manager.get_complete_entities_list(user_token, organs, properties_to_skip)
+
+    # Final result after normalization
+    final_result = schema_manager.normalize_entities_list_for_response(complete_entities_list)
+
+    return jsonify(final_result)
+
+
+"""
+Retrive the metadata information of a given entity by id
+Result filtering is supported based on query string
+For example: /entities/<id>?property=data_access_level
+
+Parameters
+----------
+id : str
+    The HuBMAP ID (e.g. HBM123.ABCD.456) or UUID of target entity 
+
+Returns
+-------
+json
+    All the properties or filtered property of the target entity
+"""
+@app.route('/entities/<id>', methods = ['GET'])
+def get_entity_by_id(id):
+    # Use the internal token to query the target entity 
+    # since public entities don't require user token
+    token = get_internal_token() 
+
+    # Query target entity against uuid-api and neo4j and return as a dict if exists
+    entity_dict = query_target_entity(id, token)
+    normalized_entity_type = entity_dict['entity_type']
+    entity_data_access_level = entity_dict['data_access_level']
+
+    # Handle Collection retrieval using a different endpoint 
+    if normalized_entity_type == 'Collection':
+        bad_request_error("Please use another API endpoint `/collections/<id>` to query a collection")
+
+    # Get user token from Authorization header
+    # getAuthorizationTokens() also handles MAuthorization header but we are not using that here
+    user_token = auth_helper_instance.getAuthorizationTokens(request.headers) 
+
+    # The `data_access_level` of Dataset can be 'public', consortium', or 'protected'
+    if normalized_entity_type == 'Dataset':
+        # Only published/public datasets don't require token
+        if entity_dict['status'].lower() != 'published':
+            # Check if user token is provided
+            # The user_token is flask.Response on error
+            # Without token, the user can only access public collections, modify the collection result
+            # by only returning public datasets attached to this collection
+            if isinstance(user_token, Response):
+                bad_request_error("A valid globus token is required")
+    else:
+        # The `data_access_level` of Donor/Sample can only be either 'public' or 'consortium'
+        if entity_data_access_level == ACCESS_LEVEL_CONSORTIUM:
+            # Require token to access the Donor/Sample that are not public
+            if isinstance(user_token, Response):
+                bad_request_error("A valid globus token is required")
+
+    # By now, either the entity is public accessible or the user token has the correct access level
+    # We'll need to return all the properties including those 
+    # generated by `on_read_trigger` to have a complete result
+    complete_dict = schema_manager.get_complete_entity_result(user_token, entity_dict)
+
+    # Also normalize the result based on schema
+    final_result = schema_manager.normalize_entity_result_for_response(complete_dict)
+
+    # Result filtering based on query string
+    # One use case: Gateway checks the access level for a given dataset uuid in the assets file service
+    result_filtering_accepted_property_keys = ['data_access_level']
+    separator = ', '
+    if bool(request.args):
+        property_key = request.args.get('property')
+
+        if property_key is not None:
+            # Validate the target property
+            if property_key not in result_filtering_accepted_property_keys:
+                bad_request_error(f"Only the following property keys are supported in the query string: {separator.join(result_filtering_accepted_property_keys)}")
+            
+            # Response with the property value directly
+            # Don't use jsonify() on string value
+            return complete_dict[property_key]
+        else:
+            bad_request_error("The specified query string is not supported. Use '?property=<key>' to filter the result")
+    else:
+        # Response with the dict
+        return jsonify(final_result)
+
+
+"""
+Retrive the full tree above the referenced entity and build the provenance document
+
+This endpoint is marked as public in Gateway
+But we need to enforce the access control here
+
+Parameters
+----------
+id : str
+    The HuBMAP ID (e.g. HBM123.ABCD.456) or UUID of target entity 
+
+Returns
+-------
+json
+    All the provenance details associated with this entity
+"""
+@app.route('/entities/<id>/provenance', methods = ['GET'])
+def get_entity_provenance(id):
+    # Use the internal token to query the target entity 
+    # since public entities don't require user token
+    token = get_internal_token()
+
+    # Query target entity against uuid-api and neo4j and return as a dict if exists
+    entity_dict = query_target_entity(id, token)
+    uuid = entity_dict['uuid']
+    normalized_entity_type = entity_dict['entity_type']
+    entity_data_access_level = entity_dict['data_access_level']
+
+    # A bit validation to prevent Lab or Collection being queried
+    supported_entity_types = ['Donor', 'Sample', 'Dataset']
+    separator = ', '
+    if normalized_entity_type not in supported_entity_types:
+        bad_request_error(f"Unable to get the provenance for this {normalized_entity_type}, the requested entity must be one of: {separator.join(supported_entity_types)}")
+
+    # Get user token from Authorization header
+    # getAuthorizationTokens() also handles MAuthorization header but we are not using that here
+    user_token = auth_helper_instance.getAuthorizationTokens(request.headers) 
+
+    # The `data_access_level` of Dataset can be 'public', consortium', or 'protected'
+    if normalized_entity_type == 'Dataset':
+        # Only published/public datasets don't require token
+        if entity_dict['status'].lower() != 'published':
+            # Check if user token is provided
+            # The user_token is flask.Response on error
+            # Without token, the user can only access public collections, modify the collection result
+            # by only returning public datasets attached to this collection
+            if isinstance(user_token, Response):
+                bad_request_error("A valid globus token is required")
+    else:
+        # The `data_access_level` of Donor/Sample can only be either 'public' or 'consortium'
+        if entity_data_access_level == ACCESS_LEVEL_CONSORTIUM:
+            if isinstance(user_token, Response):
+                bad_request_error("A valid globus token is required")
+
+    # By now, either the entity is public accessible or the user token has the correct access level
+    # Will just proceed to get the provenance informaiton
+    # Get the `depth` from query string if present and it's used by neo4j query
+    # to set the maximum number of hops in the traversal
+    depth = None
+    if 'depth' in request.args:
+        depth = int(request.args.get('depth'))
+
+    # Convert neo4j json to dict
+    neo4j_result = app_neo4j_queries.get_provenance(neo4j_driver_instance, uuid, depth)
+    raw_provenance_dict = dict(neo4j_result['json'])
+
+    # Normalize the raw provenance nodes based on the yaml schema
+    normalized_provenance_dict = {
+        'relationships': raw_provenance_dict['relationships'],
+        'nodes':[]
+    }
+
+    for node_dict in raw_provenance_dict['nodes']:
+        # The schema yaml doesn't handle Lab nodes, just leave it as is
+        if (node_dict['label'] == 'Entity') and (node_dict['entity_type'] != 'Lab'):
+            # We'll need to return all the properties including those 
+            # generated by `on_read_trigger` to have a complete result
+            properties_to_skip = ['direct_ancestors', 'direct_ancestor']
+            complete_entity_dict = schema_manager.get_complete_entity_result(user_token, node_dict, properties_to_skip)
+            # Filter out properties not defined or not to be exposed in the schema yaml
+            normalized_entity_dict = schema_manager.normalize_entity_result_for_response(complete_entity_dict)
+
+            # Now the node to be used by provenance is all regulated by the schmea
+            normalized_provenance_dict['nodes'].append(normalized_entity_dict)
+        elif (node_dict['label'] == 'Activity'):
+            # Normalize Activity nodes too
+            normalized_activity_dict = schema_manager.normalize_activity_result_for_response(node_dict)
+            normalized_provenance_dict['nodes'].append(normalized_activity_dict)
+        else:
+            # Skip Entity Lab nodes
+            normalized_provenance_dict['nodes'].append(node_dict)
+
+    provenance_json = provenance.get_provenance_history(normalized_provenance_dict)
+    
+    # Response with the provenance details
+    return Response(response = provenance_json, mimetype = "application/json")
+
+"""
+Show all the supported entity types
+
+Returns
+-------
+json
+    A list of all the available entity types defined in the schema yaml
+"""
+@app.route('/entity-types', methods = ['GET'])
 def get_entity_types():
+    return jsonify(schema_manager.get_all_entity_types())
+
+"""
+Retrive all the entity nodes for a given entity type
+Result filtering is supported based on query string
+For example: /<entity_type>/entities?property=uuid
+
+Parameters
+----------
+entity_type : str
+    One of the supported entity types: Dataset, Sample, Donor
+    Will handle Collection via API endpoint `/collections`
+
+Returns
+-------
+json
+    All the entity nodes in a list of the target entity type
+"""
+@app.route('/<entity_type>/entities', methods = ['GET'])
+def get_entities_by_type(entity_type):
+    # Normalize user provided entity_type
+    normalized_entity_type = schema_manager.normalize_entity_type(entity_type)
+
+    # Validate the normalized_entity_type to ensure it's one of the accepted types
     try:
-        conn = Neo4jConnection(app.config['NEO4J_SERVER'], app.config['NEO4J_USERNAME'], app.config['NEO4J_PASSWORD'])
-        driver = conn.get_driver()
-        type_list = Entity.get_entity_type_list(driver)
-        return jsonify( {'entity_types' : type_list}), 200
-    except:
-        msg = 'An error occurred: '
-        for x in sys.exc_info():
-            msg += str(x)
-        abort(400, msg)
+        schema_manager.validate_normalized_entity_type(normalized_entity_type)
+    except schema_errors.InvalidNormalizedEntityTypeException as e:
+        bad_request_error("Invalid entity type provided: " + entity_type)
 
-@app.route('/entities/<identifier>/provenance', methods = ['GET'])
-# @cross_origin(origins=[app.config['UUID_UI_URL']], methods=['GET'])
-def get_entity_provenance(identifier):
-    try:
-        # default to PUBLIC access only
-        public_access_only = True
-        token = None
-        
-        if 'AUTHORIZATION' in request.headers:
-            token = request.headers['AUTHORIZATION']
-        
-        ahelper = AuthHelper.instance()
-        user_info = ahelper.getUserDataAccessLevel(request)        
+    # Handle Collections retrieval using a different endpoint 
+    if normalized_entity_type == 'Collection':
+        bad_request_error("Please use another API endpoint `/collections` to query collections")
 
-        if user_info[HubmapConst.DATA_ACCESS_LEVEL] != HubmapConst.ACCESS_LEVEL_PUBLIC:
-            public_access_only = False
-        conn = Neo4jConnection(app.config['NEO4J_SERVER'], app.config['NEO4J_USERNAME'], app.config['NEO4J_PASSWORD'])
-        driver = conn.get_driver()
-        ug = UUID_Generator(app.config['UUID_WEBSERVICE_URL'])
-        identifier_list = ug.getUUID(AuthHelper.instance().getProcessSecret(), identifier)
-        if len(identifier_list) == 0:
-            raise LookupError('unable to find information on identifier: ' + str(identifier))
-        if len(identifier_list) > 1:
-            raise LookupError('found multiple records for identifier: ' + str(identifier))
-        current_metadata = Entity.get_entity_metadata(driver, identifier_list[0]['hmuuid'])        
-        entity_access_level = HubmapConst.ACCESS_LEVEL_PROTECTED
-        if HubmapConst.DATA_ACCESS_LEVEL in current_metadata:
-            entity_access_level =  current_metadata[HubmapConst.DATA_ACCESS_LEVEL]
-        
-        entity_type = None
-        if HubmapConst.ENTITY_TYPE_ATTRIBUTE in current_metadata:
-            entity_type =  current_metadata[HubmapConst.ENTITY_TYPE_ATTRIBUTE]
-        else:
-            return Response('Cannot determine entity type for identifier: ' + identifier, 500)
-        
-        if entity_type == 'Dataset':
-            dataset_status = False
-            if HubmapConst.DATASET_STATUS_ATTRIBUTE in current_metadata:
-                dataset_status =  current_metadata[HubmapConst.DATASET_STATUS_ATTRIBUTE]            
-            if (token == None or public_access_only == True) and dataset_status != HubmapConst.DATASET_STATUS_PUBLISHED:
-                return Response('The current user does not have the credentials required to retrieve provenance data for: ' + str(identifier), 403)
-        else:
-            # return a 403 if the user has no token or they are trying to access a non-public object without the necessary access
-            if (token == None or public_access_only == True) and entity_access_level != HubmapConst.ACCESS_LEVEL_PUBLIC:
-                return Response('The current user does not have the credentials required to retrieve provenance data for: ' + str(identifier), 403)
-        depth = None
-        if 'depth' in request.args:
-            depth = int(request.args.get('depth'))
-        
-        prov = Provenance(app.config['APP_CLIENT_ID'], app.config['APP_CLIENT_SECRET'], app.config['UUID_WEBSERVICE_URL'])
+    # Result filtering based on query string
+    if bool(request.args):
+        property_key = request.args.get('property')
 
-        provenance_data = prov.get_provenance_history(driver, identifier_list[0]['hmuuid'], depth)
-        #return jsonify( {'provenance_data' : provenance_data}), 200
-        return provenance_data, 200
-    except AuthError as e:
-        print(e)
-        return Response('token is invalid', 401)
-    except LookupError as le:
-        print(le)
-        return Response(str(le), 404)
-    except CypherError as ce:
-        print(ce)
-        return Response('Unable to perform query to find identifier: ' + identifier, 500)            
-    except:
-        msg = 'An error occurred: '
-        for x in sys.exc_info():
-            msg += str(x)
-        abort(400, msg)
+        if property_key is not None:
+            result_filtering_accepted_property_keys = ['uuid']
+            separator = ', '
 
-@app.route('/entities/<identifier>', methods = ['GET'])
-# @cross_origin(origins=[app.config['UUID_UI_URL']], methods=['GET'])
-def get_entity(identifier):
-    try:
-        token = str(request.headers["AUTHORIZATION"])[7:]
-        conn = Neo4jConnection(app.config['NEO4J_SERVER'], app.config['NEO4J_USERNAME'], app.config['NEO4J_PASSWORD'])
-        driver = conn.get_driver()
-        ug = UUID_Generator(app.config['UUID_WEBSERVICE_URL'])
-        identifier_list = ug.getUUID(token, identifier)
-        if len(identifier_list) == 0:
-            raise LookupError('unable to find information on identifier: ' + str(identifier))
-        if len(identifier_list) > 1:
-            raise LookupError('found multiple records for identifier: ' + str(identifier))
-
-        entity_node = Entity.get_entity_metadata(driver, identifier_list[0]['hmuuid'])
-        return jsonify( {'entity_node' : entity_node}), 200
-    except AuthError as e:
-        print(e)
-        return Response('token is invalid', 401)
-    except LookupError as le:
-        print(le)
-        return Response(str(le), 404)
-    except CypherError as ce:
-        print(ce)
-        return Response('Unable to perform query to find identifier: ' + identifier, 500)            
-    except:
-        msg = 'An error occurred: '
-        for x in sys.exc_info():
-            msg += str(x)
-        abort(400, msg)
-
-
-# Get data_access_level for a given entity uuid (Donor/Sample/Dataset)
-@app.route('/entity-access-level/<uuid>', methods = ['GET'])
-@secured(groups="HuBMAP-read")
-def get_entity_access_level(uuid):
-    try:
-        #get the id from the UUID service to resolve to a UUID and check to make sure that it exists
-        ug = UUID_Generator(app.config['UUID_WEBSERVICE_URL'])
-        hmuuid_data = ug.getUUID(AuthHelper.instance().getProcessSecret(), uuid)
-        if hmuuid_data is None or len(hmuuid_data) == 0:
-            return Response("UUID: " + uuid + " not found.", 404)
-        
-        # If the UUID exists, we go get the data_access_level
-        dataset = Dataset(app.config)
-        return dataset.get_entity_access_level(uuid)
-    except HTTPException as hte:
-        msg = "HTTPException during get_entity_access_level HTTP code: " + str(hte.get_status_code()) + " " + hte.get_description() 
-        logger.warn(msg, exc_info=True)
-        print(msg)
-        return Response(hte.get_description(), hte.get_status_code())
-    except CypherError as ce:
-        msg = 'A Cypher error was encountered when calling dataset.get_entity_access_level(), check log file for detail'
-        logger.error(msg, exc_info=True)
-        print(msg)
-        return Response(msg, 500)
-    except:
-        msg = 'Unhandled exception occured: '
-        for x in sys.exc_info():
-            msg += str(x)
-        abort(400, msg)
-
-
-@app.route('/entities/uuid/<uuid>', methods = ['GET'])
-# @cross_origin(origins=[app.config['UUID_UI_URL']], methods=['GET'])
-def get_entity_by_uuid(uuid):
-    '''
-    get entity by uuid
-    '''
-    entity = {}
-    conn = Neo4jConnection(app.config['NEO4J_SERVER'], app.config['NEO4J_USERNAME'], app.config['NEO4J_PASSWORD'])
-    driver = conn.get_driver()
-    with driver.session() as session:
-        try:
-            stmt = f'MATCH (e:Entity), (e)-[r1:HAS_METADATA]->(m) WHERE e.uuid=\'{uuid}\' RETURN e, m'
+            # Validate the target property
+            if property_key not in result_filtering_accepted_property_keys:
+                bad_request_error(f"Only the following property keys are supported in the query string: {separator.join(result_filtering_accepted_property_keys)}")
             
-            count = 0
-            for record in session.run(stmt, uuid=uuid):
-                entity.update(record.get('e')._properties)
-                entity['metadata'] = {}
-                for key, value in record.get('m')._properties.items():
-                    entity['metadata'].setdefault(key, value)
+            # Only return a list of the filtered property value of each entity
+            property_list = app_neo4j_queries.get_entities_by_type(neo4j_driver_instance, normalized_entity_type, property_key)
 
-                count += 1
-            
-            if count > 1:
-                raise Exception("Two or more entity have same uuid in the Neo4j database.")
-            else:
-                return jsonify( {'entity' : entity}), 200
-        except CypherError as cse:
-            print ('A Cypher error was encountered: '+ cse.message)
-            raise
-        except BaseException as be:
-            pprint(be)
-            raise be
+            # Final result
+            final_result = property_list
+        else:
+            bad_request_error("The specified query string is not supported. Use '?property=<key>' to filter the result")
+    # Return all the details if no property filtering
+    else:
+        # Get user token from Authorization header
+        user_token = get_user_token(request.headers)
 
-@app.route('/entities', methods=['GET'])
-# @cross_origin(origins=[app.config['UUID_UI_URL']], methods=['GET'])
-def get_entities():
-    try:
-        types = request.args.get('entitytypes').split(',') or ["Donor", "Sample", "Dataset"]
-        conn = Neo4jConnection(app.config['NEO4J_SERVER'], app.config['NEO4J_USERNAME'], app.config['NEO4J_PASSWORD'])
-        driver = conn.get_driver()
-        entities = Entity.get_entities_by_types(driver, types)
-        return jsonify(entities), 200
-    except AuthError as e:
-        print(e)
-        return Response('token is invalid', 401)
-    except LookupError as le:
-        print(le)
-        return Response(str(le), 404)
-    except CypherError as ce:
-        print(ce)
-        return Response('Unable to perform query to find entities', 500)            
-    except:
-        msg = 'An error occurred: '
-        for x in sys.exc_info():
-            msg += str(x)
-        abort(400, msg)
+        # Get back a list of entity dicts for the given entity type
+        entities_list = app_neo4j_queries.get_entities_by_type(neo4j_driver_instance, normalized_entity_type)
 
-@app.route('/entities/ancestors/<uuid>', methods = ['GET'])
-def get_ancestors(uuid):
-    try:
-        conn = Neo4jConnection(app.config['NEO4J_SERVER'], app.config['NEO4J_USERNAME'], app.config['NEO4J_PASSWORD'])
-        driver = conn.get_driver()
-        ancestors = Entity.get_ancestors(driver, uuid)
-        return jsonify(ancestors), 200
-    except:
-        msg = 'An error occurred: '
-        for x in sys.exc_info():
-            msg += str(x)
-        abort(400, msg)
+        # Generate trigger data and merge into a big dict
+        # and skip some of the properties that are time-consuming to generate via triggers
+        # direct_ancestor for Sample, and direct_ancestors for Dataset
+        properties_to_skip = ['direct_ancestors', 'direct_ancestor']
+        complete_entities_list = schema_manager.get_complete_entities_list(user_token, entities_list, properties_to_skip)
 
-@app.route('/entities/descendants/<uuid>', methods = ['GET'])
-def get_descendants(uuid):
-    try:
-        conn = Neo4jConnection(app.config['NEO4J_SERVER'], app.config['NEO4J_USERNAME'], app.config['NEO4J_PASSWORD'])
-        driver = conn.get_driver()
-        descendants = Entity.get_descendants(driver, uuid)
-        return jsonify(descendants), 200
-    except:
-        msg = 'An error occurred: '
-        for x in sys.exc_info():
-            msg += str(x)
-        abort(400, msg)
+        # Final result after normalization
+        final_result = schema_manager.normalize_entities_list_for_response(complete_entities_list)
 
-@app.route('/entities/parents/<uuid>', methods = ['GET'])
-def get_parents(uuid):
-    try:
-        conn = Neo4jConnection(app.config['NEO4J_SERVER'], app.config['NEO4J_USERNAME'], app.config['NEO4J_PASSWORD'])
-        driver = conn.get_driver()
-        parents = Entity.get_parents(driver, uuid)
-        return jsonify(parents), 200
-    except:
-        msg = 'An error occurred: '
-        for x in sys.exc_info():
-            msg += str(x)
-        abort(400, msg)
-
-@app.route('/entities/children/<uuid>', methods = ['GET'])
-def get_children(uuid):
-    try:
-        conn = Neo4jConnection(app.config['NEO4J_SERVER'], app.config['NEO4J_USERNAME'], app.config['NEO4J_PASSWORD'])
-        driver = conn.get_driver()
-        children = Entity.get_children(driver, uuid)
-        return jsonify(children), 200
-    except:
-        msg = 'An error occurred: '
-        for x in sys.exc_info():
-            msg += str(x)
-        abort(400, msg)
-
-#@app.route('/datasets', methods = ['GET'])
-#def get_datasets():
-#    if 'collection' in request.args:
-#        collection_uuid = request.args.get('collection')
-#    try:
-#        conn = Neo4jConnection(app.config['NEO4J_SERVER'], app.config['NEO4J_USERNAME'], app.config['NEO4J_PASSWORD'])
-#        driver = conn.get_driver()
-#
-#        collections = Entity.get_collections(driver) 
-#        return jsonify(collections), 200
-#    except AuthError as e:
-#        print(e)
-#        return Response('token is invalid', 401)
-#    except LookupError as le:
-#        print(le)
-#        return Response(str(le), 404)
-#    except CypherError as ce:
-#        print(ce)
-#        return Response('Unable to perform query to find identifier: ' + identifier, 500)
+    # Response with the final result
+    return jsonify(final_result)
 
 
-#GET /collections/<uuid> where <uuid> is the id of a collection, either a UUID or HuBMAP ID (like HBM123.ABCD.456)
-#is accepted.
-#
-#An optional Globus nexus can be provided in a standard Authentication Bearer header.  If a valid token
-#is provided with group membership in the HuBMAP-Read group any collection matching the id will be returned.
-#otherwise if no token is provided or a valid token with no HuBMAP-Read group membership then
-#only a public collection will be returned.  Public collections are defined as being published via a DOI 
-#(collection.has_doi == true) and at least one of the connected datasets is public
-#(dataset.metadata.data_access_level == 'public'). For public collections only connected datasets that are
-#public are returned with it.
-#
-#Returns the information of the Collection specified by the uuid with all connected datasets or 404
-#if the Collection is not found.  Returns 401 if a supplied token is invalid. Sample return json here:
-#
-#
-# {
-#   "child_metadata_properties": null,
-#   "display_doi": "HBM836.XJWD.376",
-#   "doi": "836XJWD376",
-#   "has_doi": false,
-#   "entitytype": "Collection",
-#   "hubmap_identifier": null,
-#   "items": [
-#     {
-#       "display_doi": "HBM298.GNPK.468",
-#       "doi": "298GNPK468",
-#       "entitytype": "Dataset",
-#       "properties": {
-#         "collection_uuid": "90d56f91cd1478101d273bbfdb8792cf",
-#         "creator_email": "joe.smith@testing.edu",
-#         "creator_name": "Joe Smith",
-#         "data_types": [
-#           "AF"
-#         ],
-#         "dataset_collection_uuid": "90d56f91cd1478101d273bbfdb8792cf",
-#         "description": "Autofluorescence Microscopy collected from the Left Kidney of a 53 year old Black or African American Male donor by the Biomolecular Multimodal Imaging Center (BIOMC) at Testing University. BIOMIC is a Tissue Mapping Center that is part of the NIH funded Human Biomolecular Atlas Program (HuBMAP). Microscopy images were collected with a Zeiss Axio Scan.Z1 using 3 channels  DAPI (excitation: 335-383 nm/emission: 420-470 nm), eGFP (excitation: 450-490 nm/emission: 500-550 nm), and dsRed (excitation: 538-562 nm/emission: 570-640 nm). Support was provided by the NIH Common Fund and National Institute of Diabetes and Digestive and Kidney Diseases (U54 DK120058). Tissue was collected through the Cooperative Human Tissue Network with support provided by the NIH National Cancer Institute (5 UM1 CA183727-08).",
-#         "entitytype": "Metadata",
-#         "globus_directory_url_path": "https://app.globus.org/file-manager?origin_id=0ecd3ce8-bf32-4d64-9405-4ebbcbfff116&origin_path=/Testing%20TMC/8bb9a69f2f2a23841ab207951a2c9803",
-#         "group_name": "Testing TMC",
-#         "group_uuid": "73bb26e4-ed43-11e8-8f19-0a7c1eab007a",
-#         "local_directory_url_path": "/Testing TMC/8bb9a69f2f2a23841ab207951a2c9803",
-#         "name": "Autofluorescence Microscopy of Human Kidney Tissue",
-#         "phi": "no",
-#         "provenance_create_timestamp": 1589336113928,
-#         "provenance_group_name": "hubmap-testing-tmc",
-#         "provenance_group_uuid": "73bb26e4-ed43-11e8-8f19-0a7c1eab007a",
-#         "provenance_modified_timestamp": 1589336113928,
-#         "provenance_user_displayname": "Joe Smith",
-#         "provenance_user_email": "joe.smith@testing.edu",
-#         "reference_uuid": "8bb9a69f2f22342b207951a2c9803",
-#         "source_uuid": [
-#           "VAN0009-LK-102-7"
-#         ],
-#         "source_uuids": [
-#           "6c84417088840d5fbc0c582b6c86503b"
-#         ],
-#         "status": "New",
-#         "uuid": "16a223f35e1905b972a28d0325b03ede"
-#       },
-#       "uuid": "8bb9a69f2f2a23841ab207951a2c9803"
-#     },
-#     {
-#       "display_doi": "HBM428.LSVG.824",
-#       "doi": "428LSVG824",
-#       "entitytype": "Dataset",
-#       "properties": {
-#         "collection_uuid": "90d56f91cd1478101d273bbfdb8792cf",
-#         "creator_email": "joe.smith@testing.edu",
-#         "creator_name": "Joe Smith",
-#         "data_types": [
-#           "PAS"
-#         ],
-#         "dataset_collection_uuid": "90d56f91cd1478101d273bbfdb8792cf",
-#         "description": "Periodic acid-Schiff  Stained Microscopy collected from the Left Kidney of a 53 year old Black or African American Male donor by the Biomolecular Multimodal Imaging Center (BIOMC) at Testing University. BIOMIC is a Tissue Mapping Center that is part of the NIH funded Human Biomolecular Atlas Program (HuBMAP). Brightfield microscopy images of fresh-frozen tissue sections were collected with a Leica Biosystems SCN400. Support was provided by the NIH Common Fund and National Institute of Diabetes and Digestive and Kidney Diseases (U54 DK120058). Tissue was collected through the Cooperative Human Tissue Network with support provided by the NIH National Cancer Institute (5 UM1 CA183727-08).",
-#         "entitytype": "Metadata",
-#         "globus_directory_url_path": "https://app.globus.org/file-manager?origin_id=0ecd3ce8-bf32-4d64-9405-4ebbcbfff116&origin_path=/Testing%20TMC/f1ede6f2c0f3ec8c347f30a1e9488a91",
-#         "group_name": "Testing TMC",
-#         "group_uuid": "73bb26e4-ed43-11e8-8f19-0a7c1eab007a",
-#         "local_directory_url_path": "/Testing TMC/f1ede6f2c0f3ec8c347f30a1e9488a91",
-#         "name": "Periodic acid-Schiff Stained Microscopy of Human Kidney Tissue",
-#         "phi": "no",
-#         "provenance_create_timestamp": 1589335618254,
-#         "provenance_group_name": "hubmap-testing-tmc",
-#         "provenance_group_uuid": "73bb26e4-ed43-11e8-8f19-0a7c1eab007a",
-#         "provenance_modified_timestamp": 1589335618254,
-#         "provenance_user_displayname": "Joe Smith",
-#         "provenance_user_email": "jeff.spraggins@testing.edu",
-#         "reference_uuid": "f1ede6f2c0f3ec8c347f30a1e9488a91",
-#         "source_uuid": [
-#           "VAN0009-LK-102-7"
-#         ],
-#         "source_uuids": [
-#           "6c84417088840d5fbc0c582b6c86503b"
-#         ],
-#         "status": "New",
-#         "uuid": "57dbee9728a12cd240ba44216fcf2c75"
-#       },
-#       "uuid": "f1ede6f2c0f3ec8c347f30a1e9488a91"
-#     }
-#   ],
-#   "properties": null,
-#   "uuid": "90d56f91cd1478101d273bbfdb8792cf",
-#   "creators": [
-#     {
-#       "affiliation": "Testing University",
-#       "first_name": "Test",
-#       "last_name": "User",
-#       "middle_name_or_initial": "F",
-#       "name": "Test F. User",
-#       "orcid_id": "0000-0007-8374-2923"
-#     },
-#     {
-#       "affiliation": "Testing University",
-#       "first_name": "Joe",
-#       "last_name": "Smith",
-#       "middle_name_or_initial": "E",
-#       "name": "Joe E Smith",
-#       "orcid_id": "0000-0007-3023-2323"
-#     },
-#     ...
-#   ]
-# }
-@app.route('/collections/<identifier>', methods = ['GET'])
-def get_collection_children(identifier):
-    try:
-        access_level = AuthHelper.instance().getUserDataAccessLevel(request)
-        token = AuthHelper.instance().getProcessSecret()
-        conn = Neo4jConnection(app.config['NEO4J_SERVER'], app.config['NEO4J_USERNAME'], app.config['NEO4J_PASSWORD'])
-        driver = conn.get_driver()
-        ug = UUID_Generator(app.config['UUID_WEBSERVICE_URL'])
-        identifier_list = ug.getUUID(token, identifier)
-        if len(identifier_list) == 0:
-            raise LookupError('unable to find information on identifier: ' + str(identifier))
-        if len(identifier_list) > 1:
-            raise LookupError('found multiple records for identifier: ' + str(identifier))
-        
-        collection_data = Entity.get_entities_and_children_by_relationship(driver, identifier_list[0]['hmuuid'], HubmapConst.IN_COLLECTION_REL)
-        if access_level['data_access_level'] == 'public':
-            public_datasets = []            
-            if (collection_data is None or
-                'has_doi' not in collection_data or
-                not collection_data['has_doi']):
-                return Response("Not found", 404) 
-            for item in collection_data['items']:
-                if 'data_access_level' in item['properties'] and item['properties']['data_access_level'] == 'public':
-                    public_datasets.append(item)
-            if len(public_datasets) > 0:
-                collection_data['items'] = public_datasets
-            else:
-                return Response("not found", 404)
+"""
+Retrive the collection detail by id
 
-        return Response(json.dumps(collection_data), 200, mimetype='application/json')
-    except HTTPException as hte:
-        msg = "HTTPException during get_collection_children: " + str(hte.get_status_code()) + " " + hte.get_description() 
-        logger.warn(msg, exc_info=True)
-        print(msg)
-        return Response(hte.get_description(), hte.get_status_code())
-    except AuthError as e:
-        print(e)
-        return Response('token is invalid', 401)
-    except LookupError as le:
-        print(le)
-        return Response(str(le), 404)
-    except CypherError as ce:
-        print(ce)
-        return Response('Unable to perform query to find identifier: ' + identifier, 500)            
+An optional Globus nexus token can be provided in a standard Authentication Bearer header. If a valid token
+is provided with group membership in the HuBMAP-Read group any collection matching the id will be returned.
+otherwise if no token is provided or a valid token with no HuBMAP-Read group membership then
+only a public collection will be returned.  Public collections are defined as being published via a DOI 
+(collection.has_doi == true) and at least one of the connected datasets is public
+(dataset.data_access_level == 'public'). For public collections only connected datasets that are
+public are returned with it.
+
+Parameters
+----------
+id : str
+    The HuBMAP ID (e.g. HBM123.ABCD.456) or UUID of target collection 
+
+Returns
+-------
+json
+    The collection detail with a list of connected datasets (only public datasets 
+    if user doesn't have the right access permission)
+"""
+@app.route('/collections/<id>', methods = ['GET'])
+def get_collection(id):
+    # Use the internal token to query the target collection 
+    # since public collections don't require user token
+    token = get_internal_token()
+
+    # Query target entity against uuid-api and neo4j and return as a dict if exists
+    collection_dict = query_target_entity(id, token)
+
+    # A bit validation 
+    if collection_dict['entity_type'] != 'Collection':
+        bad_request_error("Target entity of the given id is not a collection")
+
+    # Get user token from Authorization header
+    # getAuthorizationTokens() also handles MAuthorization header but we are not using that here
+    user_token = auth_helper_instance.getAuthorizationTokens(request.headers) 
+
+    # The user_token is flask.Response on error
+    # Without token, the user can only access public collections, modify the collection result
+    # by only returning public datasets attached to this collection
+    if isinstance(user_token, Response):
+        # When the requested collection is not public but the user can only access public data
+        if ('has_doi' not in collection_dict) or (not collection_dict['has_doi']):
+            bad_request_error("The reqeusted collection is not public, please send a Globus token with the right access permission in the request.")
+
+        # Only return the public datasets attached to this collection for Collection.datasets property
+        complete_dict = get_complete_public_collection_dict(collection_dict)
+    else:
+        # We'll need to return all the properties including those 
+        # generated by `on_read_trigger` to have a complete result
+        complete_dict = schema_manager.get_complete_entity_result(user_token, collection_dict)
+
+    # Will also filter the result based on schema
+    normalized_complete_dict = schema_manager.normalize_entity_result_for_response(complete_dict)
+
+    # Response with the final result
+    return jsonify(normalized_complete_dict)
 
 
+"""
+Retrive all the collection nodes
+Result filtering is supported based on query string
+For example: /collections?property=uuid
 
+An optional Globus nexus token can be provided in a standard Authentication Bearer header. If a valid token
+is provided with group membership in the HuBMAP-Read group any collection matching the id will be returned.
+otherwise if no token is provided or a valid token with no HuBMAP-Read group membership then
+only a public collection will be returned.  Public collections are defined as being published via a DOI 
+(collection.has_doi == true) and at least one of the connected datasets is public
+(dataset.data_access_level == 'public'). For public collections only connected datasets that are
+public are returned with it.
 
-#GET /collections with optional argument ?component=<COMP CODE>, where <COMP CODE> is from the table below.
-#Returns a list of Collections which include the basic Collection information and the uuids of all connected
-#datasets.  If the component argument is omitted all Collections are returned.
-#
-#An optional Globus nexus can be provided in a standard Authentication Bearer header.  If a valid token
-#is provided with group membership in the HuBMAP-Read group all collections matching the input will be
-#returned otherwise if no token is provided or a valid token with no HuBMAP-Read group membership then
-#only public collections will be returned.  Public collections are defined as being published via a DOI 
-#(collection.has_doi == true) and at least one of the connected datasets is public
-#(dataset.metadata.data_access_level == 'public'). For public collections only connected datasets that are
-#public are returned with it.
-#
-# 200 Returned with json list of collections (see below), empty list is returned if there are no matches
-# 401 Returned if an invalid token is supplied
-#
-#Sample return json like:
-#
-# [
-#   {
-#     "uuid": "90d56f91cd1478101d273bbfdb8792cf",
-#     "name": "Multimodal Molecular Imaging of Human Kidney Tissue",
-#     "dataset_uuids": [
-#       "8bb9a69f2f2a23841ab207951a2c9803",
-#       "f1ede6f2c0f3ec8c347f30a1e9488a91"
-#     ],
-#     "has_doi": true,
-#     "creators": "[{\"name\": \"Test User\", \"first_name\": \"Test\", \"last_name\": \"User\", \"middle_name_or_initial\": \"L\", \"orcid_id\": \"0000-0007-9585-9585\", \"affiliation\": \"University of Testing\"}, {\"name\": \"Joe Smith\", \"first_name\": \"Joe\", \"last_name\": \"Smith\", \"middle_name_or_initial\": \"E\", \"orcid_id\": \"0000-0007-2283-8374\", \"affiliation\": \"University of Testing\"}]",
-#    "doi_id": "HBM836.XJWD.376",
-#     "description": "Mulltimodal molecular imaging data collected from the Left Kidney of a 53 year old Black or African American Male donor by the Biomolecular Multimodal Imaging Center (BIOMC) at Testing University. BIOMIC is a Tissue Mapping Center that is part of the NIH funded Human Biomolecular Atlas Program (HuBMAP). Datasets generated by BIOMIC combine MALDI imaging mass spectrometry with various microscopy modalities including multiplexed immunofluorescence, autofluorescence, and stained microscopy. Support was provided by the NIH Common Fund and National Institute of Diabetes and Digestive and Kidney Diseases (U54 DK120058). Tissue was collected through the Cooperative Human Tissue Network with support provided by the NIH National Cancer Institute (5 UM1 CA183727-08)."
-#   },
-#   {
-#     "uuid": "1ff9aa1193ac810eb84234d9943114dc",
-#     "name": "Multimodal Molecular Imaging of Human Kidney Tissue",
-#     "dataset_uuids": [
-#       "37365995f648d5b20a3fe40d8ea75107",
-#       "499aa4b8e249100ccfdec79ed1417440"
-#     ],
-#     "has_doi": false,
-#     "creators": "[{\"name\": \"Test User\", \"first_name\": \"Test\", \"last_name\": \"User\", \"middle_name_or_initial\": \"L\", \"orcid_id\": \"0000-0007-9585-9585\", \"affiliation\": \"University of Testing\"}, {\"name\": \"Joe Smith\", \"first_name\": \"Joe\", \"last_name\": \"Smith\", \"middle_name_or_initial\": \"E\", \"orcid_id\": \"0000-0007-2283-8374\", \"affiliation\": \"University of Testing\"}]",
-#     "doi_id": "HBM757.HKPZ.868",
-#     "description": "Mulltimodal molecular imaging data collected from the Left Kidney of a 53 year old Black or African American Male donor by the Biomolecular Multimodal Imaging Center (BIOMC) at Testing University. BIOMIC is a Tissue Mapping Center that is part of the NIH funded Human Biomolecular Atlas Program (HuBMAP). Datasets generated by BIOMIC combine MALDI imaging mass spectrometry with various microscopy modalities including multiplexed immunofluorescence, autofluorescence, and stained microscopy. Support was provided by the NIH Common Fund and National Institute of Diabetes and Digestive and Kidney Diseases (U54 DK120058). Tissue was collected through the Cooperative Human Tissue Network with support provided by the NIH National Cancer Institute (5 UM1 CA183727-08)."
-#   }
-#   ...
-#  
-# ]
-#
-# COMP CODES     Component Name
-# --------------------------------------------------------
-# UFL            University of Florida TMC
-# CALT           California Institute of Technology TMC
-# VAN            Vanderbilt TMC
-# STAN           Stanford TMC
-# UCSD           University of California San Diego TMC
-# RTIBD          Broad Institute RTI
-# RTIGE          General Electric RTI
-# RTINW          Northwestern RTI
-# RTIST          Stanford RTI
-# TTDCT          Cal Tech TTD
-# TTDHV          Harvard TTD
-# TTDPD          Purdue TT
-# TTDST          Stanford TTD
-# TEST           IEC Testing Group
+Returns
+-------
+json
+    A list of all the collection dictionaries (only public collection with 
+    attached public datasts if the user/token doesn't have the right access permission)
+"""
 @app.route('/collections', methods = ['GET'])
 def get_collections():
-    global prov_helper
-    global logger
-    driver = None
-    try:
-        access_level = AuthHelper.instance().getUserDataAccessLevel(request)        
-        component = request.args.get('component', default = 'all', type = str)
-        where_clause = "where not collection.has_doi is null "
-        if access_level['data_access_level'] == 'public':
-            where_clause = "where collection.has_doi = True and metadata.data_access_level = 'public' "
-        if component == 'all':
-            stmt = "MATCH (collection:Collection)<-[:IN_COLLECTION]-(dataset:Entity)-[:HAS_METADATA]->(metadata:Metadata) " + where_clause + "RETURN collection.uuid, collection.label, collection.description, collection.creators, collection.has_doi, collection.display_doi, collection.doi_url, collection.registered_doi, collection.provenance_create_timestamp, collection.provenance_modified_timestamp, collection.contacts, collection.provenance_user_displayname, apoc.coll.toSet(COLLECT(dataset.uuid)) AS dataset_uuid_list"
-        else:
-            grp_info = prov_helper.get_groups_by_tmc_prefix()
-            comp = component.strip().upper()
-            if not comp in grp_info:
-                valid_comps = ""
-                comma = ""
-                first = True
-                for key in grp_info.keys():
-                    valid_comps = valid_comps + comma + grp_info[key]['tmc_prefix'] + " (" + grp_info[key]['displayname'] + ")"
-                    if first:
-                        comma = ", "
-                        first = False
-                return Response("Invalid component code: " + component + " Valid values: " + valid_comps, 400)
-            query = "MATCH (collection:Collection)<-[:IN_COLLECTION]-(dataset:Entity)-[:HAS_METADATA]->(metadata:Metadata {{provenance_group_uuid: '{guuid}'}}) " + where_clause + "RETURN collection.uuid, collection.label, collection.description, collection.creators, collection.has_doi, collection.display_doi, collection.registered_doi, collection.doi_url, collection.provenance_create_timestamp, collection.provenance_modified_timestamp, collection.provenance_user_displayname, collection.contacts, apoc.coll.toSet(COLLECT(dataset.uuid)) AS dataset_uuid_list"
-            stmt = query.format(guuid=grp_info[comp]['uuid'])
+    normalized_entity_type = 'Collection'
 
-        conn = Neo4jConnection(app.config['NEO4J_SERVER'], app.config['NEO4J_USERNAME'], app.config['NEO4J_PASSWORD'])
-        driver = conn.get_driver()
-        return_list = []
-        with driver.session() as session:
-            for record in session.run(stmt):
-                #return_list.append(record)
-                return_list.append(_coll_record_to_json(record))
+    # Get user token from Authorization header
+    # getAuthorizationTokens() also handles MAuthorization header but we are not using that here
+    user_token = auth_helper_instance.getAuthorizationTokens(request.headers) 
 
-        return Response(json.dumps(return_list), 200, mimetype='application/json')
+    # Result filtering based on query string
+    if bool(request.args):
+        property_key = request.args.get('property')
 
-    except HTTPException as hte:
-        msg = "HTTPException during get_collections: " + str(hte.get_status_code()) + " " + hte.get_description() 
-        logger.warn(msg, exc_info=True)
-        print(msg)
-        return Response(hte.get_description(), hte.get_status_code())
-    except AuthError as e:                                                                                                                        
-        print(e)
-        return Response('invalid token access', 401)
-    except LookupError as le:
-        print(le)
-        logger.error(le, exc_info=True)
-        return Response(str(le), 404)
-    except CypherError as ce:
-        print(ce)
-        logger.error(ce, exc_info=True)
-        return Response('Unable to perform query to find collections', 500)
-    except Exception as e:
-        print ('A general error occurred. Check log file.')
-        logger.error(e, exc_info=True)
-        return Response('Unhandled exception occured', 500)
-    finally:
-        if not driver is None:
-            driver.close()
+        if property_key is not None:
+            result_filtering_accepted_property_keys = ['uuid']
+            separator = ', '
+
+            # Validate the target property
+            if property_key not in result_filtering_accepted_property_keys:
+                bad_request_error(f"Only the following property keys are supported in the query string: {separator.join(result_filtering_accepted_property_keys)}")
             
-def _coll_record_to_json(record):
-                        #collection.uuid
-                    #collection.label
-                    #collection.description
-                    #dataset_uuid_list
-    rval = {}                    
-    _set_from(record, rval, 'collection.uuid', 'uuid')
-    _set_from(record, rval, 'collection.label', 'name')
-    _set_from(record, rval, 'dataset_uuid_list', 'dataset_uuids')
-    _set_from(record, rval, 'collection.has_doi', 'has_doi')
-    _set_from(record, rval, 'collection.creators', 'creators')
-    _set_from(record, rval, 'collection.display_doi', 'doi_id')
-    _set_from(record, rval, 'collection.display_doi', 'display_doi')
-    _set_from(record, rval, 'collection.description', 'description')
-    _set_from(record, rval, 'collection.doi_url', 'doi_url')
-    _set_from(record, rval, 'collection.provenance_create_timestamp', 'provenance_create_timestamp')
-    _set_from(record, rval, 'collection.provenance_modified_timestamp', 'provenance_modified_timestamp')
-    _set_from(record, rval, 'collection.provenance_user_displayname', 'provenance_user_displayname')
-    _set_from(record, rval, 'collection.registered_doi', 'registered_doi')
-    _set_from(record, rval, 'collection.contacts', 'contacts')
-    return(rval)
+            # The user_token is flask.Response on error
+            # Without token, the user can only access public collections, modify the collection result
+            # by only returning public datasets attached to this collection
+            if isinstance(user_token, Response):
+                # Only return a list of the filtered property value of each public collection
+                property_list = app_neo4j_queries.get_public_collections(neo4j_driver_instance, property_key)
+            else:
+                # Only return a list of the filtered property value of each entity
+                property_list = app_neo4j_queries.get_entities_by_type(neo4j_driver_instance, normalized_entity_type, property_key)
 
-def _set_from(src, dest, src_attrib_name, dest_attrib_name = None, default_val = None):
-    if dest_attrib_name is None:
-        dest_attrib_name = src_attrib_name
-    if src[src_attrib_name] is None:
-        if not default_val is None:
-            dest[dest_attrib_name] = default_val
-            return dest
+            # Final result
+            final_result = property_list
+        else:
+            bad_request_error("The specified query string is not supported. Use '?property=<key>' to filter the result")
+    # Return all the details if no property filtering
+    else: 
+        token = None
+
+        # The user_token is flask.Response on error
+        # Without token, the user can only access public collections, modify the collection result
+        # by only returning public datasets attached to this collection
+        if isinstance(user_token, Response):
+            # Use the internal token since no user token is requried to access public collections
+            token = get_internal_token()
+
+            # Get back a list of public collections dicts
+            collections_list = app_neo4j_queries.get_public_collections(neo4j_driver_instance)
+            
+            # Modify the Collection.datasets property for each collection dict 
+            # to contain only public datasets
+            for collection_dict in collections_list:
+                # Only return the public datasets attached to this collection for Collection.datasets property
+                collection_dict = get_complete_public_collection_dict(collection_dict)
+        else:
+            # Pass in the user token in this case
+            token = user_token
+
+            # Get back a list of all collections dicts
+            collections_list = app_neo4j_queries.get_entities_by_type(neo4j_driver_instance, normalized_entity_type)
+
+        # Generate trigger data and merge into a big dict
+        # and skip some of the properties that are time-consuming to generate via triggers
+        properties_to_skip = ['datasets']
+        complete_collections_list = schema_manager.get_complete_entities_list(token, collections_list, properties_to_skip)
+
+        # Final result after normalization
+        final_result = schema_manager.normalize_entities_list_for_response(complete_collections_list)
+
+    # Response with the final result
+    return jsonify(final_result)
+
+
+"""
+Create an entity of the target type in neo4j
+
+Parameters
+----------
+entity_type : str
+    One of the target entity types (case-insensitive since will be normalized): Dataset, Donor, Sample
+
+Returns
+-------
+json
+    All the properties of the newly created entity
+"""
+@app.route('/entities/<entity_type>', methods = ['POST'])
+def create_entity(entity_type):
+    # Get user token from Authorization header
+    user_token = get_user_token(request.headers)
+
+    # Normalize user provided entity_type
+    normalized_entity_type = schema_manager.normalize_entity_type(entity_type)
+
+    # Validate the normalized_entity_type to make sure it's one of the accepted types
+    try:
+        schema_manager.validate_normalized_entity_type(normalized_entity_type)
+    except schema_errors.InvalidNormalizedEntityTypeException as e:
+        bad_request_error(f"Invalid entity type provided: {entity_type}")
+
+    # Always expect a json body
+    require_json(request)
+
+    # Parse incoming json string into json data(python dict object)
+    json_data_dict = request.get_json()
+
+    # Validate request json against the yaml schema
+    try:
+        schema_manager.validate_json_data_against_schema(json_data_dict, normalized_entity_type)
+    except schema_errors.SchemaValidationException as e:
+        # No need to log the validation errors
+        bad_request_error(str(e))
+
+    # Sample and Dataset: additional validation, create entity, after_create_trigger
+    # Collection and Donor: create entity
+    if normalized_entity_type == 'Sample':
+        # A bit more validation for new sample to be linked to existing source entity
+        direct_ancestor_uuid = json_data_dict['direct_ancestor_uuid']
+        # Check existence of the direct ancestor (either another Sample or Donor)
+        direct_ancestor_dict = query_target_entity(direct_ancestor_uuid, user_token)
+
+        # Creating the ids require organ code to be specified for the samples to be created when the 
+        # sample's direct ancestor is a Donor.
+        # Must be one of the codes from: https://github.com/hubmapconsortium/search-api/blob/test-release/src/search-schema/data/definitions/enums/organ_types.yaml
+        if direct_ancestor_dict['entity_type'] == 'Donor':
+            # `specimen_type` is required on create
+            if json_data_dict['specimen_type'].lower() != 'organ':
+                bad_request_error("The specimen_type must be organ since the direct ancestor is a Donor")
+
+            # Currently we don't validate the provided organ code though
+            if ('organ' not in json_data_dict) or (not json_data_dict['organ']):
+                bad_request_error("A valid organ code is required since the direct ancestor is a Donor")
+
+        # Generate 'before_create_triiger' data and create the entity details in Neo4j
+        merged_dict = create_entity_details(request, normalized_entity_type, user_token, json_data_dict)
+    elif normalized_entity_type == 'Dataset':    
+        # `direct_ancestor_uuids` is required for creating new Dataset
+        # Check existence of those direct ancestors
+        for direct_ancestor_uuid in json_data_dict['direct_ancestor_uuids']:
+            direct_ancestor_dict = query_target_entity(direct_ancestor_uuid, user_token)
+
+        # Also check existence of the previous verion dataset if specified
+        if 'previous_version_uuid' in json_data_dict:
+        	previous_version_dict = query_target_entity(json_data_dict['previous_version_uuid'], user_token)
+
+        	# Make sure the previous version entity is either a Dataset or Sample
+        	if previous_version_dict['entity_type'] not in ['Dataset', 'Sample']:
+        		bad_request_error(f"The previous_version_uuid specified for this dataset must be either a Dataset or Sample")
+
+        # Generate 'before_create_triiger' data and create the entity details in Neo4j
+        merged_dict = create_entity_details(request, normalized_entity_type, user_token, json_data_dict)
     else:
-        dest[dest_attrib_name] = src[src_attrib_name]
-        return dest
-        
-@app.route('/entities/donor/<uuid>', methods = ['PUT'])
-@secured(groups="HuBMAP-read")
-def update_donor(uuid):
-    try:
-        token = AuthHelper.parseAuthorizationTokens(request.headers)
-        token = token['nexus_token'] if type(token) == dict else token
-        entity_helper = Entity(app.config['APP_CLIENT_ID'], app.config['APP_CLIENT_SECRET'], app.config['UUID_WEBSERVICE_URL'])
-        conn = Neo4jConnection(app.config['NEO4J_SERVER'], app.config['NEO4J_USERNAME'], app.config['NEO4J_PASSWORD'])
+        # Generate 'before_create_triiger' data and create the entity details in Neo4j
+        merged_dict = create_entity_details(request, normalized_entity_type, user_token, json_data_dict)
+    
+    # For Donor: link to parent Lab node
+    # For Sample: link to existing direct ancestor
+    # For Datset: link to direct ancestors
+    after_create(normalized_entity_type, user_token, merged_dict)
 
-        if not isAuthorized(conn, token, entity_helper, uuid):
-            return "User has no permission to edit the Donor", 403
-        else:
-            driver = conn.get_driver()
-            specimen = Specimen(app.config)
-            entity = Entity.get_entity(driver, uuid)
-            if entity.get('entitytype', None) != 'Donor':
-                abort(400, "The UUID is not a Donor.")
-            new_uuid_record = specimen.update_specimen(driver, uuid, request, request.get_json(), request.files, token)
-        conn.close()
+    # We'll need to return all the properties including those 
+    # generated by `on_read_trigger` to have a complete result
+    complete_dict = schema_manager.get_complete_entity_result(user_token, merged_dict)
+
+    # Will also filter the result based on schema
+    normalized_complete_dict = schema_manager.normalize_entity_result_for_response(complete_dict)
+
+    # Also index the new entity node in elasticsearch via search-api
+    reindex_entity(complete_dict['uuid'], user_token)
+
+    return jsonify(normalized_complete_dict)
+
+
+"""
+Create multiple samples from the same source entity
+
+Parameters
+----------
+count : str
+    The number of samples to be created
+
+Returns
+-------
+json
+    All the properties of the newly created entity
+"""
+@app.route('/entities/multiple-samples/<count>', methods = ['POST'])
+def create_multiple_samples(count):
+    # Get user token from Authorization header
+    user_token = get_user_token(request.headers)
+
+    # Normalize user provided entity_type
+    normalized_entity_type = 'Sample'
+
+    # Always expect a json body
+    require_json(request)
+
+    # Parse incoming json string into json data(python dict object)
+    json_data_dict = request.get_json()
+
+    # Validate request json against the yaml schema
+    try:
+        schema_manager.validate_json_data_against_schema(json_data_dict, normalized_entity_type)
+    except schema_errors.SchemaValidationException as e:
+        # No need to log the validation errors
+        bad_request_error(str(e))
+
+    # `direct_ancestor_uuid` is required on create
+    # Check existence of the direct ancestor (either another Sample or Donor)
+    direct_ancestor_dict = query_target_entity(json_data_dict['direct_ancestor_uuid'], user_token)
+
+    # Creating the ids require organ code to be specified for the samples to be created when the 
+    # sample's direct ancestor is a Donor.
+    # Must be one of the codes from: https://github.com/hubmapconsortium/search-api/blob/test-release/src/search-schema/data/definitions/enums/organ_types.yaml
+    if direct_ancestor_dict['entity_type'] == 'Donor':
+        # `specimen_type` is required on create
+        if json_data_dict['specimen_type'].lower() != 'organ':
+            bad_request_error("The specimen_type must be organ since the direct ancestor is a Donor")
+
+        # Currently we don't validate the provided organ code though
+        if ('organ' not in json_data_dict) or (not json_data_dict['organ']):
+            bad_request_error("A valid organ code is required since the direct ancestor is a Donor")
+
+    # Generate 'before_create_triiger' data and create the entity details in Neo4j
+    generated_ids_dict_list = create_multiple_samples_details(request, normalized_entity_type, user_token, json_data_dict, count)
+
+    # Also index the each new Sample node in elasticsearch via search-api
+    for id_dict in generated_ids_dict_list:
+        reindex_entity(id_dict['uuid'], user_token)
+
+    return jsonify(generated_ids_dict_list)
+
+"""
+Update properties of multiple samples via one API request
+
+Request json:
+{
+  "<sample-uuid-1>": {
+    "rui_location": "<info-1>",
+    "lab_tissue_sample_id": "<id-1>"
+  },
+  "<sample-uuid-2>": {
+    "rui_location": "<info-2>",
+    "lab_tissue_sample_id": "<id-2>"
+  }
+}
+
+Returns
+-------
+json
+    A success message. No need to return the uuids of successfully updated samples
+    since it's a transaction, all updated or none updated
+"""
+@app.route('/entities/multiple-samples', methods = ['PUT'])
+def update_multiple_samples():
+    # Get user token from Authorization header
+    user_token = get_user_token(request.headers)
+
+    # Normalize user provided entity_type
+    normalized_entity_type = 'Sample'
+
+    # Always expect a json body
+    require_json(request)
+
+    # Parse incoming json string into json data(python dict object)
+    samples_data_dict = request.get_json()
+
+    # The key is the sample uuid, value is the properties to be updated
+    for key, value in samples_data_dict.items():
+        # This checks the existence of the sample, 404 if not found
+        target_entity_dict = query_target_entity(key, user_token)
+
+        # Validate properties specified in request json against the yaml schema
         try:
-            #reindex this node in elasticsearch
-            rspn = requests.put(app.config['SEARCH_WEBSERVICE_URL'] + "/reindex/" + new_uuid_record, headers={'Authorization': 'Bearer '+token})
-        except:
-            print("Error happened when calling reindex web service")
+            schema_manager.validate_json_data_against_schema(value, normalized_entity_type, target_entity_dict)
+        except schema_errors.SchemaValidationException as e:
+            # No need to log the validation errors
+            bad_request_error(str(e))
 
-        return "OK", 200
-    except:
-        msg = 'An error occurred: '
-        for x in sys.exc_info():
-            msg += str(x)
-        abort(400, msg)
-
-#update a Sample entity, currently only the Sample.Metadata.metadata attribute
-#can be updated.  Input json with top level attribute names matching the attribute
-#names as stored in the Sample.Metadata node.
-@app.route('/samples/<uuid>', methods = ['PUT'])
-@secured(groups="HuBMAP-read")
-def update_sample_by_attrib(uuid):
+    # Pass to neo4j to update
     try:
-        token = AuthHelper.parseAuthorizationTokens(request.headers)
-        token = token['nexus_token'] if type(token) == dict else token
-        entity_helper = Entity(app.config['APP_CLIENT_ID'], app.config['APP_CLIENT_SECRET'], app.config['UUID_WEBSERVICE_URL'])
-        conn = Neo4jConnection(app.config['NEO4J_SERVER'], app.config['NEO4J_USERNAME'], app.config['NEO4J_PASSWORD'])
-        if not isAuthorized(conn, token, entity_helper, uuid):
-            return "User has no permission to edit the Sample", 403
+        # No return
+        app_neo4j_queries.update_multiple_samples(neo4j_driver_instance, samples_data_dict)
+    except TransactionError:
+        msg = "Failed to create the linkage between the given datasets and the target collection"
+        # Log the full stack trace, prepend a line with our message
+        logger.exception(msg)
+        # Terminate and let the users know
+        internal_server_error(msg)
 
-        response = _update_sample(uuid, request.get_json()) 
+    # If all good by now, index the updated Sample nodes in elasticsearch via search-api
+    for uuid in samples_data_dict.keys():
+        reindex_entity(uuid, user_token)
+
+    # If all good by now, return a simple success message
+    return jsonify({'message': 'All the samples have been updated successfully :)'})
+
+
+"""
+Update the properties of a given entity, no Collection stuff
+
+Parameters
+----------
+entity_type : str
+    One of the normalized entity types: Dataset, Collection, Sample, Donor
+id : str
+    The HuBMAP ID (e.g. HBM123.ABCD.456) or UUID of target entity 
+
+Returns
+-------
+json
+    All the updated properties of the target entity
+"""
+@app.route('/entities/<id>', methods = ['PUT'])
+def update_entity(id):
+    # Get user token from Authorization header
+    user_token = get_user_token(request.headers)
+
+    # Always expect a json body
+    require_json(request)
+
+    # Parse incoming json string into json data(python dict object)
+    json_data_dict = request.get_json() 
+
+    # Get target entity and return as a dict if exists
+    entity_dict = query_target_entity(id, user_token)
+
+    # Normalize user provided entity_type
+    normalized_entity_type = schema_manager.normalize_entity_type(entity_dict['entity_type'])
+
+    # Validate request json against the yaml schema
+    # Pass in the entity_dict for missing required key check, this is different from creating new entity
+    try:
+        schema_manager.validate_json_data_against_schema(json_data_dict, normalized_entity_type, existing_entity_dict = entity_dict)
+    except schema_errors.SchemaValidationException as e:
+        # No need to log the validation errors
+        bad_request_error(str(e))
+
+    # Sample and Dataset: additional validation, update entity, after_update_trigger
+    # Collection and Donor: update entity
+    if normalized_entity_type == 'Sample':
+        # A bit more validation for new sample to be linked to existing source entity
+        has_direct_ancestor_uuid = False
+        if ('direct_ancestor_uuid' in json_data_dict) and json_data_dict['direct_ancestor_uuid']:
+            has_direct_ancestor_uuid = True
+
+            direct_ancestor_uuid = json_data_dict['direct_ancestor_uuid']
+            # Check existence of the source entity (either another Sample or Donor)
+            direct_ancestor_dict = query_target_entity(direct_ancestor_uuid, user_token)
+
+        # Generate 'before_update_triiger' data and update the entity details in Neo4j
+        merged_updated_dict = update_entity_details(request, normalized_entity_type, user_token, json_data_dict, entity_dict)
+
+        # For sample to be linked to existing direct ancestor
+        if has_direct_ancestor_uuid:
+            after_update(normalized_entity_type, user_token, merged_updated_dict)
+    elif normalized_entity_type == 'Dataset':    
+        # A bit more validation if `direct_ancestor_uuids` provided
+        has_direct_ancestor_uuids = False
+        if ('direct_ancestor_uuids' in json_data_dict) and (json_data_dict['direct_ancestor_uuids']):
+            has_direct_ancestor_uuids = True
+
+            # Check existence of those source entities
+            for direct_ancestor_uuid in json_data_dict['direct_ancestor_uuids']:
+                direct_ancestor_dict = query_target_entity(direct_ancestor_uuid, user_token)
         
-        if response.status_code == 200:
-            try:
-                #reindex this node in elasticsearch
-                rspn = requests.put(file_helper.removeTrailingSlashURL(app.config['SEARCH_WEBSERVICE_URL']) + "/reindex/" + uuid, headers={'Authorization': 'Bearer '+token})
-            except Exception as se:
-                print("Error happened when calling reindex web service for Sample with uuid: " + uuid)
-                logger.error("Error while reindexing for Sample with uuid:" + uuid, exc_info=True)
-        return(response)
+        # Generate 'before_update_trigger' data and update the entity details in Neo4j
+        merged_updated_dict = update_entity_details(request, normalized_entity_type, user_token, json_data_dict, entity_dict)
 
-
-    
-    except Exception as e:
-        logger.error("Unhandled error while updateing sample uuid:" + uuid, exc_info=True)
-
-
-#helper method to update the Metadata node attached to a 
-#sample record.  Currently only the Metadata.metadata attribute
-#can be updated
-def _update_sample(uuid, record):
-    if (HubmapConst.UUID_ATTRIBUTE in record or
-        HubmapConst.DOI_ATTRIBUTE in record or
-        HubmapConst.DISPLAY_DOI_ATTRIBUTE in record or
-        HubmapConst.ENTITY_TYPE_ATTRIBUTE in record):
-        raise HTTPException("ID attributes cannot be changed", 400)
-    
-    not_allowed = []
-    for attrib in record.keys():
-        if not attrib in ALLOWED_SAMPLE_UPDATE_ATTRIBUTES:
-            not_allowed.append(attrib)
-            
-    if len(not_allowed) > 0:
-        return Response("Attribute(s) not allowed: " + string_helper.listToDelimited(not_allowed, " "), 400)
-    
-        
-    save_record = {}
-    for attrib in record.keys():
-        if attrib == HubmapConst.METADATA_ATTRIBUTE:
-            save_record[attrib] = json.dumps(record[attrib])
-
-    graph = Graph(app.config['NEO4J_SERVER'], auth=(app.config['NEO4J_USERNAME'], app.config['NEO4J_PASSWORD']))
-    
-    rval = graph.run("match(e:Entity {uuid: {uuid}})-[:HAS_METADATA]-(m:Metadata) set m += {params} return e.uuid", uuid=uuid, params=save_record).data()
-    if len(rval) == 0:
-        return Response("Update failed for Sample with uuid " + uuid + ".  UUID possibly not found.", 400)
+        # Handle direct_ancestor_uuids via `after_update_trigger` methods 
+        if has_direct_ancestor_uuids:
+            after_update(normalized_entity_type, user_token, merged_updated_dict)
     else:
-        if rval[0]['e.uuid'] != uuid:
-            return Response("Update failed, wrong uuid returned while trying to update Sample with uuid:" + uuid + " returned: " + rval[0]['e.uuid'])  
+        # Generate 'before_update_triiger' data and update the entity details in Neo4j
+        merged_updated_dict = update_entity_details(request, normalized_entity_type, user_token, json_data_dict, entity_dict)
 
-    return Response("Update Finished", 200)
+    # We'll need to return all the properties including those 
+    # generated by `on_read_trigger` to have a complete result
+    complete_dict = schema_manager.get_complete_entity_result(user_token, merged_updated_dict)
 
+    # Will also filter the result based on schema
+    normalized_complete_dict = schema_manager.normalize_entity_result_for_response(complete_dict)
 
-@app.route('/entities/sample/<uuid>', methods = ['PUT'])
-@secured(groups="HuBMAP-read")
-def update_sample(uuid):
-    try:
-        token = AuthHelper.parseAuthorizationTokens(request.headers)
-        token = token['nexus_token'] if type(token) == dict else token
-        entity_helper = Entity(app.config['APP_CLIENT_ID'], app.config['APP_CLIENT_SECRET'], app.config['UUID_WEBSERVICE_URL'])
-        conn = Neo4jConnection(app.config['NEO4J_SERVER'], app.config['NEO4J_USERNAME'], app.config['NEO4J_PASSWORD'])
+    # How to handle reindex collection?
+    # Also reindex the updated entity node in elasticsearch via search-api
+    reindex_entity(entity_dict['uuid'], user_token)
 
-        if not isAuthorized(conn, token, entity_helper, uuid):
-            return "User has no permission to edit the Sample", 403
-        else:
-            driver = conn.get_driver()
-            specimen = Specimen(app.config)
-            entity = Entity.get_entity(driver, uuid)
-            if entity.get('entitytype', None) != 'Sample':
-                abort(400, "The UUID is not a Sample.")
-            new_uuid_record = specimen.update_specimen(driver, uuid, request, request.get_json(), request.files, token)
-        conn.close()
-        try:
-            #reindex this node in elasticsearch
-            rspn = requests.put(app.config['SEARCH_WEBSERVICE_URL'] + "/reindex/" + new_uuid_record, headers={'Authorization': 'Bearer '+token})
-        except:
-            print("Error happened when calling reindex web service")
-        return "OK", 200
-    except:
-        msg = 'An error occurred: '
-        for x in sys.exc_info():
-            msg += str(x)
-        abort(400, msg)
-        
-@app.route('/entities/dataset/<uuid>', methods = ['PUT'])
-@secured(groups="HuBMAP-read")
-def update_dataset(uuid):
-    try:
-        token = AuthHelper.parseAuthorizationTokens(request.headers)
-        token = token['nexus_token'] if type(token) == dict else token
-        entity_helper = Entity(app.config['APP_CLIENT_ID'], app.config['APP_CLIENT_SECRET'], app.config['UUID_WEBSERVICE_URL'])
-        conn = Neo4jConnection(app.config['NEO4J_SERVER'], app.config['NEO4J_USERNAME'], app.config['NEO4J_PASSWORD'])
+    return jsonify(normalized_complete_dict)
 
-        if not isAuthorized(conn, token, entity_helper, uuid):
-            return "User has no permission to edit the Dataset", 403
-        else:
-            driver = conn.get_driver()
-            dataset = Dataset(app.config)
-            entity = Entity.get_entity(driver, uuid)
-            if entity.get('entitytype', None) != 'Dataset':
-                abort(400, "The UUID is not a Dataset.")
-            new_uuid_record = dataset.modify_dataset(driver, token, uuid, request.get_json())
-        conn.close()
+"""
+Get all ancestors of the given entity
+Result filtering based on query string
+For example: /ancestors/<id>?property=uuid
 
-        try:
-            #reindex this node in elasticsearch
-            rspn = requests.put(app.config['SEARCH_WEBSERVICE_URL'] + "/reindex/" + new_uuid_record, headers={'Authorization': 'Bearer '+token})
-        except:
-            print("Error happened when calling reindex web service")
+Parameters
+----------
+id : str
+    The HuBMAP ID (e.g. HBM123.ABCD.456) or UUID of given entity 
 
-        return "OK", 200
-    except:
-        msg = 'An error occurred: '
-        for x in sys.exc_info():
-            msg += str(x)
-        abort(400, msg)
+Returns
+-------
+json
+    A list of all the ancestors of the target entity
+"""
+@app.route('/ancestors/<id>', methods = ['GET'])
+def get_ancestors(id):
+    # Get user token from Authorization header
+    user_token = get_user_token(request.headers)
 
-@app.route('/doi/redirect/<identifier>', methods = ['GET'])
-def doi_redirect(identifier):
-    return collection_redirect(identifier)
-
-#redirect a request from a doi service for a collection of data
-@app.route('/collection/redirect/<identifier>', methods = ['GET'])
-def collection_redirect(identifier):
-    try:
-        if string_helper.isBlank(identifier):
-            return Response("No identifier", 400)
-            #return _redirect_error_response('ERROR: No Data Collection identifier found.')
-        
-        #look up the id, if it doesn't exist return an error
-        ug = UUID_Generator(app.config['UUID_WEBSERVICE_URL'])
-        hmuuid_data = ug.getUUID(AuthHelper.instance().getProcessSecret(), identifier)    
-        if hmuuid_data is None or len(hmuuid_data) == 0:
-            return Response("Not found", 404)
-            #return _redirect_error_response("The Data Collection was not found.", "A collection with an id matching " + identifier + " was not found.")
-        
-        if len(hmuuid_data) > 1:
-            return Response("Data Collection is defined multiple times", 400)
-            #return _redirect_error_response("The Data Collection is multiply defined.", "The provided collection id has multiple entries id: " + identifier)
-        
-        uuid_data = hmuuid_data[0]
-
-        if not 'hmuuid' in uuid_data or string_helper.isBlank(uuid_data['hmuuid']) or not 'type' in uuid_data or string_helper.isBlank(uuid_data['type']) or uuid_data['type'].strip().lower() != 'collection':
-            return Response("Data collection not found", 404)
-            #return _redirect_error_response("A Data Collection was not found.", "A collection entry with an id matching " + identifier + " was not found.")
-        
-        if 'COLLECTION_REDIRECT_URL' not in app.config or string_helper.isBlank(app.config['COLLECTION_REDIRECT_URL']):
-            return Response("Configuration error", 500)
-            #return _redirect_error_response("Cannot complete due to a configuration error.", "The COLLECTION_REDIRECT_URL parameter is not found in the application configuration file.")
-            
-        redir_url = app.config['COLLECTION_REDIRECT_URL']
-        if redir_url.lower().find('<identifier>') == -1:
-            return Response("Configuration error", 500)
-            #return _redirect_error_response("Cannot complete due to a configuration error.", "The COLLECTION_REDIRECT_URL parameter in the application configuration file does not contain the identifier pattern")
+    # Make sure the id exists in uuid-api and 
+    # the corresponding entity also exists in neo4j
+    entity_dict = query_target_entity(id, user_token)
+    uuid = entity_dict['uuid']
     
-        rep_pattern = re.compile(re.escape('<identifier>'), re.RegexFlag.IGNORECASE)
-        redir_url = rep_pattern.sub(uuid_data['hmuuid'], redir_url)
+    # Result filtering based on query string
+    if bool(request.args):
+        property_key = request.args.get('property')
+
+        if property_key is not None:
+            result_filtering_accepted_property_keys = ['uuid']
+            separator = ', '
+
+            # Validate the target property
+            if property_key not in result_filtering_accepted_property_keys:
+                bad_request_error(f"Only the following property keys are supported in the query string: {separator.join(result_filtering_accepted_property_keys)}")
+            
+            # Only return a list of the filtered property value of each entity
+            property_list = app_neo4j_queries.get_ancestors(neo4j_driver_instance, uuid, property_key)
+
+            # Final result
+            final_result = property_list
+        else:
+            bad_request_error("The specified query string is not supported. Use '?property=<key>' to filter the result")
+    # Return all the details if no property filtering
+    else:
+        ancestors_list = app_neo4j_queries.get_ancestors(neo4j_driver_instance, uuid)
+
+        # Generate trigger data and merge into a big dict
+        # and skip some of the properties that are time-consuming to generate via triggers
+        # datasts for Collection, director_ancestor for Sample, and direct_ancestors for Dataset
+        properties_to_skip = ['datasets', 'direct_ancestor', 'direct_ancestors']
+        complete_entities_list = schema_manager.get_complete_entities_list(user_token, ancestors_list, properties_to_skip)
+
+        # Final result after normalization
+        final_result = schema_manager.normalize_entities_list_for_response(complete_entities_list)
+
+    return jsonify(final_result)
+
+
+"""
+Get all descendants of the given entity
+Result filtering based on query string
+For example: /descendants/<id>?property=uuid
+
+Parameters
+----------
+id : str
+    The HuBMAP ID (e.g. HBM123.ABCD.456) or UUID of given entity
+
+Returns
+-------
+json
+    A list of all the descendants of the target entity
+"""
+@app.route('/descendants/<id>', methods = ['GET'])
+def get_descendants(id):
+    # Get user token from Authorization header
+    user_token = get_user_token(request.headers)
+
+    # Make sure the id exists in uuid-api and 
+    # the corresponding entity also exists in neo4j
+    entity_dict = query_target_entity(id, user_token)
+    uuid = entity_dict['uuid']
+
+    # Result filtering based on query string
+    if bool(request.args):
+        property_key = request.args.get('property')
+
+        if property_key is not None:
+            result_filtering_accepted_property_keys = ['uuid']
+            separator = ', '
+
+            # Validate the target property
+            if property_key not in result_filtering_accepted_property_keys:
+                bad_request_error(f"Only the following property keys are supported in the query string: {separator.join(result_filtering_accepted_property_keys)}")
+
+            # Only return a list of the filtered property value of each entity
+            property_list = app_neo4j_queries.get_descendants(neo4j_driver_instance, uuid, property_key)
+
+            # Final result
+            final_result = property_list
+        else:
+            bad_request_error("The specified query string is not supported. Use '?property=<key>' to filter the result")
+    # Return all the details if no property filtering
+    else:
+        descendants_list = app_neo4j_queries.get_descendants(neo4j_driver_instance, uuid)
+
+        # Generate trigger data and merge into a big dict
+        # and skip some of the properties that are time-consuming to generate via triggers
+        # datasts for Collection, director_ancestor for Sample, and direct_ancestors for Dataset
+        properties_to_skip = ['datasets', 'direct_ancestor', 'direct_ancestors']
+        complete_entities_list = schema_manager.get_complete_entities_list(user_token, descendants_list, properties_to_skip)
+
+        # Final result after normalization
+        final_result = schema_manager.normalize_entities_list_for_response(complete_entities_list)
+
+    return jsonify(final_result)
+
+"""
+Get all parents of the given entity
+Result filtering based on query string
+For example: /parents/<id>?property=uuid
+
+Parameters
+----------
+id : str
+    The HuBMAP ID (e.g. HBM123.ABCD.456) or UUID of given entity
+
+Returns
+-------
+json
+    A list of all the parents of the target entity
+"""
+@app.route('/parents/<id>', methods = ['GET'])
+def get_parents(id):
+    # Get user token from Authorization header
+    user_token = get_user_token(request.headers)
+
+    # Make sure the id exists in uuid-api and 
+    # the corresponding entity also exists in neo4j
+    entity_dict = query_target_entity(id, user_token)
+    uuid = entity_dict['uuid']
+ 
+    # Result filtering based on query string
+    if bool(request.args):
+        property_key = request.args.get('property')
+
+        if property_key is not None:
+            result_filtering_accepted_property_keys = ['uuid']
+            separator = ', '
+
+            # Validate the target property
+            if property_key not in result_filtering_accepted_property_keys:
+                bad_request_error(f"Only the following property keys are supported in the query string: {separator.join(result_filtering_accepted_property_keys)}")
+            
+            # Only return a list of the filtered property value of each entity
+            property_list = app_neo4j_queries.get_parents(neo4j_driver_instance, uuid, property_key)
+
+            # Final result
+            final_result = property_list
+        else:
+            bad_request_error("The specified query string is not supported. Use '?property=<key>' to filter the result")
+    # Return all the details if no property filtering
+    else:
+        parents_list = app_neo4j_queries.get_parents(neo4j_driver_instance, uuid)
+
+        # Generate trigger data and merge into a big dict
+        # and skip some of the properties that are time-consuming to generate via triggers
+        # datasts for Collection, director_ancestor for Sample, and direct_ancestors for Dataset
+        properties_to_skip = ['datasets', 'direct_ancestor', 'direct_ancestors']
+        complete_entities_list = schema_manager.get_complete_entities_list(user_token, parents_list, properties_to_skip)
+
+        # Final result after normalization
+        final_result = schema_manager.normalize_entities_list_for_response(complete_entities_list)
+
+    return jsonify(final_result)
+
+"""
+Get all chilren of the given entity
+Result filtering based on query string
+For example: /children/<id>?property=uuid
+
+Parameters
+----------
+id : str
+    The HuBMAP ID (e.g. HBM123.ABCD.456) or UUID of given entity
+
+Returns
+-------
+json
+    A list of all the children of the target entity
+"""
+@app.route('/children/<id>', methods = ['GET'])
+def get_children(id):
+    # Get user token from Authorization header
+    user_token = get_user_token(request.headers)
+
+    # Make sure the id exists in uuid-api and 
+    # the corresponding entity also exists in neo4j
+    entity_dict = query_target_entity(id, user_token)
+    uuid = entity_dict['uuid']
+
+    # Result filtering based on query string
+    if bool(request.args):
+        property_key = request.args.get('property')
+
+        if property_key is not None:
+            result_filtering_accepted_property_keys = ['uuid']
+            separator = ', '
+
+            # Validate the target property
+            if property_key not in result_filtering_accepted_property_keys:
+                bad_request_error(f"Only the following property keys are supported in the query string: {separator.join(result_filtering_accepted_property_keys)}")
+            
+            # Only return a list of the filtered property value of each entity
+            property_list = app_neo4j_queries.get_children(neo4j_driver_instance, uuid, property_key)
+
+            # Final result
+            final_result = property_list
+        else:
+            bad_request_error("The specified query string is not supported. Use '?property=<key>' to filter the result")
+    # Return all the details if no property filtering
+    else:
+        children_list = app_neo4j_queries.get_children(neo4j_driver_instance, uuid)
+
+        # Generate trigger data and merge into a big dict
+        # and skip some of the properties that are time-consuming to generate via triggers
+        # datasts for Collection, director_ancestor for Sample, and direct_ancestors for Dataset
+        properties_to_skip = ['datasets', 'direct_ancestor', 'direct_ancestors']
+        complete_entities_list = schema_manager.get_complete_entities_list(user_token, children_list, properties_to_skip)
+
+        # Final result after normalization
+        final_result = schema_manager.normalize_entities_list_for_response(complete_entities_list)
+
+    return jsonify(final_result)
+
+
+"""
+Link the given list of datasets to the target collection
+
+JSON request body example:
+{
+    "dataset_uuids": [
+        "fb6757b606ac35be7fa85062fde9c2e1",
+        "81a9fa68b2b4ea3e5f7cb17554149473",
+        "3ac0768d61c6c84f0ec59d766e123e05",
+        "0576b972e074074b4c51a61c3d17a6e3"
+    ]
+}
+
+Parameters
+----------
+collection_uuid : str
+    The UUID of target collection 
+
+Returns
+-------
+json
+    JSON string containing a success message with 200 status code
+"""
+@app.route('/collections/<collection_uuid>/add-datasets', methods = ['PUT'])
+def add_datasets_to_collection(collection_uuid):
+    # Get user token from Authorization header
+    user_token = get_user_token(request.headers)
+
+    # Query target entity against uuid-api and neo4j and return as a dict if exists
+    entity_dict = query_target_entity(collection_uuid, user_token)
+    if entity_dict['entity_type'] != 'Collection':
+        bad_request_error(f"The UUID provided in URL is not a Collection: {collection_uuid}")
+
+    # Always expect a json body
+    require_json(request)
+
+    # Parse incoming json string into json data(python list object)
+    json_data_dict = request.get_json()
+
+    if 'dataset_uuids' not in json_data_dict:
+        bad_request_error("Missing 'dataset_uuids' key in the request JSON.")
+
+    if not json_data_dict['dataset_uuids']:
+        bad_request_error("JSON field 'dataset_uuids' can not be empty list.")
+
+    # Now we have a list of uuids
+    dataset_uuids_list = json_data_dict['dataset_uuids']
+
+    # Make sure all the given uuids are datasets
+    for dataset_uuid in dataset_uuids_list:
+        entity_dict = query_target_entity(dataset_uuid, user_token)
+        if entity_dict['entity_type'] != 'Dataset':
+            bad_request_error(f"The UUID provided in JSON is not a Dataset: {dataset_uuid}")
+
+    try:
+        app_neo4j_queries.add_datasets_to_collection(neo4j_driver_instance, collection_uuid, dataset_uuids_list)
+    except TransactionError:
+        msg = "Failed to create the linkage between the given datasets and the target collection"
+        # Log the full stack trace, prepend a line with our message
+        logger.exception(msg)
+        # Terminate and let the users know
+        internal_server_error(msg)
+
+    # Send response with success message
+    return jsonify(message = "Successfully added all the specified datasets to the target collection")
+
+"""
+Redirect a request from a doi service for a collection of data
+
+Parameters
+----------
+id : str
+    The HuBMAP ID (e.g. HBM123.ABCD.456) or UUID of the target collection
+"""
+@app.route('/collection/redirect/<id>', methods = ['GET'])
+def collection_redirect(id):
+    # Get user token from Authorization header
+    user_token = get_user_token(request.headers)
+
+    # Query target entity against uuid-api and neo4j and return as a dict if exists
+    entity_dict = query_target_entity(id, user_token)
+
+    # Only for collection
+    if entity_dict['entity_type'] != 'Collection':
+        bad_request_error("The target entity of the specified id is not a Collection")
+
+    uuid = entity_dict['uuid']
+
+    # URL template
+    redirect_url = app.config['COLLECTION_REDIRECT_URL']
+
+    if redirect_url.lower().find('<identifier>') == -1:
+        # Log the full stack trace, prepend a line with our message
+        msg = "Incorrect configuration value for 'COLLECTION_REDIRECT_URL'"
+        logger.exception(msg)
+        internal_server_error(msg)
+
+    rep_pattern = re.compile(re.escape('<identifier>'), re.RegexFlag.IGNORECASE)
+    redirect_url = rep_pattern.sub(uuid, redirect_url)
+    
+    return redirect(redirect_url, code = 307)
+
+"""
+Get the Globus URL to the given dataset
+
+It will provide a Globus URL to the dataset directory in of three Globus endpoints based on the access
+level of the user (public, consortium or protected), public only, of course, if no token is provided.
+If a dataset isn't found a 404 will be returned. There is a chance that a 500 can be returned, but not
+likely under normal circumstances, only for a misconfigured or failing in some way endpoint. 
+
+If the Auth token is provided but is expired or invalid a 401 is returned. If access to the dataset 
+is not allowed for the user (or lack of user) a 403 is returned.
+
+Parameters
+----------
+id : str
+    The HuBMAP ID (e.g. HBM123.ABCD.456) or UUID of given entity
+
+Returns
+-------
+Response
+    200 with the Globus Application URL to the datasets's directory
+    404 Dataset not found
+    403 Access Forbidden
+    401 Unauthorized (bad or expired token)
+    500 Unexpected server or other error
+"""
+# Thd old route for backward compatibility - will be removed later
+@app.route('/entities/dataset/globus-url/<id>', methods = ['GET'])
+# New route
+@app.route('/dataset/globus-url/<id>', methods = ['GET'])
+def get_dataset_globus_url(id):
+    # Use the internal token to query the target entity 
+    # since public entities don't require user token
+    token = get_internal_token()
+
+    # Query target entity against uuid-api and neo4j and return as a dict if exists
+    # Then retrieve the allowable data access level (public, protected or consortium)
+    # for the dataset and HuBMAP Component ID that the dataset belongs to
+    entity_dict = query_target_entity(id, token)
+    uuid = entity_dict['uuid']
+    normalized_entity_type = entity_dict['entity_type']
+    
+    # Only for dataset
+    if normalized_entity_type != 'Dataset':
+        bad_request_error("The target entity of the specified id is not a Dataset")
+    
+    # If no access level is present on the dataset default to protected
+    if not 'data_access_level' in entity_dict or string_helper.isBlank(entity_dict['data_access_level']):
+        entity_data_access_level = ACCESS_LEVEL_PROTECTED
+    else:
+        entity_data_access_level = entity_dict['data_access_level']
+
+    # Get the globus groups info based on the groups json file in commons package
+    globus_groups_info = globus_groups.get_globus_groups_info()
+    groups_by_id_dict = globus_groups_info['by_id']
+  
+    if not 'group_uuid' in entity_dict or string_helper.isBlank(entity_dict['group_uuid']):
+        msg = f"The 'group_uuid' property is not set for dataset with uuid: {uuid}"
+        logger.exception(msg)
+        internal_server_error(msg)
+
+    group_uuid = entity_dict['group_uuid']
+
+    # Validate the group_uuid
+    try:
+        schema_manager.validate_entity_group_uuid(group_uuid)
+    except schema_errors.NoDataProviderGroupException:
+        msg = f"Invalid 'group_uuid': {group_uuid} for dataset with uuid: {uuid}"
+        logger.exception(msg)
+        internal_server_error(msg)
+
+    group_name = groups_by_id_dict[group_uuid]['displayname']
+
+    try:
+        # Get user data_access_level based on token if provided
+        # If no Authorization header, default user_info['data_access_level'] == 'public'
+        # The user_info contains HIGHEST access level of the user based on the token
+        # This call raises an HTTPException with a 401 if any auth issues encountered
+        user_info = auth_helper_instance.getUserDataAccessLevel(request)
+    # If returns HTTPException with a 401, expired/invalid token
+    except HTTPException:
+        unauthorized_error("The provided token is invalid or expired")   
+
+    # The user is in the Globus group with full access to thie dataset,
+    # so they have protected level access to it
+    if ('hmgroupids' in user_info) and (group_uuid in user_info['hmgroupids']):
+        user_data_access_level = ACCESS_LEVEL_PROTECTED
+    else:
+        if not 'data_access_level' in user_info:
+            msg = f"Unexpected error, data access level could not be found for user trying to access dataset id: {id}"
+            logger.exception(msg)
+            return internal_server_error(msg)        
         
-        return redirect(redir_url, code = 307)
+        user_data_access_level = user_info['data_access_level'].lower()
+
+    #construct the Globus URL based on the highest level of access that the user has
+    #and the level of access allowed for the dataset
+    #the first "if" checks to see if the user is a member of the Consortium group
+    #that allows all access to this dataset, if so send them to the "protected"
+    #endpoint even if the user doesn't have full access to all protected data
+    globus_server_uuid = None     
+    dir_path = ''
+    
+    # public access
+    if entity_data_access_level == ACCESS_LEVEL_PUBLIC:
+        globus_server_uuid = app.config['GLOBUS_PUBLIC_ENDPOINT_UUID']
+        access_dir = access_level_prefix_dir(app.config['PUBLIC_DATA_SUBDIR'])
+        dir_path = dir_path +  access_dir + "/"
+    # consortium access
+    elif (entity_data_access_level == ACCESS_LEVEL_CONSORTIUM) and (not user_data_access_level == ACCESS_LEVEL_PUBLIC):
+        globus_server_uuid = app.config['GLOBUS_CONSORTIUM_ENDPOINT_UUID']
+        access_dir = access_level_prefix_dir(app.config['CONSORTIUM_DATA_SUBDIR'])
+        dir_path = dir_path + access_dir + group_name + "/"
+    # protected access
+    elif (entity_data_access_level == ACCESS_LEVEL_PROTECTED) and (user_data_access_level == ACCESS_LEVEL_PROTECTED):
+        globus_server_uuid = app.config['GLOBUS_PROTECTED_ENDPOINT_UUID']
+        access_dir = access_level_prefix_dir(app.config['PROTECTED_DATA_SUBDIR'])
+        dir_path = dir_path + access_dir + group_name + "/"
+
+    if globus_server_uuid is None:
+        forbidden_error("Access not granted")
+
+    dir_path = dir_path + uuid + "/"
+    dir_path = urllib.parse.quote(dir_path, safe='')
+
+    #https://app.globus.org/file-manager?origin_id=28bbb03c-a87d-4dd7-a661-7ea2fb6ea631&origin_path=%2FIEC%20Testing%20Group%2F03584b3d0f8b46de1b629f04be156879%2F
+    url = hm_file_helper.ensureTrailingSlashURL(app.config['GLOBUS_APP_BASE_URL']) + "file-manager?origin_id=" + globus_server_uuid + "&origin_path=" + dir_path  
+            
+    return Response(url, 200)
+
+"""
+File upload handling for Donor and Sample
+
+Returns
+-------
+json
+    A JSON containing the temp file uuid
+"""
+@app.route('/file-upload', methods=['POST'])
+def upload_file():
+    # Check if the post request has the file part
+    if 'file' not in request.files:
+        bad_request_error('No file part')
+
+    file = request.files['file']
+
+    if file.filename == '':
+        bad_request_error('No selected file')
+
+    try:
+        temp_id = file_upload_helper_instance.save_temp_file(file)
+        rspn_data = {
+            "temp_file_id": temp_id
+        }
+
+        return jsonify(rspn_data), 201
+    except Exception as e:
+        # Log the full stack trace, prepend a line with our message
+        msg = "Failed to upload files"
+        logger.exception(msg)
+        internal_server_error(msg)
+
+
+####################################################################################################
+## Internal Functions
+####################################################################################################
+
+"""
+Throws error for 400 Bad Reqeust with message
+
+Parameters
+----------
+err_msg : str
+    The custom error message to return to end users
+"""
+def bad_request_error(err_msg):
+    abort(400, description = err_msg)
+
+"""
+Throws error for 401 Unauthorized with message
+
+Parameters
+----------
+err_msg : str
+    The custom error message to return to end users
+"""
+def unauthorized_error(err_msg):
+    abort(401, description = err_msg)
+
+"""
+Throws error for 403 Forbidden with message
+
+Parameters
+----------
+err_msg : str
+    The custom error message to return to end users
+"""
+def forbidden_error(err_msg):
+    abort(403, description = err_msg)
+
+"""
+Throws error for 404 Not Found with message
+
+Parameters
+----------
+err_msg : str
+    The custom error message to return to end users
+"""
+def not_found_error(err_msg):
+    abort(404, description = err_msg)
+
+"""
+Throws error for 500 Internal Server Error with message
+
+Parameters
+----------
+err_msg : str
+    The custom error message to return to end users
+"""
+def internal_server_error(err_msg):
+    abort(500, description = err_msg)
+
+
+"""
+Parase the token from Authorization header
+
+Parameters
+----------
+request_headers: request.headers
+    The http request headers
+
+Returns
+-------
+str
+    The token string if valid
+"""
+def get_user_token(request_headers):
+    # Get user token from Authorization header
+    # getAuthorizationTokens() also handles MAuthorization header but we are not using that here
+    user_token = auth_helper_instance.getAuthorizationTokens(request_headers) 
+
+    # The user_token is flask.Response on error
+    if isinstance(user_token, Response):
+        # The Response.data returns binary string, need to decode
+        unauthorized_error(user_token.data.decode())
+
+    return user_token
+
+"""
+Get the token for internal use only
+
+Returns
+-------
+str
+    The token string 
+"""
+def get_internal_token():
+    return auth_helper_instance.getProcessSecret()
+
+
+"""
+Return the complete collection dict for a given raw collection dict
+
+Parameters
+----------
+collection_dict : dict
+    The raw collection dict returned by Neo4j
+
+Returns
+-------
+dict
+    A dictionary of complete collection detail with all the generated 'on_read_trigger' data
+    The generated Collection.datasts contains only public datasets 
+    if user/token doesn't have the right access permission
+"""
+def get_complete_public_collection_dict(collection_dict):
+    # Use internal token to query entity since 
+    # no user token is required to access a public collection
+    token = get_internal_token()
+
+    # Collection.datasets is transient property and generated by the trigger method
+    # We'll need to return all the properties including those 
+    # generated by `on_read_trigger` to have a complete result
+    complete_dict = schema_manager.get_complete_entity_result(token, collection_dict)
+
+    # Loop through Collection.datasets and only return the public datasets
+    public_datasets = [] 
+    for dataset in complete_dict['datasets']:
+        if dataset['data_access_level'] == 'public':
+            public_datasets.append(dataset)
+
+    # Modify the result and only show the public datasets in this collection
+    complete_dict['datasets'] = public_datasets
+
+    return complete_dict
+
+
+"""
+Generate 'before_create_triiger' data and create the entity details in Neo4j
+
+Parameters
+----------
+request : flask.Request object
+    The incoming request
+normalized_entity_type : str
+    One of the normalized entity types: Dataset, Collection, Sample, Donor
+user_token: str
+    The user's globus nexus token
+json_data_dict: dict
+    The json request dict from user input
+
+Returns
+-------
+dict
+    A dict of all the newly created entity detials
+"""
+def create_entity_details(request, normalized_entity_type, user_token, json_data_dict):
+    # Get user info based on request
+    user_info_dict = schema_manager.get_user_info(request)
+
+    # Create new ids for the new entity
+    try:
+        new_ids_dict_list = schema_manager.create_hubmap_ids(normalized_entity_type, json_data_dict, user_token, user_info_dict)
+        new_ids_dict = new_ids_dict_list[0]
+    # When group_uuid is provided by user, it can be invalid
+    except schema_errors.NoDataProviderGroupException:
+        # Log the full stack trace, prepend a line with our message
+        if 'group_uuid' in json_data_dict:
+            msg = "Invalid 'group_uuid' value, can't create the entity"
+        else:
+            msg = "The user does not have the correct Globus group associated with, can't create the entity"
+        
+        logger.exception(msg)
+        bad_request_error(msg)
+    except schema_errors.UnmatchedDataProviderGroupException:
+        msg = "The user does not belong to the given Globus group, can't create the entity"
+        logger.exception(msg)
+        bad_request_error(msg)
+    except schema_errors.MultipleDataProviderGroupException:
+        msg = "The user has mutiple Globus groups associated with, please specify one using 'group_uuid'"
+        logger.exception(msg)
+        bad_request_error(msg)
+    except KeyError as e:
+        logger.exception(e)
+        bad_request_error(e)
+    except requests.exceptions.RequestException as e:
+        msg = f"Failed to create new HuBMAP ids via the uuid-api service" 
+        logger.exception(msg)
+        
+        # Due to the use of response.raise_for_status() in schema_manager.create_hubmap_ids()
+        # we can access the status codes from the exception
+        status_code = e.response.status_code
+
+        if status_code == 400:
+            bad_request_error(e.response.text)
+        if status_code == 404:
+            not_found_error(e.response.text)
+        else:
+            internal_server_error(e.response.text)
+
+    # Merge all the above dictionaries and pass to the trigger methods
+    new_data_dict = {**json_data_dict, **user_info_dict, **new_ids_dict}
+
+    try:
+        # Use {} since no existing dict
+        generated_before_create_trigger_data_dict = schema_manager.generate_triggered_data('before_create_trigger', normalized_entity_type, user_token, {}, new_data_dict)
+    # If one of the before_create_trigger methods fails, we can't create the entity
+    except schema_errors.BeforeCreateTriggerException:
+        # Log the full stack trace, prepend a line with our message
+        msg = "Failed to execute one of the 'before_create_trigger' methods, can't create the entity"
+        logger.exception(msg)
+        internal_server_error(msg)
+    except schema_errors.NoDataProviderGroupException:
+        # Log the full stack trace, prepend a line with our message
+        if 'group_uuid' in json_data_dict:
+            msg = "Invalid 'group_uuid' value, can't create the entity"
+        else:
+            msg = "The user does not have the correct Globus group associated with, can't create the entity"
+        
+        logger.exception(msg)
+        bad_request_error(msg)
+    except schema_errors.UnmatchedDataProviderGroupException:
+        # Log the full stack trace, prepend a line with our message
+        msg = "The user does not belong to the given Globus group, can't create the entity"
+        logger.exception(msg)
+        bad_request_error(msg)
+    except schema_errors.MultipleDataProviderGroupException:
+        # Log the full stack trace, prepend a line with our message
+        msg = "The user has mutiple Globus groups associated with, please specify one using 'group_uuid'"
+        logger.exception(msg)
+        bad_request_error(msg)
+    # If something wrong with file upload
+    except schema_errors.FileUploadException as e:
+        logger.exception(e)
+        internal_server_error(e)
+    except KeyError as e:
+        # Log the full stack trace, prepend a line with our message
+        logger.exception(e)
+        bad_request_error(e)
+
+    # Merge the user json data and generated trigger data into one dictionary
+    merged_dict = {**json_data_dict, **generated_before_create_trigger_data_dict}
+
+    # Filter out the merged_dict by getting rid of the properties with None value
+    # Meaning the returned target property key is different from the original key 
+    # in the trigger method, e.g., Donor.image_files_to_add
+    filtered_merged_dict = schema_manager.remove_none_values(merged_dict)
+    
+    # Create new entity
+    try:
+        # Important: `entity_dict` is the resulting neo4j dict, Python list and dicts are stored
+        # as string expression literals in it. That's why properties like entity_dict['direct_ancestor_uuids']
+        # will need to use ast.literal_eval() in the schema_triggers.py
+        entity_dict = app_neo4j_queries.create_entity(neo4j_driver_instance, normalized_entity_type, filtered_merged_dict)
+    except TransactionError:
+        msg = "Failed to create the new " + normalized_entity_type
+        # Log the full stack trace, prepend a line with our message
+        logger.exception(msg)
+        # Terminate and let the users know
+        internal_server_error(msg)
+
+    # Add user_info_dict because it may be used by after_update_trigger methods
+    # Important: use `entity_dict` instead of `filtered_merged_dict` to keep consistent with the stored
+    # string expression literals of Python list/dict being used with entity update
+    merged_final_dict = {**entity_dict, **user_info_dict}
+
+    # Note: return merged_final_dict instead of entity_dict because 
+    # it contains all the user json data that the generated that entity_dict may not have
+    return merged_final_dict
+
+
+"""
+Create multiple sample nodes and relationships with the source entity node
+
+Parameters
+----------
+request : flask.Request object
+    The incoming request
+normalized_entity_type : str
+    One of the normalized entity types: Dataset, Collection, Sample, Donor
+user_token: str
+    The user's globus nexus token
+json_data_dict: dict
+    The json request dict from user input
+count : int
+    The number of samples to create
+
+Returns
+-------
+list
+    A list of all the newly generated ids via uuid-api
+"""
+def create_multiple_samples_details(request, normalized_entity_type, user_token, json_data_dict, count):
+    # Get user info based on request
+    user_info_dict = schema_manager.get_user_info(request)
+
+    # Create new ids for the new entity
+    try:
+        new_ids_dict_list = schema_manager.create_hubmap_ids(normalized_entity_type, json_data_dict, user_token, user_info_dict, count)
+    # When group_uuid is provided by user, it can be invalid
+    except schema_errors.NoDataProviderGroupException:
+        # Log the full stack trace, prepend a line with our message
+        if 'group_uuid' in json_data_dict:
+            msg = "Invalid 'group_uuid' value, can't create the entity"
+        else:
+            msg = "The user does not have the correct Globus group associated with, can't create the entity"
+        
+        logger.exception(msg)
+        bad_request_error(msg)
+    except schema_errors.UnmatchedDataProviderGroupException:
+        # Log the full stack trace, prepend a line with our message
+        msg = "The user does not belong to the given Globus group, can't create the entity"
+        logger.exception(msg)
+        bad_request_error(msg)
+    except schema_errors.MultipleDataProviderGroupException:
+        # Log the full stack trace, prepend a line with our message
+        msg = "The user has mutiple Globus groups associated with, please specify one using 'group_uuid'"
+        logger.exception(msg)
+        bad_request_error(msg)
+    except KeyError as e:
+        # Log the full stack trace, prepend a line with our message
+        logger.exception(e)
+        bad_request_error(e)
+
+    # Use the same json_data_dict and user_info_dict for each sample
+    # Only difference is the `uuid` and `hubmap_id` that are generated
+    # Merge all the dictionaries and pass to the trigger methods
+    new_data_dict = {**json_data_dict, **user_info_dict, **new_ids_dict_list[0]}
+
+    # Instead of calling generate_triggered_data() for each sample, we'll just call it on the first sample
+    # since all other samples will share the same generated data except `uuid` and `hubmap_id`
+    # A bit performance improvement
+    try:
+        # Use {} since no existing dict
+        generated_before_create_trigger_data_dict = schema_manager.generate_triggered_data('before_create_trigger', normalized_entity_type, user_token, {}, new_data_dict)
+    # If one of the before_create_trigger methods fails, we can't create the entity
+    except schema_errors.BeforeCreateTriggerException:
+        # Log the full stack trace, prepend a line with our message
+        msg = "Failed to execute one of the 'before_create_trigger' methods, can't create the entity"
+        logger.exception(msg)
+        internal_server_error(msg)
+    except schema_errors.NoDataProviderGroupException:
+        # Log the full stack trace, prepend a line with our message
+        if 'group_uuid' in json_data_dict:
+            msg = "Invalid 'group_uuid' value, can't create the entity"
+        else:
+            msg = "The user does not have the correct Globus group associated with, can't create the entity"
+        
+        logger.exception(msg)
+        bad_request_error(msg)
+    except schema_errors.UnmatchedDataProviderGroupException:
+        # Log the full stack trace, prepend a line with our message
+        msg = "The user does not belong to the given Globus group, can't create the entity"
+        logger.exception(msg)
+        bad_request_error(msg)
+    except schema_errors.MultipleDataProviderGroupException:
+        # Log the full stack trace, prepend a line with our message
+        msg = "The user has mutiple Globus groups associated with, please specify one using 'group_uuid'"
+        logger.exception(msg)
+        bad_request_error(msg)
+    except KeyError as e:
+        # Log the full stack trace, prepend a line with our message
+        logger.exception(e)
+        bad_request_error(e)
+
+    # Merge the user json data and generated trigger data into one dictionary
+    merged_dict = {**json_data_dict, **generated_before_create_trigger_data_dict}
+
+    # Filter out the merged_dict by getting rid of the properties with None value
+    # Meaning the returned target property key is different from the original key 
+    # in the trigger method, e.g., Donor.image_files_to_add
+    filtered_merged_dict = schema_manager.remove_none_values(merged_dict)
+
+    samples_dict_list = []
+    for new_ids_dict in new_ids_dict_list:
+        # Just overwrite the `uuid` and `hubmap_id` that are generated
+        # All other generated properties will stay the same across all samples
+        sample_dict = {**filtered_merged_dict, **new_ids_dict}
+        # Add to the list
+        samples_dict_list.append(sample_dict)
+
+    # Generate property values for the only one Activity node
+    # The resulting list contains only one dict in this case by using the default count = 1
+    activity_data_dict_list = schema_manager.generate_activity_data(normalized_entity_type, user_token, user_info_dict)
+    
+    # Create new sample nodes and needed relationships as well as activity node in one transaction
+    try:
+        # No return value
+        app_neo4j_queries.create_multiple_samples(neo4j_driver_instance, samples_dict_list, activity_data_dict_list[0], json_data_dict['direct_ancestor_uuid'])
+    except TransactionError:
+        msg = "Failed to create multiple samples"
+        # Log the full stack trace, prepend a line with our message
+        logger.exception(msg)
+        # Terminate and let the users know
+        internal_server_error(msg)
+
+    # Return the generated ids for UI
+    return new_ids_dict_list
+
+
+"""
+Execute 'after_create_triiger' methods
+
+Parameters
+----------
+normalized_entity_type : str
+    One of the normalized entity types: Dataset, Collection, Sample, Donor
+user_token: str
+    The user's globus nexus token
+merged_data_dict: dict
+    The merged dict that contains the entity dict newly created and 
+    information from user request json that are not stored in Neo4j
+"""
+def after_create(normalized_entity_type, user_token, merged_data_dict):
+    try:
+        # 'after_create_trigger' and 'after_update_trigger' don't generate property values
+        # It just returns the empty dict, no need to assign value
+        # Use {} since no new dict
+        schema_manager.generate_triggered_data('after_create_trigger', normalized_entity_type, user_token, merged_data_dict, {})
+    except schema_errors.AfterCreateTriggerException:
+        # Log the full stack trace, prepend a line with our message
+        msg = "The entity has been created, but failed to execute one of the 'after_create_trigger' methods"
+        logger.exception(msg)
+        internal_server_error(msg)
+
+
+"""
+Generate 'before_create_triiger' data and create the entity details in Neo4j
+
+Parameters
+----------
+request : flask.Request object
+    The incoming request
+normalized_entity_type : str
+    One of the normalized entity types: Dataset, Collection, Sample, Donor
+user_token: str
+    The user's globus nexus token
+json_data_dict: dict
+    The json request dict
+existing_entity_dict: dict
+    Dict of the exiting entity information
+
+Returns
+-------
+dict
+    A dict of all the updated entity detials
+"""
+def update_entity_details(request, normalized_entity_type, user_token, json_data_dict, existing_entity_dict):
+    # Get user info based on request
+    user_info_dict = schema_manager.get_user_info(request)
+
+    # Merge user_info_dict and the json_data_dict for passing to the trigger methods
+    new_data_dict = {**user_info_dict, **json_data_dict}
+
+    try:
+        generated_before_update_trigger_data_dict = schema_manager.generate_triggered_data('before_update_trigger', normalized_entity_type, user_token, existing_entity_dict, new_data_dict)
+    # If something wrong with file upload
+    except schema_errors.FileUploadException as e:
+        logger.exception(e)
+        internal_server_error(e)
+    # If one of the before_update_trigger methods fails, we can't update the entity
+    except schema_errors.BeforeUpdateTriggerException:
+        # Log the full stack trace, prepend a line with our message
+        msg = "Failed to execute one of the 'before_update_trigger' methods, can't update the entity"
+        logger.exception(msg)
+        internal_server_error(msg)
+
+    # Merge dictionaries
+    merged_dict = {**json_data_dict, **generated_before_update_trigger_data_dict}
+
+    # Filter out the merged_dict by getting rid of the properties with None value
+    # Meaning the returned target property key is different from the original key 
+    # in the trigger method, e.g., Donor.image_files_to_add
+    filtered_merged_dict = schema_manager.remove_none_values(merged_dict)
+
+    # By now the filtered_merged_dict contains all user updates and all triggered data to be added to the entity node
+    # Any properties in filtered_merged_dict that are not on the node will be added.
+    # Any properties not in filtered_merged_dict that are on the node will be left as is.
+    # Any properties that are in both filtered_merged_dict and the node will be replaced in the node. However, if any property in the map is null, it will be removed from the node.
+
+    # Update the exisiting entity
+    try:
+        updated_entity_dict = app_neo4j_queries.update_entity(neo4j_driver_instance, normalized_entity_type, filtered_merged_dict, existing_entity_dict['uuid'])
+    except TransactionError:
+        msg = "Failed to update the entity with id " + id
+        # Log the full stack trace, prepend a line with our message
+        logger.exception(msg)
+        # Terminate and let the users know
+        internal_server_error(msg)
+
+    # The duplicate key-value pairs existing in json_data_dict get replaced by the same key-value pairs
+    # from the updated_entity_dict, but json_data_dict may contain keys that are not in json_data_dict
+    # E.g., direct_ancestor_uuids for Dataset and direct_ancestor_uuid for Sample, both are transient properties
+    # Add user_info_dict because it may be used by after_update_trigger methods
+    merged_final_dict = {**json_data_dict, **user_info_dict, **updated_entity_dict}
+
+    # Use merged_final_dict instead of merged_dict because 
+    # merged_dict only contains properties to be updated, not all properties
+    return merged_final_dict
+
+"""
+Execute 'after_update_triiger' methods
+
+Parameters
+----------
+normalized_entity_type : str
+    One of the normalized entity types: Dataset, Collection, Sample, Donor
+user_token: str
+    The user's globus nexus token
+entity_dict: dict
+    The entity dict newly updated
+"""
+def after_update(normalized_entity_type, user_token, entity_dict):
+    try:
+        # 'after_create_trigger' and 'after_update_trigger' don't generate property values
+        # It just returns the empty dict, no need to assign value
+        # Use {} sicne no new dict
+        schema_manager.generate_triggered_data('after_update_trigger', normalized_entity_type, user_token, entity_dict, {})
+    except schema_errors.AfterUpdateTriggerException:
+        # Log the full stack trace, prepend a line with our message
+        msg = "The entity information has been updated, but failed to execute one of the 'after_update_trigger' methods"
+        logger.exception(msg)
+        internal_server_error(msg)
+
+
+"""
+Get target entity dict
+
+Parameters
+----------
+id : str
+    The uuid or hubmap_id of target entity
+user_token: str
+    The user's globus nexus token from the incoming request
+
+Returns
+-------
+dict
+    A dictionary of entity details returned from neo4j
+"""
+def query_target_entity(id, user_token):
+    try:
+        """
+        The dict returned by uuid-api that contains all the associated ids, e.g.:
+        {
+            "ancestor_id": "23c0ffa90648358e06b7ac0c5673ccd2",
+            "ancestor_ids":[
+                "23c0ffa90648358e06b7ac0c5673ccd2"
+            ],
+            "email": "marda@ufl.edu",
+            "hm_uuid": "1785aae4f0fb8f13a56d79957d1cbedf",
+            "hubmap_id": "HBM966.VNKN.965",
+            "submission_id": "UFL0007",
+            "time_generated": "2020-10-19 15:52:02",
+            "type": "DONOR",
+            "user_id": "694c6f6a-1deb-41a6-880f-d1ad8af3705f"
+        }
+        """
+        hubmap_ids = schema_manager.get_hubmap_ids(id, user_token)
+
+        # Get the target uuid if all good
+        uuid = hubmap_ids['hm_uuid']
+        entity_dict = app_neo4j_queries.get_entity(neo4j_driver_instance, uuid)
+
+        # The uuid exists via uuid-api doesn't mean it's also in Neo4j
+        if not entity_dict:
+            not_found_error(f"Entity of id: {id} not found in Neo4j")
+
+        return entity_dict
+    except requests.exceptions.RequestException as e:
+        # Due to the use of response.raise_for_status() in schema_manager.get_hubmap_ids()
+        # we can access the status codes from the exception
+        status_code = e.response.status_code
+
+        if status_code == 400:
+            bad_request_error(e.response.text)
+        if status_code == 404:
+            not_found_error(e.response.text)
+        else:
+            internal_server_error(e.response.text)
+
+"""
+Always expect a json body from user request
+
+request : Flask request object
+    The Flask request passed from the API endpoint
+"""
+def require_json(request):
+    if not request.is_json:
+        bad_request_error("A json body and appropriate Content-Type header are required")
+
+"""
+Make a call to search-api to reindex this entity node in elasticsearch
+
+Parameters
+----------
+uuid : str
+    The uuid of the target entity
+user_token: str
+    The user's globus nexus token
+"""
+def reindex_entity(uuid, user_token):
+    try:
+        headers = create_request_headers(user_token)
+
+        response = requests.put(app.config['SEARCH_API_URL'] + "/reindex/" + uuid, headers = headers)
+        # The reindex takes time, so 202 Accepted response status code indicates that 
+        # the request has been accepted for processing, but the processing has not been completed
+        if response.status_code == 202:
+            logger.info(f"The search-api has accepted the reindex request for uuid: {uuid}")
+        else:
+            logger.error(f"The search-api failed to initialize the reindex for uuid: {uuid}")
     except Exception:
-        logger.error("Unexpected error while redirecting for Collection with id: " + identifier, exc_info=True)
-        return Response("Unexpected error", 500)
-        #return _redirect_error_response("An unexpected error occurred." "An unexpected error occurred while redirecting for Data Collection with id: " + identifier + " Check the Enitity API log file for more information.")
+        msg = f"Failed to send the reindex request to search-api for entity with uuid: {uuid}"
+        # Log the full stack trace, prepend a line with our message
+        logger.exception(msg)
+        # Terminate and let the users know
+        internal_server_error(msg)
 
+"""
+Create a dict of HTTP Authorization header with Bearer token for making calls to uuid-api
 
-#helper method to show an error message through the ingest
-#portal's error display page a brief description of the error
-#is a required parameter a more detailed description is an optional parameter 
-def _redirect_error_response(description, detail=None):
-    if not 'ERROR_PAGE_URL' in  app.config or string_helper.isBlank(app.config['ERROR_PAGE_URL']):
-        return Response("Config ERROR.  ERROR_PAGE_URL not in application configuration.")
+Parameters
+----------
+user_token: str
+    The user's globus nexus token
+
+Returns
+-------
+dict
+    The headers dict to be used by requests
+"""
+def create_request_headers(user_token):
+    auth_header_name = 'Authorization'
+    auth_scheme = 'Bearer'
+
+    headers_dict = {
+        # Don't forget the space between scheme and the token value
+        auth_header_name: auth_scheme + ' ' + user_token
+    }
+
+    return headers_dict
+
+"""
+Ensure the access level dir with leading and trailing slashes
+
+dir_name : str
+    The name of the sub directory corresponding to each access level
+
+Returns
+-------
+str 
+    One of the formatted dir path string: /public/, /protected/, /consortium/
+"""
+def access_level_prefix_dir(dir_name):
+    if string_helper.isBlank(dir_name):
+        return ''
     
-    redir_url = file_helper.removeTrailingSlashURL(app.config['ERROR_PAGE_URL'])
-    desc = urllib.parse.quote(description, safe='')
-    description_and_details = "?description=" + desc
-    if not string_helper.isBlank(detail):
-        det = urllib.parse.quote(detail, save='')
-        description_and_details = description_and_details + "&details=" + det
-    redir_url = redir_url + description_and_details
-    return redirect(redir_url, code = 307)    
+    return hm_file_helper.ensureTrailingSlashURL(hm_file_helper.ensureBeginningSlashURL(dir_name))
 
-#get the Globus URL to the dataset given a dataset ID
-#
-# It will provide a Globus URL to the dataset directory in of three Globus endpoints based on the access
-# level of the user (public, consortium or protected), public only, of course, if no token is provided.
-# If a dataset isn't found a 404 will be returned. There is a chance that a 500 can be returned, but not
-# likely under normal circumstances, only for a misconfigured or failing in some way endpoint.  If the 
-# Auth token is provided but is expired or invalid a 401 is returned.  If access to the dataset is not
-# allowed for the user (or lack of user) a 403 is returned.
-# Inputs via HTTP GET at /entities/dataset/globus-url/<identifier>
-#   identifier: The HuBMAP ID (e.g. HBM123.ABCD.456) or UUID via a url path parameter 
-#   auth token: (optional) A Globus Nexus token specified in a standard Authorization: Bearer header
-#
-# Outputs
-#   200 with the Globus Application URL to the datasets's directory
-#   404 Dataset not found
-#   403 Access Forbidden
-#   401 Unauthorized (bad or expired token)
-#   500 Unexpected server or other error
 
-@app.route('/entities/dataset/globus-url/<identifier>', methods = ['GET'])
-def get_globus_url(identifier):
-    global prov_helper
+# For local development/testing
+if __name__ == "__main__":
     try:
-        #get the id from the UUID service to resolve to a UUID and check to make sure that it exists
-        ug = UUID_Generator(app.config['UUID_WEBSERVICE_URL'])
-        hmuuid_data = ug.getUUID(AuthHelper.instance().getProcessSecret(), identifier)
-        if hmuuid_data is None or len(hmuuid_data) == 0:
-            return Response("Dataset id:" + identifier + " not found.", 404)
-        uuid = hmuuid_data[0]['hmuuid']
-        
-        #look up the dataset in Neo4j and retrieve the allowable data access level (public, protected or consortium)
-        #for the dataset and HuBMAP Component ID that the dataset belongs to
-        dset = Dataset(app.config)
-        ds_attribs = dset.get_dataset_metadata_attributes(uuid, ['data_access_level', 'provenance_group_uuid'])
-        if not 'provenance_group_uuid' in ds_attribs or string_helper.isBlank(ds_attribs['provenance_group_uuid']):
-            return Response("Group id not set for dataset with uuid:" + uuid, 500)
-    
-        #if no access level is present on the dataset default to protected
-        if not 'data_access_level' in ds_attribs or string_helper.isBlank(ds_attribs['data_access_level']):
-            data_access_level = HubmapConst.ACCESS_LEVEL_PROTECTED
-        else:
-            data_access_level = ds_attribs['data_access_level']
-        
-        #look up the Component's group ID, return an error if not found
-        data_group_id = ds_attribs['provenance_group_uuid']
-        group_ids = prov_helper.get_group_info_by_id()
-        if not data_group_id in group_ids:
-            return Response("Dataset group: " + data_group_id + " for uuid:" + uuid + " not found.", 500)
-
-        #get the user information (if available) for the caller
-        #getUserDataAccessLevel will return just a "data_access_level" of public
-        #if no auth token is found
-        ahelper = AuthHelper.instance()
-        user_info = ahelper.getUserDataAccessLevel(request)        
-        
-        #construct the Globus URL based on the highest level of access that the user has
-        #and the level of access allowed for the dataset
-        #the first "if" checks to see if the user is a member of the Consortium group
-        #that allows all access to this dataset, if so send them to the "protected"
-        #endpoint even if the user doesn't have full access to all protected data
-        globus_server_uuid = None        
-        dir_path = ""
-        
-        #the user is in the Globus group with full access to thie dataset,
-        #so they have protected level access to it
-        if 'hmgroupids' in user_info and data_group_id in user_info['hmgroupids']:
-            user_access_level = 'protected'
-        else:
-            if not 'data_access_level' in user_info:
-                return Response("Unexpected error, data access level could not be found for user trying to access dataset uuid:" + uuid)        
-            user_access_level = user_info['data_access_level']
-
-        #public access
-        if data_access_level == HubmapConst.ACCESS_LEVEL_PUBLIC:
-            globus_server_uuid = app.config['GLOBUS_PUBLIC_ENDPOINT_UUID']
-            access_dir = _access_level_prefix_dir(app.config['PUBLIC_DATA_SUBDIR'])
-            dir_path = dir_path +  access_dir + "/"
-        #consortium access
-        elif data_access_level == HubmapConst.ACCESS_LEVEL_CONSORTIUM and not user_access_level == HubmapConst.ACCESS_LEVEL_PUBLIC:
-            globus_server_uuid = app.config['GLOBUS_CONSORTIUM_ENDPOINT_UUID']
-            access_dir = _access_level_prefix_dir(app.config['CONSORTIUM_DATA_SUBDIR'])
-            dir_path = dir_path + access_dir + group_ids[data_group_id]['displayname'] + "/"
-        #protected access
-        elif user_access_level == HubmapConst.ACCESS_LEVEL_PROTECTED and data_access_level == HubmapConst.ACCESS_LEVEL_PROTECTED:
-            globus_server_uuid = app.config['GLOBUS_PROTECTED_ENDPOINT_UUID']
-            access_dir = _access_level_prefix_dir(app.config['PROTECTED_DATA_SUBDIR'])
-            dir_path = dir_path + access_dir + group_ids[data_group_id]['displayname'] + "/"
-            
-        if globus_server_uuid is None:
-            return Response("Access not granted", 403)   
-    
-        dir_path = dir_path + uuid + "/"
-        dir_path = urllib.parse.quote(dir_path, safe='')
-        
-        #https://app.globus.org/file-manager?origin_id=28bbb03c-a87d-4dd7-a661-7ea2fb6ea631&origin_path=%2FIEC%20Testing%20Group%2F03584b3d0f8b46de1b629f04be156879%2F
-        url = file_helper.ensureTrailingSlashURL(app.config['GLOBUS_APP_BASE_URL']) + "file-manager?origin_id=" + globus_server_uuid + "&origin_path=" + dir_path  
-                
-        return Response(url, 200)
-    
-    except HTTPException as hte:
-        msg = "HTTPException during get_globus_url HTTP code: " + str(hte.get_status_code()) + " " + hte.get_description() 
-        print(msg)
-        logger.warn(msg, exc_info=True)
-        return Response(hte.get_description(), hte.get_status_code())
+        app.run(host='0.0.0.0', port="5002")
     except Exception as e:
-        print ('An unexpected error occurred. Check log file.')
+        print("Error during starting debug server.")
+        print(str(e))
         logger.error(e, exc_info=True)
-        return Response('Unhandled exception occured', 500)
-    
-def _access_level_prefix_dir(pth):
-    if string_helper.isBlank(pth):
-        return('')
-    else:
-        return(file_helper.ensureTrailingSlashURL(file_helper.ensureBeginningSlashURL(pth)))
-
-
-# This is for development only
-if __name__ == '__main__':
-    try:
-        parser = argparse.ArgumentParser()
-        parser.add_argument("-p", "--port")
-        args = parser.parse_args()
-        port = 5006
-        if args.port:
-            port = int(args.port)
-        app.run(port=port)
-    finally:
-        pass
+        print("Error during startup check the log file for further information")

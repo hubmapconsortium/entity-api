@@ -1,11 +1,12 @@
-# entity-api for HuBMAP
+# HuBMAP Entity API
 
-A set of web service calls to return information about HuBMAP entities.
+A set of standard RESTful web service that provides CRUD operations into our entity metadata store. A description of the API calls is found here: [Entities API](https://smart-api.info/ui/0065e419668f3336a40d1f5ab89c6ba3).
 
-The webservices are accessible through the `/entities` restful endpoint.
-A description of the API calls is found here: [Entities API](https://smart-api.info/ui/0065e419668f3336a40d1f5ab89c6ba3).
+## Entities schema yaml
 
-## Development and deployment environments
+The yaml file `src/resources/hubmap-entities.yaml` contains all the attributes of each entity type and generated metadata information of attributes via trigger methods. This file is being used to validate the user input and also as a way of standarding all the details of entities.
+
+## Docker development and deployment environments
 
 We have the following 5 development and deployment environments:
 
@@ -89,4 +90,4 @@ You can also stop the running container and remove it by:
 
 ### Updating API Documentation
 
-The documentation for the API calls is hosted on SmartAPI.  Modifying the `entity-api-spec.yaml` file and commititng the changes to github should update the API shown on SmartAPI.  SmartAPI allows users to register API documents.  The documentation is associated with this github account: api-developers@hubmapconsortium.org. Please contact Chuck Borromeo (chb69@pitt.edu) if you want to register a new API on SmartAPI.
+The documentation for the API calls is hosted on SmartAPI. Modifying the `entity-api-spec.yaml` file and commititng the changes to github should update the API shown on SmartAPI. SmartAPI allows users to register API documents.  The documentation is associated with this github account: api-developers@hubmapconsortium.org.

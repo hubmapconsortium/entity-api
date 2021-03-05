@@ -50,8 +50,8 @@ function export_version() {
     echo "ENTITY_API_VERSION: $ENTITY_API_VERSION"
 }
 
-if [[ "$1" != "localhost" && "$1" != "dev" && "$1" != "test" && "$1" != "stage" && "$1" != "prod" ]]; then
-    echo "Unknown build environment '$1', specify one of the following: localhost|dev|test|stage|prod"
+if [[ "$1" != "localhost" && "$1" != "dev" && "$1" != "test" && "$1" != "stage" && "$1" != "prod" && "$1" != "refactor" ]]; then
+    echo "Unknown build environment '$1', specify one of the following: localhost|dev|test|stage|prod|refactor"
 else
     if [[ "$2" != "check" && "$2" != "config" && "$2" != "build" && "$2" != "start" && "$2" != "stop" && "$2" != "down" ]]; then
         echo "Unknown command '$2', specify one of the following: check|config|build|start|stop|down"
@@ -97,19 +97,19 @@ else
 
             # Only mount the VERSION file and BUILD file for localhost and dev
             # On test/stage/prod, copy the VERSION file and BUILD file to image
-            if [[ "$1" != "localhost" && "$1" != "dev" ]]; then
+            if [[ "$1" != "localhost" && "$1" != "dev" && "$1" != "refactor" ]]; then
                 # Delete old VERSION and BUILD files if found
-                if [ -f "entity-api/src/VERSION" ]; then
-                    rm -rf entity-api/src/VERSION
+                if [ -f "entity-api/VERSION" ]; then
+                    rm -rf entity-api/VERSION
                 fi
                 
-                if [ -f "entity-api/src/BUILD" ]; then
-                    rm -rf entity-api/src/BUILD
+                if [ -f "entity-api/BUILD" ]; then
+                    rm -rf entity-api/BUILD
                 fi
                 
-                # Copy over the one files
-                cp ../VERSION entity-api/src
-                cp ../BUILD entity-api/src
+                # Copy over the VERSION and BUILD files
+                cp ../VERSION entity-api
+                cp ../BUILD entity-api
             fi
 
             docker-compose -f docker-compose.yml -f docker-compose.$1.yml -p entity-api build

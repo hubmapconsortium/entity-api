@@ -1,45 +1,52 @@
+# File path of schema yaml file, DO NOT MODIFY
+SCHEMA_YAML_FILE = '/usr/src/app/src/schema/provenance_schema.yaml'
+
 # Globus App ID and secret
 APP_CLIENT_ID = ''
 APP_CLIENT_SECRET = ''
 
-# Neo4j connection (default value used for docker dev environment)
-# Point to remote neo4j for testing and production deployment
-NEO4J_SERVER = 'bolt://hubmap-neo4j:7687'
+# Neo4j connection (default value used for docker localhost deployment)
+# Point to remote neo4j for dev/test/stage/prod deployment
+# Once upgrade to neo4j v4, we can specify the target database 
+# NEO4J_DB = 'hubmap.db'
+NEO4J_URI = 'bolt://hubmap-neo4j:7687'
 NEO4J_USERNAME = 'neo4j'
 NEO4J_PASSWORD = '123'
 
-# URL for talking to UUID API (default value used for docker dev environment)
-# Don't use localhost since uuid-api running on a different container
-# Point to remote URL for testing and production deployment
-UUID_WEBSERVICE_URL = 'http://hubmap-auth:9999/hmuuid'
+# Directory where file uploads will be placed temporarily
+#until they are committed
+FILE_UPLOAD_TEMP_DIR = '/hubmap-data/hm_uploads_tmp'
 
-# Search-API service
-# Default value works with docker deployment on localhost, dev, test, and prod
-SEARCH_WEBSERVICE_URL = 'http://hubmap-auth:6666'
+# Directory where file uploads are permanantly stored
+FILE_UPLOAD_DIR = '/hubmap-data/hm_uploads'
 
-# URL of UUID UI for Cross-Origin Resource Sharing (CORS)
-# This has no effect with Gateway (enabled CORS in nginx conf)
-# UUID_UI_URL = 'http://localhost:8585'
+# URL for talking to UUID API (default value used for docker deployment, no token needed)
+# Don't use localhost since uuid-api is running on a different container
+# Point to remote URL for non-docker development
+# Works regardless of the trailing slash
+UUID_API_URL = 'http://hubmap-auth:9999/hmuuid'
 
-#sub directories under the base data/globus directory where different
-#access levels of data sits
-PROTECTED_DATA_SUBDIR = 'private'
-CONSORTIUM_DATA_SUBDIR = 'consortium'
-PUBLIC_DATA_SUBDIR = 'public'
-
-#UUIDs of the Globus endpoints (shown are for DEV)
-GLOBUS_PUBLIC_ENDPOINT_UUID = 'a00a00b8-d1d1-4ab9-b915-0bada54c27a3'
-GLOBUS_CONSORTIUM_ENDPOINT_UUID = '3cb7d673-a3db-40e9-8376-f2ead6cb5a45'
-GLOBUS_PROTECTED_ENDPOINT_UUID = 'bdaf8547-aab3-4142-97bd-0a16d5cd9f58'
+# URL for talking to Search API (default value used for docker deployment, no token needed)
+# Don't use localhost since search-api is running on a different container
+# Point to remote URL for non-docker development
+# Works regardless of the trailing slash
+SEARCH_API_URL = 'http://hubmap-auth:6666'
 
 #The Base URL to the Globus transfer application site
 GLOBUS_APP_BASE_URL = 'https://app.globus.org'
 
-#url where DOIs are redirected to
-#the <identifier> tag is required in the url and will be replaced by the incoming identifier
+# Below configurations are for DOI redirection
+# UUIDs of the Globus endpoints
+GLOBUS_PUBLIC_ENDPOINT_UUID = ''
+GLOBUS_CONSORTIUM_ENDPOINT_UUID = ''
+GLOBUS_PROTECTED_ENDPOINT_UUID = ''
+
+# Sub directories under the base data/globus directory where different access levels of data sits
+PROTECTED_DATA_SUBDIR = 'private'
+CONSORTIUM_DATA_SUBDIR = 'consortium'
+PUBLIC_DATA_SUBDIR = 'public'
+
+# The url where collection DOIs are redirected to
+# The <identifier> tag is required in the url and will be replaced by the incoming identifier
 COLLECTION_REDIRECT_URL = 'https://ingest.dev.hubmapconsortium.org/redirect-test/<identifier>'
 
-#page where errors are reported back to a user
-#takes arguments ?description=xxxx&details=yyyyy where
-#description is required and details is optional
-ERROR_PAGE_URL = 'https://ingest.dev.hubmapconsortium.org/err-response'
