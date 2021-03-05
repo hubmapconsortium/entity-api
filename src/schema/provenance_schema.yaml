@@ -332,8 +332,14 @@ ENTITIES:
         generated: true
         description: "One of the values: public, consortium"
         before_create_trigger: set_data_access_level
-      
-      #################### Begin next line: Three properties of image file handling ####################
+      image_files:
+        # This property has no before_create_trigger method, but will be created via `image_files_to_add` and updated via `image_files_to_delete`
+        type: list 
+        generated: true # Disallow direct user input from create via POST, but can be used for update via PUT
+        description: "List of uploaded image files and descriptions of the files. Stored in db as a stringfied json array."
+        # Only file descriptions are allowed to be updated directly using this property
+        # Adding or deleting files must via the other two properties
+        before_update_trigger: update_file_descriptions
       image_files_to_add:
         type: list 
         transient: true
@@ -348,19 +354,6 @@ ENTITIES:
         exposed: false
         description: 'List of image files previously uploaded to delete. Provide as a json array of the file_uuids of the file like: ["232934234234234234234270c0ea6c51d604a850558ef2247d0b4", "230948203482234234234a57bfe9c056d08a0f8e6cd612baa3bfa"]'
         before_update_trigger: delete_image_files
-      # IMPORTANT: must be defiened AFTER `image_files_to_add` or `image_files_to_remove`
-      # because its before_update_trigger method needs to be executed AFTER the ones of `image_files_to_add` or `image_files_to_remove`
-      # The ordering of `image_files_to_add` or `image_files_to_remove` doesn't matter
-      image_files:
-        # This property has no before_create_trigger method, but will be created via `image_files_to_add` and updated via `image_files_to_delete`
-        type: list 
-        generated: true # Disallow direct user input from create via POST, but can be used for update via PUT
-        description: "List of uploaded image files and descriptions of the files. Stored in db as a stringfied json array."
-        # Only file descriptions are allowed to be updated directly using this property
-        # Adding or deleting files must via the other two properties
-        before_update_trigger: update_file_descriptions
-      #################### End above line: Three properties of image file handling ####################
-      
       metadata:
         type: json_string # dict
         description: "Donor metadata coded as described here: <get donor metadata doc from Chuck>"
@@ -510,8 +503,14 @@ ENTITIES:
       visit:
         type: string
         description: "The visit id for the donor/patient when the sample was obtained."
-
-      #################### Begin next line: Three properties of image file handling ####################
+      image_files:
+        # This property has no before_create_trigger method, but will be created via `image_files_to_add` and updated via `image_files_to_remove`
+        type: list 
+        generated: true # Disallow direct user input from create via POST, but can be used for update via PUT
+        description: "List of uploaded image files and descriptions of the files. Stored in db as a stringfied json array."
+        # Only file descriptions are allowed to be updated directly using this property
+        # Adding or deleting files must via the other two properties
+        before_update_trigger: update_file_descriptions
       image_files_to_add:
         type: list 
         transient: true
@@ -526,20 +525,14 @@ ENTITIES:
         exposed: false
         description: 'List of image files previously uploaded to delete. Provide as a json array of the file_uuids of the file like: ["232934234234234234234270c0ea6c51d604a850558ef2247d0b4", "230948203482234234234a57bfe9c056d08a0f8e6cd612baa3bfa"]'
         before_update_trigger: delete_image_files
-      # IMPORTANT: must be defiened AFTER `image_files_to_add` or `image_files_to_remove`
-      # because its before_update_trigger method needs to be executed AFTER the ones of `image_files_to_add` or `image_files_to_remove`
-      # The ordering of `image_files_to_add` or `image_files_to_remove` doesn't matter
-      image_files:
-        # This property has no before_create_trigger method, but will be created via `image_files_to_add` and updated via `image_files_to_remove`
+      metadata_files:
+        # This property has no before_create_trigger method, but will be created via `metadata_files_to_add` and updated via `metadata_files_to_remove`
         type: list 
         generated: true # Disallow direct user input from create via POST, but can be used for update via PUT
         description: "List of uploaded image files and descriptions of the files. Stored in db as a stringfied json array."
         # Only file descriptions are allowed to be updated directly using this property
         # Adding or deleting files must via the other two properties
         before_update_trigger: update_file_descriptions
-      #################### End above line: Three properties of image file handling ####################
-
-      #################### Begin next line: Three properties of metadata file handling ####################
       metadata_files_to_add:
         type: list 
         transient: true
@@ -554,16 +547,5 @@ ENTITIES:
         exposed: false
         description: 'List of image files previously uploaded to delete. Provide as a json array of the file_uuids of the file like: ["232934234234234234234270c0ea6c51d604a850558ef2247d0b4", "230948203482234234234a57bfe9c056d08a0f8e6cd612baa3bfa"]'
         before_update_trigger: delete_metadata_files
-      # IMPORTANT: must be defiened AFTER `metadata_files_to_add` or `metadata_files_to_remove`
-      # because its before_update_trigger method needs to be executed AFTER the ones of `metadata_files_to_add` or `metadata_files_to_remove`
-      # The ordering of `metadata_files_to_add` or `metadata_files_to_remove` doesn't matter
-      metadata_files:
-        # This property has no before_create_trigger method, but will be created via `metadata_files_to_add` and updated via `metadata_files_to_remove`
-        type: list 
-        generated: true # Disallow direct user input from create via POST, but can be used for update via PUT
-        description: "List of uploaded image files and descriptions of the files. Stored in db as a stringfied json array."
-        # Only file descriptions are allowed to be updated directly using this property
-        # Adding or deleting files must via the other two properties
-        before_update_trigger: update_file_descriptions
-      #################### End above line: Three properties of metadata file handling ####################
-
+      
+  

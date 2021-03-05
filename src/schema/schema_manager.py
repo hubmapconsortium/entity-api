@@ -189,9 +189,8 @@ def generate_triggered_data(trigger_type, normalized_class, user_token, existing
     else:
         schema_section = _schema['ENTITIES']
 
-    # IMPORTANT! The ordering of properties of this entity class defined in the yaml schema
-    # decides the ordering of which trigger method gets to run first when the ordering 
-    # is necessary for some properties. E.g., the peoperties of image file handling in Sample/Donor
+    # The ordering of properties of this entity class defined in the yaml schema
+    # decides the ordering of which trigger method gets to run first
     properties = schema_section[normalized_class]['properties']
 
     # Set each property value and put all resulting data into a dictionary for:
