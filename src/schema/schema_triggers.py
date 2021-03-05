@@ -512,22 +512,11 @@ str: The target property key
 list: The file info dicts (with updated descriptions) in a list
 """
 def update_file_descriptions(property_key, normalized_type, user_token, existing_data_dict, new_data_dict):
-#    if property_key not in new_data_dict:
-#        raise KeyError(f"Missing '{property_key}' key in 'new_data_dict' during calling 'update_file_descriptions()' trigger method.")
-
-#    if property_key not in existing_data_dict:
-#        raise KeyError(f"Missing '{property_key}' key in 'existing_data_dict' during calling 'update_file_descriptions()' trigger method.")
-
-    #update should work if nothing new is provided
     if property_key not in new_data_dict:
-        if property_key not in existing_data_dict:
-            return property_key, None
-        else:
-            return property_key, existing_data_dict[property_key]
+        raise KeyError(f"Missing '{property_key}' key in 'new_data_dict' during calling 'update_file_descriptions()' trigger method.")
 
-    # The property holding the file information must be a json array
-    if not isinstance(new_data_dict[property_key], list):
-        raise TypeError(f"'{property_key}' value in 'new_data_dict' must be a list during calling 'update_file_descriptions()' trigger method.")
+    if property_key not in existing_data_dict:
+        raise KeyError(f"Missing '{property_key}' key in 'existing_data_dict' during calling 'update_file_descriptions()' trigger method.")
 
     file_info_by_uuid_dict = {}
     # Convert the string literal to list

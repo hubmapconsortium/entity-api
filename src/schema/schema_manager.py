@@ -189,6 +189,9 @@ def generate_triggered_data(trigger_type, normalized_class, user_token, existing
     else:
         schema_section = _schema['ENTITIES']
 
+    # IMPORTANT! The ordering of properties of this entity class defined in the yaml schema
+    # decides the ordering of which trigger method gets to run first when the ordering 
+    # is necessary for some properties. E.g., the peoperties of image file handling in Sample/Donor
     properties = schema_section[normalized_class]['properties']
 
     # Set each property value and put all resulting data into a dictionary for:
@@ -232,8 +235,8 @@ def generate_triggered_data(trigger_type, normalized_class, user_token, existing
             elif trigger_type in ['before_update_trigger']:
                 # IMPORTANT! Call the triggers for the properties:
                 # Case 1: specified in request JSON to be updated explicitly
-                # Case 2: defined as `generated: true` in the schema yaml
-                if (key in new_data_dict) or (('generated' in properties[key]) and properties[key]['generated']):
+                # Case 2: defined as `auto_update: true` in the schema yaml, meaning will always be updated if the entity gets updated
+                if (key in new_data_dict) or (('auto_update' in properties[key]) and properties[key]['auto_update']):
                     trigger_method_name = properties[key][trigger_type]
 
                     try:
