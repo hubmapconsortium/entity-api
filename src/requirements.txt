@@ -1,9 +1,12 @@
-cachetools==4.1.0
-flask>=1.1.2
-werkzeug>=1.0.1
-neo4j>=4.1.0
 requests>=2.25.1
-pyyaml>=5.2
+cachetools>=4.2.1
+Flask>=1.1.2
+neo4j>=4.2.1
+prov>=2.0.0
+PyYAML>=5.2
+secrets>=1.0.2
+Werkzeug>=1.0.1
+
 # The branch name of commons to be used during image build
 # Default is master branch specified in docker-compose.yml if not set
 git+git://github.com/hubmapconsortium/commons.git@${COMMONS_BRANCH}#egg=hubmap-commons

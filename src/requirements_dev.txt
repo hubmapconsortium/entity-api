@@ -1,0 +1,11 @@
+requests>=2.25.1
+cachetools>=4.2.1
+Flask>=1.1.2
+neo4j>=4.2.1
+prov>=2.0.0
+PyYAML>=5.2
+secrets>=1.0.2
+Werkzeug>=1.0.1
+
+# The commons to be used for local development
+file:../../commons#egg=hubmap-commons --no-index
