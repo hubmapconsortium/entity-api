@@ -1758,6 +1758,9 @@ def create_entity_details(request, normalized_entity_type, user_token, json_data
         # Log the full stack trace, prepend a line with our message
         logger.exception(e)
         bad_request_error(e)
+    except Exception as ex:
+        logger.exception(ex)
+        internal_server_error(ex)
 
     # Merge the user json data and generated trigger data into one dictionary
     merged_dict = {**json_data_dict, **generated_before_create_trigger_data_dict}

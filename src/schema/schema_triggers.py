@@ -451,8 +451,8 @@ Returns
 str: The target property key
 list: The file info dicts in a list
 """
-def commit_image_files(property_key, normalized_type, user_token, existing_data_dict, new_data_dict):
-    return _commit_files('image_files', property_key, normalized_type, user_token, existing_data_dict, new_data_dict)
+def commit_image_files(property_key, normalized_type, user_token, existing_data_dict, new_data_dict, generated_dict):
+    return _commit_files('image_files', property_key, normalized_type, user_token, existing_data_dict, new_data_dict, generated_dict)
 
 
 """
@@ -486,8 +486,8 @@ Returns
 str: The target property key
 list: The file info dicts in a list
 """
-def delete_image_files(property_key, normalized_type, user_token, existing_data_dict, new_data_dict):
-    return _delete_files('image_files', property_key, normalized_type, user_token, existing_data_dict, new_data_dict)
+def delete_image_files(property_key, normalized_type, user_token, existing_data_dict, new_data_dict, generated_dict):
+    return _delete_files('image_files', property_key, normalized_type, user_token, existing_data_dict, new_data_dict, generated_dict)
 
 
 """
@@ -511,16 +511,35 @@ Returns
 str: The target property key
 list: The file info dicts (with updated descriptions) in a list
 """
-def update_file_descriptions(property_key, normalized_type, user_token, existing_data_dict, new_data_dict):
+def update_file_descriptions(property_key, normalized_type, user_token, existing_data_dict, new_data_dict, generated_dict):
     if property_key not in new_data_dict:
         raise KeyError(f"Missing '{property_key}' key in 'new_data_dict' during calling 'update_file_descriptions()' trigger method.")
 
-    if property_key not in existing_data_dict:
-        raise KeyError(f"Missing '{property_key}' key in 'existing_data_dict' during calling 'update_file_descriptions()' trigger method.")
+    #If POST or PUT where the target doesn't exist create the file info array
+    #if generated_dict doesn't contain the property yet, copy it from the existing_data_dict 
+    #or if it doesn't exist in existing_data_dict create it
+    if not property_key in generated_dict:
+        if not property_key in existing_data_dict:
+            raise KeyError(f"Missing '{property_key}' key in 'existing_data_dict' during call to 'update_file_descriptions()' trigger method.")            
+        # Otherwise this is a PUT where the target array exists already
+        else:
+            # Note: The property, name specified by `target_property_key`, is stored in Neo4j as a string representation of the Python list
+            # It's not stored in Neo4j as a json string! And we can't store it as a json string 
+            # due to the way that Cypher handles single/double quotes.
+            ext_prop = existing_data_dict[property_key]
+            if isinstance(ext_prop, str):
+                existing_files_list = ast.literal_eval(ext_prop)
+            else:
+                existing_files_list = ext_prop
+    else:
+        if not property_key in generated_dict:
+            raise KeyError(f"Missing '{property_key}' key in 'generated_dict' during calling 'update_file_descriptions()' trigger method.")            
+        existing_files_list = generated_dict[property_key]
+
+
+
 
     file_info_by_uuid_dict = {}
-    # Convert the string literal to list
-    existing_files_list = ast.literal_eval(existing_data_dict[property_key])
 
     for file_info in existing_files_list:
         file_uuid = file_info['file_uuid']
@@ -536,8 +555,8 @@ def update_file_descriptions(property_key, normalized_type, user_token, existing
             # Only update the description
             file_info_by_uuid_dict[file_uuid]['description'] = file_info['description']
 
-    # In Python3, dict.values() returns a view of the dictionary's values instead of list
-    return property_key, list(file_info_by_uuid_dict.values())
+    generated_dict[property_key] = list(file_info_by_uuid_dict.values())
+    return generated_dict
 
 
 
@@ -1022,8 +1041,8 @@ Returns
 str: The target property key
 list: The file info dicts in a list
 """
-def commit_metadata_files(property_key, normalized_type, user_token, existing_data_dict, new_data_dict):
-    return _commit_files('metadata_files', property_key, normalized_type, user_token, existing_data_dict, new_data_dict)
+def commit_metadata_files(property_key, normalized_type, user_token, existing_data_dict, new_data_dict, generated_dict):
+    return _commit_files('metadata_files', property_key, normalized_type, user_token, existing_data_dict, new_data_dict, generated_dict)
 
 
 """
@@ -1057,8 +1076,8 @@ Returns
 str: The target property key
 list: The file info dicts in a list
 """
-def delete_metadata_files(property_key, normalized_type, user_token, existing_data_dict, new_data_dict):
-    return _delete_files('metadata_files', property_key, normalized_type, user_token, existing_data_dict, new_data_dict)
+def delete_metadata_files(property_key, normalized_type, user_token, existing_data_dict, new_data_dict, generated_dict):
+    return _delete_files('metadata_files', property_key, normalized_type, user_token, existing_data_dict, new_data_dict, generated_dict)
     
 
 """
@@ -1230,24 +1249,35 @@ Returns
 str: The target property key
 list: The file info dicts in a list
 """
-def _commit_files(target_property_key, property_key, normalized_type, user_token, existing_data_dict, new_data_dict):
+def _commit_files(target_property_key, property_key, normalized_type, user_token, existing_data_dict, new_data_dict, generated_dict):
+    
     
     # Do nothing if no files to add are provided (missing or empty property)
     # For image files the property name is "image_files_to_add"
     # For metadata files the property name is "metadata_files_to_add"
     # But other may be used in the future
     if (not property_key in new_data_dict) or (not new_data_dict[property_key]):
-        return property_key, None
+        return generated_dict
+
     
-    # If POST or PUT where the target doesn't exist create the file info array
-    if not target_property_key in existing_data_dict:
-        files_info_list = []
-    # Otherwise this is a PUT where the target array exists already
+    #If POST or PUT where the target doesn't exist create the file info array
+    #if generated_dict doesn't contain the property yet, copy it from the existing_data_dict 
+    #or if it doesn't exist in existing_data_dict create it
+    if not target_property_key in generated_dict:
+        if not target_property_key in existing_data_dict:
+            files_info_list = []
+        # Otherwise this is a PUT where the target array exists already
+        else:
+            # Note: The property, name specified by `target_property_key`, is stored in Neo4j as a string representation of the Python list
+            # It's not stored in Neo4j as a json string! And we can't store it as a json string 
+            # due to the way that Cypher handles single/double quotes.
+            ext_prop = existing_data_dict[target_property_key]
+            if isinstance(ext_prop, str):
+                files_info_list = ast.literal_eval(existing_data_dict[target_property_key])
+            else:
+                files_info_list = ext_prop
     else:
-        # Note: The property, name specified by `target_property_key`, is stored in Neo4j as a string representation of the Python list
-        # It's not stored in Neo4j as a json string! And we can't store it as a json string 
-        # due to the way that Cypher handles single/double quotes.
-        files_info_list = ast.literal_eval(existing_data_dict[target_property_key])
+        files_info_list = generated_dict[target_property_key]
 
     try:
         if 'uuid' in new_data_dict:
@@ -1267,11 +1297,13 @@ def _commit_files(target_property_key, property_key, normalized_type, user_token
             if 'description' in file_info:
                 file_info_to_add['description'] = file_info['description']
             
+            
             # Add to list
             files_info_list.append(file_info_to_add)
-        
+            generated_dict[target_property_key] = files_info_list
+            
         # Assign the target value to a different property key rather than itself
-        return target_property_key, files_info_list
+        return generated_dict
     except schema_errors.FileUploadException as e:
         raise
     except Exception as e:
@@ -1312,35 +1344,48 @@ Returns
 str: The target property key
 list: The file info dicts in a list
 """
-def _delete_files(target_property_key, property_key, normalized_type, user_token, existing_data_dict, new_data_dict):
+def _delete_files(target_property_key, property_key, normalized_type, user_token, existing_data_dict, new_data_dict, generated_dict):
 
     #do nothing if no files to delete are provided in the field specified by property_key
     if (not property_key in new_data_dict) or (not new_data_dict[property_key]):
-        return property_key, None
+        return generated_dict
 
     if 'uuid' not in existing_data_dict:
         raise KeyError(f"Missing 'uuid' key in 'existing_data_dict' during calling '_delete_files()' trigger method for property '{target_property_key}'.")
-    
-    if target_property_key not in existing_data_dict:
-        raise KeyError(f"Missing '{target_property_key}' key in 'existing_data_dict' during calling '_delete_files()' trigger method.")
 
-    try:
-        entity_uuid = existing_data_dict['uuid']
-        # `upload_dir` is already normalized with trailing slash
-        entity_upload_dir = schema_manager.get_file_upload_helper_instance().upload_dir + entity_uuid + os.sep
-        
-        # Note: The property named by target_property_key value is stored in Neo4j as a string representation of the Python list
-        # It's not stored in Neo4j as a json string! And we can't store it as a json string 
-        # due to the way that Cypher handles single/double quotes.
-        files_info_list = ast.literal_eval(existing_data_dict[target_property_key])
-        
-        # Remove physical files from the file system
-        for filename in new_data_dict[property_key]:
-            # Get back the updated files_info_list
-            files_info_list = schema_manager.get_file_upload_helper_instance().remove_file(entity_upload_dir, filename, files_info_list)
-        
-        # Assign the target value to a different property key rather than itself
-        return target_property_key, files_info_list
-    except Exception as e:
-        # No need to log
-        raise
+    entity_uuid = existing_data_dict['uuid']
+    
+    #If POST or PUT where the target doesn't exist create the file info array
+    #if generated_dict doesn't contain the property yet, copy it from the existing_data_dict
+    #if it isn't in the existing_dictionary throw and error 
+    #or if it doesn't exist in existing_data_dict create it
+    if not target_property_key in generated_dict:
+        if not target_property_key in existing_data_dict:
+            raise KeyError(f"Missing '{target_property_key}' key missing during calling '_delete_files()' trigger method on entity {entity_uuid}.")
+
+        # Otherwise this is a PUT where the target array exists already
+        else:
+            # Note: The property, name specified by `target_property_key`, is stored in Neo4j as a string representation of the Python list
+            # It's not stored in Neo4j as a json string! And we can't store it as a json string 
+            # due to the way that Cypher handles single/double quotes.
+            ext_prop = existing_data_dict[target_property_key]
+            if isinstance(ext_prop, str):
+                files_info_list = ast.literal_eval(existing_data_dict[target_property_key])
+            else:
+                files_info_list = ext_prop
+    else:
+        if not target_property_key in generated_dict:
+            raise KeyError(f"Missing '{target_property_key}' key missing during calling '_delete_files()' trigger method on entity {entity_uuid} in generated dictionary.")
+        files_info_list = generated_dict[target_property_key]
+    
+
+    # `upload_dir` is already normalized with trailing slash
+    entity_upload_dir = schema_manager.get_file_upload_helper_instance().upload_dir + entity_uuid + os.sep
+            
+    # Remove physical files from the file system
+    for filename in new_data_dict[property_key]:
+        # Get back the updated files_info_list
+        files_info_list = schema_manager.get_file_upload_helper_instance().remove_file(entity_upload_dir, filename, files_info_list)
+    
+    generated_dict[target_property_key] = files_info_list
+    return generated_dict

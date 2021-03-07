@@ -340,6 +340,7 @@ ENTITIES:
         # Only file descriptions are allowed to be updated directly using this property
         # Adding or deleting files must via the other two properties
         before_update_trigger: update_file_descriptions
+        updated_peripherally: true
       image_files_to_add:
         type: list 
         transient: true
@@ -347,6 +348,7 @@ ENTITIES:
         description: 'List of temporary file ids with an optional description. Provide as a json array with an temp_file_id and description attribute for each element like {"files": [{"temp_file_id":"dzevgd6xjs4d5grmcp4n","description":"This is image file one"},{"temp_file_id":"yrahjadfhadf","description":"This is image file two"}]}'
         before_create_trigger: commit_image_files
         before_update_trigger: commit_image_files
+        updated_peripherally: true
       image_files_to_remove:
         # This is only valid on update via a PUT request
         type: list 
@@ -354,6 +356,7 @@ ENTITIES:
         exposed: false
         description: 'List of image files previously uploaded to delete. Provide as a json array of the file_uuids of the file like: ["232934234234234234234270c0ea6c51d604a850558ef2247d0b4", "230948203482234234234a57bfe9c056d08a0f8e6cd612baa3bfa"]'
         before_update_trigger: delete_image_files
+        updated_peripherally: true
       metadata:
         type: json_string # dict
         description: "Donor metadata coded as described here: <get donor metadata doc from Chuck>"
@@ -511,6 +514,7 @@ ENTITIES:
         # Only file descriptions are allowed to be updated directly using this property
         # Adding or deleting files must via the other two properties
         before_update_trigger: update_file_descriptions
+        updated_peripherally: true
       image_files_to_add:
         type: list 
         transient: true
@@ -518,6 +522,7 @@ ENTITIES:
         description: 'List of temporary file ids with an optional description. Provide as a json array with an temp_file_id and description attribute for each element like {"files": [{"temp_file_id":"dzevgd6xjs4d5grmcp4n","description":"This is image file one"},{"temp_file_id":"yrahjadfhadf","description":"This is image file two"}]}'
         before_create_trigger: commit_image_files
         before_update_trigger: commit_image_files
+        updated_peripherally: true
       image_files_to_remove:
         # This is only valid on update via a PUT request
         type: list 
@@ -525,6 +530,7 @@ ENTITIES:
         exposed: false
         description: 'List of image files previously uploaded to delete. Provide as a json array of the file_uuids of the file like: ["232934234234234234234270c0ea6c51d604a850558ef2247d0b4", "230948203482234234234a57bfe9c056d08a0f8e6cd612baa3bfa"]'
         before_update_trigger: delete_image_files
+        updated_peripherally: true
       metadata_files:
         # This property has no before_create_trigger method, but will be created via `metadata_files_to_add` and updated via `metadata_files_to_remove`
         type: list 
@@ -533,6 +539,7 @@ ENTITIES:
         # Only file descriptions are allowed to be updated directly using this property
         # Adding or deleting files must via the other two properties
         before_update_trigger: update_file_descriptions
+        updated_peripherally: true
       metadata_files_to_add:
         type: list 
         transient: true
@@ -540,6 +547,7 @@ ENTITIES:
         description: 'List of temporary file ids with an optional description. Provide as a json array with an temp_file_id and description attribute for each element like {"files": [{"temp_file_id":"dzevgd6xjs4d5grmcp4n","description":"This is image file one"},{"temp_file_id":"yrahjadfhadf","description":"This is image file two"}]}'
         before_create_trigger: commit_metadata_files
         before_update_trigger: commit_metadata_files
+        updated_peripherally: true
       metadata_files_to_remove:
         # This is only valid on update via a PUT request
         type: list 
@@ -547,5 +555,6 @@ ENTITIES:
         exposed: false
         description: 'List of image files previously uploaded to delete. Provide as a json array of the file_uuids of the file like: ["232934234234234234234270c0ea6c51d604a850558ef2247d0b4", "230948203482234234234a57bfe9c056d08a0f8e6cd612baa3bfa"]'
         before_update_trigger: delete_metadata_files
+        updated_peripherally: true
       
   

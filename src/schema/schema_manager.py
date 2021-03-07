@@ -1,11 +1,9 @@
-import os
 import ast
-import json
 import yaml
 import logging
 import requests
 from cachetools import cached, TTLCache
-import functools
+
 # Don't confuse urllib (Python native library) with urllib3 (3rd-party library, requests also uses urllib3)
 from requests.packages.urllib3.exceptions import InsecureRequestWarning
 from flask import Response
@@ -221,7 +219,21 @@ def generate_triggered_data(trigger_type, normalized_class, user_token, existing
                         # because the property value is already set in `data_dict`
                         # normally it's building linkages between entity nodes
                         # Use {} since no incoming new_data_dict 
-                        trigger_method_to_call(key, normalized_class, user_token, existing_data_dict, {})
+                        
+                        #the updated_peripherally tag is a temporary measure to correctly handle any attributes
+                        #which are potentially updated by multiple triggers
+                        #we keep the state of the attribute(s) directly in the trigger_generated_data_dict
+                        #dictionary, which is used to track and save all changes from triggers in general
+                        #the trigger methods for the 'updated_peripherally' attributes take an extra argument,
+                        #the trigger_generated_data_dict, and must initialize this dictionary with the value for
+                        #the attribute from the existing_data_dict as well as make any updates to this attribute
+                        #within this dictionary and return it so it can be saved in the scope of this loop and
+                        #passed to other 'updated_peripherally' triggers
+                        if 'updated_peripherally' in properties[key] and properties[key]['updated_peripherally']: 
+                            trigger_method_to_call(key, normalized_class, user_token, existing_data_dict, {}, trigger_generated_data_dict)
+                        else:
+                            trigger_method_to_call(key, normalized_class, user_token, existing_data_dict, {})
+            
                     except Exception:
                         msg = "Failed to call the " + trigger_type + " method: " + trigger_method_name
                         # Log the full stack trace, prepend a line with our message
@@ -244,16 +256,30 @@ def generate_triggered_data(trigger_type, normalized_class, user_token, existing
                         logger.debug(f"To run {trigger_type}: {trigger_method_name} defined for {normalized_class}")
 
                         # Will set the trigger return value as the property value by default
-                        # Unless the return value is to be assigned to another property different target key 
-                        target_key, target_value = trigger_method_to_call(key, normalized_class, user_token, existing_data_dict, new_data_dict)
-                        trigger_generated_data_dict[target_key] = target_value
+                        # Unless the return value is to be assigned to another property different target key
+                        
+                        #the updated_peripherally tag is a temporary measure to correctly handle any attributes
+                        #which are potentially updated by multiple triggers
+                        #we keep the state of the attribute(s) directly in the trigger_generated_data_dict
+                        #dictionary, which is used to track and save all changes from triggers in general
+                        #the trigger methods for the 'updated_peripherally' attributes take an extra argument,
+                        #the trigger_generated_data_dict, and must initialize this dictionary with the value for
+                        #the attribute from the existing_data_dict as well as make any updates to this attribute
+                        #within this dictionary and return it so it can be saved in the scope of this loop and
+                        #passed to other 'updated_peripherally' triggers                        
+                        if 'updated_peripherally' in properties[key] and properties[key]['updated_peripherally']: 
+                            trigger_generated_data_dict = trigger_method_to_call(key, normalized_class, user_token, existing_data_dict, new_data_dict, trigger_generated_data_dict)
+                        else:
+                            target_key, target_value = trigger_method_to_call(key, normalized_class, user_token, existing_data_dict, new_data_dict)
+                            trigger_generated_data_dict[target_key] = target_value
+                            
 
-                        # Meanwhile, set the original property as None if target_key is different
-                        # This is especially important when the returned target_key is different from the original key
-                        # Because we'll be merging this trigger_generated_data_dict with the original user input
-                        # and this will overwrite the original key so it doesn't get stored in Neo4j
-                        if key != target_key:
-                            trigger_generated_data_dict[key] = None
+                            # Meanwhile, set the original property as None if target_key is different
+                            # This is especially important when the returned target_key is different from the original key
+                            # Because we'll be merging this trigger_generated_data_dict with the original user input
+                            # and this will overwrite the original key so it doesn't get stored in Neo4j
+                            if key != target_key:
+                                trigger_generated_data_dict[key] = None
                     # If something wrong with file upload
                     except schema_errors.FileUploadException as e:
                         msg = f"Failed to call the {trigger_type} method: {trigger_method_name}"
@@ -278,16 +304,30 @@ def generate_triggered_data(trigger_type, normalized_class, user_token, existing
                     logger.debug(f"To run {trigger_type}: {trigger_method_name} defined for {normalized_class}")
 
                     # Will set the trigger return value as the property value by default
-                    # Unless the return value is to be assigned to another property different target key 
-                    target_key, target_value = trigger_method_to_call(key, normalized_class, user_token, existing_data_dict, new_data_dict)
-                    trigger_generated_data_dict[target_key] = target_value
+                    # Unless the return value is to be assigned to another property different target key
+                    
+                    #the updated_peripherally tag is a temporary measure to correctly handle any attributes
+                    #which are potentially updated by multiple triggers
+                    #we keep the state of the attribute(s) directly in the trigger_generated_data_dict
+                    #dictionary, which is used to track and save all changes from triggers in general
+                    #the trigger methods for the 'updated_peripherally' attributes take an extra argument,
+                    #the trigger_generated_data_dict, and must initialize this dictionary with the value for
+                    #the attribute from the existing_data_dict as well as make any updates to this attribute
+                    #within this dictionary and return it so it can be saved in the scope of this loop and
+                    #passed to other 'updated_peripherally' triggers                    
+                    if 'updated_peripherally' in properties[key] and properties[key]['updated_peripherally']:
+                        trigger_generated_data_dict = trigger_method_to_call(key, normalized_class, user_token, existing_data_dict, new_data_dict, trigger_generated_data_dict)
+                    else:  
+                        target_key, target_value = trigger_method_to_call(key, normalized_class, user_token, existing_data_dict, new_data_dict)
+                        trigger_generated_data_dict[target_key] = target_value
 
-                    # Meanwhile, set the original property as None if target_key is different
-                    # This is especially important when the returned target_key is different from the original key
-                    # Because we'll be merging this trigger_generated_data_dict with the original user input
-                    # and this will overwrite the original key so it doesn't get stored in Neo4j
-                    if key != target_key:
-                        trigger_generated_data_dict[key] = None
+                        # Meanwhile, set the original property as None if target_key is different
+                        # This is especially important when the returned target_key is different from the original key
+                        # Because we'll be merging this trigger_generated_data_dict with the original user input
+                        # and this will overwrite the original key so it doesn't get stored in Neo4j
+                        if key != target_key:
+                            trigger_generated_data_dict[key] = None
+                            
                 except schema_errors.NoDataProviderGroupException as e:
                     msg = f"Failed to call the {trigger_type} method: {trigger_method_name}"
                     # Log the full stack trace, prepend a line with our message
@@ -313,7 +353,6 @@ def generate_triggered_data(trigger_type, normalized_class, user_token, existing
                     msg = f"Failed to call the {trigger_type} method: {trigger_method_name}"
                     # Log the full stack trace, prepend a line with our message
                     logger.exception(msg)
-
                     if trigger_type == 'before_create_trigger':
                         # We can't create/update the entity 
                         # without successfully executing this trigger method
