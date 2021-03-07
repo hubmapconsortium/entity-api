@@ -18,6 +18,8 @@
 
 # Entity update via http PUT request:
 # - By default, all entity properties as mutable (can be updated directly by users). Use `immutable: true` to mark a property as immutable
+# - Use `auto_update: true` to mark a property as to be ALWAYS auto updated when the entity gets updated, e.g., `last_modified_timestamp`
+# - If a property is marked as `auto_update: true`, there must be a `before_update_trigger` method defined for that property
 
 # Entity retrival via http GET request:
 # - By default, all entity properties will be returned. Use `exposed: false` to filter out the property from response
