@@ -216,23 +216,10 @@ def generate_triggered_data(trigger_type, normalized_class, user_token, existing
                         logger.debug(f"To run {trigger_type}: {trigger_method_name} defined for {normalized_class}")
 
                         # No return values for 'after_create_trigger' and 'after_update_trigger'
-                        # because the property value is already set in `data_dict`
-                        # normally it's building linkages between entity nodes
+                        # because the property value is already set and stored in neo4j
+                        # Normally it's building linkages between entity nodes
                         # Use {} since no incoming new_data_dict 
-                        
-                        #the updated_peripherally tag is a temporary measure to correctly handle any attributes
-                        #which are potentially updated by multiple triggers
-                        #we keep the state of the attribute(s) directly in the trigger_generated_data_dict
-                        #dictionary, which is used to track and save all changes from triggers in general
-                        #the trigger methods for the 'updated_peripherally' attributes take an extra argument,
-                        #the trigger_generated_data_dict, and must initialize this dictionary with the value for
-                        #the attribute from the existing_data_dict as well as make any updates to this attribute
-                        #within this dictionary and return it so it can be saved in the scope of this loop and
-                        #passed to other 'updated_peripherally' triggers
-                        if 'updated_peripherally' in properties[key] and properties[key]['updated_peripherally']: 
-                            trigger_method_to_call(key, normalized_class, user_token, existing_data_dict, {}, trigger_generated_data_dict)
-                        else:
-                            trigger_method_to_call(key, normalized_class, user_token, existing_data_dict, {})
+                        trigger_method_to_call(key, normalized_class, user_token, existing_data_dict, {})
                     except Exception:
                         msg = "Failed to call the " + trigger_type + " method: " + trigger_method_name
                         # Log the full stack trace, prepend a line with our message
