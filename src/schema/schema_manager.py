@@ -233,7 +233,6 @@ def generate_triggered_data(trigger_type, normalized_class, user_token, existing
                             trigger_method_to_call(key, normalized_class, user_token, existing_data_dict, {}, trigger_generated_data_dict)
                         else:
                             trigger_method_to_call(key, normalized_class, user_token, existing_data_dict, {})
-            
                     except Exception:
                         msg = "Failed to call the " + trigger_type + " method: " + trigger_method_name
                         # Log the full stack trace, prepend a line with our message
@@ -273,7 +272,6 @@ def generate_triggered_data(trigger_type, normalized_class, user_token, existing
                             target_key, target_value = trigger_method_to_call(key, normalized_class, user_token, existing_data_dict, new_data_dict)
                             trigger_generated_data_dict[target_key] = target_value
                             
-
                             # Meanwhile, set the original property as None if target_key is different
                             # This is especially important when the returned target_key is different from the original key
                             # Because we'll be merging this trigger_generated_data_dict with the original user input
@@ -327,7 +325,6 @@ def generate_triggered_data(trigger_type, normalized_class, user_token, existing
                         # and this will overwrite the original key so it doesn't get stored in Neo4j
                         if key != target_key:
                             trigger_generated_data_dict[key] = None
-                            
                 except schema_errors.NoDataProviderGroupException as e:
                     msg = f"Failed to call the {trigger_type} method: {trigger_method_name}"
                     # Log the full stack trace, prepend a line with our message

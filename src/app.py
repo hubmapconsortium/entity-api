@@ -774,11 +774,11 @@ def create_entity(entity_type):
 
         # Also check existence of the previous verion dataset if specified
         if 'previous_version_uuid' in json_data_dict:
-        	previous_version_dict = query_target_entity(json_data_dict['previous_version_uuid'], user_token)
+            previous_version_dict = query_target_entity(json_data_dict['previous_version_uuid'], user_token)
 
-        	# Make sure the previous version entity is either a Dataset or Sample
-        	if previous_version_dict['entity_type'] not in ['Dataset', 'Sample']:
-        		bad_request_error(f"The previous_version_uuid specified for this dataset must be either a Dataset or Sample")
+            # Make sure the previous version entity is either a Dataset or Sample
+            if previous_version_dict['entity_type'] not in ['Dataset', 'Sample']:
+                bad_request_error(f"The previous_version_uuid specified for this dataset must be either a Dataset or Sample")
 
         # Generate 'before_create_triiger' data and create the entity details in Neo4j
         merged_dict = create_entity_details(request, normalized_entity_type, user_token, json_data_dict)
@@ -1758,9 +1758,9 @@ def create_entity_details(request, normalized_entity_type, user_token, json_data
         # Log the full stack trace, prepend a line with our message
         logger.exception(e)
         bad_request_error(e)
-    except Exception as ex:
-        logger.exception(ex)
-        internal_server_error(ex)
+    except Exception as e:
+        logger.exception(e)
+        internal_server_error(e)
 
     # Merge the user json data and generated trigger data into one dictionary
     merged_dict = {**json_data_dict, **generated_before_create_trigger_data_dict}
@@ -1886,6 +1886,9 @@ def create_multiple_samples_details(request, normalized_entity_type, user_token,
         # Log the full stack trace, prepend a line with our message
         logger.exception(e)
         bad_request_error(e)
+    except Exception as e:
+        logger.exception(e)
+        internal_server_error(e)
 
     # Merge the user json data and generated trigger data into one dictionary
     merged_dict = {**json_data_dict, **generated_before_create_trigger_data_dict}
@@ -1946,6 +1949,9 @@ def after_create(normalized_entity_type, user_token, merged_data_dict):
         msg = "The entity has been created, but failed to execute one of the 'after_create_trigger' methods"
         logger.exception(msg)
         internal_server_error(msg)
+    except Exception as e:
+        logger.exception(e)
+        internal_server_error(e)
 
 
 """
@@ -1988,6 +1994,9 @@ def update_entity_details(request, normalized_entity_type, user_token, json_data
         msg = "Failed to execute one of the 'before_update_trigger' methods, can't update the entity"
         logger.exception(msg)
         internal_server_error(msg)
+    except Exception as e:
+        logger.exception(e)
+        internal_server_error(e)
 
     # Merge dictionaries
     merged_dict = {**json_data_dict, **generated_before_update_trigger_data_dict}
@@ -2045,6 +2054,9 @@ def after_update(normalized_entity_type, user_token, entity_dict):
         msg = "The entity information has been updated, but failed to execute one of the 'after_update_trigger' methods"
         logger.exception(msg)
         internal_server_error(msg)
+    except Exception as e:
+        logger.exception(e)
+        internal_server_error(e)
 
 
 """
