@@ -747,6 +747,15 @@ def create_entity(entity_type):
     # Sample and Dataset: additional validation, create entity, after_create_trigger
     # Collection and Donor: create entity
     if normalized_entity_type == 'Sample':
+        # A bit more validation to ensure if `organ` code is set, the `specimen_type` must be set to "organ"
+        # Vise versa, if `specimen_type` is set to "organ", `organ` code is required
+        if ('specimen_type' in json_data_dict) and (json_data_dict['specimen_type'].lower() == 'organ'):
+            if ('organ' not in json_data_dict) or (json_data_dict['organ'].strip() == ''):
+                bad_request_error("A valid organ code is required when the specimen_type is organ")
+        else:
+            if 'organ' in json_data_dict: 
+                bad_request_error("The specimen_type must be organ when an organ code is provided")
+
         # A bit more validation for new sample to be linked to existing source entity
         direct_ancestor_uuid = json_data_dict['direct_ancestor_uuid']
         # Check existence of the direct ancestor (either another Sample or Donor)
@@ -761,8 +770,8 @@ def create_entity(entity_type):
                 bad_request_error("The specimen_type must be organ since the direct ancestor is a Donor")
 
             # Currently we don't validate the provided organ code though
-            if ('organ' not in json_data_dict) or (not json_data_dict['organ']):
-                bad_request_error("A valid organ code is required since the direct ancestor is a Donor")
+            if ('organ' not in json_data_dict) or (json_data_dict['organ'].strip() == ''):
+                bad_request_error("A valid organ code is required when the direct ancestor is a Donor")
 
         # Generate 'before_create_triiger' data and create the entity details in Neo4j
         merged_dict = create_entity_details(request, normalized_entity_type, user_token, json_data_dict)
