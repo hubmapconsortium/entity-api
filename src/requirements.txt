@@ -1,13 +1,12 @@
-cachetools>=4.2.1
-Flask>=1.1.2
-neo4j>=4.2.1
-prov>=2.0.0
-Werkzeug>=1.0.1
+cachetools==4.2.1
+Flask==1.1.2
+neo4j==4.2.1
+prov==2.0.0
+Werkzeug==1.0.1
 
-# It's an agreement with other collaborators to use the beblow versions
-# for requests and PyYAML
-requests>=2.22.0
-PyYAML>=5.3.1
+# The commons package requires requests>=2.22.0 and PyYAML>=5.3.1
+requests==2.25.1
+PyYAML==5.4.1
 
 # The branch name of commons to be used during image build
 # Default is master branch specified in docker-compose.yml if not set
