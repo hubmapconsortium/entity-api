@@ -2,9 +2,12 @@
 src/instance/app.cfg
 *~
 
-# Ignore copied over folders
+# Ignore copied files
 docker/entity-api/src
+docker/entity-api/VERSION
+docker/entity-api/BUILD
 
+# Ignore the generated BUILD file
 BUILD
 
 # Ignore the docker mounted BUILD and VERSION
