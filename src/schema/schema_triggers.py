@@ -1159,6 +1159,108 @@ def get_sample_direct_ancestor(property_key, normalized_type, user_token, existi
     return property_key, schema_manager.normalize_entity_result_for_response(complete_dict)
 
 
+
+####################################################################################################
+## Trigger methods specific to Collection - DO NOT RENAME
+####################################################################################################
+
+"""
+Trigger event method of setting the DataSubmission initial status - "New"
+
+Parameters
+----------
+property_key : str
+    The target property key of the value to be generated
+normalized_type : str
+    One of the types defined in the schema yaml: Activity, Collection, Donor, Sample, Dataset
+user_token: str
+    The user's globus nexus token
+existing_data_dict : dict
+    A dictionary that contains all existing entity properties
+new_data_dict : dict
+    A merged dictionary that contains all possible input data to be used
+
+Returns
+-------
+str: The target property key
+str: The "New" status
+"""
+def set_data_submission_status_new(property_key, normalized_type, user_token, existing_data_dict, new_data_dict):
+    return property_key, 'New'
+
+
+"""
+Trigger event method of building linkage between this new DataSubmission and Lab
+Parameters
+----------
+property_key : str
+    The target property key
+normalized_type : str
+    One of the types defined in the schema yaml: Activity, Collection, Donor, Sample, Dataset
+user_token: str
+    The user's globus nexus token
+existing_data_dict : dict
+    A dictionary that contains all existing entity properties
+new_data_dict : dict
+    A merged dictionary that contains all possible input data to be used
+"""
+def link_data_submission_to_lab(property_key, normalized_type, user_token, existing_data_dict, new_data_dict):
+    if 'uuid' not in existing_data_dict:
+        raise KeyError("Missing 'uuid' key in 'existing_data_dict' during calling 'link_data_submission_to_lab()' trigger method.")
+
+    if 'group_uuid' not in existing_data_dict:
+        raise KeyError("Missing 'group_uuid' key in 'existing_data_dict' during calling 'link_data_submission_to_lab()' trigger method.")
+
+    # Build a list of direct ancestor uuids
+    # Only one uuid in the list in this case
+    direct_ancestor_uuids = [existing_data_dict['group_uuid']]
+
+    # Generate property values for Activity
+    # Only one Activity in this case, using the default count = 1
+    activity_data_dict_list = schema_manager.generate_activity_data(normalized_type, user_token, existing_data_dict)
+
+    try:
+        # Create a linkage (via Activity node) 
+        # between the DataSubmission node and the parent Lab node in neo4j
+        schema_neo4j_queries.link_entity_to_direct_ancestors(schema_manager.get_neo4j_driver_instance(), existing_data_dict['uuid'], direct_ancestor_uuids, activity_data_dict_list)
+    except TransactionError:
+        # No need to log
+        raise
+
+
+"""
+Trigger event method of getting a list of associated datasets for a given DataSubmission
+Parameters
+----------
+property_key : str
+    The target property key of the value to be generated
+normalized_type : str
+    One of the types defined in the schema yaml: Activity, Collection, Donor, Sample, Dataset
+user_token: str
+    The user's globus nexus token
+existing_data_dict : dict
+    A dictionary that contains all existing entity properties
+new_data_dict : dict
+    A merged dictionary that contains all possible input data to be used
+Returns
+-------
+str: The target property key
+list: A list of associated dataset dicts with all the normalized information
+"""
+def get_data_submission_datasets(property_key, normalized_type, user_token, existing_data_dict, new_data_dict):
+    if 'uuid' not in existing_data_dict:
+        raise KeyError("Missing 'uuid' key in 'existing_data_dict' during calling 'get_collection_datasets()' trigger method.")
+
+    datasets_list = schema_neo4j_queries.get_data_submission_datasets(schema_manager.get_neo4j_driver_instance(), existing_data_dict['uuid'])
+
+    # Additional properties of the datasets to exclude 
+    # We don't want to show too much nested information
+    properties_to_skip = ['direct_ancestors', 'collections']
+    complete_entities_list = schema_manager.get_complete_entities_list(user_token, datasets_list, properties_to_skip)
+
+    return property_key, schema_manager.normalize_entities_list_for_response(complete_entities_list)
+
+
 ####################################################################################################
 ## Trigger methods specific to Activity - DO NOT RENAME
 ####################################################################################################

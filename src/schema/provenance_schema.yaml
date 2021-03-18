@@ -585,33 +585,32 @@ ENTITIES:
         # which are potentially updated by multiple triggers
         updated_peripherally: true
 
-  ############################################# Sample #############################################
+  ############################################# DataSubmission #############################################
   DataSubmission:
-    # TODO: Zhou, not sure what these derivation properties should be set to.  DataSubmission
-    #       requires an ancestor of Lab, and and has no allowed decesndents 
+    # DataSubmission requires an ancestor of Lab, and and has no allowed decesndents 
     derivation:
       source: false
-      target: false
+      target: false # Set to false since the schema doesn't handle Lab currently
     properties:
       <<: *shared_properties
       <<: *shared_entity_properties
       description:
         type: string
-	required_on_create: true
+        required_on_create: true
         description: "Free text description of the data being submitted."
       title:
-	type: string
-	required_on_create: true
-	description: "Title of the datasets, a sentance or less"
+        type: string
+        required_on_create: true
+        description: "Title of the datasets, a sentance or less"
       status:
         type: string
         generated: true
         description: "One of: New|Valid|Invalid|Error|Submitted"
-	#trigger will set the status to "New" on create
-        before_create_trigger: set_datasubmission_status_new
+        # Trigger method will set the status to "New" on create
+        before_create_trigger: set_data_submission_status_new
       validation_message:
         type: string
-	description: A message from the validataion tools describing what is invalid with the submission.
+        description: A message from the validataion tools describing what is invalid with the submission.
       group_uuid:
         type: string
         immutable: true
@@ -627,23 +626,22 @@ ENTITIES:
         description: "The displayname of globus group which the user who created this entity is a member of"
         before_create_trigger: set_group_name
 
-      #transient attribute used to pass in a list of dataset ids to be linked to the data submisison
-      #datasets will be added only via PUT/update never on POST/create
+      #transient attribute used to pass in a list of dataset ids to be linked to the DataSubmisison node
+      #datasets will be added only via PUT/update, NEVER on POST/create
       dataset_uuids_to_add:
-	type: string
         type: list 
         transient: true
         exposed: false
         description: 'List of datasets to add to the data submission. Provide as a json array of the dataset uuids like: ["232934234234234234234270c0ea6c51d604a850558ef2247d0b4", "230948203482234234234a57bfe9c056d08a0f8e6cd612baa3bfa"]'
         before_update_trigger: add_datasets_to_data_submission
-      #transient attribute used to pass in a list of dataset ids of datasets to be removed from a data submission
+      
+      #transient attribute used to pass in a list of dataset ids of datasets to be removed from a DataSubmisison
       dataset_uuids_to_remove:
-	type: string
         type: list 
         transient: true
         exposed: false
         description: 'List of datasets to remove from a data submission. Provide as a json array of the dataset uuids like: ["232934234234234234234270c0ea6c51d604a850558ef2247d0b4", "230948203482234234234a57bfe9c056d08a0f8e6cd612baa3bfa"]'
-        before_update_trigger: remove_datasets_from_data_submission	
+        before_update_trigger: remove_datasets_from_data_submission 
       datasets:
         type: list
         transient: true

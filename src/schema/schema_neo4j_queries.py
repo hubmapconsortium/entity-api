@@ -277,7 +277,7 @@ uuid : str
 Returns
 -------
 list
-    The list comtaining associated dataset dicts
+    The list containing associated dataset dicts
 """
 def get_collection_datasets(neo4j_driver, uuid):
     results = []
@@ -298,6 +298,43 @@ def get_collection_datasets(neo4j_driver, uuid):
         results = _nodes_to_dicts(record[record_field_name])
 
     return results
+
+
+"""
+Get a list of associated dataset dicts for a given collection
+
+Parameters
+----------
+neo4j_driver : neo4j.Driver object
+    The neo4j database connection pool
+uuid : str
+    The uuid of collection
+
+Returns
+-------
+list
+    The list containing associated dataset dicts
+"""
+def get_data_submission_datasets(neo4j_driver, uuid):
+    results = []
+
+    query = (f"MATCH (e:Entity)-[:IN_SUBMISSION]->(c:DataSubmission) "
+             f"WHERE c.uuid = '{uuid}' "
+             f"RETURN apoc.coll.toSet(COLLECT(e)) AS {record_field_name}")
+
+    logger.debug("======get_data_submission_datasets() query======")
+    logger.debug(query)
+
+    record = None
+    with neo4j_driver.session() as session:
+        record = session.read_transaction(_execute_readonly_tx, query)
+
+    if record:
+        # Convert the list of nodes to a list of dicts
+        results = _nodes_to_dicts(record[record_field_name])
+
+    return results
+
 
 """
 Get count of published Dataset in the provenance hierarchy for a given Sample/Donor
