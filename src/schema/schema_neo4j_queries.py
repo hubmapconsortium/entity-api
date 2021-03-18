@@ -264,6 +264,45 @@ def get_dataset_collections(neo4j_driver, uuid, property_key = None):
 
     return results
 
+
+"""
+Get the associated DataSubmission for a given dataset
+
+Parameters
+----------
+neo4j_driver : neo4j.Driver object
+    The neo4j database connection pool
+uuid : str
+    The uuid of dataset
+property_key : str
+    A target property key for result filtering
+
+Returns
+-------
+dict
+    A DataSubmission dict
+"""
+def get_dataset_data_submission(neo4j_driver, uuid, property_key = None):
+    result = {}
+
+    query = (f"MATCH (e:Entity)-[:IN_SUBMISSION]->(ds:DataSubmission) "
+             f"WHERE e.uuid = '{uuid}' "
+             f"RETURN ds AS {record_field_name}")
+
+    logger.debug("======get_dataset_data_submission() query======")
+    logger.debug(query)
+
+    record = None
+    with neo4j_driver.session() as session:
+        record = session.read_transaction(_execute_readonly_tx, query)
+
+    if record:
+        # Convert the node to a dict
+        result = _node_to_dict(record[record_field_name])
+
+    return result
+
+
 """
 Get a list of associated dataset dicts for a given collection
 
@@ -298,6 +337,101 @@ def get_collection_datasets(neo4j_driver, uuid):
         results = _nodes_to_dicts(record[record_field_name])
 
     return results
+
+
+"""
+Link the dataset nodes to the target DataSubmission node
+
+Parameters
+----------
+neo4j_driver : neo4j.Driver object
+    The neo4j database connection pool
+data_submission_uuid : str
+    The uuid of target DataSubmission 
+dataset_uuids_list : list
+    A list of dataset uuids to be linked to DataSubmission
+"""
+def link_datasets_to_data_submission(neo4j_driver, data_submission_uuid, dataset_uuids_list):
+    # Join the list of uuids and wrap each string in single quote
+    joined_str = ', '.join("'{0}'".format(dataset_uuid) for dataset_uuid in dataset_uuids_list)
+    # Format a string to be used in Cypher query.
+    # E.g., ['fb6757b606ac35be7fa85062fde9c2e1', 'ku0gd44535be7fa85062fde98gt5']
+    dataset_uuids_list_str = '[' + joined_str + ']'
+
+    try:
+        with neo4j_driver.session() as session:
+            tx = session.begin_transaction()
+
+            logger.info("Create relationships between the target DataSubmission and the given Datasets")
+
+            query = (f"MATCH (ds:DataSubmission), (d:Dataset) "
+                     f"WHERE ds.uuid = '{data_submission_uuid}' AND d.uuid IN {dataset_uuids_list_str} "
+                     # Use MERGE instead of CREATE to avoid creating the relationship multiple times
+                     # MERGE creates the relationship only if there is no existing relationship
+                     f"MERGE (ds)<-[r:IN_SUBMISSION]-(d)") 
+
+            logger.debug("======link_datasets_to_data_submission() query======")
+            logger.debug(query)
+
+            tx.run(query)
+            tx.commit()
+    except TransactionError as te:
+        msg = f"TransactionError from calling link_datasets_to_data_submission(): {te.value}"
+        # Log the full stack trace, prepend a line with our message
+        logger.exception(msg)
+
+        if tx.closed() == False:
+            logger.info("Failed to commit link_datasets_to_data_submission() transaction, rollback")
+
+            tx.rollback()
+
+        raise TransactionError(msg)
+
+"""
+Unlink the dataset nodes from the target DataSubmission node
+
+Parameters
+----------
+neo4j_driver : neo4j.Driver object
+    The neo4j database connection pool
+data_submission_uuid : str
+    The uuid of target DataSubmission 
+dataset_uuids_list : list
+    A list of dataset uuids to be unlinked from DataSubmission
+"""
+def unlink_datasets_from_data_submission(neo4j_driver, data_submission_uuid, dataset_uuids_list):
+    # Join the list of uuids and wrap each string in single quote
+    joined_str = ', '.join("'{0}'".format(dataset_uuid) for dataset_uuid in dataset_uuids_list)
+    # Format a string to be used in Cypher query.
+    # E.g., ['fb6757b606ac35be7fa85062fde9c2e1', 'ku0gd44535be7fa85062fde98gt5']
+    dataset_uuids_list_str = '[' + joined_str + ']'
+
+    try:
+        with neo4j_driver.session() as session:
+            tx = session.begin_transaction()
+
+            logger.info("Delete relationships between the target DataSubmission and the given Datasets")
+
+            query = (f"MATCH (ds:DataSubmission)<-[r:IN_SUBMISSION]-(d:Dataset) "
+                     f"WHERE ds.uuid = '{data_submission_uuid}' AND d.uuid IN {dataset_uuids_list_str} "
+                     f"DELETE r") 
+
+            logger.debug("======unlink_datasets_from_data_submission() query======")
+            logger.debug(query)
+
+            tx.run(query)
+            tx.commit()
+    except TransactionError as te:
+        msg = f"TransactionError from calling unlink_datasets_from_data_submission(): {te.value}"
+        # Log the full stack trace, prepend a line with our message
+        logger.exception(msg)
+
+        if tx.closed() == False:
+            logger.info("Failed to commit unlink_datasets_from_data_submission() transaction, rollback")
+
+            tx.rollback()
+
+        raise TransactionError(msg)
 
 
 """

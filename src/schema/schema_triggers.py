@@ -666,7 +666,7 @@ def update_dataset_and_ancestors_data_access_level(property_key, normalized_type
         
 
 """
-Trigger event method of getting a list of collections for this new Dtaset
+Trigger event method of getting a list of collections for this new Dataset
 
 Parameters
 ----------
@@ -700,6 +700,41 @@ def get_dataset_collections(property_key, normalized_type, user_token, existing_
     complete_entities_list = schema_manager.get_complete_entities_list(user_token, collections_list, properties_to_skip)
 
     return property_key, schema_manager.normalize_entities_list_for_response(complete_entities_list)
+
+"""
+Trigger event method of getting the associated DataSubmission for this Dataset
+
+Parameters
+----------
+property_key : str
+    The target property key
+normalized_type : str
+    One of the types defined in the schema yaml: Activity, Collection, Donor, Sample, Dataset
+user_token: str
+    The user's globus nexus token
+existing_data_dict : dict
+    A dictionary that contains all existing entity properties
+new_data_dict : dict
+    A merged dictionary that contains all possible input data to be used
+
+Returns
+-------
+str: The target property key
+dict: A dict of associated DataSubmission detail with all the normalized information
+"""
+def get_dataset_data_submission(property_key, normalized_type, user_token, existing_data_dict, new_data_dict):
+    if 'uuid' not in existing_data_dict:
+        raise KeyError("Missing 'uuid' key in 'existing_data_dict' during calling 'get_dataset_collections()' trigger method.")
+
+    data_submission_dict = schema_neo4j_queries.get_dataset_data_submission(schema_manager.get_neo4j_driver_instance(), existing_data_dict['uuid'])
+
+    # Exclude datasets from each resulting DataSubmission
+    # We don't want to show too much nested information
+    properties_to_skip = ['datasets']
+    complete_entities_list = schema_manager.get_complete_entities_list(user_token, collections_list, properties_to_skip)
+
+    return property_key, schema_manager.normalize_entities_list_for_response(complete_entities_list)
+
 
 """
 Trigger event method of creating or recreating linkages between this new Dataset and its direct ancestors
@@ -1161,7 +1196,7 @@ def get_sample_direct_ancestor(property_key, normalized_type, user_token, existi
 
 
 ####################################################################################################
-## Trigger methods specific to Collection - DO NOT RENAME
+## Trigger methods specific to DataSubmission - DO NOT RENAME
 ####################################################################################################
 
 """
@@ -1227,9 +1262,71 @@ def link_data_submission_to_lab(property_key, normalized_type, user_token, exist
         # No need to log
         raise
 
+"""
+Trigger event method of building linkages between this DataSubmission and the given datasets
+
+Parameters
+----------
+property_key : str
+    The target property key
+normalized_type : str
+    One of the types defined in the schema yaml: Activity, Collection, Donor, Sample, Dataset
+user_token: str
+    The user's globus nexus token
+existing_data_dict : dict
+    A dictionary that contains all existing entity properties
+new_data_dict : dict
+    A merged dictionary that contains all possible input data to be used
+"""
+def link_datasets_to_data_submission(property_key, normalized_type, user_token, existing_data_dict, new_data_dict):
+    if 'uuid' not in existing_data_dict:
+        raise KeyError("Missing 'uuid' key in 'existing_data_dict' during calling 'link_datasets_to_data_submission()' trigger method.")
+
+    if 'dataset_uuids_to_add' not in existing_data_dict:
+        raise KeyError("Missing 'dataset_uuids_to_add' key in 'existing_data_dict' during calling 'link_datasets_to_data_submission()' trigger method.")
+
+    try:
+        # Create a direct linkage (Dataset) - [:IN_SUBMISSION] -> (DataSubmission) for each dataset
+        schema_neo4j_queries.link_datasets_to_data_submission(schema_manager.get_neo4j_driver_instance(), existing_data_dict['uuid'], existing_data_dict['dataset_uuids_to_link'])
+    except TransactionError:
+        # No need to log
+        raise
+
+
+"""
+Trigger event method of deleting linkages between this target DataSubmission and the given datasets
+
+Parameters
+----------
+property_key : str
+    The target property key
+normalized_type : str
+    One of the types defined in the schema yaml: Activity, Collection, Donor, Sample, Dataset
+user_token: str
+    The user's globus nexus token
+existing_data_dict : dict
+    A dictionary that contains all existing entity properties
+new_data_dict : dict
+    A merged dictionary that contains all possible input data to be used
+"""
+def unlink_datasets_from_data_submission(property_key, normalized_type, user_token, existing_data_dict, new_data_dict):
+    if 'uuid' not in existing_data_dict:
+        raise KeyError("Missing 'uuid' key in 'existing_data_dict' during calling 'unlink_datasets_from_data_submission()' trigger method.")
+
+    if 'dataset_uuids_to_add' not in existing_data_dict:
+        raise KeyError("Missing 'dataset_uuids_to_add' key in 'existing_data_dict' during calling 'unlink_datasets_from_data_submission()' trigger method.")
+
+    try:
+        # Delete the linkage (Dataset) - [:IN_SUBMISSION] -> (DataSubmission) for each dataset
+        schema_neo4j_queries.unlink_datasets_from_data_submission(schema_manager.get_neo4j_driver_instance(), existing_data_dict['uuid'], existing_data_dict['dataset_uuids_to_unlink'])
+    except TransactionError:
+        # No need to log
+        raise
+
 
 """
 Trigger event method of getting a list of associated datasets for a given DataSubmission
+
 Parameters
 ----------
 property_key : str
@@ -1269,13 +1366,11 @@ def get_data_submission_datasets(property_key, normalized_type, user_token, exis
 Trigger event method of getting creation_action for Activity
 
 Lab->Activity->Donor (Not needed for now)
+Lab->Activity->DataSubmission
 Donor->Activity->Sample
 Sample->Activity->Sample
 Sample->Activity->Dataset
 Dataset->Activity->Dataset
-
-Register Donor Activity
-Create Sample Activity
 
 Parameters
 ----------

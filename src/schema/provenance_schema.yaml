@@ -237,6 +237,12 @@ ENTITIES:
         generated: true
         description: "A list of collections that this dataset belongs to. Will be returned in response"
         on_read_trigger: get_dataset_collections
+      data_submission:
+        type: json_string # dict
+        transient: true
+        generated: true
+        description: "The DataSubmission that this dataset is associated with. Will be returned in response"
+        on_read_trigger: get_dataset_data_submission
       contributors:
         type: list
         description: "A list of people who contributed to the creation of this dataset.  Returned as an array of contributor where the structure of a contributor is"
@@ -625,26 +631,28 @@ ENTITIES:
         immutable: true
         description: "The displayname of globus group which the user who created this entity is a member of"
         before_create_trigger: set_group_name
-
       #transient attribute used to pass in a list of dataset ids to be linked to the DataSubmisison node
       #datasets will be added only via PUT/update, NEVER on POST/create
-      dataset_uuids_to_add:
+      dataset_uuids_to_link:
         type: list 
+        generated: true # Disallow user input from request json when being created
         transient: true
         exposed: false
         description: 'List of datasets to add to the data submission. Provide as a json array of the dataset uuids like: ["232934234234234234234270c0ea6c51d604a850558ef2247d0b4", "230948203482234234234a57bfe9c056d08a0f8e6cd612baa3bfa"]'
-        before_update_trigger: add_datasets_to_data_submission
-      
+        # Use after_update_trigger instead of before_update_trigger since we are not updating this property
+        after_update_trigger: link_datasets_to_data_submission 
       #transient attribute used to pass in a list of dataset ids of datasets to be removed from a DataSubmisison
-      dataset_uuids_to_remove:
+      dataset_uuids_to_unlink:
         type: list 
+        generated: true # Disallow user input from request json when being created
         transient: true
         exposed: false
         description: 'List of datasets to remove from a data submission. Provide as a json array of the dataset uuids like: ["232934234234234234234270c0ea6c51d604a850558ef2247d0b4", "230948203482234234234a57bfe9c056d08a0f8e6cd612baa3bfa"]'
-        before_update_trigger: remove_datasets_from_data_submission 
+        # Use after_update_trigger instead of before_update_trigger since we are not updating this property
+        after_update_trigger: unlink_datasets_from_data_submission 
       datasets:
         type: list
+        generated: true # Disallow user input from request json when being created
         transient: true
-        generated: true
         description: "The datasets that are contained in this data submission."
         on_read_trigger: get_data_submission_datasets
