@@ -1774,10 +1774,11 @@ def create_entity_details(request, normalized_entity_type, user_token, json_data
     # Merge the user json data and generated trigger data into one dictionary
     merged_dict = {**json_data_dict, **generated_before_create_trigger_data_dict}
 
-    # Filter out the merged_dict by getting rid of the properties with None value
+    # Filter out the merged_dict by getting rid of the transitent properties (not to be stored) 
+    # and properties with None value
     # Meaning the returned target property key is different from the original key 
     # in the trigger method, e.g., Donor.image_files_to_add
-    filtered_merged_dict = schema_manager.remove_none_values(merged_dict)
+    filtered_merged_dict = schema_manager.remove_transient_and_none_values(merged_dict, normalized_entity_type)
     
     # Create new entity
     try:
@@ -1902,10 +1903,11 @@ def create_multiple_samples_details(request, normalized_entity_type, user_token,
     # Merge the user json data and generated trigger data into one dictionary
     merged_dict = {**json_data_dict, **generated_before_create_trigger_data_dict}
 
-    # Filter out the merged_dict by getting rid of the properties with None value
+    # Filter out the merged_dict by getting rid of the transitent properties (not to be stored) 
+    # and properties with None value
     # Meaning the returned target property key is different from the original key 
     # in the trigger method, e.g., Donor.image_files_to_add
-    filtered_merged_dict = schema_manager.remove_none_values(merged_dict)
+    filtered_merged_dict = schema_manager.remove_transient_and_none_values(merged_dict, normalized_entity_type)
 
     samples_dict_list = []
     for new_ids_dict in new_ids_dict_list:
@@ -2010,10 +2012,11 @@ def update_entity_details(request, normalized_entity_type, user_token, json_data
     # Merge dictionaries
     merged_dict = {**json_data_dict, **generated_before_update_trigger_data_dict}
 
-    # Filter out the merged_dict by getting rid of the properties with None value
+    # Filter out the merged_dict by getting rid of the transitent properties (not to be stored) 
+    # and properties with None value
     # Meaning the returned target property key is different from the original key 
     # in the trigger method, e.g., Donor.image_files_to_add
-    filtered_merged_dict = schema_manager.remove_none_values(merged_dict)
+    filtered_merged_dict = schema_manager.remove_transient_and_none_values(merged_dict, normalized_entity_type)
 
     # By now the filtered_merged_dict contains all user updates and all triggered data to be added to the entity node
     # Any properties in filtered_merged_dict that are not on the node will be added.

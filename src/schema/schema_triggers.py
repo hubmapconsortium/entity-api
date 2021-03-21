@@ -872,10 +872,10 @@ str: The uuid string of source entity
 """
 def link_to_previous_revision(property_key, normalized_type, user_token, existing_data_dict, new_data_dict):
     if 'uuid' not in existing_data_dict:
-        raise KeyError("Missing 'uuid' key in 'existing_data_dict' during calling 'link_to_previous_version_dataset()' trigger method.")
+        raise KeyError("Missing 'uuid' key in 'existing_data_dict' during calling 'link_to_previous_revision()' trigger method.")
 
     if 'previous_revision_uuid' not in existing_data_dict:
-        raise KeyError("Missing 'previous_revision_dataset_uuid' key in 'existing_data_dict' during calling 'link_to_previous_version_dataset()' trigger method.")
+        raise KeyError("Missing 'previous_revision_uuid' key in 'existing_data_dict' during calling 'link_to_previous_revision()' trigger method.")
 
     # Create a revision reltionship from this new Dataset node and its previous revision of dataset node in neo4j
     try:
