@@ -729,27 +729,8 @@ def link_dataset_to_direct_ancestors(property_key, normalized_type, user_token, 
     if 'direct_ancestor_uuids' not in existing_data_dict:
         raise KeyError("Missing 'direct_ancestor_uuids' key in 'existing_data_dict' during calling 'link_dataset_to_direct_ancestors()' trigger method.")
 
-    # Important: existing_data_dict['direct_ancestor_uuids'] is stored as a string literal in neo4j, 
-    # not an array. We need to convert it into a Python list.
-    direct_ancestor_uuids = []
-    property_value = existing_data_dict['direct_ancestor_uuids']
-    
-    if isinstance(property_value, str):
-        # ast uses compile to compile the source string (which must be an expression) into an AST
-        # If the source string is not a valid expression (like an empty string), a SyntaxError will be raised by compile
-        # If, on the other hand, the source string would be a valid expression (e.g. a variable name like foo), 
-        # compile will succeed but then literal_eval() might fail with a ValueError
-        # Also this fails with a TypeError: literal_eval("{{}: 'value'}")
-        try:
-            direct_ancestor_uuids = ast.literal_eval(property_value)
-        except (SyntaxError, ValueError, TypeError) as e:
-            msg = "Invalid expression (string value) of key: direct_ancestor_uuids for ast.literal_eval()"
-            logger.debug(msg)
-            logger.debug(property_value)
-            logger.exception(msg)
+    direct_ancestor_uuids = existing_data_dict['direct_ancestor_uuids']
 
-            raise ValueError(msg)
-    
     # Generate property values for each Activity node
     count = len(direct_ancestor_uuids)
     activity_data_dict_list = schema_manager.generate_activity_data(normalized_type, user_token, existing_data_dict, count)

@@ -1793,10 +1793,15 @@ def create_entity_details(request, normalized_entity_type, user_token, json_data
         # Terminate and let the users know
         internal_server_error(msg)
 
-    # Add user_info_dict because it may be used by after_update_trigger methods
+    
     # Important: use `entity_dict` instead of `filtered_merged_dict` to keep consistent with the stored
-    # string expression literals of Python list/dict being used with entity update
-    merged_final_dict = {**entity_dict, **user_info_dict}
+    # string expression literals of Python list/dict being used with entity update, e.g., `image_files`
+    # Important: the same property keys in entity_dict will overwrite the same key in json_data_dict
+    # and this is what we wanted. Adding json_data_dict back is to include those `transient` properties
+    # provided in the JSON input but not stored in neo4j, and will be needed for after_create_trigger/after_update_trigger,
+    # e.g., `previous_revision_uuid`, `direct_ancestor_uuids`
+    # Add user_info_dict because it may be used by after_update_trigger methods
+    merged_final_dict = {**json_data_dict, **entity_dict, **user_info_dict}
 
     # Note: return merged_final_dict instead of entity_dict because 
     # it contains all the user json data that the generated that entity_dict may not have
@@ -2033,11 +2038,14 @@ def update_entity_details(request, normalized_entity_type, user_token, json_data
         # Terminate and let the users know
         internal_server_error(msg)
 
-    # The duplicate key-value pairs existing in json_data_dict get replaced by the same key-value pairs
-    # from the updated_entity_dict, but json_data_dict may contain keys that are not in json_data_dict
-    # E.g., direct_ancestor_uuids for Dataset and direct_ancestor_uuid for Sample, both are transient properties
+    # Important: use `updated_entity_dict` instead of `filtered_merged_dict` to keep consistent with the stored
+    # string expression literals of Python list/dict being used with entity update, e.g., `image_files`
+    # Important: the same property keys in entity_dict will overwrite the same key in json_data_dict
+    # and this is what we wanted. Adding json_data_dict back is to include those `transient` properties
+    # provided in the JSON input but not stored in neo4j, and will be needed for after_create_trigger/after_update_trigger,
+    # e.g., `previous_revision_uuid`, `direct_ancestor_uuids`
     # Add user_info_dict because it may be used by after_update_trigger methods
-    merged_final_dict = {**json_data_dict, **user_info_dict, **updated_entity_dict}
+    merged_final_dict = {**json_data_dict, **updated_entity_dict, **user_info_dict}
 
     # Use merged_final_dict instead of merged_dict because 
     # merged_dict only contains properties to be updated, not all properties
