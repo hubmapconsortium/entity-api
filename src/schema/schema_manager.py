@@ -369,14 +369,14 @@ dict
     A filtered dict that removed all properties with None values
 """
 def remove_transient_and_none_values(merged_dict, normalized_entity_type):
-	global _schema
+    global _schema
 
     properties = _schema['ENTITIES'][normalized_entity_type]['properties']
 
     filtered_dict = {}
     for k, v in merged_dict.items():
-    	# Only keep the properties that don't have `transitent` flag or are marked as `transitent: false`
-    	# and at the same time the property value is not None
+        # Only keep the properties that don't have `transitent` flag or are marked as `transitent: false`
+        # and at the same time the property value is not None
         if (('transient' not in properties[k]) or ('transient' in properties[k] and not properties[k]['transient'])) and (v is not None):
             filtered_dict[k] = v 
 
