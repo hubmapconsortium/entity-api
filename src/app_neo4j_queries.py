@@ -661,6 +661,109 @@ def get_children(neo4j_driver, uuid, property_key = None):
 
     return results
 
+
+"""
+Get all previous revisions of the target entity by uuid
+
+Parameters
+----------
+neo4j_driver : neo4j.Driver object
+    The neo4j database connection pool
+uuid : str
+    The uuid of target entity 
+property_key : str
+    A target property key for result filtering
+
+Returns
+-------
+dict
+    A list of unique previous revisions dictionaries returned from the Cypher query
+"""
+def get_previous_revisions(neo4j_driver, uuid, property_key = None):
+    results = []
+
+    if property_key:
+        query = (f"MATCH (e:Entity)<-[r:REVISION_OF*]-(prev:Entity) "
+                 f"WHERE e.uuid='{uuid}' "
+                 # COLLECT() returns a list
+                 # apoc.coll.toSet() reruns a set containing unique nodes
+                 f"RETURN apoc.coll.toSet(COLLECT(prev.{property_key})) AS {record_field_name}")
+    else:
+        query = (f"MATCH (e:Entity)<-[r:REVISION_OF*]-(prev:Entity) "
+                 f"WHERE e.uuid='{uuid}' "
+                 # COLLECT() returns a list
+                 # apoc.coll.toSet() reruns a set containing unique nodes
+                 f"RETURN apoc.coll.toSet(COLLECT(prev)) AS {record_field_name}")
+
+    logger.debug("======get_previous_revisions() query======")
+    logger.debug(query)
+
+    record = None
+    with neo4j_driver.session() as session:
+        record = session.read_transaction(_execute_readonly_tx, query)
+
+    if record:
+        if property_key:
+            # Just return the list of property values from each entity node
+            results = record[record_field_name]
+        else:
+            # Convert the list of nodes to a list of dicts
+            results = _nodes_to_dicts(record[record_field_name])
+
+    return results
+
+
+"""
+Get all next revisions of the target entity by uuid
+
+Parameters
+----------
+neo4j_driver : neo4j.Driver object
+    The neo4j database connection pool
+uuid : str
+    The uuid of target entity 
+property_key : str
+    A target property key for result filtering
+
+Returns
+-------
+dict
+    A list of unique next revisions dictionaries returned from the Cypher query
+"""
+def get_next_revisions(neo4j_driver, uuid, property_key = None):
+    results = []
+
+    if property_key:
+        query = (f"MATCH (e:Entity)-[r:REVISION_OF*]->(next:Entity) "
+                 f"WHERE e.uuid='{uuid}' "
+                 # COLLECT() returns a list
+                 # apoc.coll.toSet() reruns a set containing unique nodes
+                 f"RETURN apoc.coll.toSet(COLLECT(next.{property_key})) AS {record_field_name}")
+    else:
+        query = (f"MATCH (e:Entity)-[r:REVISION_OF*]->(next:Entity) "
+                 f"WHERE e.uuid='{uuid}' "
+                 # COLLECT() returns a list
+                 # apoc.coll.toSet() reruns a set containing unique nodes
+                 f"RETURN apoc.coll.toSet(COLLECT(next)) AS {record_field_name}")
+
+    logger.debug("======get_next_revisions() query======")
+    logger.debug(query)
+
+    record = None
+    with neo4j_driver.session() as session:
+        record = session.read_transaction(_execute_readonly_tx, query)
+
+    if record:
+        if property_key:
+            # Just return the list of property values from each entity node
+            results = record[record_field_name]
+        else:
+            # Convert the list of nodes to a list of dicts
+            results = _nodes_to_dicts(record[record_field_name])
+
+    return results
+
+
 """
 Link the datasets to the target collection
 

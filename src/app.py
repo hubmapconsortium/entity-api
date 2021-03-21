@@ -781,13 +781,13 @@ def create_entity(entity_type):
         for direct_ancestor_uuid in json_data_dict['direct_ancestor_uuids']:
             direct_ancestor_dict = query_target_entity(direct_ancestor_uuid, user_token)
 
-        # Also check existence of the previous verion dataset if specified
-        if 'previous_version_uuid' in json_data_dict:
-            previous_version_dict = query_target_entity(json_data_dict['previous_version_uuid'], user_token)
+        # Also check existence of the previous revision dataset if specified
+        if 'previous_revision_uuid' in json_data_dict:
+            previous_version_dict = query_target_entity(json_data_dict['previous_revision_uuid'], user_token)
 
             # Make sure the previous version entity is either a Dataset or Sample
             if previous_version_dict['entity_type'] not in ['Dataset', 'Sample']:
-                bad_request_error(f"The previous_version_uuid specified for this dataset must be either a Dataset or Sample")
+                bad_request_error(f"The previous_revision_uuid specified for this dataset must be either a Dataset or Sample")
 
         # Generate 'before_create_triiger' data and create the entity details in Neo4j
         merged_dict = create_entity_details(request, normalized_entity_type, user_token, json_data_dict)
@@ -1265,6 +1265,127 @@ def get_children(id):
         final_result = schema_manager.normalize_entities_list_for_response(complete_entities_list)
 
     return jsonify(final_result)
+
+
+"""
+Get all previous revisions of the given entity
+Result filtering based on query string
+For example: /previous_revisions/<id>?property=uuid
+
+Parameters
+----------
+id : str
+    The HuBMAP ID (e.g. HBM123.ABCD.456) or UUID of given entity
+
+Returns
+-------
+json
+    A list of entities that are the previous revisions of the target entity
+"""
+@app.route('/previous_revisions/<id>', methods = ['GET'])
+def get_previous_revisions(id):
+    # Get user token from Authorization header
+    user_token = get_user_token(request.headers)
+
+    # Make sure the id exists in uuid-api and 
+    # the corresponding entity also exists in neo4j
+    entity_dict = query_target_entity(id, user_token)
+    uuid = entity_dict['uuid']
+
+    # Result filtering based on query string
+    if bool(request.args):
+        property_key = request.args.get('property')
+
+        if property_key is not None:
+            result_filtering_accepted_property_keys = ['uuid']
+            separator = ', '
+
+            # Validate the target property
+            if property_key not in result_filtering_accepted_property_keys:
+                bad_request_error(f"Only the following property keys are supported in the query string: {separator.join(result_filtering_accepted_property_keys)}")
+
+            # Only return a list of the filtered property value of each entity
+            property_list = app_neo4j_queries.get_previous_revisions(neo4j_driver_instance, uuid, property_key)
+
+            # Final result
+            final_result = property_list
+        else:
+            bad_request_error("The specified query string is not supported. Use '?property=<key>' to filter the result")
+    # Return all the details if no property filtering
+    else:
+        descendants_list = app_neo4j_queries.get_previous_revisions(neo4j_driver_instance, uuid)
+
+        # Generate trigger data and merge into a big dict
+        # and skip some of the properties that are time-consuming to generate via triggers
+        # datasts for Collection, director_ancestor for Sample, and direct_ancestors for Dataset
+        properties_to_skip = ['collections', 'data_submission', 'direct_ancestors']
+        complete_entities_list = schema_manager.get_complete_entities_list(user_token, descendants_list, properties_to_skip)
+
+        # Final result after normalization
+        final_result = schema_manager.normalize_entities_list_for_response(complete_entities_list)
+
+    return jsonify(final_result)
+
+
+"""
+Get all next revisions of the given entity
+Result filtering based on query string
+For example: /next_revisions/<id>?property=uuid
+
+Parameters
+----------
+id : str
+    The HuBMAP ID (e.g. HBM123.ABCD.456) or UUID of given entity
+
+Returns
+-------
+json
+    A list of entities that are the next revisions of the target entity
+"""
+@app.route('/next_revisions/<id>', methods = ['GET'])
+def get_next_revisions(id):
+    # Get user token from Authorization header
+    user_token = get_user_token(request.headers)
+
+    # Make sure the id exists in uuid-api and 
+    # the corresponding entity also exists in neo4j
+    entity_dict = query_target_entity(id, user_token)
+    uuid = entity_dict['uuid']
+
+    # Result filtering based on query string
+    if bool(request.args):
+        property_key = request.args.get('property')
+
+        if property_key is not None:
+            result_filtering_accepted_property_keys = ['uuid']
+            separator = ', '
+
+            # Validate the target property
+            if property_key not in result_filtering_accepted_property_keys:
+                bad_request_error(f"Only the following property keys are supported in the query string: {separator.join(result_filtering_accepted_property_keys)}")
+
+            # Only return a list of the filtered property value of each entity
+            property_list = app_neo4j_queries.get_next_revisions(neo4j_driver_instance, uuid, property_key)
+
+            # Final result
+            final_result = property_list
+        else:
+            bad_request_error("The specified query string is not supported. Use '?property=<key>' to filter the result")
+    # Return all the details if no property filtering
+    else:
+        descendants_list = app_neo4j_queries.get_next_revisions(neo4j_driver_instance, uuid)
+
+        # Generate trigger data and merge into a big dict
+        # and skip some of the properties that are time-consuming to generate via triggers
+        # datasts for Collection, director_ancestor for Sample, and direct_ancestors for Dataset
+        properties_to_skip = ['collections', 'data_submission', 'direct_ancestors']
+        complete_entities_list = schema_manager.get_complete_entities_list(user_token, descendants_list, properties_to_skip)
+
+        # Final result after normalization
+        final_result = schema_manager.normalize_entities_list_for_response(complete_entities_list)
+
+    return jsonify(final_result)
+
 
 
 """
