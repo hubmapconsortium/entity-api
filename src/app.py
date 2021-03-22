@@ -351,8 +351,10 @@ def get_entity_by_id(id):
     final_result = schema_manager.normalize_entity_result_for_response(complete_dict)
 
     # Result filtering based on query string
-    # One use case: Gateway checks the access level for a given dataset uuid in the assets file service
-    result_filtering_accepted_property_keys = ['data_access_level']
+    # The `data_access_level` property is available in all entities Donor/Sample/Dataset
+    # and this filter is being used by gateway to check the data_access_level for file assets
+    # The `status` property is only available in Dataset and being used by search-api for revision
+    result_filtering_accepted_property_keys = ['data_access_level', 'status']
     separator = ', '
     if bool(request.args):
         property_key = request.args.get('property')
@@ -362,6 +364,9 @@ def get_entity_by_id(id):
             if property_key not in result_filtering_accepted_property_keys:
                 bad_request_error(f"Only the following property keys are supported in the query string: {separator.join(result_filtering_accepted_property_keys)}")
             
+            if property_key == 'status' and normalized_entity_type != 'Dataset':
+                bad_request_error(f"Only Dataset supports 'status' property key in the query string")
+
             # Response with the property value directly
             # Don't use jsonify() on string value
             return complete_dict[property_key]
