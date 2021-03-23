@@ -102,13 +102,13 @@ def link_entity_to_direct_ancestors(neo4j_driver, entity_uuid, direct_ancestor_u
 
             tx.commit()
     except TransactionError as te:
-        msg = "TransactionError from calling link_entity_to_direct_ancestor(): "
+        msg = "TransactionError from calling link_entity_to_direct_ancestors(): "
         # Log the full stack trace, prepend a line with our message
         logger.exception(msg)
 
         if tx.closed() == False:
             # Log the full stack trace, prepend a line with our message
-            logger.info("Failed to commit link_entity_to_direct_ancestor() transaction, rollback")
+            logger.info("Failed to commit link_entity_to_direct_ancestors() transaction, rollback")
             tx.rollback()
 
         raise TransactionError(msg)

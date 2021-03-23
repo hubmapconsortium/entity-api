@@ -388,7 +388,8 @@ ENTITIES:
       lab_donor_id:
         type: string
         description: "A lab specific identifier for the donor."
-      # Will come back from uuid-api together with the uuid and hubmap_id
+      # No submission_id for Dataset, Collection, and Submission
+      # Only Donor and Sample have this property
       submission_id:
         type: string
         immutable: true
@@ -502,7 +503,7 @@ ENTITIES:
         generated: true
         transient: true
         on_read_trigger: get_sample_direct_ancestor
-      # No submission_id for Dataset and Collection
+      # No submission_id for Dataset, Collection, and Submission
       # Only Donor and Sample have this property
       submission_id:
         type: string
@@ -624,7 +625,7 @@ ENTITIES:
         immutable: true
         description: "The uuid of globus group which the user who created this entity is a member of"
         before_create_trigger: set_group_uuid #method that, if group_uuid is not already set looks for membership in a single "data provider" group and sets to that. Otherwise if not set and no single "provider group" membership throws error.  This field is also used to link (Neo4j relationship) to the correct Lab node on creation.
-        # Note: link_donor_to_lab() will always delete all the old linkages first
+        # Note: link_submission_to_lab() will always delete all the old linkages first
         after_create_trigger: link_submission_to_lab
       # Must set in neo4j
       group_name:

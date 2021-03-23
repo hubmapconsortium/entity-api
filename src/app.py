@@ -780,7 +780,7 @@ def create_entity(entity_type):
 
         # Generate 'before_create_triiger' data and create the entity details in Neo4j
         merged_dict = create_entity_details(request, normalized_entity_type, user_token, json_data_dict)
-    elif normalized_entity_type == 'Dataset':    
+    elif normalized_entity_type == 'Dataset':
         # `direct_ancestor_uuids` is required for creating new Dataset
         # Check existence of those direct ancestors
         for direct_ancestor_uuid in json_data_dict['direct_ancestor_uuids']:
