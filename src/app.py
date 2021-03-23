@@ -320,13 +320,6 @@ def get_entity_by_id(id):
     if normalized_entity_type == 'Collection':
         bad_request_error("Please use another API endpoint `/collections/<id>` to query a collection")
 
-    # Handle Submission retrieval using a different endpoint 
-    if normalized_entity_type == 'Submission':
-        bad_request_error("Please use another API endpoint `/submissions/<id>` to query a submission")
-
-    # Collection and Submission don't have this 'data_access_level' property
-    entity_data_access_level = entity_dict['data_access_level']
-
     # Get user token from Authorization header
     # getAuthorizationTokens() also handles MAuthorization header but we are not using that here
     user_token = auth_helper_instance.getAuthorizationTokens(request.headers) 
@@ -339,14 +332,16 @@ def get_entity_by_id(id):
             # The user_token is flask.Response on error
             # Without token, the user can only access public collections, modify the collection result
             # by only returning public datasets attached to this collection
-            if isinstance(user_token, Response):
-                bad_request_error("A valid globus token is required")
+            require_token(user_token)
+    elif normalized_entity_type == 'Submission':
+        # Submission doesn't have 'data_access_level' property
+        # Always require a token for accessing Submission?
+        require_token(user_token)
     else:
         # The `data_access_level` of Donor/Sample can only be either 'public' or 'consortium'
-        if entity_data_access_level == ACCESS_LEVEL_CONSORTIUM:
+        if entity_dict['data_access_level'] == ACCESS_LEVEL_CONSORTIUM:
             # Require token to access the Donor/Sample that are not public
-            if isinstance(user_token, Response):
-                bad_request_error("A valid globus token is required")
+            require_token(user_token)
 
     # By now, either the entity is public accessible or the user token has the correct access level
     # We'll need to return all the properties including those 
@@ -429,13 +424,11 @@ def get_entity_provenance(id):
             # The user_token is flask.Response on error
             # Without token, the user can only access public collections, modify the collection result
             # by only returning public datasets attached to this collection
-            if isinstance(user_token, Response):
-                bad_request_error("A valid globus token is required")
+            require_token(user_token)
     else:
         # The `data_access_level` of Donor/Sample can only be either 'public' or 'consortium'
         if entity_data_access_level == ACCESS_LEVEL_CONSORTIUM:
-            if isinstance(user_token, Response):
-                bad_request_error("A valid globus token is required")
+            require_token(user_token)
 
     # By now, either the entity is public accessible or the user token has the correct access level
     # Will just proceed to get the provenance informaiton
@@ -2276,6 +2269,16 @@ request : Flask request object
 def require_json(request):
     if not request.is_json:
         bad_request_error("A json body and appropriate Content-Type header are required")
+
+"""
+Check if the token from user request is valid
+
+token : str or Response
+    The token string if valid or Flask Response object if invalid
+"""
+def require_token(token):
+    if isinstance(token, Response):
+        bad_request_error("A valid globus token is required")
 
 """
 Make a call to search-api to reindex this entity node in elasticsearch
