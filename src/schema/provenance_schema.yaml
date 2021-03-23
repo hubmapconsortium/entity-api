@@ -237,12 +237,12 @@ ENTITIES:
         generated: true
         description: "A list of collections that this dataset belongs to. Will be returned in response"
         on_read_trigger: get_dataset_collections
-      data_submission:
+      submission:
         type: json_string # dict
         transient: true
         generated: true
-        description: "The DataSubmission that this dataset is associated with. Will be returned in response"
-        on_read_trigger: get_dataset_data_submission
+        description: "The Submission that this dataset is associated with. Will be returned in response"
+        on_read_trigger: get_dataset_submission
       contributors:
         type: list
         description: "A list of people who contributed to the creation of this dataset.  Returned as an array of contributor where the structure of a contributor is"

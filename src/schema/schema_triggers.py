@@ -722,11 +722,11 @@ Returns
 str: The target property key
 dict: A dict of associated Submission detail with all the normalized information
 """
-def get_dataset_data_submission(property_key, normalized_type, user_token, existing_data_dict, new_data_dict):
+def get_dataset_submission(property_key, normalized_type, user_token, existing_data_dict, new_data_dict):
     if 'uuid' not in existing_data_dict:
         raise KeyError("Missing 'uuid' key in 'existing_data_dict' during calling 'get_dataset_collections()' trigger method.")
 
-    data_submission_dict = schema_neo4j_queries.get_dataset_data_submission(schema_manager.get_neo4j_driver_instance(), existing_data_dict['uuid'])
+    submission_dict = schema_neo4j_queries.get_dataset_submission(schema_manager.get_neo4j_driver_instance(), existing_data_dict['uuid'])
 
     # Exclude datasets from each resulting Submission
     # We don't want to show too much nested information
@@ -1201,7 +1201,7 @@ Returns
 str: The target property key
 str: The "New" status
 """
-def set_data_submission_status_new(property_key, normalized_type, user_token, existing_data_dict, new_data_dict):
+def set_submission_status_new(property_key, normalized_type, user_token, existing_data_dict, new_data_dict):
     return property_key, 'New'
 
 
@@ -1220,12 +1220,12 @@ existing_data_dict : dict
 new_data_dict : dict
     A merged dictionary that contains all possible input data to be used
 """
-def link_data_submission_to_lab(property_key, normalized_type, user_token, existing_data_dict, new_data_dict):
+def link_submission_to_lab(property_key, normalized_type, user_token, existing_data_dict, new_data_dict):
     if 'uuid' not in existing_data_dict:
-        raise KeyError("Missing 'uuid' key in 'existing_data_dict' during calling 'link_data_submission_to_lab()' trigger method.")
+        raise KeyError("Missing 'uuid' key in 'existing_data_dict' during calling 'link_submission_to_lab()' trigger method.")
 
     if 'group_uuid' not in existing_data_dict:
-        raise KeyError("Missing 'group_uuid' key in 'existing_data_dict' during calling 'link_data_submission_to_lab()' trigger method.")
+        raise KeyError("Missing 'group_uuid' key in 'existing_data_dict' during calling 'link_submission_to_lab()' trigger method.")
 
     # Build a list of direct ancestor uuids
     # Only one uuid in the list in this case
@@ -1259,16 +1259,16 @@ existing_data_dict : dict
 new_data_dict : dict
     A merged dictionary that contains all possible input data to be used
 """
-def link_datasets_to_data_submission(property_key, normalized_type, user_token, existing_data_dict, new_data_dict):
+def link_datasets_to_submission(property_key, normalized_type, user_token, existing_data_dict, new_data_dict):
     if 'uuid' not in existing_data_dict:
-        raise KeyError("Missing 'uuid' key in 'existing_data_dict' during calling 'link_datasets_to_data_submission()' trigger method.")
+        raise KeyError("Missing 'uuid' key in 'existing_data_dict' during calling 'link_datasets_to_submission()' trigger method.")
 
     if 'dataset_uuids_to_add' not in existing_data_dict:
-        raise KeyError("Missing 'dataset_uuids_to_add' key in 'existing_data_dict' during calling 'link_datasets_to_data_submission()' trigger method.")
+        raise KeyError("Missing 'dataset_uuids_to_add' key in 'existing_data_dict' during calling 'link_datasets_to_submission()' trigger method.")
 
     try:
         # Create a direct linkage (Dataset) - [:IN_SUBMISSION] -> (Submission) for each dataset
-        schema_neo4j_queries.link_datasets_to_data_submission(schema_manager.get_neo4j_driver_instance(), existing_data_dict['uuid'], existing_data_dict['dataset_uuids_to_link'])
+        schema_neo4j_queries.link_datasets_to_submission(schema_manager.get_neo4j_driver_instance(), existing_data_dict['uuid'], existing_data_dict['dataset_uuids_to_link'])
     except TransactionError:
         # No need to log
         raise
@@ -1290,16 +1290,16 @@ existing_data_dict : dict
 new_data_dict : dict
     A merged dictionary that contains all possible input data to be used
 """
-def unlink_datasets_from_data_submission(property_key, normalized_type, user_token, existing_data_dict, new_data_dict):
+def unlink_datasets_from_submission(property_key, normalized_type, user_token, existing_data_dict, new_data_dict):
     if 'uuid' not in existing_data_dict:
-        raise KeyError("Missing 'uuid' key in 'existing_data_dict' during calling 'unlink_datasets_from_data_submission()' trigger method.")
+        raise KeyError("Missing 'uuid' key in 'existing_data_dict' during calling 'unlink_datasets_from_submission()' trigger method.")
 
     if 'dataset_uuids_to_add' not in existing_data_dict:
-        raise KeyError("Missing 'dataset_uuids_to_add' key in 'existing_data_dict' during calling 'unlink_datasets_from_data_submission()' trigger method.")
+        raise KeyError("Missing 'dataset_uuids_to_add' key in 'existing_data_dict' during calling 'unlink_datasets_from_submission()' trigger method.")
 
     try:
         # Delete the linkage (Dataset) - [:IN_SUBMISSION] -> (Submission) for each dataset
-        schema_neo4j_queries.unlink_datasets_from_data_submission(schema_manager.get_neo4j_driver_instance(), existing_data_dict['uuid'], existing_data_dict['dataset_uuids_to_unlink'])
+        schema_neo4j_queries.unlink_datasets_from_submission(schema_manager.get_neo4j_driver_instance(), existing_data_dict['uuid'], existing_data_dict['dataset_uuids_to_unlink'])
     except TransactionError:
         # No need to log
         raise
@@ -1325,11 +1325,11 @@ Returns
 str: The target property key
 list: A list of associated dataset dicts with all the normalized information
 """
-def get_data_submission_datasets(property_key, normalized_type, user_token, existing_data_dict, new_data_dict):
+def get_submission_datasets(property_key, normalized_type, user_token, existing_data_dict, new_data_dict):
     if 'uuid' not in existing_data_dict:
         raise KeyError("Missing 'uuid' key in 'existing_data_dict' during calling 'get_collection_datasets()' trigger method.")
 
-    datasets_list = schema_neo4j_queries.get_data_submission_datasets(schema_manager.get_neo4j_driver_instance(), existing_data_dict['uuid'])
+    datasets_list = schema_neo4j_queries.get_submission_datasets(schema_manager.get_neo4j_driver_instance(), existing_data_dict['uuid'])
 
     # Additional properties of the datasets to exclude 
     # We don't want to show too much nested information

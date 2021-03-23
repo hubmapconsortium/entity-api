@@ -346,12 +346,12 @@ Parameters
 ----------
 neo4j_driver : neo4j.Driver object
     The neo4j database connection pool
-data_submission_uuid : str
+submission_uuid : str
     The uuid of target Submission 
 dataset_uuids_list : list
     A list of dataset uuids to be linked to Submission
 """
-def link_datasets_to_data_submission(neo4j_driver, data_submission_uuid, dataset_uuids_list):
+def link_datasets_to_submission(neo4j_driver, submission_uuid, dataset_uuids_list):
     # Join the list of uuids and wrap each string in single quote
     joined_str = ', '.join("'{0}'".format(dataset_uuid) for dataset_uuid in dataset_uuids_list)
     # Format a string to be used in Cypher query.
@@ -365,7 +365,7 @@ def link_datasets_to_data_submission(neo4j_driver, data_submission_uuid, dataset
             logger.info("Create relationships between the target Submission and the given Datasets")
 
             query = (f"MATCH (s:Submission), (d:Dataset) "
-                     f"WHERE s.uuid = '{data_submission_uuid}' AND d.uuid IN {dataset_uuids_list_str} "
+                     f"WHERE s.uuid = '{submission_uuid}' AND d.uuid IN {dataset_uuids_list_str} "
                      # Use MERGE instead of CREATE to avoid creating the relationship multiple times
                      # MERGE creates the relationship only if there is no existing relationship
                      f"MERGE (s)<-[r:IN_SUBMISSION]-(d)") 
@@ -376,12 +376,12 @@ def link_datasets_to_data_submission(neo4j_driver, data_submission_uuid, dataset
             tx.run(query)
             tx.commit()
     except TransactionError as te:
-        msg = f"TransactionError from calling link_datasets_to_data_submission(): {te.value}"
+        msg = f"TransactionError from calling link_datasets_to_submission(): {te.value}"
         # Log the full stack trace, prepend a line with our message
         logger.exception(msg)
 
         if tx.closed() == False:
-            logger.info("Failed to commit link_datasets_to_data_submission() transaction, rollback")
+            logger.info("Failed to commit link_datasets_to_submission() transaction, rollback")
 
             tx.rollback()
 
@@ -394,12 +394,12 @@ Parameters
 ----------
 neo4j_driver : neo4j.Driver object
     The neo4j database connection pool
-data_submission_uuid : str
+submission_uuid : str
     The uuid of target Submission 
 dataset_uuids_list : list
     A list of dataset uuids to be unlinked from Submission
 """
-def unlink_datasets_from_data_submission(neo4j_driver, data_submission_uuid, dataset_uuids_list):
+def unlink_datasets_from_submission(neo4j_driver, submission_uuid, dataset_uuids_list):
     # Join the list of uuids and wrap each string in single quote
     joined_str = ', '.join("'{0}'".format(dataset_uuid) for dataset_uuid in dataset_uuids_list)
     # Format a string to be used in Cypher query.
@@ -412,8 +412,8 @@ def unlink_datasets_from_data_submission(neo4j_driver, data_submission_uuid, dat
 
             logger.info("Delete relationships between the target Submission and the given Datasets")
 
-            query = (f"MATCH (ds:Submission)<-[r:IN_SUBMISSION]-(d:Dataset) "
-                     f"WHERE ds.uuid = '{data_submission_uuid}' AND d.uuid IN {dataset_uuids_list_str} "
+            query = (f"MATCH (s:Submission)<-[r:IN_SUBMISSION]-(d:Dataset) "
+                     f"WHERE s.uuid = '{submission_uuid}' AND d.uuid IN {dataset_uuids_list_str} "
                      f"DELETE r") 
 
             logger.debug("======unlink_datasets_from_submission() query======")
@@ -422,12 +422,12 @@ def unlink_datasets_from_data_submission(neo4j_driver, data_submission_uuid, dat
             tx.run(query)
             tx.commit()
     except TransactionError as te:
-        msg = f"TransactionError from calling unlink_datasets_from_data_submission(): {te.value}"
+        msg = f"TransactionError from calling unlink_datasets_from_submission(): {te.value}"
         # Log the full stack trace, prepend a line with our message
         logger.exception(msg)
 
         if tx.closed() == False:
-            logger.info("Failed to commit unlink_datasets_from_data_submission() transaction, rollback")
+            logger.info("Failed to commit unlink_datasets_from_submission() transaction, rollback")
 
             tx.rollback()
 

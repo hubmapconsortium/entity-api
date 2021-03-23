@@ -1323,7 +1323,7 @@ def get_previous_revisions(id):
         # Generate trigger data and merge into a big dict
         # and skip some of the properties that are time-consuming to generate via triggers
         # datasts for Collection, director_ancestor for Sample, and direct_ancestors for Dataset
-        properties_to_skip = ['collections', 'data_submission', 'direct_ancestors']
+        properties_to_skip = ['collections', 'submission', 'direct_ancestors']
         complete_entities_list = schema_manager.get_complete_entities_list(user_token, descendants_list, properties_to_skip)
 
         # Final result after normalization
@@ -1383,7 +1383,7 @@ def get_next_revisions(id):
         # Generate trigger data and merge into a big dict
         # and skip some of the properties that are time-consuming to generate via triggers
         # datasts for Collection, director_ancestor for Sample, and direct_ancestors for Dataset
-        properties_to_skip = ['collections', 'data_submission', 'direct_ancestors']
+        properties_to_skip = ['collections', 'submission', 'direct_ancestors']
         complete_entities_list = schema_manager.get_complete_entities_list(user_token, descendants_list, properties_to_skip)
 
         # Final result after normalization
