@@ -591,9 +591,11 @@ ENTITIES:
         # which are potentially updated by multiple triggers
         updated_peripherally: true
 
-  ############################################# DataSubmission #############################################
-  DataSubmission:
-    # DataSubmission requires an ancestor of Lab, and and has no allowed decesndents 
+  ############################################# Submission #############################################
+  # Use "Submission" instead of "DataSubmission" because eventually we might 
+  # allow folks to bulk register Samples or Donors through the same mechanism.
+  Submission:
+    # Submission requires an ancestor of Lab, and and has no allowed decesndents 
     derivation:
       source: false
       target: false # Set to false since the schema doesn't handle Lab currently
@@ -613,7 +615,7 @@ ENTITIES:
         generated: true
         description: "One of: New|Valid|Invalid|Error|Submitted"
         # Trigger method will set the status to "New" on create
-        before_create_trigger: set_data_submission_status_new
+        before_create_trigger: set_submission_status_new
       validation_message:
         type: string
         description: A message from the validataion tools describing what is invalid with the submission.
@@ -623,7 +625,7 @@ ENTITIES:
         description: "The uuid of globus group which the user who created this entity is a member of"
         before_create_trigger: set_group_uuid #method that, if group_uuid is not already set looks for membership in a single "data provider" group and sets to that. Otherwise if not set and no single "provider group" membership throws error.  This field is also used to link (Neo4j relationship) to the correct Lab node on creation.
         # Note: link_donor_to_lab() will always delete all the old linkages first
-        after_create_trigger: link_data_submission_to_lab
+        after_create_trigger: link_submission_to_lab
       # Must set in neo4j
       group_name:
         type: string
@@ -631,28 +633,28 @@ ENTITIES:
         immutable: true
         description: "The displayname of globus group which the user who created this entity is a member of"
         before_create_trigger: set_group_name
-      #transient attribute used to pass in a list of dataset ids to be linked to the DataSubmisison node
+      #transient attribute used to pass in a list of dataset ids to be linked to the Submisison node
       #datasets will be added only via PUT/update, NEVER on POST/create
       dataset_uuids_to_link:
         type: list 
         generated: true # Disallow user input from request json when being created
         transient: true
         exposed: false
-        description: 'List of datasets to add to the data submission. Provide as a json array of the dataset uuids like: ["232934234234234234234270c0ea6c51d604a850558ef2247d0b4", "230948203482234234234a57bfe9c056d08a0f8e6cd612baa3bfa"]'
+        description: 'List of datasets to add to the Submission. Provide as a json array of the dataset uuids like: ["232934234234234234234270c0ea6c51d604a850558ef2247d0b4", "230948203482234234234a57bfe9c056d08a0f8e6cd612baa3bfa"]'
         # Use after_update_trigger instead of before_update_trigger since we are not updating this property
-        after_update_trigger: link_datasets_to_data_submission 
+        after_update_trigger: link_datasets_to_submission 
       #transient attribute used to pass in a list of dataset ids of datasets to be removed from a DataSubmisison
       dataset_uuids_to_unlink:
         type: list 
         generated: true # Disallow user input from request json when being created
         transient: true
         exposed: false
-        description: 'List of datasets to remove from a data submission. Provide as a json array of the dataset uuids like: ["232934234234234234234270c0ea6c51d604a850558ef2247d0b4", "230948203482234234234a57bfe9c056d08a0f8e6cd612baa3bfa"]'
+        description: 'List of datasets to remove from a Submission. Provide as a json array of the dataset uuids like: ["232934234234234234234270c0ea6c51d604a850558ef2247d0b4", "230948203482234234234a57bfe9c056d08a0f8e6cd612baa3bfa"]'
         # Use after_update_trigger instead of before_update_trigger since we are not updating this property
-        after_update_trigger: unlink_datasets_from_data_submission 
+        after_update_trigger: unlink_datasets_from_submission 
       datasets:
         type: list
         generated: true # Disallow user input from request json when being created
         transient: true
-        description: "The datasets that are contained in this data submission."
-        on_read_trigger: get_data_submission_datasets
+        description: "The datasets that are contained in this Submission."
+        on_read_trigger: get_submission_datasets

@@ -702,7 +702,7 @@ def get_dataset_collections(property_key, normalized_type, user_token, existing_
     return property_key, schema_manager.normalize_entities_list_for_response(complete_entities_list)
 
 """
-Trigger event method of getting the associated DataSubmission for this Dataset
+Trigger event method of getting the associated Submission for this Dataset
 
 Parameters
 ----------
@@ -720,7 +720,7 @@ new_data_dict : dict
 Returns
 -------
 str: The target property key
-dict: A dict of associated DataSubmission detail with all the normalized information
+dict: A dict of associated Submission detail with all the normalized information
 """
 def get_dataset_data_submission(property_key, normalized_type, user_token, existing_data_dict, new_data_dict):
     if 'uuid' not in existing_data_dict:
@@ -728,7 +728,7 @@ def get_dataset_data_submission(property_key, normalized_type, user_token, exist
 
     data_submission_dict = schema_neo4j_queries.get_dataset_data_submission(schema_manager.get_neo4j_driver_instance(), existing_data_dict['uuid'])
 
-    # Exclude datasets from each resulting DataSubmission
+    # Exclude datasets from each resulting Submission
     # We don't want to show too much nested information
     properties_to_skip = ['datasets']
     complete_entities_list = schema_manager.get_complete_entities_list(user_token, collections_list, properties_to_skip)
@@ -1177,11 +1177,11 @@ def get_sample_direct_ancestor(property_key, normalized_type, user_token, existi
 
 
 ####################################################################################################
-## Trigger methods specific to DataSubmission - DO NOT RENAME
+## Trigger methods specific to Submission - DO NOT RENAME
 ####################################################################################################
 
 """
-Trigger event method of setting the DataSubmission initial status - "New"
+Trigger event method of setting the Submission initial status - "New"
 
 Parameters
 ----------
@@ -1206,7 +1206,7 @@ def set_data_submission_status_new(property_key, normalized_type, user_token, ex
 
 
 """
-Trigger event method of building linkage between this new DataSubmission and Lab
+Trigger event method of building linkage between this new Submission and Lab
 Parameters
 ----------
 property_key : str
@@ -1237,14 +1237,14 @@ def link_data_submission_to_lab(property_key, normalized_type, user_token, exist
 
     try:
         # Create a linkage (via Activity node) 
-        # between the DataSubmission node and the parent Lab node in neo4j
+        # between the Submission node and the parent Lab node in neo4j
         schema_neo4j_queries.link_entity_to_direct_ancestors(schema_manager.get_neo4j_driver_instance(), existing_data_dict['uuid'], direct_ancestor_uuids, activity_data_dict_list)
     except TransactionError:
         # No need to log
         raise
 
 """
-Trigger event method of building linkages between this DataSubmission and the given datasets
+Trigger event method of building linkages between this Submission and the given datasets
 
 Parameters
 ----------
@@ -1267,7 +1267,7 @@ def link_datasets_to_data_submission(property_key, normalized_type, user_token, 
         raise KeyError("Missing 'dataset_uuids_to_add' key in 'existing_data_dict' during calling 'link_datasets_to_data_submission()' trigger method.")
 
     try:
-        # Create a direct linkage (Dataset) - [:IN_SUBMISSION] -> (DataSubmission) for each dataset
+        # Create a direct linkage (Dataset) - [:IN_SUBMISSION] -> (Submission) for each dataset
         schema_neo4j_queries.link_datasets_to_data_submission(schema_manager.get_neo4j_driver_instance(), existing_data_dict['uuid'], existing_data_dict['dataset_uuids_to_link'])
     except TransactionError:
         # No need to log
@@ -1275,7 +1275,7 @@ def link_datasets_to_data_submission(property_key, normalized_type, user_token, 
 
 
 """
-Trigger event method of deleting linkages between this target DataSubmission and the given datasets
+Trigger event method of deleting linkages between this target Submission and the given datasets
 
 Parameters
 ----------
@@ -1298,7 +1298,7 @@ def unlink_datasets_from_data_submission(property_key, normalized_type, user_tok
         raise KeyError("Missing 'dataset_uuids_to_add' key in 'existing_data_dict' during calling 'unlink_datasets_from_data_submission()' trigger method.")
 
     try:
-        # Delete the linkage (Dataset) - [:IN_SUBMISSION] -> (DataSubmission) for each dataset
+        # Delete the linkage (Dataset) - [:IN_SUBMISSION] -> (Submission) for each dataset
         schema_neo4j_queries.unlink_datasets_from_data_submission(schema_manager.get_neo4j_driver_instance(), existing_data_dict['uuid'], existing_data_dict['dataset_uuids_to_unlink'])
     except TransactionError:
         # No need to log
@@ -1306,7 +1306,7 @@ def unlink_datasets_from_data_submission(property_key, normalized_type, user_tok
 
 
 """
-Trigger event method of getting a list of associated datasets for a given DataSubmission
+Trigger event method of getting a list of associated datasets for a given Submission
 
 Parameters
 ----------
@@ -1347,7 +1347,7 @@ def get_data_submission_datasets(property_key, normalized_type, user_token, exis
 Trigger event method of getting creation_action for Activity
 
 Lab->Activity->Donor (Not needed for now)
-Lab->Activity->DataSubmission
+Lab->Activity->Submission
 Donor->Activity->Sample
 Sample->Activity->Sample
 Sample->Activity->Dataset
