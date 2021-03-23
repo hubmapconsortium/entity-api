@@ -351,7 +351,8 @@ def generate_triggered_data(trigger_type, normalized_class, user_token, existing
     
 
 """
-Filter out the merged_dict by getting rid of the properties with None value
+Filter out the merged_dict by getting rid of the transitent properties (not to be stored) 
+and properties with None value
 Meaning the returned target property key is different from the original key 
 in the trigger method, e.g., Donor.image_files_to_add
 
@@ -359,16 +360,24 @@ Parameters
 ----------
 merged_dict : dict
     A merged dict that may contain properties with None values
+normalized_entity_type : str
+    One of the normalized entity types: Dataset, Collection, Sample, Donor
 
 Returns
 -------
 dict
     A filtered dict that removed all properties with None values
 """
-def remove_none_values(merged_dict):
+def remove_transient_and_none_values(merged_dict, normalized_entity_type):
+    global _schema
+
+    properties = _schema['ENTITIES'][normalized_entity_type]['properties']
+
     filtered_dict = {}
     for k, v in merged_dict.items():
-        if v is not None:
+        # Only keep the properties that don't have `transitent` flag or are marked as `transitent: false`
+        # and at the same time the property value is not None
+        if (('transient' not in properties[k]) or ('transient' in properties[k] and not properties[k]['transient'])) and (v is not None):
             filtered_dict[k] = v 
 
     return filtered_dict
