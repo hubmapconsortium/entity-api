@@ -315,11 +315,17 @@ def get_entity_by_id(id):
     # Query target entity against uuid-api and neo4j and return as a dict if exists
     entity_dict = query_target_entity(id, token)
     normalized_entity_type = entity_dict['entity_type']
-    entity_data_access_level = entity_dict['data_access_level']
 
     # Handle Collection retrieval using a different endpoint 
     if normalized_entity_type == 'Collection':
         bad_request_error("Please use another API endpoint `/collections/<id>` to query a collection")
+
+    # Handle Submission retrieval using a different endpoint 
+    if normalized_entity_type == 'Submission':
+        bad_request_error("Please use another API endpoint `/submissions/<id>` to query a submission")
+
+    # Collection and Submission don't have this 'data_access_level' property
+    entity_data_access_level = entity_dict['data_access_level']
 
     # Get user token from Authorization header
     # getAuthorizationTokens() also handles MAuthorization header but we are not using that here
