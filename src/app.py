@@ -2283,6 +2283,8 @@ user_token: str
 """
 def reindex_entity(uuid, user_token):
     try:
+        logger.info(f"Making a call to search-api to reindex uuid: {uuid}")
+
         headers = create_request_headers(user_token)
 
         response = requests.put(app.config['SEARCH_API_URL'] + "/reindex/" + uuid, headers = headers)

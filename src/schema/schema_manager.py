@@ -985,7 +985,7 @@ def create_hubmap_ids(normalized_class, json_data_dict, user_token, user_info_di
     # Activity and Collection don't require the `parent_ids` in request json
     if normalized_class in ['Donor', 'Sample', 'Dataset', 'Submission']:
         # The direct ancestor of Donor and Submission must be Lab
-        # The group_uuid is the Lab id
+        # The group_uuid is the Lab id in this case
         if normalized_class in ['Donor', 'Submission']:
             # If `group_uuid` is not already set, looks for membership in a single "data provider" group and sets to that. 
             # Otherwise if not set and no single "provider group" membership throws error.  
@@ -1049,6 +1049,7 @@ def create_hubmap_ids(normalized_class, json_data_dict, user_token, user_info_di
 
     query_parms = {'entity_count': count}
 
+    logger.debug("======create_hubmap_ids() json_to_post to uuid-api======")
     logger.debug(json_to_post)
 
     # Disable ssl certificate verification
@@ -1078,6 +1079,9 @@ def create_hubmap_ids(normalized_class, json_data_dict, user_token, user_info_di
         }]
         """
         ids_list = response.json()
+
+        logger.debug("======create_hubmap_ids() generated ids from uuid-api======")
+        logger.debug(ids_list)
 
         return ids_list
     else:
