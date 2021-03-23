@@ -604,7 +604,7 @@ def get_collection_datasets(property_key, normalized_type, user_token, existing_
 ####################################################################################################
 
 """
-Trigger event method of setting the default status for this new Dataset
+Trigger event method of setting the default "New" status for this new Dataset
 
 Parameters
 ----------
@@ -624,7 +624,7 @@ Returns
 str: The target property key
 str: Initial status of "New"
 """
-def set_dataset_status(property_key, normalized_type, user_token, existing_data_dict, new_data_dict):
+def set_dataset_status_new(property_key, normalized_type, user_token, existing_data_dict, new_data_dict):
     # Always 'New' on dataset creation
     return property_key, 'New'
 
