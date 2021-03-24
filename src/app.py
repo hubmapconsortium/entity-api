@@ -801,7 +801,8 @@ def create_entity(entity_type):
     
     # For Donor: link to parent Lab node
     # For Sample: link to existing direct ancestor
-    # For Datset: link to direct ancestors
+    # For Dataset: link to direct ancestors
+    # For Submission: link to parent Lab node
     after_create(normalized_entity_type, user_token, merged_dict)
 
     # We'll need to return all the properties including those 
@@ -982,22 +983,25 @@ def update_entity(id):
         # No need to log the validation errors
         bad_request_error(str(e))
 
-    # Sample and Dataset: additional validation, update entity, after_update_trigger
+    # Sample, Dataset, and Submission: additional validation, update entity, after_update_trigger
     # Collection and Donor: update entity
     if normalized_entity_type == 'Sample':
-        # A bit more validation for new sample to be linked to existing source entity
+        # A bit more validation for updating the sample and the linkage to existing source entity
         has_direct_ancestor_uuid = False
         if ('direct_ancestor_uuid' in json_data_dict) and json_data_dict['direct_ancestor_uuid']:
             has_direct_ancestor_uuid = True
 
             direct_ancestor_uuid = json_data_dict['direct_ancestor_uuid']
-            # Check existence of the source entity (either another Sample or Donor)
+            # Check existence of the source entity
             direct_ancestor_dict = query_target_entity(direct_ancestor_uuid, user_token)
+            # Also make sure it's either another Sample or a Donor
+            if dataset_dict['entity_type'] not in ['Donor', 'Sample']:
+                bad_request_error(f"The uuid: {dataset_uuid} is not a Donor neither a Sample, cannot be used as the direct ancestor of this Sample")
 
         # Generate 'before_update_triiger' data and update the entity details in Neo4j
         merged_updated_dict = update_entity_details(request, normalized_entity_type, user_token, json_data_dict, entity_dict)
 
-        # For sample to be linked to existing direct ancestor
+        # Handle linkages update via `after_update_trigger` methods 
         if has_direct_ancestor_uuid:
             after_update(normalized_entity_type, user_token, merged_updated_dict)
     elif normalized_entity_type == 'Dataset':    
@@ -1013,8 +1017,40 @@ def update_entity(id):
         # Generate 'before_update_trigger' data and update the entity details in Neo4j
         merged_updated_dict = update_entity_details(request, normalized_entity_type, user_token, json_data_dict, entity_dict)
 
-        # Handle direct_ancestor_uuids via `after_update_trigger` methods 
+        # Handle linkages update via `after_update_trigger` methods 
         if has_direct_ancestor_uuids:
+            after_update(normalized_entity_type, user_token, merged_updated_dict)
+    elif normalized_entity_type == 'Submission': 
+        has_dataset_uuids_to_link = False
+        if ('dataset_uuids_to_link' in json_data_dict) and (json_data_dict['dataset_uuids_to_link']):
+            has_dataset_uuids_to_link = True
+
+            # Check existence of those datasets to be linked
+            # If one of the datasets to be linked appears to be already linked, 
+            # neo4j query won't create the new linkage due to the use of `MERGE`
+            for dataset_uuid in json_data_dict['dataset_uuids_to_link']:
+                dataset_dict = query_target_entity(dataset_uuid, user_token)
+                # Also make sure it's a Dataset
+                if dataset_dict['entity_type'] != 'Dataset':
+                    bad_request_error(f"The uuid: {dataset_uuid} is not a Dataset, cannot be linked to this Submission")
+
+        has_dataset_uuids_to_unlink = False
+        if ('dataset_uuids_to_unlink' in json_data_dict) and (json_data_dict['dataset_uuids_to_unlink']):
+            has_dataset_uuids_to_unlink = True
+
+            # Check existence of those datasets to be unlinked
+            # If one of the datasets to be unlinked appears to be not linked at all,
+            # the neo4j cypher will simply skip it because it won't match the "MATCH" clause
+            # So no need to tell the end users that this dataset is not linked
+            # Let alone checking the entity type to ensure it's a Dataset
+            for dataset_uuid in json_data_dict['dataset_uuids_to_unlink']:
+                dataset_dict = query_target_entity(dataset_uuid, user_token)
+
+        # Generate 'before_update_trigger' data and update the entity details in Neo4j
+        merged_updated_dict = update_entity_details(request, normalized_entity_type, user_token, json_data_dict, entity_dict)
+
+        # Handle linkages update via `after_update_trigger` methods 
+        if has_dataset_uuids_to_link or has_dataset_uuids_to_unlink:
             after_update(normalized_entity_type, user_token, merged_updated_dict)
     else:
         # Generate 'before_update_triiger' data and update the entity details in Neo4j

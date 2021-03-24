@@ -366,7 +366,7 @@ def link_datasets_to_submission(neo4j_driver, submission_uuid, dataset_uuids_lis
 
             query = (f"MATCH (s:Submission), (d:Dataset) "
                      f"WHERE s.uuid = '{submission_uuid}' AND d.uuid IN {dataset_uuids_list_str} "
-                     # Use MERGE instead of CREATE to avoid creating the relationship multiple times
+                     # Use MERGE instead of CREATE to avoid creating the existing relationship multiple times
                      # MERGE creates the relationship only if there is no existing relationship
                      f"MERGE (s)<-[r:IN_SUBMISSION]-(d)") 
 

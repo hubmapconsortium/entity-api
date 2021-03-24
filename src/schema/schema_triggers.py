@@ -1263,8 +1263,8 @@ def link_datasets_to_submission(property_key, normalized_type, user_token, exist
     if 'uuid' not in existing_data_dict:
         raise KeyError("Missing 'uuid' key in 'existing_data_dict' during calling 'link_datasets_to_submission()' trigger method.")
 
-    if 'dataset_uuids_to_add' not in existing_data_dict:
-        raise KeyError("Missing 'dataset_uuids_to_add' key in 'existing_data_dict' during calling 'link_datasets_to_submission()' trigger method.")
+    if 'dataset_uuids_to_link' not in existing_data_dict:
+        raise KeyError("Missing 'dataset_uuids_to_link' key in 'existing_data_dict' during calling 'link_datasets_to_submission()' trigger method.")
 
     try:
         # Create a direct linkage (Dataset) - [:IN_SUBMISSION] -> (Submission) for each dataset
@@ -1294,8 +1294,8 @@ def unlink_datasets_from_submission(property_key, normalized_type, user_token, e
     if 'uuid' not in existing_data_dict:
         raise KeyError("Missing 'uuid' key in 'existing_data_dict' during calling 'unlink_datasets_from_submission()' trigger method.")
 
-    if 'dataset_uuids_to_add' not in existing_data_dict:
-        raise KeyError("Missing 'dataset_uuids_to_add' key in 'existing_data_dict' during calling 'unlink_datasets_from_submission()' trigger method.")
+    if 'dataset_uuids_to_unlink' not in existing_data_dict:
+        raise KeyError("Missing 'dataset_uuids_to_unlink' key in 'existing_data_dict' during calling 'unlink_datasets_from_submission()' trigger method.")
 
     try:
         # Delete the linkage (Dataset) - [:IN_SUBMISSION] -> (Submission) for each dataset
