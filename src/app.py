@@ -1469,11 +1469,12 @@ id : str
 """
 @app.route('/collection/redirect/<id>', methods = ['GET'])
 def collection_redirect(id):
-    # Get user token from Authorization header
-    user_token = get_user_token(request.headers)
+    # Use the internal token to query the target entity 
+    # since public entities don't require user token
+    token = get_internal_token()
 
     # Query target entity against uuid-api and neo4j and return as a dict if exists
-    entity_dict = query_target_entity(id, user_token)
+    entity_dict = query_target_entity(id, token)
 
     # Only for collection
     if entity_dict['entity_type'] != 'Collection':
