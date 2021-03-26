@@ -619,14 +619,16 @@ def get_collection(id):
 
 
 """
-Retrive all the collection nodes
+Retrive all the public collections
 Result filtering is supported based on query string
 For example: /collections?property=uuid
 
-An optional Globus nexus token can be provided in a standard Authentication Bearer header. If a valid token
-is provided with group membership in the HuBMAP-Read group any collection matching the id will be returned.
-otherwise if no token is provided or a valid token with no HuBMAP-Read group membership then
-only a public collection will be returned.  Public collections are defined as being published via a DOI 
+Only return public collections, for either 
+- a valid token in HuBMAP-Read group, 
+- a valid token with no HuBMAP-Read group or 
+- no token at all
+
+Public collections are defined as being published via a DOI 
 (collection.has_doi == true) and at least one of the connected datasets is public
 (dataset.data_access_level == 'public'). For public collections only connected datasets that are
 public are returned with it.
@@ -634,16 +636,11 @@ public are returned with it.
 Returns
 -------
 json
-    A list of all the collection dictionaries (only public collection with 
-    attached public datasts if the user/token doesn't have the right access permission)
+    A list of all the public collection dictionaries (with attached public datasts)
 """
 @app.route('/collections', methods = ['GET'])
 def get_collections():
     normalized_entity_type = 'Collection'
-
-    # Get user token from Authorization header
-    # getAuthorizationTokens() also handles MAuthorization header but we are not using that here
-    user_token = auth_helper_instance.getAuthorizationTokens(request.headers) 
 
     # Result filtering based on query string
     if bool(request.args):
@@ -657,46 +654,24 @@ def get_collections():
             if property_key not in result_filtering_accepted_property_keys:
                 bad_request_error(f"Only the following property keys are supported in the query string: {separator.join(result_filtering_accepted_property_keys)}")
             
-            # The user_token is flask.Response on error
-            # Without token, the user can only access public collections, modify the collection result
-            # by only returning public datasets attached to this collection
-            if isinstance(user_token, Response):
-                # Only return a list of the filtered property value of each public collection
-                property_list = app_neo4j_queries.get_public_collections(neo4j_driver_instance, property_key)
-            else:
-                # Only return a list of the filtered property value of each entity
-                property_list = app_neo4j_queries.get_entities_by_type(neo4j_driver_instance, normalized_entity_type, property_key)
-
-            # Final result
-            final_result = property_list
+            # Only return a list of the filtered property value of each public collection
+            final_result = app_neo4j_queries.get_public_collections(neo4j_driver_instance, property_key)
         else:
             bad_request_error("The specified query string is not supported. Use '?property=<key>' to filter the result")
     # Return all the details if no property filtering
     else: 
-        token = None
+        # Use the internal token since no user token is requried to access public collections
+        token = get_internal_token()
 
-        # The user_token is flask.Response on error
-        # Without token, the user can only access public collections, modify the collection result
-        # by only returning public datasets attached to this collection
-        if isinstance(user_token, Response):
-            # Use the internal token since no user token is requried to access public collections
-            token = get_internal_token()
-
-            # Get back a list of public collections dicts
-            collections_list = app_neo4j_queries.get_public_collections(neo4j_driver_instance)
+        # Get back a list of public collections dicts
+        collections_list = app_neo4j_queries.get_public_collections(neo4j_driver_instance)
+        
+        # Modify the Collection.datasets property for each collection dict 
+        # to contain only public datasets
+        for collection_dict in collections_list:
+            # Only return the public datasets attached to this collection for Collection.datasets property
+            collection_dict = get_complete_public_collection_dict(collection_dict)
             
-            # Modify the Collection.datasets property for each collection dict 
-            # to contain only public datasets
-            for collection_dict in collections_list:
-                # Only return the public datasets attached to this collection for Collection.datasets property
-                collection_dict = get_complete_public_collection_dict(collection_dict)
-        else:
-            # Pass in the user token in this case
-            token = user_token
-
-            # Get back a list of all collections dicts
-            collections_list = app_neo4j_queries.get_entities_by_type(neo4j_driver_instance, normalized_entity_type)
-
         # Generate trigger data and merge into a big dict
         # and skip some of the properties that are time-consuming to generate via triggers
         properties_to_skip = ['datasets']
