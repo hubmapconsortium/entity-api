@@ -2,7 +2,7 @@ from flask import Flask, g, jsonify, abort, request, Response, redirect
 from neo4j.exceptions import TransactionError
 import os
 import re
-import json
+import csv
 import requests
 import urllib
 # Don't confuse urllib (Python native library) with urllib3 (3rd-party library, requests also uses urllib3)
@@ -168,6 +168,38 @@ except Exception:
     msg = "Failed to initialize the schema_manager module"
     # Log the full stack trace, prepend a line with our message
     logger.exception(msg)
+
+
+## Read tsv file with the REFERENCE entity redirects
+## sets the reference_redirects dict which is used
+## by the /redirect method below
+try:
+    reference_redirects = {}
+    url = app.config['REDIRECTION_INFO_URL']
+    response = requests.get(url)
+    resp_txt = response.content.decode('utf-8')
+    cr = csv.reader(resp_txt.splitlines(), delimiter='\t')
+
+    first = True
+    id_column = None
+    redir_url_column = None
+    for row in cr:
+        if first:
+            first = False
+            header = row
+            column = 0
+            for label in header:
+                if label == 'hubmap_id': id_column = column
+                if label == 'data_information_page': redir_url_column = column
+                column = column + 1
+            if id_column is None: raise Exception(f"Column hubmap_id not found in {url}")
+            if redir_url_column is None: raise Exception (f"Column data_information_page not found in {url}")
+        else:    
+            reference_redirects[row[id_column].upper().strip()] = row[redir_url_column]
+    rr = redirect('abc', code = 307)
+    print(rr)
+except Exception:
+    logger.exception("Failed to read tsv file with REFERENCE redirect information")
 
 ####################################################################################################
 ## Constants
@@ -618,14 +650,16 @@ def get_collection(id):
 
 
 """
-Retrive all the collection nodes
+Retrive all the public collections
 Result filtering is supported based on query string
 For example: /collections?property=uuid
 
-An optional Globus nexus token can be provided in a standard Authentication Bearer header. If a valid token
-is provided with group membership in the HuBMAP-Read group any collection matching the id will be returned.
-otherwise if no token is provided or a valid token with no HuBMAP-Read group membership then
-only a public collection will be returned.  Public collections are defined as being published via a DOI 
+Only return public collections, for either 
+- a valid token in HuBMAP-Read group, 
+- a valid token with no HuBMAP-Read group or 
+- no token at all
+
+Public collections are defined as being published via a DOI 
 (collection.has_doi == true) and at least one of the connected datasets is public
 (dataset.data_access_level == 'public'). For public collections only connected datasets that are
 public are returned with it.
@@ -633,16 +667,11 @@ public are returned with it.
 Returns
 -------
 json
-    A list of all the collection dictionaries (only public collection with 
-    attached public datasts if the user/token doesn't have the right access permission)
+    A list of all the public collection dictionaries (with attached public datasts)
 """
 @app.route('/collections', methods = ['GET'])
 def get_collections():
     normalized_entity_type = 'Collection'
-
-    # Get user token from Authorization header
-    # getAuthorizationTokens() also handles MAuthorization header but we are not using that here
-    user_token = auth_helper_instance.getAuthorizationTokens(request.headers) 
 
     # Result filtering based on query string
     if bool(request.args):
@@ -656,46 +685,24 @@ def get_collections():
             if property_key not in result_filtering_accepted_property_keys:
                 bad_request_error(f"Only the following property keys are supported in the query string: {separator.join(result_filtering_accepted_property_keys)}")
             
-            # The user_token is flask.Response on error
-            # Without token, the user can only access public collections, modify the collection result
-            # by only returning public datasets attached to this collection
-            if isinstance(user_token, Response):
-                # Only return a list of the filtered property value of each public collection
-                property_list = app_neo4j_queries.get_public_collections(neo4j_driver_instance, property_key)
-            else:
-                # Only return a list of the filtered property value of each entity
-                property_list = app_neo4j_queries.get_entities_by_type(neo4j_driver_instance, normalized_entity_type, property_key)
-
-            # Final result
-            final_result = property_list
+            # Only return a list of the filtered property value of each public collection
+            final_result = app_neo4j_queries.get_public_collections(neo4j_driver_instance, property_key)
         else:
             bad_request_error("The specified query string is not supported. Use '?property=<key>' to filter the result")
     # Return all the details if no property filtering
     else: 
-        token = None
+        # Use the internal token since no user token is requried to access public collections
+        token = get_internal_token()
 
-        # The user_token is flask.Response on error
-        # Without token, the user can only access public collections, modify the collection result
-        # by only returning public datasets attached to this collection
-        if isinstance(user_token, Response):
-            # Use the internal token since no user token is requried to access public collections
-            token = get_internal_token()
-
-            # Get back a list of public collections dicts
-            collections_list = app_neo4j_queries.get_public_collections(neo4j_driver_instance)
+        # Get back a list of public collections dicts
+        collections_list = app_neo4j_queries.get_public_collections(neo4j_driver_instance)
+        
+        # Modify the Collection.datasets property for each collection dict 
+        # to contain only public datasets
+        for collection_dict in collections_list:
+            # Only return the public datasets attached to this collection for Collection.datasets property
+            collection_dict = get_complete_public_collection_dict(collection_dict)
             
-            # Modify the Collection.datasets property for each collection dict 
-            # to contain only public datasets
-            for collection_dict in collections_list:
-                # Only return the public datasets attached to this collection for Collection.datasets property
-                collection_dict = get_complete_public_collection_dict(collection_dict)
-        else:
-            # Pass in the user token in this case
-            token = user_token
-
-            # Get back a list of all collections dicts
-            collections_list = app_neo4j_queries.get_entities_by_type(neo4j_driver_instance, normalized_entity_type)
-
         # Generate trigger data and merge into a big dict
         # and skip some of the properties that are time-consuming to generate via triggers
         properties_to_skip = ['datasets']
@@ -1504,11 +1511,12 @@ id : str
 """
 @app.route('/collection/redirect/<id>', methods = ['GET'])
 def collection_redirect(id):
-    # Get user token from Authorization header
-    user_token = get_user_token(request.headers)
+    # Use the internal token to query the target entity 
+    # since public entities don't require user token
+    token = get_internal_token()
 
     # Query target entity against uuid-api and neo4j and return as a dict if exists
-    entity_dict = query_target_entity(id, user_token)
+    entity_dict = query_target_entity(id, token)
 
     # Only for collection
     if entity_dict['entity_type'] != 'Collection':
@@ -1527,9 +1535,24 @@ def collection_redirect(id):
 
     rep_pattern = re.compile(re.escape('<identifier>'), re.RegexFlag.IGNORECASE)
     redirect_url = rep_pattern.sub(uuid, redirect_url)
-    
-    return redirect(redirect_url, code = 307)
 
+    resp = Response("page has moved", 307)
+    resp.headers['Location'] = redirect_url
+    return resp    
+
+#redirection method created for REFERENCE organ DOI
+#redirection, but can be for others if needed
+@app.route('/redirect/<hmid>', methods = ['GET'])
+def redirect(hmid):
+    cid = hmid.upper().strip()
+    if cid in reference_redirects:
+        redir_url = reference_redirects[cid]
+        resp = Response("page has moved", 307)
+        resp.headers['Location'] = redir_url
+        return resp
+    else:
+        return Response(f"{hmid} not found.", 404)
+    
 """
 Get the Globus URL to the given dataset
 
