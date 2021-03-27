@@ -50,3 +50,5 @@ PUBLIC_DATA_SUBDIR = 'public'
 # The <identifier> tag is required in the url and will be replaced by the incoming identifier
 COLLECTION_REDIRECT_URL = 'https://portal.hubmapconsortium.org/browse/collection/<identifier>'
 
+#URL to tsv file that holds the redirect url information for DOI redirects
+REDIRECTION_INFO_URL = 'https://raw.githubusercontent.com/hubmapconsortium/ccf-releases/main/v1.0/reference-entity-ids.tsv'

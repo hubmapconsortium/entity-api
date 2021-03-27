@@ -2,7 +2,7 @@ from flask import Flask, g, jsonify, abort, request, Response, redirect
 from neo4j.exceptions import TransactionError
 import os
 import re
-import json
+import csv
 import requests
 import urllib
 # Don't confuse urllib (Python native library) with urllib3 (3rd-party library, requests also uses urllib3)
@@ -168,6 +168,38 @@ except Exception:
     msg = "Failed to initialize the schema_manager module"
     # Log the full stack trace, prepend a line with our message
     logger.exception(msg)
+
+
+## Read tsv file with the REFERENCE entity redirects
+## sets the reference_redirects dict which is used
+## by the /redirect method below
+try:
+    reference_redirects = {}
+    url = app.config['REDIRECTION_INFO_URL']
+    response = requests.get(url)
+    resp_txt = response.content.decode('utf-8')
+    cr = csv.reader(resp_txt.splitlines(), delimiter='\t')
+
+    first = True
+    id_column = None
+    redir_url_column = None
+    for row in cr:
+        if first:
+            first = False
+            header = row
+            column = 0
+            for label in header:
+                if label == 'hubmap_id': id_column = column
+                if label == 'data_information_page': redir_url_column = column
+                column = column + 1
+            if id_column is None: raise Exception(f"Column hubmap_id not found in {url}")
+            if redir_url_column is None: raise Exception (f"Column data_information_page not found in {url}")
+        else:    
+            reference_redirects[row[id_column].upper().strip()] = row[redir_url_column]
+    rr = redirect('abc', code = 307)
+    print(rr)
+except Exception:
+    logger.exception("Failed to read tsv file with REFERENCE redirect information")
 
 ####################################################################################################
 ## Constants
@@ -1468,9 +1500,24 @@ def collection_redirect(id):
 
     rep_pattern = re.compile(re.escape('<identifier>'), re.RegexFlag.IGNORECASE)
     redirect_url = rep_pattern.sub(uuid, redirect_url)
-    
-    return redirect(redirect_url, code = 307)
 
+    resp = Response("page has moved", 307)
+    resp.headers['Location'] = redirect_url
+    return resp    
+
+#redirection method created for REFERENCE organ DOI
+#redirection, but can be for others if needed
+@app.route('/redirect/<hmid>', methods = ['GET'])
+def redirect(hmid):
+    cid = hmid.upper().strip()
+    if cid in reference_redirects:
+        redir_url = reference_redirects[cid]
+        resp = Response("page has moved", 307)
+        resp.headers['Location'] = redir_url
+        return resp
+    else:
+        return Response(f"{hmid} not found.", 404)
+    
 """
 Get the Globus URL to the given dataset
 
