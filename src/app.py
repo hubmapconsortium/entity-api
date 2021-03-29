@@ -383,8 +383,10 @@ def get_entity_by_id(id):
     final_result = schema_manager.normalize_entity_result_for_response(complete_dict)
 
     # Result filtering based on query string
-    # One use case: Gateway checks the access level for a given dataset uuid in the assets file service
-    result_filtering_accepted_property_keys = ['data_access_level']
+    # The `data_access_level` property is available in all entities Donor/Sample/Dataset
+    # and this filter is being used by gateway to check the data_access_level for file assets
+    # The `status` property is only available in Dataset and being used by search-api for revision
+    result_filtering_accepted_property_keys = ['data_access_level', 'status']
     separator = ', '
     if bool(request.args):
         property_key = request.args.get('property')
@@ -394,6 +396,9 @@ def get_entity_by_id(id):
             if property_key not in result_filtering_accepted_property_keys:
                 bad_request_error(f"Only the following property keys are supported in the query string: {separator.join(result_filtering_accepted_property_keys)}")
             
+            if property_key == 'status' and normalized_entity_type != 'Dataset':
+                bad_request_error(f"Only Dataset supports 'status' property key in the query string")
+
             # Response with the property value directly
             # Don't use jsonify() on string value
             return complete_dict[property_key]
@@ -646,14 +651,16 @@ def get_collection(id):
 
 
 """
-Retrive all the collection nodes
+Retrive all the public collections
 Result filtering is supported based on query string
 For example: /collections?property=uuid
 
-An optional Globus nexus token can be provided in a standard Authentication Bearer header. If a valid token
-is provided with group membership in the HuBMAP-Read group any collection matching the id will be returned.
-otherwise if no token is provided or a valid token with no HuBMAP-Read group membership then
-only a public collection will be returned.  Public collections are defined as being published via a DOI 
+Only return public collections, for either 
+- a valid token in HuBMAP-Read group, 
+- a valid token with no HuBMAP-Read group or 
+- no token at all
+
+Public collections are defined as being published via a DOI 
 (collection.has_doi == true) and at least one of the connected datasets is public
 (dataset.data_access_level == 'public'). For public collections only connected datasets that are
 public are returned with it.
@@ -661,16 +668,11 @@ public are returned with it.
 Returns
 -------
 json
-    A list of all the collection dictionaries (only public collection with 
-    attached public datasts if the user/token doesn't have the right access permission)
+    A list of all the public collection dictionaries (with attached public datasts)
 """
 @app.route('/collections', methods = ['GET'])
 def get_collections():
     normalized_entity_type = 'Collection'
-
-    # Get user token from Authorization header
-    # getAuthorizationTokens() also handles MAuthorization header but we are not using that here
-    user_token = auth_helper_instance.getAuthorizationTokens(request.headers) 
 
     # Result filtering based on query string
     if bool(request.args):
@@ -684,46 +686,24 @@ def get_collections():
             if property_key not in result_filtering_accepted_property_keys:
                 bad_request_error(f"Only the following property keys are supported in the query string: {separator.join(result_filtering_accepted_property_keys)}")
             
-            # The user_token is flask.Response on error
-            # Without token, the user can only access public collections, modify the collection result
-            # by only returning public datasets attached to this collection
-            if isinstance(user_token, Response):
-                # Only return a list of the filtered property value of each public collection
-                property_list = app_neo4j_queries.get_public_collections(neo4j_driver_instance, property_key)
-            else:
-                # Only return a list of the filtered property value of each entity
-                property_list = app_neo4j_queries.get_entities_by_type(neo4j_driver_instance, normalized_entity_type, property_key)
-
-            # Final result
-            final_result = property_list
+            # Only return a list of the filtered property value of each public collection
+            final_result = app_neo4j_queries.get_public_collections(neo4j_driver_instance, property_key)
         else:
             bad_request_error("The specified query string is not supported. Use '?property=<key>' to filter the result")
     # Return all the details if no property filtering
     else: 
-        token = None
+        # Use the internal token since no user token is requried to access public collections
+        token = get_internal_token()
 
-        # The user_token is flask.Response on error
-        # Without token, the user can only access public collections, modify the collection result
-        # by only returning public datasets attached to this collection
-        if isinstance(user_token, Response):
-            # Use the internal token since no user token is requried to access public collections
-            token = get_internal_token()
-
-            # Get back a list of public collections dicts
-            collections_list = app_neo4j_queries.get_public_collections(neo4j_driver_instance)
+        # Get back a list of public collections dicts
+        collections_list = app_neo4j_queries.get_public_collections(neo4j_driver_instance)
+        
+        # Modify the Collection.datasets property for each collection dict 
+        # to contain only public datasets
+        for collection_dict in collections_list:
+            # Only return the public datasets attached to this collection for Collection.datasets property
+            collection_dict = get_complete_public_collection_dict(collection_dict)
             
-            # Modify the Collection.datasets property for each collection dict 
-            # to contain only public datasets
-            for collection_dict in collections_list:
-                # Only return the public datasets attached to this collection for Collection.datasets property
-                collection_dict = get_complete_public_collection_dict(collection_dict)
-        else:
-            # Pass in the user token in this case
-            token = user_token
-
-            # Get back a list of all collections dicts
-            collections_list = app_neo4j_queries.get_entities_by_type(neo4j_driver_instance, normalized_entity_type)
-
         # Generate trigger data and merge into a big dict
         # and skip some of the properties that are time-consuming to generate via triggers
         properties_to_skip = ['datasets']
@@ -813,13 +793,13 @@ def create_entity(entity_type):
         for direct_ancestor_uuid in json_data_dict['direct_ancestor_uuids']:
             direct_ancestor_dict = query_target_entity(direct_ancestor_uuid, user_token)
 
-        # Also check existence of the previous verion dataset if specified
-        if 'previous_version_uuid' in json_data_dict:
-            previous_version_dict = query_target_entity(json_data_dict['previous_version_uuid'], user_token)
+        # Also check existence of the previous revision dataset if specified
+        if 'previous_revision_uuid' in json_data_dict:
+            previous_version_dict = query_target_entity(json_data_dict['previous_revision_uuid'], user_token)
 
             # Make sure the previous version entity is either a Dataset or Sample
             if previous_version_dict['entity_type'] not in ['Dataset', 'Sample']:
-                bad_request_error(f"The previous_version_uuid specified for this dataset must be either a Dataset or Sample")
+                bad_request_error(f"The previous_revision_uuid specified for this dataset must be either a Dataset or Sample")
 
         # Generate 'before_create_triiger' data and create the entity details in Neo4j
         merged_dict = create_entity_details(request, normalized_entity_type, user_token, json_data_dict)
@@ -1297,6 +1277,127 @@ def get_children(id):
         final_result = schema_manager.normalize_entities_list_for_response(complete_entities_list)
 
     return jsonify(final_result)
+
+
+"""
+Get all previous revisions of the given entity
+Result filtering based on query string
+For example: /previous_revisions/<id>?property=uuid
+
+Parameters
+----------
+id : str
+    The HuBMAP ID (e.g. HBM123.ABCD.456) or UUID of given entity
+
+Returns
+-------
+json
+    A list of entities that are the previous revisions of the target entity
+"""
+@app.route('/previous_revisions/<id>', methods = ['GET'])
+def get_previous_revisions(id):
+    # Get user token from Authorization header
+    user_token = get_user_token(request.headers)
+
+    # Make sure the id exists in uuid-api and 
+    # the corresponding entity also exists in neo4j
+    entity_dict = query_target_entity(id, user_token)
+    uuid = entity_dict['uuid']
+
+    # Result filtering based on query string
+    if bool(request.args):
+        property_key = request.args.get('property')
+
+        if property_key is not None:
+            result_filtering_accepted_property_keys = ['uuid']
+            separator = ', '
+
+            # Validate the target property
+            if property_key not in result_filtering_accepted_property_keys:
+                bad_request_error(f"Only the following property keys are supported in the query string: {separator.join(result_filtering_accepted_property_keys)}")
+
+            # Only return a list of the filtered property value of each entity
+            property_list = app_neo4j_queries.get_previous_revisions(neo4j_driver_instance, uuid, property_key)
+
+            # Final result
+            final_result = property_list
+        else:
+            bad_request_error("The specified query string is not supported. Use '?property=<key>' to filter the result")
+    # Return all the details if no property filtering
+    else:
+        descendants_list = app_neo4j_queries.get_previous_revisions(neo4j_driver_instance, uuid)
+
+        # Generate trigger data and merge into a big dict
+        # and skip some of the properties that are time-consuming to generate via triggers
+        # datasts for Collection, director_ancestor for Sample, and direct_ancestors for Dataset
+        properties_to_skip = ['collections', 'data_submission', 'direct_ancestors']
+        complete_entities_list = schema_manager.get_complete_entities_list(user_token, descendants_list, properties_to_skip)
+
+        # Final result after normalization
+        final_result = schema_manager.normalize_entities_list_for_response(complete_entities_list)
+
+    return jsonify(final_result)
+
+
+"""
+Get all next revisions of the given entity
+Result filtering based on query string
+For example: /next_revisions/<id>?property=uuid
+
+Parameters
+----------
+id : str
+    The HuBMAP ID (e.g. HBM123.ABCD.456) or UUID of given entity
+
+Returns
+-------
+json
+    A list of entities that are the next revisions of the target entity
+"""
+@app.route('/next_revisions/<id>', methods = ['GET'])
+def get_next_revisions(id):
+    # Get user token from Authorization header
+    user_token = get_user_token(request.headers)
+
+    # Make sure the id exists in uuid-api and 
+    # the corresponding entity also exists in neo4j
+    entity_dict = query_target_entity(id, user_token)
+    uuid = entity_dict['uuid']
+
+    # Result filtering based on query string
+    if bool(request.args):
+        property_key = request.args.get('property')
+
+        if property_key is not None:
+            result_filtering_accepted_property_keys = ['uuid']
+            separator = ', '
+
+            # Validate the target property
+            if property_key not in result_filtering_accepted_property_keys:
+                bad_request_error(f"Only the following property keys are supported in the query string: {separator.join(result_filtering_accepted_property_keys)}")
+
+            # Only return a list of the filtered property value of each entity
+            property_list = app_neo4j_queries.get_next_revisions(neo4j_driver_instance, uuid, property_key)
+
+            # Final result
+            final_result = property_list
+        else:
+            bad_request_error("The specified query string is not supported. Use '?property=<key>' to filter the result")
+    # Return all the details if no property filtering
+    else:
+        descendants_list = app_neo4j_queries.get_next_revisions(neo4j_driver_instance, uuid)
+
+        # Generate trigger data and merge into a big dict
+        # and skip some of the properties that are time-consuming to generate via triggers
+        # datasts for Collection, director_ancestor for Sample, and direct_ancestors for Dataset
+        properties_to_skip = ['collections', 'data_submission', 'direct_ancestors']
+        complete_entities_list = schema_manager.get_complete_entities_list(user_token, descendants_list, properties_to_skip)
+
+        # Final result after normalization
+        final_result = schema_manager.normalize_entities_list_for_response(complete_entities_list)
+
+    return jsonify(final_result)
+
 
 
 """
@@ -1822,10 +1923,11 @@ def create_entity_details(request, normalized_entity_type, user_token, json_data
     # Merge the user json data and generated trigger data into one dictionary
     merged_dict = {**json_data_dict, **generated_before_create_trigger_data_dict}
 
-    # Filter out the merged_dict by getting rid of the properties with None value
+    # Filter out the merged_dict by getting rid of the transitent properties (not to be stored) 
+    # and properties with None value
     # Meaning the returned target property key is different from the original key 
     # in the trigger method, e.g., Donor.image_files_to_add
-    filtered_merged_dict = schema_manager.remove_none_values(merged_dict)
+    filtered_merged_dict = schema_manager.remove_transient_and_none_values(merged_dict, normalized_entity_type)
     
     # Create new entity
     try:
@@ -1840,10 +1942,15 @@ def create_entity_details(request, normalized_entity_type, user_token, json_data
         # Terminate and let the users know
         internal_server_error(msg)
 
-    # Add user_info_dict because it may be used by after_update_trigger methods
+    
     # Important: use `entity_dict` instead of `filtered_merged_dict` to keep consistent with the stored
-    # string expression literals of Python list/dict being used with entity update
-    merged_final_dict = {**entity_dict, **user_info_dict}
+    # string expression literals of Python list/dict being used with entity update, e.g., `image_files`
+    # Important: the same property keys in entity_dict will overwrite the same key in json_data_dict
+    # and this is what we wanted. Adding json_data_dict back is to include those `transient` properties
+    # provided in the JSON input but not stored in neo4j, and will be needed for after_create_trigger/after_update_trigger,
+    # e.g., `previous_revision_uuid`, `direct_ancestor_uuids`
+    # Add user_info_dict because it may be used by after_update_trigger methods
+    merged_final_dict = {**json_data_dict, **entity_dict, **user_info_dict}
 
     # Note: return merged_final_dict instead of entity_dict because 
     # it contains all the user json data that the generated that entity_dict may not have
@@ -1950,10 +2057,11 @@ def create_multiple_samples_details(request, normalized_entity_type, user_token,
     # Merge the user json data and generated trigger data into one dictionary
     merged_dict = {**json_data_dict, **generated_before_create_trigger_data_dict}
 
-    # Filter out the merged_dict by getting rid of the properties with None value
+    # Filter out the merged_dict by getting rid of the transitent properties (not to be stored) 
+    # and properties with None value
     # Meaning the returned target property key is different from the original key 
     # in the trigger method, e.g., Donor.image_files_to_add
-    filtered_merged_dict = schema_manager.remove_none_values(merged_dict)
+    filtered_merged_dict = schema_manager.remove_transient_and_none_values(merged_dict, normalized_entity_type)
 
     samples_dict_list = []
     for new_ids_dict in new_ids_dict_list:
@@ -2058,10 +2166,11 @@ def update_entity_details(request, normalized_entity_type, user_token, json_data
     # Merge dictionaries
     merged_dict = {**json_data_dict, **generated_before_update_trigger_data_dict}
 
-    # Filter out the merged_dict by getting rid of the properties with None value
+    # Filter out the merged_dict by getting rid of the transitent properties (not to be stored) 
+    # and properties with None value
     # Meaning the returned target property key is different from the original key 
     # in the trigger method, e.g., Donor.image_files_to_add
-    filtered_merged_dict = schema_manager.remove_none_values(merged_dict)
+    filtered_merged_dict = schema_manager.remove_transient_and_none_values(merged_dict, normalized_entity_type)
 
     # By now the filtered_merged_dict contains all user updates and all triggered data to be added to the entity node
     # Any properties in filtered_merged_dict that are not on the node will be added.
@@ -2078,11 +2187,14 @@ def update_entity_details(request, normalized_entity_type, user_token, json_data
         # Terminate and let the users know
         internal_server_error(msg)
 
-    # The duplicate key-value pairs existing in json_data_dict get replaced by the same key-value pairs
-    # from the updated_entity_dict, but json_data_dict may contain keys that are not in json_data_dict
-    # E.g., direct_ancestor_uuids for Dataset and direct_ancestor_uuid for Sample, both are transient properties
+    # Important: use `updated_entity_dict` instead of `filtered_merged_dict` to keep consistent with the stored
+    # string expression literals of Python list/dict being used with entity update, e.g., `image_files`
+    # Important: the same property keys in entity_dict will overwrite the same key in json_data_dict
+    # and this is what we wanted. Adding json_data_dict back is to include those `transient` properties
+    # provided in the JSON input but not stored in neo4j, and will be needed for after_create_trigger/after_update_trigger,
+    # e.g., `previous_revision_uuid`, `direct_ancestor_uuids`
     # Add user_info_dict because it may be used by after_update_trigger methods
-    merged_final_dict = {**json_data_dict, **user_info_dict, **updated_entity_dict}
+    merged_final_dict = {**json_data_dict, **updated_entity_dict, **user_info_dict}
 
     # Use merged_final_dict instead of merged_dict because 
     # merged_dict only contains properties to be updated, not all properties
