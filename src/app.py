@@ -742,6 +742,34 @@ def create_entity(entity_type):
     except schema_errors.InvalidNormalizedEntityTypeException as e:
         bad_request_error(f"Invalid entity type provided: {entity_type}")
 
+
+
+
+
+
+
+
+
+
+    # Check if the subject allowed to create this entity
+    subjects_allowed = schema_manager.get_subjects_allowed_on_entity_create(normalized_entity_type)
+
+    # When subject required
+    if subjects_allowed:
+        if 'Subject' not in request.headers:
+            bad_request_error("Missing subject in request header")
+
+
+
+
+
+
+
+
+
+
+
+
     # Always expect a json body
     require_json(request)
 

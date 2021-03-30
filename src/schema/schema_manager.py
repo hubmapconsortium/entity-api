@@ -656,6 +656,58 @@ def validate_json_data_against_schema(json_data_dict, normalized_entity_type, ex
     
 
 """
+Get a list of application subjects (other than users) that can 
+create new entity of the given type
+
+Parameters
+----------
+normalized_entity_type : str
+    One of the normalized entity types: Dataset, Collection, Sample, Donor, Submission
+
+Returns
+-------
+list
+    A list of subjects
+"""
+def get_subjects_allowed_on_entity_create(normalize_entity_type):
+    global _schema
+
+    subjects = []
+    entity = _schema['ENTITIES'][normalize_entity_type]
+
+    # When not specified, both users and applications can create this entity
+    if ('subjects_allowed_on_create' in entity) and isinstance(entity['subjects_allowed_on_create'], list):
+        subjects = entity['subjects_allowed_on_create']
+
+    return subjects
+
+"""
+Get a list of application subjects (other than users) that can 
+update the existing entity of the given type
+
+Parameters
+----------
+normalized_entity_type : str
+    One of the normalized entity types: Dataset, Collection, Sample, Donor, Submission
+
+Returns
+-------
+list
+    A list of subjects
+"""
+def get_subjects_allowed_on_entity_update(normalize_entity_type):
+    global _schema
+
+    subjects = []
+    entity = _schema['ENTITIES'][normalize_entity_type]
+
+    # When not specified, both users and applications can update this entity
+    if ('subjects_allowed_on_update' in entity) and isinstance(entity['subjects_allowed_on_update'], list):
+        subjects = entity['subjects_allowed_on_update']
+
+    return subjects
+
+"""
 Get a list of entity types that can be used as derivation source in the schmea yaml
 
 Returns
