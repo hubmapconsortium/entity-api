@@ -742,8 +742,8 @@ def create_entity(entity_type):
     except schema_errors.InvalidNormalizedEntityTypeException as e:
         bad_request_error(f"Invalid entity type provided: {entity_type}")
 
-    # Check if the subject allowed to create or update this entity
-    check_if_subject_allowed(normalized_entity_type, request.headers, 'subjects_allowed_on_create')
+    # Check if the subject allowed to create this entity
+    check_subject_at_entity_level(normalized_entity_type, request.headers, 'subjects_allowed_on_entity_create')
 
     # Always expect a json body
     require_json(request)
@@ -993,8 +993,8 @@ def update_entity(id):
         # No need to log the validation errors
         bad_request_error(str(e))
 
-    # Check if the subject allowed to create or update this entity
-    check_if_subject_allowed(normalized_entity_type, request.headers, 'subjects_allowed_on_update')
+    # Check if the subject allowed to update this entity
+    check_subject_at_entity_level(normalized_entity_type, request.headers, 'subjects_allowed_on_entity_update')
 
     # Sample, Dataset, and Submission: additional validation, update entity, after_update_trigger
     # Collection and Donor: update entity
@@ -2358,9 +2358,9 @@ request_headers: dict
 action : str
     One of the: subjects_allowed_on_create, subjects_allowed_on_update
 """
-def check_if_subject_allowed(normalized_entity_type, request_headers, action):
+def check_subject_at_entity_level(normalized_entity_type, request_headers, action):
     try:
-        schema_manager.validate_subject(normalized_entity_type, request.headers, action)
+        schema_manager.validate_entity_level_subject(normalized_entity_type, request.headers, action)
     except schema_errors.MissingSubjectHeaderException as e: 
         bad_request_error(e)  
     except schema_errors.InvalidSubjectHeaderException as e: 

@@ -671,12 +671,41 @@ Returns
 list
     A list of subjects
 """
-def get_allowed_subjects(normalize_entity_type, action):
+def get_entity_level_allowed_subjects(normalize_entity_type, action):
     global _schema
 
     subjects = []
     entity = _schema['ENTITIES'][normalize_entity_type]
     key = action
+
+    # When not specified, both users and applications can create or update this entity
+    if (key in entity) and isinstance(entity[key], list):
+        # Lowercase all subjects in the list via a list comprehension
+        subjects = [subject.lower() for subject in entity[key]]
+
+    return subjects
+
+"""
+Get a list of application subjects (other than users) that can 
+update the existing entity property of the given property key
+
+Parameters
+----------
+normalized_entity_type : str
+    One of the normalized entity types: Dataset, Collection, Sample, Donor, Submission
+property_key : str
+    The target property key that requires allowed subjects to update
+
+Returns
+-------
+list
+    A list of subjects
+"""
+def get_property_level_allowed_subjects(normalize_entity_type, property_key):
+    global _schema
+
+    subjects = []
+    properties = _schema['ENTITIES'][normalize_entity_type]['properties']
 
     # When not specified, both users and applications can create or update this entity
     if (key in entity) and isinstance(entity[key], list):
@@ -696,17 +725,17 @@ normalized_entity_type : str
 request_headers: dict
     The instance of Flask request.headers
 action : str
-    One of the: subjects_allowed_on_create, subjects_allowed_on_update
+    One of the: subjects_allowed_on_entity_create, subjects_allowed_on_entity_update
 
 Returns
 -------
 list
     A list of subjects
 """
-def validate_subject(normalized_entity_type, request_headers, action):
+def validate_entity_level_subject(normalized_entity_type, request_headers, action):
     # Check if the subject allowed to create or update this entity
     # Returns empty list if no restrictions, meaning both users and aplications can create or update
-    subjects_allowed = get_allowed_subjects(normalized_entity_type, action)
+    subjects_allowed = get_entity_level_allowed_subjects(normalized_entity_type, action)
 
     # Lowercase all header names in the dict via a dict comprehension
     headers = {k.lower(): v for k, v in request_headers.items()}
