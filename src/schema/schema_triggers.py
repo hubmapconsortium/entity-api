@@ -723,17 +723,22 @@ str: The target property key
 dict: A dict of associated Submission detail with all the normalized information
 """
 def get_dataset_submission(property_key, normalized_type, user_token, existing_data_dict, new_data_dict):
+    return_dict = None
+    
     if 'uuid' not in existing_data_dict:
         raise KeyError("Missing 'uuid' key in 'existing_data_dict' during calling 'get_dataset_collections()' trigger method.")
 
+    # It could be None if the dataset doesn't in any Submission
     submission_dict = schema_neo4j_queries.get_dataset_submission(schema_manager.get_neo4j_driver_instance(), existing_data_dict['uuid'])
+    
+    if submission_dict:
+        # Exclude datasets from each resulting Submission
+        # We don't want to show too much nested information
+        properties_to_skip = ['datasets']
+        complete_submission_dict = schema_manager.get_complete_entity_result(user_token, submission_dict, properties_to_skip)
+        return_dict = schema_manager.normalize_entity_result_for_response(complete_submission_dict)
 
-    # Exclude datasets from each resulting Submission
-    # We don't want to show too much nested information
-    properties_to_skip = ['datasets']
-    complete_submission_dict = schema_manager.get_complete_entity_result(user_token, submission_dict, properties_to_skip)
-
-    return property_key, schema_manager.normalize_entity_result_for_response(complete_submission_dict)
+    return property_key, return_dict
 
 
 """
