@@ -657,55 +657,71 @@ def validate_json_data_against_schema(json_data_dict, normalized_entity_type, ex
 
 """
 Get a list of application subjects (other than users) that can 
-create new entity of the given type
+create new entity or update the existing entity of the given type
 
 Parameters
 ----------
 normalized_entity_type : str
     One of the normalized entity types: Dataset, Collection, Sample, Donor, Submission
+action : str
+    One of the: subjects_allowed_on_create, subjects_allowed_on_update
 
 Returns
 -------
 list
     A list of subjects
 """
-def get_subjects_allowed_on_entity_create(normalize_entity_type):
+def get_allowed_subjects(normalize_entity_type, action):
     global _schema
 
     subjects = []
     entity = _schema['ENTITIES'][normalize_entity_type]
+    key = action
 
-    # When not specified, both users and applications can create this entity
-    if ('subjects_allowed_on_create' in entity) and isinstance(entity['subjects_allowed_on_create'], list):
-        subjects = entity['subjects_allowed_on_create']
+    # When not specified, both users and applications can create or update this entity
+    if (key in entity) and isinstance(entity[key], list):
+        # Lowercase all subjects in the list via a list comprehension
+        subjects = [subject.lower() for subject in entity[key]]
 
     return subjects
 
 """
-Get a list of application subjects (other than users) that can 
-update the existing entity of the given type
+Check if the subject allowed to create or update this entity
+Returns empty list if no restrictions, meaning both users and aplications can create or update
 
 Parameters
 ----------
 normalized_entity_type : str
     One of the normalized entity types: Dataset, Collection, Sample, Donor, Submission
+request_headers: dict
+    The instance of Flask request.headers
+action : str
+    One of the: subjects_allowed_on_create, subjects_allowed_on_update
 
 Returns
 -------
 list
     A list of subjects
 """
-def get_subjects_allowed_on_entity_update(normalize_entity_type):
-    global _schema
+def validate_subject(normalized_entity_type, request_headers, action):
+    # Check if the subject allowed to create or update this entity
+    # Returns empty list if no restrictions, meaning both users and aplications can create or update
+    subjects_allowed = get_allowed_subjects(normalized_entity_type, action)
 
-    subjects = []
-    entity = _schema['ENTITIES'][normalize_entity_type]
+    # Lowercase all header names in the dict via a dict comprehension
+    headers = {k.lower(): v for k, v in request_headers.items()}
 
-    # When not specified, both users and applications can update this entity
-    if ('subjects_allowed_on_update' in entity) and isinstance(entity['subjects_allowed_on_update'], list):
-        subjects = entity['subjects_allowed_on_update']
+    # When subject required
+    if subjects_allowed:
+        if 'subject' not in headers:
+            msg = "Missing subject header from request"
+            raise schema_errors.MissingSubjectHeaderException(msg)
 
-    return subjects
+        # Use lowercase for comparing the subject header value
+        if headers['subject'].lower() not in subjects_allowed:
+            msg = f"Invalid subject header value: {headers['subject']}"
+            raise schema_errors.InvalidSubjectHeaderException(msg)
+
 
 """
 Get a list of entity types that can be used as derivation source in the schmea yaml

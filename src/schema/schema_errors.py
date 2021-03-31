@@ -31,3 +31,9 @@ class UnmatchedDataProviderGroupException(Exception):
     
 class FileUploadException(Exception):
     pass
+
+class MissingSubjectHeaderException(Exception):
+    pass
+
+class InvalidSubjectHeaderException(Exception):
+    pass

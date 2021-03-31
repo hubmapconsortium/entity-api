@@ -742,33 +742,8 @@ def create_entity(entity_type):
     except schema_errors.InvalidNormalizedEntityTypeException as e:
         bad_request_error(f"Invalid entity type provided: {entity_type}")
 
-
-
-
-
-
-
-
-
-
-    # Check if the subject allowed to create this entity
-    subjects_allowed = schema_manager.get_subjects_allowed_on_entity_create(normalized_entity_type)
-
-    # When subject required
-    if subjects_allowed:
-        if 'Subject' not in request.headers:
-            bad_request_error("Missing subject in request header")
-
-
-
-
-
-
-
-
-
-
-
+    # Check if the subject allowed to create or update this entity
+    check_if_subject_allowed(normalized_entity_type, request.headers, 'subjects_allowed_on_create')
 
     # Always expect a json body
     require_json(request)
@@ -1017,6 +992,9 @@ def update_entity(id):
     except schema_errors.SchemaValidationException as e:
         # No need to log the validation errors
         bad_request_error(str(e))
+
+    # Check if the subject allowed to create or update this entity
+    check_if_subject_allowed(normalized_entity_type, request.headers, 'subjects_allowed_on_update')
 
     # Sample, Dataset, and Submission: additional validation, update entity, after_update_trigger
     # Collection and Donor: update entity
@@ -2366,6 +2344,27 @@ token : str or Response
 def require_token(token):
     if isinstance(token, Response):
         bad_request_error("A valid globus token is required")
+
+"""
+Check if the subject allowed to create or update this entity
+Returns empty list if no restrictions, meaning both users and aplications can create or update
+
+Parameters
+----------
+normalized_entity_type : str
+    One of the normalized entity types: Dataset, Collection, Sample, Donor, Submission
+request_headers: dict
+    The instance of Flask request.headers
+action : str
+    One of the: subjects_allowed_on_create, subjects_allowed_on_update
+"""
+def check_if_subject_allowed(normalized_entity_type, request_headers, action):
+    try:
+        schema_manager.validate_subject(normalized_entity_type, request.headers, action)
+    except schema_errors.MissingSubjectHeaderException as e: 
+        bad_request_error(e)  
+    except schema_errors.InvalidSubjectHeaderException as e: 
+        bad_request_error(e) 
 
 """
 Make a call to search-api to reindex this entity node in elasticsearch
