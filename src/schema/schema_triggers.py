@@ -731,9 +731,9 @@ def get_dataset_submission(property_key, normalized_type, user_token, existing_d
     # Exclude datasets from each resulting Submission
     # We don't want to show too much nested information
     properties_to_skip = ['datasets']
-    complete_entities_list = schema_manager.get_complete_entities_list(user_token, collections_list, properties_to_skip)
+    complete_submission_dict = schema_manager.get_complete_entity_result(user_token, submission_dict, properties_to_skip)
 
-    return property_key, schema_manager.normalize_entities_list_for_response(complete_entities_list)
+    return property_key, schema_manager.normalize_entity_result_for_response(complete_submission_dict)
 
 
 """
