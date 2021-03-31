@@ -602,8 +602,9 @@ def validate_json_data_against_schema(json_data_dict, normalized_entity_type, ex
         # No need to log the validation errors
         raise schema_errors.SchemaValidationException(f"Auto generated keys are not allowed in request json: {separator.join(generated_keys)}")
 
-    # Only check if keys in request json are immutable during entity update via HTTP PUT
+    # Checks for entity update via HTTP PUT
     if existing_entity_dict:
+        # Check if keys in request json are immutable 
         immutable_keys = []
         for key in json_data_keys:
             if ('immutable' in properties[key]) and properties[key]['immutable']:
@@ -678,7 +679,7 @@ def get_entity_level_allowed_subjects(normalize_entity_type, action):
     entity = _schema['ENTITIES'][normalize_entity_type]
     key = action
 
-    # When not specified, both users and applications can create or update this entity
+    # When not specified, both users and applications can create this entity
     if (key in entity) and isinstance(entity[key], list):
         # Lowercase all subjects in the list via a list comprehension
         subjects = [subject.lower() for subject in entity[key]]
@@ -706,11 +707,12 @@ def get_property_level_allowed_subjects(normalize_entity_type, property_key):
 
     subjects = []
     properties = _schema['ENTITIES'][normalize_entity_type]['properties']
+    action = 'subjects_allowed_on_property_update'
 
-    # When not specified, both users and applications can create or update this entity
-    if (key in entity) and isinstance(entity[key], list):
+    # When not specified, both users and applications can update this entity
+    if (property_key in properties) and (action in properties[property_key]) and isinstance(properties[property_key][action], list):
         # Lowercase all subjects in the list via a list comprehension
-        subjects = [subject.lower() for subject in entity[key]]
+        subjects = [subject.lower() for subject in properties[property_key][action]]
 
     return subjects
 
@@ -726,11 +728,6 @@ request_headers: dict
     The instance of Flask request.headers
 action : str
     One of the: subjects_allowed_on_entity_create, subjects_allowed_on_entity_update
-
-Returns
--------
-list
-    A list of subjects
 """
 def validate_entity_level_subject(normalized_entity_type, request_headers, action):
     # Check if the subject allowed to create or update this entity
@@ -749,6 +746,39 @@ def validate_entity_level_subject(normalized_entity_type, request_headers, actio
         # Use lowercase for comparing the subject header value
         if headers['subject'].lower() not in subjects_allowed:
             msg = f"Invalid subject header value: {headers['subject']}"
+            raise schema_errors.InvalidSubjectHeaderException(msg)
+
+
+"""
+Check if the subject allowed to update this entity property
+Returns empty list if no restrictions, meaning both users and aplications can update
+
+Parameters
+----------
+normalized_entity_type : str
+    One of the normalized entity types: Dataset, Collection, Sample, Donor, Submission
+property_key : str
+    The target property key that requires allowed subjects to update
+request_headers: dict
+    The instance of Flask request.headers
+"""
+def validate_property_level_subject(normalized_entity_type, property_key, request_headers):
+    # Check if the subject allowed to update this entity property, e.g., Dataset.status
+    # Returns empty list if no restrictions, meaning both users and aplications can update
+    subjects_allowed = get_property_level_allowed_subjects(normalized_entity_type, property_key)
+
+    # Lowercase all header names in the dict via a dict comprehension
+    headers = {k.lower(): v for k, v in request_headers.items()}
+
+    # When subject required
+    if subjects_allowed:
+        if 'subject' not in headers:
+            msg = f"Updating {property_key} requires a subject header from request"
+            raise schema_errors.MissingSubjectHeaderException(msg)
+
+        # Use lowercase for comparing the subject header value
+        if headers['subject'].lower() not in subjects_allowed:
+            msg = f"Unable to update {property_key} due to invalid subject header value: {headers['subject']}"
             raise schema_errors.InvalidSubjectHeaderException(msg)
 
 

@@ -985,6 +985,9 @@ def update_entity(id):
     # Normalize user provided entity_type
     normalized_entity_type = schema_manager.normalize_entity_type(entity_dict['entity_type'])
 
+    # Check if the subject allowed to update this entity
+    check_subject_at_entity_level(normalized_entity_type, request.headers, 'subjects_allowed_on_entity_update')
+
     # Validate request json against the yaml schema
     # Pass in the entity_dict for missing required key check, this is different from creating new entity
     try:
@@ -993,8 +996,14 @@ def update_entity(id):
         # No need to log the validation errors
         bad_request_error(str(e))
 
-    # Check if the subject allowed to update this entity
-    check_subject_at_entity_level(normalized_entity_type, request.headers, 'subjects_allowed_on_entity_update')
+    # Additional checks on keys that require a valid subject to update
+    for key in json_data_dict:
+        try:
+            schema_manager.validate_property_level_subject(normalized_entity_type, key, request.headers)
+        except schema_errors.MissingSubjectHeaderException as e: 
+            bad_request_error(e)  
+        except schema_errors.InvalidSubjectHeaderException as e: 
+            bad_request_error(e) 
 
     # Sample, Dataset, and Submission: additional validation, update entity, after_update_trigger
     # Collection and Donor: update entity
