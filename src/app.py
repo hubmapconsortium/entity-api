@@ -996,14 +996,9 @@ def update_entity(id):
         # No need to log the validation errors
         bad_request_error(str(e))
 
-    # Additional checks on keys that require a valid subject to update
-    for key in json_data_dict:
-        try:
-            schema_manager.validate_property_level_subject(normalized_entity_type, key, request.headers)
-        except schema_errors.MissingSubjectHeaderException as e: 
-            bad_request_error(e)  
-        except schema_errors.InvalidSubjectHeaderException as e: 
-            bad_request_error(e) 
+    # Additional checks on property keys that require a valid subject header to update
+    # Only Dataset.status for now
+    check_subject_at_property_level_on_update_only(normalized_entity_type, request.headers, json_data_dict)
 
     # Sample, Dataset, and Submission: additional validation, update entity, after_update_trigger
     # Collection and Donor: update entity
@@ -2356,16 +2351,15 @@ def require_token(token):
 
 """
 Check if the subject allowed to create or update this entity
-Returns empty list if no restrictions, meaning both users and aplications can create or update
 
 Parameters
 ----------
 normalized_entity_type : str
-    One of the normalized entity types: Dataset, Collection, Sample, Donor, Submission
-request_headers: dict
-    The instance of Flask request.headers
+    One of the normalized entity types: Dataset, Submission
+request_headers: Flask request.headers object, behaves like a dict
+    The instance of Flask request.headers passed in from application request
 action : str
-    One of the: subjects_allowed_on_create, subjects_allowed_on_update
+    subjects_allowed_on_entity_create or subjects_allowed_on_entity_update
 """
 def check_subject_at_entity_level(normalized_entity_type, request_headers, action):
     try:
@@ -2374,6 +2368,27 @@ def check_subject_at_entity_level(normalized_entity_type, request_headers, actio
         bad_request_error(e)  
     except schema_errors.InvalidSubjectHeaderException as e: 
         bad_request_error(e) 
+
+"""
+Check if the subject allowed to update a certail entity property specified in request json
+
+Parameters
+----------
+normalized_entity_type : str
+    Dataset (Dataset.status is the only property requires this for now)
+request_headers: Flask request.headers object, behaves like a dict
+    The instance of Flask request.headers passed in from application request
+request_json_data : dict
+    The json dict containing the properties and values to be updated
+"""
+def check_subject_at_property_level_on_update_only(normalized_entity_type, request_headers, request_json_data):
+    for key in request_json_data:
+        try:
+            schema_manager.validate_property_level_subject_on_update_only(normalized_entity_type, key, request.headers)
+        except schema_errors.MissingSubjectHeaderException as e: 
+            bad_request_error(e)  
+        except schema_errors.InvalidSubjectHeaderException as e: 
+            bad_request_error(e) 
 
 """
 Make a call to search-api to reindex this entity node in elasticsearch

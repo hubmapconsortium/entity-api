@@ -663,14 +663,14 @@ create new entity or update the existing entity of the given type
 Parameters
 ----------
 normalized_entity_type : str
-    One of the normalized entity types: Dataset, Collection, Sample, Donor, Submission
+    One of the normalized entity types: Dataset, Submission
 action : str
-    One of the: subjects_allowed_on_create, subjects_allowed_on_update
+    subjects_allowed_on_entity_create or subjects_allowed_on_entity_update
 
 Returns
 -------
 list
-    A list of subjects
+    A list of subjects (normlized with lowercase)
 """
 def get_entity_level_allowed_subjects(normalize_entity_type, action):
     global _schema
@@ -693,16 +693,16 @@ update the existing entity property of the given property key
 Parameters
 ----------
 normalized_entity_type : str
-    One of the normalized entity types: Dataset, Collection, Sample, Donor, Submission
+    Dataset (Dataset.status is the only property requires this for now)
 property_key : str
     The target property key that requires allowed subjects to update
 
 Returns
 -------
 list
-    A list of subjects
+    A list of subjects (normlized with lowercase)
 """
-def get_property_level_allowed_subjects(normalize_entity_type, property_key):
+def get_property_level_allowed_subjects_on_update_only(normalize_entity_type, property_key):
     global _schema
 
     subjects = []
@@ -718,67 +718,63 @@ def get_property_level_allowed_subjects(normalize_entity_type, property_key):
 
 """
 Check if the subject allowed to create or update this entity
-Returns empty list if no restrictions, meaning both users and aplications can create or update
 
 Parameters
 ----------
 normalized_entity_type : str
-    One of the normalized entity types: Dataset, Collection, Sample, Donor, Submission
-request_headers: dict
-    The instance of Flask request.headers
+    One of the normalized entity types: Dataset, Submission
+request_headers: Flask request.headers object, behaves like a dict
+    The instance of Flask request.headers passed in from application request
 action : str
-    One of the: subjects_allowed_on_entity_create, subjects_allowed_on_entity_update
+    subjects_allowed_on_entity_create or subjects_allowed_on_entity_update
 """
 def validate_entity_level_subject(normalized_entity_type, request_headers, action):
-    # Check if the subject allowed to create or update this entity
+    # Get the list of subjects allowed to create or update this entity
     # Returns empty list if no restrictions, meaning both users and aplications can create or update
     subjects_allowed = get_entity_level_allowed_subjects(normalized_entity_type, action)
 
-    # Lowercase all header names in the dict via a dict comprehension
-    headers = {k.lower(): v for k, v in request_headers.items()}
-
     # When subject required
     if subjects_allowed:
-        if 'subject' not in headers:
-            msg = "Missing subject header from request"
+        # HTTP header names are case-insensitive
+        # request_headers.get('subject') returns None is the header doesn't exist
+        if not request_headers.get('subject'):
+            msg = "Unbale to proceed due to missing subject header from request"
             raise schema_errors.MissingSubjectHeaderException(msg)
 
-        # Use lowercase for comparing the subject header value
-        if headers['subject'].lower() not in subjects_allowed:
-            msg = f"Invalid subject header value: {headers['subject']}"
+        # Use lowercase for comparing the subject header value against the yaml
+        if request_headers.get('subject').lower() not in subjects_allowed:
+            msg = f"Unable to proceed due to invalid subject header value: {request_headers.get('subject')}"
             raise schema_errors.InvalidSubjectHeaderException(msg)
 
 
 """
 Check if the subject allowed to update this entity property
-Returns empty list if no restrictions, meaning both users and aplications can update
 
 Parameters
 ----------
 normalized_entity_type : str
-    One of the normalized entity types: Dataset, Collection, Sample, Donor, Submission
+    Dataset (Dataset.status is the only property requires this for now)
 property_key : str
     The target property key that requires allowed subjects to update
-request_headers: dict
-    The instance of Flask request.headers
+request_headers: Flask request.headers object, behaves like a dict
+    The instance of Flask request.headers passed in from application request
 """
-def validate_property_level_subject(normalized_entity_type, property_key, request_headers):
-    # Check if the subject allowed to update this entity property, e.g., Dataset.status
+def validate_property_level_subject_on_update_only(normalized_entity_type, property_key, request_headers):
+    # Get the list of subjects allowed to update this entity property, e.g., Dataset.status
     # Returns empty list if no restrictions, meaning both users and aplications can update
-    subjects_allowed = get_property_level_allowed_subjects(normalized_entity_type, property_key)
-
-    # Lowercase all header names in the dict via a dict comprehension
-    headers = {k.lower(): v for k, v in request_headers.items()}
+    subjects_allowed = get_property_level_allowed_subjects_on_update_only(normalized_entity_type, property_key)
 
     # When subject required
     if subjects_allowed:
-        if 'subject' not in headers:
-            msg = f"Updating {property_key} requires a subject header from request"
+        # HTTP header names are case-insensitive
+        # request_headers.get('subject') returns None is the header doesn't exist
+        if not request_headers.get('subject'):
+            msg = f"Unable to update {property_key} due to missing subject header from request"
             raise schema_errors.MissingSubjectHeaderException(msg)
 
-        # Use lowercase for comparing the subject header value
-        if headers['subject'].lower() not in subjects_allowed:
-            msg = f"Unable to update {property_key} due to invalid subject header value: {headers['subject']}"
+        # Use lowercase for comparing the subject header value against the yaml
+        if request_headers.get('subject').lower() not in subjects_allowed:
+            msg = f"Unable to update {property_key} due to invalid subject header value: {request_headers.get('subject')}"
             raise schema_errors.InvalidSubjectHeaderException(msg)
 
 
