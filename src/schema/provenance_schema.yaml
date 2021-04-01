@@ -91,7 +91,7 @@ ACTIVITIES:
 ## Entities
 ####################################################################################################
 
-shared_entity_properties: &shared_entity_properties 
+doi_properties: &doi_properties
   ###### DOI properties ######
   registered_doi:
     type: string
@@ -101,6 +101,24 @@ shared_entity_properties: &shared_entity_properties
     type: string
     immutable: true
     description: "The url from the doi registry for this entity. e.g. https://doi.org/10.35079/hbm289.pcbm.487"
+  # Currently cretors and contacts are only available for public Collections
+  # they are required for doi registration
+  creators:
+    type: list
+    description: "A list of the people who created the entity with full name, email, ORCID iD, institution, etc.. This is analogus to the author list on a publication."
+  contacts:
+    type: list 
+    description: "A list of the people who are the main contacts to get information about the entity."
+  # To-DO
+  # creator_ids:
+  #   type: list
+  #   immutable: true
+  #   description: "A list of ids (will need to decide on uuid or orcid id) referencing the people who created the entity"
+  # contact_ids:
+  #   type: list
+  #   description: "A list of ids (will need to decide on uuid or orcid id) referencing the people who are the main contacts about this entity"
+
+shared_entity_properties: &shared_entity_properties 
   ###### Last Modified Properties #######
   last_modified_timestamp:
     type: integer
@@ -143,21 +161,7 @@ shared_entity_properties: &shared_entity_properties
     immutable: true
     description: "One of the normalized entity types: Dataset, Collection, Sample, Donor"
     before_create_trigger: set_entity_type 
-  # Currently cretors and contacts are only available for public Collections
-  creators:
-    type: list
-    description: "A list of the people who created the entity with full name, email, ORCID iD, institution, etc.. This is analogus to the author list on a publication."
-  contacts:
-    type: list 
-    description: "A list of the people who are the main contacts to get information about the entity."
-  # To-DO
-  # creator_ids:
-  #   type: list
-  #   immutable: true
-  #   description: "A list of ids (will need to decide on uuid or orcid id) referencing the people who created the entity"
-  # contact_ids:
-  #   type: list
-  #   description: "A list of ids (will need to decide on uuid or orcid id) referencing the people who are the main contacts about this entity"
+
   
 
 ENTITIES:
@@ -171,6 +175,7 @@ ENTITIES:
     properties:
       <<: *shared_properties
       <<: *shared_entity_properties
+      <<: *doi_properties
       title:
         type: string
         required_on_create: true
@@ -194,6 +199,7 @@ ENTITIES:
     properties:
       <<: *shared_properties
       <<: *shared_entity_properties
+      <<: *doi_properties
       antibodies:
         type: list
         description: "A list of antibodies used in the assay that created the dataset"
@@ -215,7 +221,7 @@ ENTITIES:
         type: string
         generated: true
         description: "One of: Published|New|QA|Error|Hold|Invalid"
-        before_create_trigger: set_dataset_status
+        before_create_trigger: set_dataset_status_new
         after_update_trigger: update_dataset_and_ancestors_data_access_level
       title:
         type: string
@@ -231,6 +237,12 @@ ENTITIES:
         generated: true
         description: "A list of collections that this dataset belongs to. Will be returned in response"
         on_read_trigger: get_dataset_collections
+      submission:
+        type: json_string # dict
+        transient: true
+        generated: true
+        description: "The Submission that this dataset is associated with. Will be returned in response"
+        on_read_trigger: get_dataset_submission
       contributors:
         type: list
         description: "A list of people who contributed to the creation of this dataset.  Returned as an array of contributor where the structure of a contributor is"
@@ -324,6 +336,7 @@ ENTITIES:
     properties:
       <<: *shared_properties
       <<: *shared_entity_properties
+      <<: *doi_properties
       description:
         type: string
         description: "Free text description of the donor"
@@ -375,7 +388,8 @@ ENTITIES:
       lab_donor_id:
         type: string
         description: "A lab specific identifier for the donor."
-      # Will come back from uuid-api together with the uuid and hubmap_id
+      # No submission_id for Dataset, Collection, and Submission
+      # Only Donor and Sample have this property
       submission_id:
         type: string
         immutable: true
@@ -425,6 +439,7 @@ ENTITIES:
     properties:
       <<: *shared_properties
       <<: *shared_entity_properties
+      <<: *doi_properties
       description:
         type: string
         description: "Free text description of the sample"
@@ -488,7 +503,7 @@ ENTITIES:
         generated: true
         transient: true
         on_read_trigger: get_sample_direct_ancestor
-      # No submission_id for Dataset and Collection
+      # No submission_id for Dataset, Collection, and Submission
       # Only Donor and Sample have this property
       submission_id:
         type: string
@@ -576,5 +591,71 @@ ENTITIES:
         # The updated_peripherally tag is a temporary measure to correctly handle any attributes
         # which are potentially updated by multiple triggers
         updated_peripherally: true
-      
-  
+
+  ############################################# Submission #############################################
+  # Use "Submission" instead of "DataSubmission" because eventually we might 
+  # allow folks to bulk register Samples or Donors through the same mechanism.
+  Submission:
+    # Submission requires an ancestor of Lab, and and has no allowed decesndents 
+    derivation:
+      source: false
+      target: false # Set to false since the schema doesn't handle Lab currently
+    properties:
+      <<: *shared_properties
+      <<: *shared_entity_properties
+      description:
+        type: string
+        required_on_create: true
+        description: "Free text description of the data being submitted."
+      title:
+        type: string
+        required_on_create: true
+        description: "Title of the datasets, a sentance or less"
+      status:
+        type: string
+        generated: true
+        description: "One of: New|Valid|Invalid|Error|Submitted"
+        # Trigger method will set the status to "New" on create
+        before_create_trigger: set_submission_status_new
+      validation_message:
+        type: string
+        description: A message from the validataion tools describing what is invalid with the submission.
+      group_uuid:
+        type: string
+        immutable: true
+        description: "The uuid of globus group which the user who created this entity is a member of"
+        before_create_trigger: set_group_uuid #method that, if group_uuid is not already set looks for membership in a single "data provider" group and sets to that. Otherwise if not set and no single "provider group" membership throws error.  This field is also used to link (Neo4j relationship) to the correct Lab node on creation.
+        # Note: link_submission_to_lab() will always delete all the old linkages first
+        after_create_trigger: link_submission_to_lab
+      # Must set in neo4j
+      group_name:
+        type: string
+        generated: true
+        immutable: true
+        description: "The displayname of globus group which the user who created this entity is a member of"
+        before_create_trigger: set_group_name
+      #transient attribute used to pass in a list of dataset ids to be linked to the Submisison node
+      #datasets will be added only via PUT/update, NEVER on POST/create
+      dataset_uuids_to_link:
+        type: list 
+        generated: true # Disallow user input from request json when being created
+        transient: true
+        exposed: false
+        description: 'List of datasets to add to the Submission. Provide as a json array of the dataset uuids like: ["232934234234234234234270c0ea6c51d604a850558ef2247d0b4", "230948203482234234234a57bfe9c056d08a0f8e6cd612baa3bfa"]'
+        # Use after_update_trigger instead of before_update_trigger since we are not updating this property
+        after_update_trigger: link_datasets_to_submission 
+      #transient attribute used to pass in a list of dataset ids of datasets to be removed from a DataSubmisison
+      dataset_uuids_to_unlink:
+        type: list 
+        generated: true # Disallow user input from request json when being created
+        transient: true
+        exposed: false
+        description: 'List of datasets to remove from a Submission. Provide as a json array of the dataset uuids like: ["232934234234234234234270c0ea6c51d604a850558ef2247d0b4", "230948203482234234234a57bfe9c056d08a0f8e6cd612baa3bfa"]'
+        # Use after_update_trigger instead of before_update_trigger since we are not updating this property
+        after_update_trigger: unlink_datasets_from_submission 
+      datasets:
+        type: list
+        generated: true # Disallow user input from request json when being created
+        transient: true
+        description: "The datasets that are contained in this Submission."
+        on_read_trigger: get_submission_datasets

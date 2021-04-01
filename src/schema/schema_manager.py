@@ -983,8 +983,10 @@ def create_hubmap_ids(normalized_class, json_data_dict, user_token, user_info_di
     }
 
     # Activity and Collection don't require the `parent_ids` in request json
-    if normalized_class in ['Donor', 'Sample', 'Dataset']:
-        if normalized_class == 'Donor':
+    if normalized_class in ['Donor', 'Sample', 'Dataset', 'Submission']:
+        # The direct ancestor of Donor and Submission must be Lab
+        # The group_uuid is the Lab id in this case
+        if normalized_class in ['Donor', 'Submission']:
             # If `group_uuid` is not already set, looks for membership in a single "data provider" group and sets to that. 
             # Otherwise if not set and no single "provider group" membership throws error.  
             # This field is also used to link (Neo4j relationship) to the correct Lab node on creation.
@@ -993,7 +995,7 @@ def create_hubmap_ids(normalized_class, json_data_dict, user_token, user_info_di
 
             user_group_uuids = user_info_dict['hmgroupids']
 
-            # If group_uuid is provided by the request, use it
+            # If group_uuid is provided by the request, use it with validation
             if 'group_uuid' in json_data_dict:
                 group_uuid = json_data_dict['group_uuid']
                 # Validate the group_uuid and make sure it's one of the valid data providers
@@ -1040,13 +1042,14 @@ def create_hubmap_ids(normalized_class, json_data_dict, user_token, user_info_di
                 # The 'organ' field containing the organ code is required in this case
                 json_to_post['organ_code'] = json_data_dict['organ']
         else:
-            # Similarly, should `direct_ancestor_uuids` be `required_on_create` in yaml?
+            # `Dataset.direct_ancestor_uuids` is `required_on_create` in yaml
             json_to_post['parent_ids'] = json_data_dict['direct_ancestor_uuids']
 
     request_headers = _create_request_headers(user_token)
 
     query_parms = {'entity_count': count}
 
+    logger.debug("======create_hubmap_ids() json_to_post to uuid-api======")
     logger.debug(json_to_post)
 
     # Disable ssl certificate verification
@@ -1056,7 +1059,8 @@ def create_hubmap_ids(normalized_class, json_data_dict, user_token, user_info_di
     response.raise_for_status()
     
     if response.status_code == 200:
-        # For Collection/Dataset/Activity, the uuid-api response looks like:
+        # For Collection/Dataset/Activity/Submission, no submission_id gets 
+        # generated, the uuid-api response looks like:
         """
         [{
             "uuid": "3bcc20f4f9ba19ed837136d19f530fbe",
@@ -1065,8 +1069,7 @@ def create_hubmap_ids(normalized_class, json_data_dict, user_token, user_info_di
         }]
         """
 
-        # For Donor/Sample, submission_id will be added
-        # Only Donor and Sample have this submission_id
+        # For Donor/Sample, submission_id will be added:
         """
         [{
             "uuid": "c0276b5937ba8e0d7d1185020bade18f",
@@ -1076,6 +1079,9 @@ def create_hubmap_ids(normalized_class, json_data_dict, user_token, user_info_di
         }]
         """
         ids_list = response.json()
+
+        logger.debug("======create_hubmap_ids() generated ids from uuid-api======")
+        logger.debug(ids_list)
 
         return ids_list
     else:
