@@ -742,8 +742,8 @@ def create_entity(entity_type):
     except schema_errors.InvalidNormalizedEntityTypeException as e:
         bad_request_error(f"Invalid entity type provided: {entity_type}")
 
-    # Check if the subject allowed to create this entity
-    check_subject_at_entity_level(normalized_entity_type, request.headers, 'subjects_allowed_on_entity_create')
+    # Check if the application allowed to create this entity
+    check_application_at_entity_level(normalized_entity_type, request.headers, 'applications_allowed_on_entity_create')
 
     # Always expect a json body
     require_json(request)
@@ -985,8 +985,8 @@ def update_entity(id):
     # Normalize user provided entity_type
     normalized_entity_type = schema_manager.normalize_entity_type(entity_dict['entity_type'])
 
-    # Check if the subject allowed to update this entity
-    check_subject_at_entity_level(normalized_entity_type, request.headers, 'subjects_allowed_on_entity_update')
+    # Check if the application allowed to update this entity
+    check_application_at_entity_level(normalized_entity_type, request.headers, 'applications_allowed_on_entity_update')
 
     # Validate request json against the yaml schema
     # Pass in the entity_dict for missing required key check, this is different from creating new entity
@@ -996,9 +996,9 @@ def update_entity(id):
         # No need to log the validation errors
         bad_request_error(str(e))
 
-    # Additional checks on property keys that require a valid subject header to update
+    # Additional checks on property keys that require a valid application header to update
     # Only Dataset.status for now
-    check_subject_at_property_level_on_update_only(normalized_entity_type, request.headers, json_data_dict)
+    check_application_at_property_level_on_update_only(normalized_entity_type, request.headers, json_data_dict)
 
     # Sample, Dataset, and Submission: additional validation, update entity, after_update_trigger
     # Collection and Donor: update entity
@@ -2350,7 +2350,7 @@ def require_token(token):
         bad_request_error("A valid globus token is required")
 
 """
-Check if the subject allowed to create or update this entity
+Check if the application allowed to create or update this entity
 
 Parameters
 ----------
@@ -2359,18 +2359,18 @@ normalized_entity_type : str
 request_headers: Flask request.headers object, behaves like a dict
     The instance of Flask request.headers passed in from application request
 action : str
-    subjects_allowed_on_entity_create or subjects_allowed_on_entity_update
+    applications_allowed_on_entity_create or applications_allowed_on_entity_update
 """
-def check_subject_at_entity_level(normalized_entity_type, request_headers, action):
+def check_application_at_entity_level(normalized_entity_type, request_headers, action):
     try:
-        schema_manager.validate_entity_level_subject(normalized_entity_type, request.headers, action)
-    except schema_errors.MissingSubjectHeaderException as e: 
+        schema_manager.validate_entity_level_application(normalized_entity_type, request.headers, action)
+    except schema_errors.MissingapplicationHeaderException as e: 
         bad_request_error(e)  
-    except schema_errors.InvalidSubjectHeaderException as e: 
+    except schema_errors.InvalidapplicationHeaderException as e: 
         bad_request_error(e) 
 
 """
-Check if the subject allowed to update a certail entity property specified in request json
+Check if the application allowed to update a certail entity property specified in request json
 
 Parameters
 ----------
@@ -2381,13 +2381,13 @@ request_headers: Flask request.headers object, behaves like a dict
 request_json_data : dict
     The json dict containing the properties and values to be updated
 """
-def check_subject_at_property_level_on_update_only(normalized_entity_type, request_headers, request_json_data):
+def check_application_at_property_level_on_update_only(normalized_entity_type, request_headers, request_json_data):
     for key in request_json_data:
         try:
-            schema_manager.validate_property_level_subject_on_update_only(normalized_entity_type, key, request.headers)
-        except schema_errors.MissingSubjectHeaderException as e: 
+            schema_manager.validate_property_level_application_on_update_only(normalized_entity_type, key, request.headers)
+        except schema_errors.MissingapplicationHeaderException as e: 
             bad_request_error(e)  
-        except schema_errors.InvalidSubjectHeaderException as e: 
+        except schema_errors.InvalidapplicationHeaderException as e: 
             bad_request_error(e) 
 
 """

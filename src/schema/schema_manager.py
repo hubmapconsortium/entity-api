@@ -657,7 +657,7 @@ def validate_json_data_against_schema(json_data_dict, normalized_entity_type, ex
     
 
 """
-Get a list of application subjects (other than users) that can 
+Get a list of application applications (other than users) that can 
 create new entity or update the existing entity of the given type
 
 Parameters
@@ -665,29 +665,29 @@ Parameters
 normalized_entity_type : str
     One of the normalized entity types: Dataset, Submission
 action : str
-    subjects_allowed_on_entity_create or subjects_allowed_on_entity_update
+    applications_allowed_on_entity_create or applications_allowed_on_entity_update
 
 Returns
 -------
 list
-    A list of subjects (normlized with lowercase)
+    A list of applications (normlized with lowercase)
 """
-def get_entity_level_allowed_subjects(normalize_entity_type, action):
+def get_entity_level_allowed_applications(normalize_entity_type, action):
     global _schema
 
-    subjects = []
+    applications = []
     entity = _schema['ENTITIES'][normalize_entity_type]
     key = action
 
     # When not specified, both users and applications can create this entity
     if (key in entity) and isinstance(entity[key], list):
-        # Lowercase all subjects in the list via a list comprehension
-        subjects = [subject.lower() for subject in entity[key]]
+        # Lowercase all applications in the list via a list comprehension
+        applications = [application.lower() for application in entity[key]]
 
-    return subjects
+    return applications
 
 """
-Get a list of application subjects (other than users) that can 
+Get a list of applications (other than users) that can 
 update the existing entity property of the given property key
 
 Parameters
@@ -695,29 +695,29 @@ Parameters
 normalized_entity_type : str
     Dataset (Dataset.status is the only property requires this for now)
 property_key : str
-    The target property key that requires allowed subjects to update
+    The target property key that requires allowed applications to update
 
 Returns
 -------
 list
-    A list of subjects (normlized with lowercase)
+    A list of applications (normlized with lowercase)
 """
-def get_property_level_allowed_subjects_on_update_only(normalize_entity_type, property_key):
+def get_property_level_allowed_applications_on_update_only(normalize_entity_type, property_key):
     global _schema
 
-    subjects = []
+    applications = []
     properties = _schema['ENTITIES'][normalize_entity_type]['properties']
-    action = 'subjects_allowed_on_property_update'
+    action = 'applications_allowed_on_property_update'
 
     # When not specified, both users and applications can update this entity
     if (property_key in properties) and (action in properties[property_key]) and isinstance(properties[property_key][action], list):
-        # Lowercase all subjects in the list via a list comprehension
-        subjects = [subject.lower() for subject in properties[property_key][action]]
+        # Lowercase all applications in the list via a list comprehension
+        applications = [application.lower() for application in properties[property_key][action]]
 
-    return subjects
+    return applications
 
 """
-Check if the subject allowed to create or update this entity
+Check if the application allowed to create or update this entity
 
 Parameters
 ----------
@@ -726,56 +726,56 @@ normalized_entity_type : str
 request_headers: Flask request.headers object, behaves like a dict
     The instance of Flask request.headers passed in from application request
 action : str
-    subjects_allowed_on_entity_create or subjects_allowed_on_entity_update
+    applications_allowed_on_entity_create or applications_allowed_on_entity_update
 """
-def validate_entity_level_subject(normalized_entity_type, request_headers, action):
-    # Get the list of subjects allowed to create or update this entity
+def validate_entity_level_application(normalized_entity_type, request_headers, action):
+    # Get the list of applications allowed to create or update this entity
     # Returns empty list if no restrictions, meaning both users and aplications can create or update
-    subjects_allowed = get_entity_level_allowed_subjects(normalized_entity_type, action)
+    applications_allowed = get_entity_level_allowed_applications(normalized_entity_type, action)
 
-    # When subject required
-    if subjects_allowed:
+    # When application required
+    if applications_allowed:
         # HTTP header names are case-insensitive
-        # request_headers.get('subject') returns None is the header doesn't exist
-        if not request_headers.get('subject'):
-            msg = "Unbale to proceed due to missing subject header from request"
-            raise schema_errors.MissingSubjectHeaderException(msg)
+        # request_headers.get('X-Hubmap-Application') returns None is the header doesn't exist
+        if not request_headers.get('X-Hubmap-Application'):
+            msg = "Unbale to proceed due to missing X-Hubmap-Application header from request"
+            raise schema_errors.MissingApplicationHeaderException(msg)
 
-        # Use lowercase for comparing the subject header value against the yaml
-        if request_headers.get('subject').lower() not in subjects_allowed:
-            msg = f"Unable to proceed due to invalid subject header value: {request_headers.get('subject')}"
-            raise schema_errors.InvalidSubjectHeaderException(msg)
+        # Use lowercase for comparing the application header value against the yaml
+        if request_headers.get('X-Hubmap-Application').lower() not in applications_allowed:
+            msg = f"Unable to proceed due to invalid X-Hubmap-Application header value: {request_headers.get('X-Hubmap-Application')}"
+            raise schema_errors.InvalidApplicationHeaderException(msg)
 
 
 """
-Check if the subject allowed to update this entity property
+Check if the application allowed to update this entity property
 
 Parameters
 ----------
 normalized_entity_type : str
     Dataset (Dataset.status is the only property requires this for now)
 property_key : str
-    The target property key that requires allowed subjects to update
+    The target property key that requires allowed applications to update
 request_headers: Flask request.headers object, behaves like a dict
     The instance of Flask request.headers passed in from application request
 """
-def validate_property_level_subject_on_update_only(normalized_entity_type, property_key, request_headers):
-    # Get the list of subjects allowed to update this entity property, e.g., Dataset.status
+def validate_property_level_application_on_update_only(normalized_entity_type, property_key, request_headers):
+    # Get the list of applications allowed to update this entity property, e.g., Dataset.status
     # Returns empty list if no restrictions, meaning both users and aplications can update
-    subjects_allowed = get_property_level_allowed_subjects_on_update_only(normalized_entity_type, property_key)
+    applications_allowed = get_property_level_allowed_applications_on_update_only(normalized_entity_type, property_key)
 
-    # When subject required
-    if subjects_allowed:
+    # When application required
+    if applications_allowed:
         # HTTP header names are case-insensitive
-        # request_headers.get('subject') returns None is the header doesn't exist
-        if not request_headers.get('subject'):
-            msg = f"Unable to update {property_key} due to missing subject header from request"
-            raise schema_errors.MissingSubjectHeaderException(msg)
+        # request_headers.get('X-Hubmap-Application') returns None is the header doesn't exist
+        if not request_headers.get('X-Hubmap-Application'):
+            msg = f"Unable to update {property_key} due to missing X-Hubmap-Application header from request"
+            raise schema_errors.MissingApplicationHeaderException(msg)
 
-        # Use lowercase for comparing the subject header value against the yaml
-        if request_headers.get('subject').lower() not in subjects_allowed:
-            msg = f"Unable to update {property_key} due to invalid subject header value: {request_headers.get('subject')}"
-            raise schema_errors.InvalidSubjectHeaderException(msg)
+        # Use lowercase for comparing the application header value against the yaml
+        if request_headers.get('X-Hubmap-Application').lower() not in applications_allowed:
+            msg = f"Unable to update {property_key} due to invalid application header value: {request_headers.get('X-Hubmap-Application')}"
+            raise schema_errors.InvalidApplicationHeaderException(msg)
 
 
 """
