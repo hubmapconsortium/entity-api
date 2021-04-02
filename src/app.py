@@ -2364,9 +2364,9 @@ action : str
 def check_application_at_entity_level(normalized_entity_type, request_headers, action):
     try:
         schema_manager.validate_entity_level_application(normalized_entity_type, request.headers, action)
-    except schema_errors.MissingapplicationHeaderException as e: 
+    except schema_errors.MissingApplicationHeaderException as e: 
         bad_request_error(e)  
-    except schema_errors.InvalidapplicationHeaderException as e: 
+    except schema_errors.InvalidApplicationHeaderException as e: 
         bad_request_error(e) 
 
 """
@@ -2385,9 +2385,9 @@ def check_application_at_property_level_on_update_only(normalized_entity_type, r
     for key in request_json_data:
         try:
             schema_manager.validate_property_level_application_on_update_only(normalized_entity_type, key, request.headers)
-        except schema_errors.MissingapplicationHeaderException as e: 
+        except schema_errors.MissingApplicationHeaderException as e: 
             bad_request_error(e)  
-        except schema_errors.InvalidapplicationHeaderException as e: 
+        except schema_errors.InvalidApplicationHeaderException as e: 
             bad_request_error(e) 
 
 """
