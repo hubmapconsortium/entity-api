@@ -2333,11 +2333,15 @@ def require_json(request):
 Check if the token from user request is valid
 
 token : str or Response
-    The token string if valid or Flask Response object if invalid
+    The token string if valid or Flask Response object otherwise
 """
 def require_token(token):
     if isinstance(token, Response):
-        bad_request_error("A valid globus token is required")
+        # When the token is an Response instance,
+        # it must be a 401 error with message
+        # We wrap the message in a json and send back to requester as 401 too
+        # The Response.data returns binary string, need to decode
+        unauthorized_error(token.data.decode())
 
 """
 Make a call to search-api to reindex this entity node in elasticsearch
