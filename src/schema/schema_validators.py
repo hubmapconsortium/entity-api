@@ -1,34 +1,22 @@
 import logging
 
 # Local modules
-from schema import schema_manager
 from schema import schema_errors
 
 logger = logging.getLogger(__name__)
 
 
 """
-Trigger event method of generating current timestamp
+Validate the application specified in the custom HTTP header 'X-Hubmap-Application'
 
 Parameters
 ----------
-property_key : str
-    The target property key of the value to be generated
 normalized_type : str
-    One of the types defined in the schema yaml: Activity, Collection, Donor, Sample, Dataset
-user_token: str
-    The user's globus nexus token
-existing_data_dict : dict
-    A dictionary that contains all existing entity properties
-new_data_dict : dict
-    A merged dictionary that contains all possible input data to be used
-
-Returns
--------
-str: The target property key
-str: The neo4j TIMESTAMP() function as string
+    One of the types defined in the schema yaml: Donor, Sample, Dataset, Submission
+request_headers: Flask request.headers object, behaves like a dict
+    The instance of Flask request.headers passed in from application request
 """
-def validate_application(property_key, normalized_entity_type, request_headers):
+def validate_application(normalized_entity_type, request_headers):
     # Get the list of applications allowed to create or update this entity
     # Returns empty list if no restrictions, meaning both users and aplications can create or update
     applications_allowed = ['ingest-api']

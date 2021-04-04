@@ -688,7 +688,7 @@ def execute_entity_level_validators(validator_type, normalized_entity_type, requ
                 
                 logger.debug(f"To run {validator_type}: {validator_method_name} defined for entity {normalized_entity_type}")
 
-                validator_method_to_call(key, normalized_entity_type, request_headers)
+                validator_method_to_call(normalized_entity_type, request_headers)
             except schema_errors.MissingApplicationHeaderException as e: 
                 raise schema_errors.MissingApplicationHeaderException(e) 
             except schema_errors.InvalidApplicationHeaderException as e: 
@@ -725,7 +725,7 @@ def execute_property_level_validators(validator_type, normalized_entity_type, re
     properties = _schema['ENTITIES'][normalized_entity_type]['properties']
 
     for key in properties:
-        # Only run the validator for keys present in the request json
+        # Only run the validators for keys present in the request json
         if (key in request_json_data) and (validator_type in properties[key]):
             validator_method_name = entity[validator_type]
 
@@ -735,7 +735,7 @@ def execute_property_level_validators(validator_type, normalized_entity_type, re
                 
                 logger.debug(f"To run {validator_type}: {validator_method_name} defined for entity {normalized_entity_type} on property {key}")
 
-                validator_method_to_call(key, normalized_entity_type, request_headers, request_json_data)
+                validator_method_to_call(normalized_entity_type, request_headers)
             except schema_errors.MissingApplicationHeaderException as e: 
                 raise schema_errors.MissingApplicationHeaderException(e) 
             except schema_errors.InvalidApplicationHeaderException as e: 
