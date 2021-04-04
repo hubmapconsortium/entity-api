@@ -1009,11 +1009,14 @@ def update_entity(id):
     # Currently only Dataset.status has such proerty level validator
     # Execute validators defined in schema yaml before entity property update
     try:
-        schema_manager.execute_property_level_validators('before_property_update_validator', normalized_entity_type, request.headers, json_data_dict)
+        schema_manager.execute_property_level_validators('before_property_update_validators', normalized_entity_type, request.headers, json_data_dict)
     except schema_errors.MissingApplicationHeaderException as e: 
         bad_request_error(e)  
     except schema_errors.InvalidApplicationHeaderException as e: 
         bad_request_error(e)
+    except ValueError as e:
+        bad_request_error(e)
+
 
     # Sample, Dataset, and Submission: additional validation, update entity, after_update_trigger
     # Collection and Donor: update entity

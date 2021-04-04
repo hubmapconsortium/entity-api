@@ -705,7 +705,7 @@ Execute the property level validators defined in the schema yaml
 Parameters
 ----------
 validator_type : str
-    For now only: before_property_update_validator
+    For now only: before_property_update_validators
 normalized_entity_type : str
     One of the normalized entity types defined in the schema yaml: Donor, Sample, Dataset, Submission
 request_headers: Flask request.headers object, behaves like a dict
@@ -727,23 +727,27 @@ def execute_property_level_validators(validator_type, normalized_entity_type, re
     for key in properties:
         # Only run the validators for keys present in the request json
         if (key in request_json_data) and (validator_type in properties[key]):
-            validator_method_name = entity[validator_type]
+            # Get a list of defined validators on this property
+            validators_list = properties[key][validator_type]
+            # Run each validator defined on this property
+            for validator_method_name in validators_list:
+                try:
+                    # Get the target validator method defined in the schema_validators.py module
+                    validator_method_to_call = getattr(schema_validators, validator_method_name)
+                    
+                    logger.debug(f"To run {validator_type}: {validator_method_name} defined for entity {normalized_entity_type} on property {key}")
 
-            try:
-                # Get the target validator method defined in the schema_validators.py module
-                validator_method_to_call = getattr(schema_validators, validator_method_name)
-                
-                logger.debug(f"To run {validator_type}: {validator_method_name} defined for entity {normalized_entity_type} on property {key}")
-
-                validator_method_to_call(normalized_entity_type, request_headers)
-            except schema_errors.MissingApplicationHeaderException as e: 
-                raise schema_errors.MissingApplicationHeaderException(e) 
-            except schema_errors.InvalidApplicationHeaderException as e: 
-                raise schema_errors.InvalidApplicationHeaderException(e)
-            except Exception:
-                msg = f"Failed to call the {validator_type} method: {validator_method_name} defiend for entity {normalized_entity_type} on property {key}"
-                # Log the full stack trace, prepend a line with our message
-                logger.exception(msg)
+                    validator_method_to_call(key, normalized_entity_type, request_headers, request_json_data)
+                except schema_errors.MissingApplicationHeaderException as e: 
+                    raise schema_errors.MissingApplicationHeaderException(e) 
+                except schema_errors.InvalidApplicationHeaderException as e: 
+                    raise schema_errors.InvalidApplicationHeaderException(e)
+                except ValueError as e:
+                    raise ValueError(e)
+                except Exception:
+                    msg = f"Failed to call the {validator_type} method: {validator_method_name} defiend for entity {normalized_entity_type} on property {key}"
+                    # Log the full stack trace, prepend a line with our message
+                    logger.exception(msg)
 
 
 """
@@ -974,7 +978,7 @@ validator_type : str
     One of the validator types: before_create_validator, before_update_validator
 """
 def validate_property_level_validator_type(validator_type):
-    accepted_validator_types = ['before_property_update_validator']
+    accepted_validator_types = ['before_property_update_validators']
     separator = ', '
 
     if validator_type.lower() not in accepted_validator_types:

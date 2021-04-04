@@ -193,7 +193,7 @@ ENTITIES:
   ############################################# Dataset #############################################
   Dataset:
     # Only allowed applications can create new Dataset via POST
-    before_entity_create_validator: validate_application
+    before_entity_create_validator: validate_application_header_before_entity_create
     # Dataset can be either derivation source or target
     derivation:
       source: true
@@ -221,7 +221,9 @@ ENTITIES:
         description: "True if the data contains any human genetic sequence information."
       status:
         # Only allowed applications can update the `status` via PUT
-        before_property_update_validator: validate_application
+        before_property_update_validators: 
+          - validate_application_header_before_property_update
+          - validate_dataset_status_value
         type: string
         generated: true
         description: "One of: Published|New|QA|Error|Hold|Invalid"
@@ -601,9 +603,9 @@ ENTITIES:
   # allow folks to bulk register Samples or Donors through the same mechanism.
   Submission:
     # Only allowed applications can create new Submission via POST
-    before_entity_create_validator: validate_application
+    before_entity_create_validator: validate_application_header_before_entity_create
     # Only allowed applications can update an existing Submission via PUT
-    before_entity_update_validator: validate_application
+    before_entity_update_validator: validate_application_header_before_entity_update
     # Submission requires an ancestor of Lab, and and has no allowed decesndents 
     derivation:
       source: false
