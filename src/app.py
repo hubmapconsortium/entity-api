@@ -347,7 +347,6 @@ def get_entity_by_id(id):
     # Query target entity against uuid-api and neo4j and return as a dict if exists
     entity_dict = query_target_entity(id, token)
     normalized_entity_type = entity_dict['entity_type']
-    entity_data_access_level = entity_dict['data_access_level']
 
     # Handle Collection retrieval using a different endpoint 
     if normalized_entity_type == 'Collection':
@@ -363,16 +362,17 @@ def get_entity_by_id(id):
         if entity_dict['status'].lower() != 'published':
             # Check if user token is provided
             # The user_token is flask.Response on error
-            # Without token, the user can only access public collections, modify the collection result
-            # by only returning public datasets attached to this collection
-            if isinstance(user_token, Response):
-                bad_request_error("A valid globus token is required")
+            # Without token, the user can only access published datasets
+            require_token(user_token)
+    elif normalized_entity_type == 'Submission':
+        # Submission doesn't have 'data_access_level' property
+        # Always require a token for accessing Submission
+        require_token(user_token)
     else:
         # The `data_access_level` of Donor/Sample can only be either 'public' or 'consortium'
-        if entity_data_access_level == ACCESS_LEVEL_CONSORTIUM:
+        if entity_dict['data_access_level'] == ACCESS_LEVEL_CONSORTIUM:
             # Require token to access the Donor/Sample that are not public
-            if isinstance(user_token, Response):
-                bad_request_error("A valid globus token is required")
+            require_token(user_token)
 
     # By now, either the entity is public accessible or the user token has the correct access level
     # We'll need to return all the properties including those 
@@ -453,15 +453,12 @@ def get_entity_provenance(id):
         if entity_dict['status'].lower() != 'published':
             # Check if user token is provided
             # The user_token is flask.Response on error
-            # Without token, the user can only access public collections, modify the collection result
-            # by only returning public datasets attached to this collection
-            if isinstance(user_token, Response):
-                bad_request_error("A valid globus token is required")
+            # Without token, the user can only access published datasets
+            require_token(user_token)
     else:
         # The `data_access_level` of Donor/Sample can only be either 'public' or 'consortium'
         if entity_data_access_level == ACCESS_LEVEL_CONSORTIUM:
-            if isinstance(user_token, Response):
-                bad_request_error("A valid globus token is required")
+            require_token(user_token)
 
     # By now, either the entity is public accessible or the user token has the correct access level
     # Will just proceed to get the provenance informaiton
@@ -787,7 +784,7 @@ def create_entity(entity_type):
 
         # Generate 'before_create_triiger' data and create the entity details in Neo4j
         merged_dict = create_entity_details(request, normalized_entity_type, user_token, json_data_dict)
-    elif normalized_entity_type == 'Dataset':    
+    elif normalized_entity_type == 'Dataset':
         # `direct_ancestor_uuids` is required for creating new Dataset
         # Check existence of those direct ancestors
         for direct_ancestor_uuid in json_data_dict['direct_ancestor_uuids']:
@@ -809,7 +806,8 @@ def create_entity(entity_type):
     
     # For Donor: link to parent Lab node
     # For Sample: link to existing direct ancestor
-    # For Datset: link to direct ancestors
+    # For Dataset: link to direct ancestors
+    # For Submission: link to parent Lab node
     after_create(normalized_entity_type, user_token, merged_dict)
 
     # We'll need to return all the properties including those 
@@ -990,22 +988,25 @@ def update_entity(id):
         # No need to log the validation errors
         bad_request_error(str(e))
 
-    # Sample and Dataset: additional validation, update entity, after_update_trigger
+    # Sample, Dataset, and Submission: additional validation, update entity, after_update_trigger
     # Collection and Donor: update entity
     if normalized_entity_type == 'Sample':
-        # A bit more validation for new sample to be linked to existing source entity
+        # A bit more validation for updating the sample and the linkage to existing source entity
         has_direct_ancestor_uuid = False
         if ('direct_ancestor_uuid' in json_data_dict) and json_data_dict['direct_ancestor_uuid']:
             has_direct_ancestor_uuid = True
 
             direct_ancestor_uuid = json_data_dict['direct_ancestor_uuid']
-            # Check existence of the source entity (either another Sample or Donor)
+            # Check existence of the source entity
             direct_ancestor_dict = query_target_entity(direct_ancestor_uuid, user_token)
+            # Also make sure it's either another Sample or a Donor
+            if dataset_dict['entity_type'] not in ['Donor', 'Sample']:
+                bad_request_error(f"The uuid: {dataset_uuid} is not a Donor neither a Sample, cannot be used as the direct ancestor of this Sample")
 
         # Generate 'before_update_triiger' data and update the entity details in Neo4j
         merged_updated_dict = update_entity_details(request, normalized_entity_type, user_token, json_data_dict, entity_dict)
 
-        # For sample to be linked to existing direct ancestor
+        # Handle linkages update via `after_update_trigger` methods 
         if has_direct_ancestor_uuid:
             after_update(normalized_entity_type, user_token, merged_updated_dict)
     elif normalized_entity_type == 'Dataset':    
@@ -1021,8 +1022,40 @@ def update_entity(id):
         # Generate 'before_update_trigger' data and update the entity details in Neo4j
         merged_updated_dict = update_entity_details(request, normalized_entity_type, user_token, json_data_dict, entity_dict)
 
-        # Handle direct_ancestor_uuids via `after_update_trigger` methods 
+        # Handle linkages update via `after_update_trigger` methods 
         if has_direct_ancestor_uuids:
+            after_update(normalized_entity_type, user_token, merged_updated_dict)
+    elif normalized_entity_type == 'Submission': 
+        has_dataset_uuids_to_link = False
+        if ('dataset_uuids_to_link' in json_data_dict) and (json_data_dict['dataset_uuids_to_link']):
+            has_dataset_uuids_to_link = True
+
+            # Check existence of those datasets to be linked
+            # If one of the datasets to be linked appears to be already linked, 
+            # neo4j query won't create the new linkage due to the use of `MERGE`
+            for dataset_uuid in json_data_dict['dataset_uuids_to_link']:
+                dataset_dict = query_target_entity(dataset_uuid, user_token)
+                # Also make sure it's a Dataset
+                if dataset_dict['entity_type'] != 'Dataset':
+                    bad_request_error(f"The uuid: {dataset_uuid} is not a Dataset, cannot be linked to this Submission")
+
+        has_dataset_uuids_to_unlink = False
+        if ('dataset_uuids_to_unlink' in json_data_dict) and (json_data_dict['dataset_uuids_to_unlink']):
+            has_dataset_uuids_to_unlink = True
+
+            # Check existence of those datasets to be unlinked
+            # If one of the datasets to be unlinked appears to be not linked at all,
+            # the neo4j cypher will simply skip it because it won't match the "MATCH" clause
+            # So no need to tell the end users that this dataset is not linked
+            # Let alone checking the entity type to ensure it's a Dataset
+            for dataset_uuid in json_data_dict['dataset_uuids_to_unlink']:
+                dataset_dict = query_target_entity(dataset_uuid, user_token)
+
+        # Generate 'before_update_trigger' data and update the entity details in Neo4j
+        merged_updated_dict = update_entity_details(request, normalized_entity_type, user_token, json_data_dict, entity_dict)
+
+        # Handle linkages update via `after_update_trigger` methods 
+        if has_dataset_uuids_to_link or has_dataset_uuids_to_unlink:
             after_update(normalized_entity_type, user_token, merged_updated_dict)
     else:
         # Generate 'before_update_triiger' data and update the entity details in Neo4j
@@ -1330,7 +1363,7 @@ def get_previous_revisions(id):
         # Generate trigger data and merge into a big dict
         # and skip some of the properties that are time-consuming to generate via triggers
         # datasts for Collection, director_ancestor for Sample, and direct_ancestors for Dataset
-        properties_to_skip = ['collections', 'data_submission', 'direct_ancestors']
+        properties_to_skip = ['collections', 'submission', 'direct_ancestors']
         complete_entities_list = schema_manager.get_complete_entities_list(user_token, descendants_list, properties_to_skip)
 
         # Final result after normalization
@@ -1390,7 +1423,7 @@ def get_next_revisions(id):
         # Generate trigger data and merge into a big dict
         # and skip some of the properties that are time-consuming to generate via triggers
         # datasts for Collection, director_ancestor for Sample, and direct_ancestors for Dataset
-        properties_to_skip = ['collections', 'data_submission', 'direct_ancestors']
+        properties_to_skip = ['collections', 'submission', 'direct_ancestors']
         complete_entities_list = schema_manager.get_complete_entities_list(user_token, descendants_list, properties_to_skip)
 
         # Final result after normalization
@@ -2295,6 +2328,20 @@ def require_json(request):
         bad_request_error("A json body and appropriate Content-Type header are required")
 
 """
+Check if the token from user request is present and valid
+
+token : str or Response
+    The token string if valid or flask.Response object otherwise
+"""
+def require_token(token):
+    if isinstance(token, Response):
+        # When the token is an Response instance,
+        # it must be a 401 error with message
+        # We wrap the message in a json and send back to requester as 401 too
+        # The Response.data returns binary string, need to decode
+        unauthorized_error(token.data.decode())
+
+"""
 Make a call to search-api to reindex this entity node in elasticsearch
 
 Parameters
@@ -2306,6 +2353,8 @@ user_token: str
 """
 def reindex_entity(uuid, user_token):
     try:
+        logger.info(f"Making a call to search-api to reindex uuid: {uuid}")
+
         headers = create_request_headers(user_token)
 
         response = requests.put(app.config['SEARCH_API_URL'] + "/reindex/" + uuid, headers = headers)
