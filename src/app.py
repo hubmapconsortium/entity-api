@@ -362,12 +362,11 @@ def get_entity_by_id(id):
         if entity_dict['status'].lower() != 'published':
             # Check if user token is provided
             # The user_token is flask.Response on error
-            # Without token, the user can only access public collections, modify the collection result
-            # by only returning public datasets attached to this collection
+            # Without token, the user can only access published datasets
             require_token(user_token)
     elif normalized_entity_type == 'Submission':
         # Submission doesn't have 'data_access_level' property
-        # Always require a token for accessing Submission?
+        # Always require a token for accessing Submission
         require_token(user_token)
     else:
         # The `data_access_level` of Donor/Sample can only be either 'public' or 'consortium'
@@ -454,8 +453,7 @@ def get_entity_provenance(id):
         if entity_dict['status'].lower() != 'published':
             # Check if user token is provided
             # The user_token is flask.Response on error
-            # Without token, the user can only access public collections, modify the collection result
-            # by only returning public datasets attached to this collection
+            # Without token, the user can only access published datasets
             require_token(user_token)
     else:
         # The `data_access_level` of Donor/Sample can only be either 'public' or 'consortium'
@@ -2330,14 +2328,18 @@ def require_json(request):
         bad_request_error("A json body and appropriate Content-Type header are required")
 
 """
-Check if the token from user request is valid
+Check if the token from user request is present and valid
 
 token : str or Response
-    The token string if valid or Flask Response object if invalid
+    The token string if valid or flask.Response object otherwise
 """
 def require_token(token):
     if isinstance(token, Response):
-        bad_request_error("A valid globus token is required")
+        # When the token is an Response instance,
+        # it must be a 401 error with message
+        # We wrap the message in a json and send back to requester as 401 too
+        # The Response.data returns binary string, need to decode
+        unauthorized_error(token.data.decode())
 
 """
 Make a call to search-api to reindex this entity node in elasticsearch
