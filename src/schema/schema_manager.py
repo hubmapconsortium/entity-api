@@ -158,7 +158,7 @@ trigger_type : str
 normalized_class : str
     One of the types defined in the schema yaml: Activity, Collection, Donor, Sample, Dataset
 user_token: str
-    The user's globus nexus token
+    The user's globus nexus token, 'on_read_trigger' doesn't really need this
 existing_data_dict : dict
     A dictionary that contains existing entity data
 new_data_dict : dict
