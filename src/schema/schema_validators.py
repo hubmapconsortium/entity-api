@@ -58,7 +58,7 @@ Parameters
 property_key : str
     The target property key
 normalized_type : str
-    One of the types defined in the schema yaml: Donor, Sample, Dataset, Submission
+    Dataset
 request_headers: Flask request.headers object, behaves like a dict
     The instance of Flask request.headers passed in from application request
 request_json_data : dict
@@ -70,6 +70,25 @@ def validate_dataset_status_value(property_key, normalized_entity_type, request_
     if request_json_data[property_key] not in accepted_status_values:
         raise ValueError("The provided status value is not valid")
 
+"""
+Validate the provided value of Submission.status on update
+
+Parameters
+----------
+property_key : str
+    The target property key
+normalized_type : str
+    Submission
+request_headers: Flask request.headers object, behaves like a dict
+    The instance of Flask request.headers passed in from application request
+request_json_data : dict
+    The json data in request body, already after the regular validations
+"""
+def validate_submission_status_value(property_key, normalized_entity_type, request_headers, request_json_data):
+    accepted_status_values = ['New', 'Valid', 'Invalid', 'Error', 'Submitted']
+
+    if request_json_data[property_key] not in accepted_status_values:
+        raise ValueError("The provided status value is not valid")
 
 
 ####################################################################################################

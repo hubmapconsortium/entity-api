@@ -622,6 +622,8 @@ ENTITIES:
         required_on_create: true
         description: "Title of the datasets, a sentance or less"
       status:
+        before_property_update_validators: 
+          - validate_submission_status_value
         type: string
         generated: true
         description: "One of: New|Valid|Invalid|Error|Submitted"
