@@ -435,7 +435,6 @@ def get_entity_provenance(id):
     entity_dict = query_target_entity(id, token)
     uuid = entity_dict['uuid']
     normalized_entity_type = entity_dict['entity_type']
-    entity_data_access_level = entity_dict['data_access_level']
 
     # A bit validation to prevent Lab or Collection being queried
     supported_entity_types = ['Donor', 'Sample', 'Dataset']
@@ -457,7 +456,7 @@ def get_entity_provenance(id):
             require_token(user_token)
     else:
         # The `data_access_level` of Donor/Sample can only be either 'public' or 'consortium'
-        if entity_data_access_level == ACCESS_LEVEL_CONSORTIUM:
+        if entity_dict['data_access_level'] == ACCESS_LEVEL_CONSORTIUM:
             require_token(user_token)
 
     # By now, either the entity is public accessible or the user token has the correct access level
