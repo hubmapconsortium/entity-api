@@ -582,6 +582,7 @@ def get_entities_by_type(entity_type):
     # Return all the details if no property filtering
     else:
         # Get user token from Authorization header
+        # Currently the Gateway requires a token for this endpoint
         user_token = get_user_token(request.headers)
 
         # Get back a list of entity dicts for the given entity type
@@ -635,19 +636,21 @@ def get_collection(id):
     if collection_dict['entity_type'] != 'Collection':
         bad_request_error("Target entity of the given id is not a collection")
 
-    # Get user token from Authorization header
+    # Try to get user token from Authorization header 
+    # It's highly possible that there's no token provided
     user_token = get_user_token(request.headers)
 
     # The user_token is flask.Response on error
     # Without token, the user can only access public collections, modify the collection result
     # by only returning public datasets attached to this collection
     if isinstance(user_token, Response):
-        # When the requested collection is not public but there's no valid user token
+        # When the requested collection is not public, send back 401
         if ('has_doi' not in collection_dict) or (not collection_dict['has_doi']):
             # Require a valid token in this case
-            user_token = get_user_token(request.headers, token_required = True)
-
-        # Only return the public datasets attached to this collection for Collection.datasets property
+            unauthorized_error("The reqeusted collection is not public, please send a Globus token with the right access permission in the request.")
+        
+        # Otherwise only return the public datasets attached to this collection
+        # for Collection.datasets property
         complete_dict = get_complete_public_collection_dict(collection_dict)
     else:
         # We'll need to return all the properties including those 
@@ -1836,7 +1839,7 @@ def get_user_token(request_headers, token_required = False):
     try:
         user_token = auth_helper_instance.getAuthorizationTokens(request_headers) 
     except Exception:
-        msg = "Failed to parse the Authorization token"
+        msg = "Failed to parse the Authorization token by calling commons.auth_helper.getAuthorizationTokens()"
         # Log the full stack trace, prepend a line with our message
         logger.exception(msg)
         internal_server_error(msg)
@@ -1844,11 +1847,12 @@ def get_user_token(request_headers, token_required = False):
     # Further check the validity of the token if required
     if token_required:
         # When the token is a flask.Response instance,
-        # it must be a 401 error with message
+        # it MUST be a 401 error with message.
+        # That's how commons.auth_helper.getAuthorizationTokens() was designed
         if isinstance(user_token, Response):
             # We wrap the message in a json and send back to requester as 401 too
             # The Response.data returns binary string, need to decode
-            unauthorized_error(user_token.data.decode())
+            unauthorized_error(user_token.get_data())
 
     return user_token
 
