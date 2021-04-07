@@ -102,13 +102,13 @@ def link_entity_to_direct_ancestors(neo4j_driver, entity_uuid, direct_ancestor_u
 
             tx.commit()
     except TransactionError as te:
-        msg = "TransactionError from calling link_entity_to_direct_ancestor(): "
+        msg = "TransactionError from calling link_entity_to_direct_ancestors(): "
         # Log the full stack trace, prepend a line with our message
         logger.exception(msg)
 
         if tx.closed() == False:
             # Log the full stack trace, prepend a line with our message
-            logger.info("Failed to commit link_entity_to_direct_ancestor() transaction, rollback")
+            logger.info("Failed to commit link_entity_to_direct_ancestors() transaction, rollback")
             tx.rollback()
 
         raise TransactionError(msg)
@@ -264,6 +264,45 @@ def get_dataset_collections(neo4j_driver, uuid, property_key = None):
 
     return results
 
+
+"""
+Get the associated Submission for a given dataset
+
+Parameters
+----------
+neo4j_driver : neo4j.Driver object
+    The neo4j database connection pool
+uuid : str
+    The uuid of dataset
+property_key : str
+    A target property key for result filtering
+
+Returns
+-------
+dict
+    A Submission dict
+"""
+def get_dataset_submission(neo4j_driver, uuid, property_key = None):
+    result = {}
+
+    query = (f"MATCH (e:Entity)-[:IN_SUBMISSION]->(s:Submission) "
+             f"WHERE e.uuid = '{uuid}' "
+             f"RETURN s AS {record_field_name}")
+
+    logger.debug("======get_dataset_submission() query======")
+    logger.debug(query)
+
+    record = None
+    with neo4j_driver.session() as session:
+        record = session.read_transaction(_execute_readonly_tx, query)
+
+    if record:
+        # Convert the node to a dict
+        result = _node_to_dict(record[record_field_name])
+
+    return result
+
+
 """
 Get a list of associated dataset dicts for a given collection
 
@@ -277,7 +316,7 @@ uuid : str
 Returns
 -------
 list
-    The list comtaining associated dataset dicts
+    The list containing associated dataset dicts
 """
 def get_collection_datasets(neo4j_driver, uuid):
     results = []
@@ -298,6 +337,138 @@ def get_collection_datasets(neo4j_driver, uuid):
         results = _nodes_to_dicts(record[record_field_name])
 
     return results
+
+
+"""
+Link the dataset nodes to the target Submission node
+
+Parameters
+----------
+neo4j_driver : neo4j.Driver object
+    The neo4j database connection pool
+submission_uuid : str
+    The uuid of target Submission 
+dataset_uuids_list : list
+    A list of dataset uuids to be linked to Submission
+"""
+def link_datasets_to_submission(neo4j_driver, submission_uuid, dataset_uuids_list):
+    # Join the list of uuids and wrap each string in single quote
+    joined_str = ', '.join("'{0}'".format(dataset_uuid) for dataset_uuid in dataset_uuids_list)
+    # Format a string to be used in Cypher query.
+    # E.g., ['fb6757b606ac35be7fa85062fde9c2e1', 'ku0gd44535be7fa85062fde98gt5']
+    dataset_uuids_list_str = '[' + joined_str + ']'
+
+    try:
+        with neo4j_driver.session() as session:
+            tx = session.begin_transaction()
+
+            logger.info("Create relationships between the target Submission and the given Datasets")
+
+            query = (f"MATCH (s:Submission), (d:Dataset) "
+                     f"WHERE s.uuid = '{submission_uuid}' AND d.uuid IN {dataset_uuids_list_str} "
+                     # Use MERGE instead of CREATE to avoid creating the existing relationship multiple times
+                     # MERGE creates the relationship only if there is no existing relationship
+                     f"MERGE (s)<-[r:IN_SUBMISSION]-(d)") 
+
+            logger.debug("======link_datasets_to_submission() query======")
+            logger.debug(query)
+
+            tx.run(query)
+            tx.commit()
+    except TransactionError as te:
+        msg = f"TransactionError from calling link_datasets_to_submission(): {te.value}"
+        # Log the full stack trace, prepend a line with our message
+        logger.exception(msg)
+
+        if tx.closed() == False:
+            logger.info("Failed to commit link_datasets_to_submission() transaction, rollback")
+
+            tx.rollback()
+
+        raise TransactionError(msg)
+
+"""
+Unlink the dataset nodes from the target Submission node
+
+Parameters
+----------
+neo4j_driver : neo4j.Driver object
+    The neo4j database connection pool
+submission_uuid : str
+    The uuid of target Submission 
+dataset_uuids_list : list
+    A list of dataset uuids to be unlinked from Submission
+"""
+def unlink_datasets_from_submission(neo4j_driver, submission_uuid, dataset_uuids_list):
+    # Join the list of uuids and wrap each string in single quote
+    joined_str = ', '.join("'{0}'".format(dataset_uuid) for dataset_uuid in dataset_uuids_list)
+    # Format a string to be used in Cypher query.
+    # E.g., ['fb6757b606ac35be7fa85062fde9c2e1', 'ku0gd44535be7fa85062fde98gt5']
+    dataset_uuids_list_str = '[' + joined_str + ']'
+
+    try:
+        with neo4j_driver.session() as session:
+            tx = session.begin_transaction()
+
+            logger.info("Delete relationships between the target Submission and the given Datasets")
+
+            query = (f"MATCH (s:Submission)<-[r:IN_SUBMISSION]-(d:Dataset) "
+                     f"WHERE s.uuid = '{submission_uuid}' AND d.uuid IN {dataset_uuids_list_str} "
+                     f"DELETE r") 
+
+            logger.debug("======unlink_datasets_from_submission() query======")
+            logger.debug(query)
+
+            tx.run(query)
+            tx.commit()
+    except TransactionError as te:
+        msg = f"TransactionError from calling unlink_datasets_from_submission(): {te.value}"
+        # Log the full stack trace, prepend a line with our message
+        logger.exception(msg)
+
+        if tx.closed() == False:
+            logger.info("Failed to commit unlink_datasets_from_submission() transaction, rollback")
+
+            tx.rollback()
+
+        raise TransactionError(msg)
+
+
+"""
+Get a list of associated dataset dicts for a given collection
+
+Parameters
+----------
+neo4j_driver : neo4j.Driver object
+    The neo4j database connection pool
+uuid : str
+    The uuid of Submission
+
+Returns
+-------
+list
+    The list containing associated dataset dicts
+"""
+def get_submission_datasets(neo4j_driver, uuid):
+    results = []
+
+    query = (f"MATCH (e:Entity)-[:IN_SUBMISSION]->(s:Submission) "
+             f"WHERE s.uuid = '{uuid}' "
+             f"RETURN apoc.coll.toSet(COLLECT(e)) AS {record_field_name}")
+
+    logger.debug("======get_submission_datasets() query======")
+    logger.debug(query)
+
+    record = None
+    with neo4j_driver.session() as session:
+        record = session.read_transaction(_execute_readonly_tx, query)
+
+    if record:
+        # Convert the list of nodes to a list of dicts
+        results = _nodes_to_dicts(record[record_field_name])
+
+    return results
+
 
 """
 Get count of published Dataset in the provenance hierarchy for a given Sample/Donor
