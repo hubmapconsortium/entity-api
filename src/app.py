@@ -1852,7 +1852,7 @@ def get_user_token(request_headers, token_required = False):
         if isinstance(user_token, Response):
             # We wrap the message in a json and send back to requester as 401 too
             # The Response.data returns binary string, need to decode
-            unauthorized_error(user_token.get_data())
+            unauthorized_error(user_token.get_data().decode())
 
     return user_token
 
