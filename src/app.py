@@ -275,7 +275,7 @@ json
 def get_ancestor_organs(id):
     # Token is not required, but if an invalid token provided,
     # we need to tell the client with a 401 error
-    validate_auth_token(request.headers)
+    validate_token_if_auth_header_exists(request.headers)
     
     # Use the internal token to query the target entity 
     # since public entities don't require user token
@@ -342,7 +342,7 @@ json
 def get_entity_by_id(id):
     # Token is not required, but if an invalid token provided,
     # we need to tell the client with a 401 error
-    validate_auth_token(request.headers)
+    validate_token_if_auth_header_exists(request.headers)
 
     # Use the internal token to query the target entity 
     # since public entities don't require user token
@@ -448,7 +448,7 @@ json
 def get_entity_provenance(id):
     # Token is not required, but if an invalid token provided,
     # we need to tell the client with a 401 error
-    validate_auth_token(request.headers)
+    validate_token_if_auth_header_exists(request.headers)
 
     # Use the internal token to query the target entity 
     # since public entities don't require user token
@@ -546,7 +546,7 @@ json
 def get_entity_types():
     # Token is not required, but if an invalid token provided,
     # we need to tell the client with a 401 error
-    validate_auth_token(request.headers)
+    validate_token_if_auth_header_exists(request.headers)
 
     return jsonify(schema_manager.get_all_entity_types())
 
@@ -650,7 +650,7 @@ json
 def get_collection(id):
     # Token is not required, but if an invalid token provided,
     # we need to tell the client with a 401 error
-    validate_auth_token(request.headers)
+    validate_token_if_auth_header_exists(request.headers)
 
     # Use the internal token to query the target collection 
     # since public collections don't require user token
@@ -715,7 +715,7 @@ json
 def get_collections():
     # Token is not required, but if an invalid token provided,
     # we need to tell the client with a 401 error
-    validate_auth_token(request.headers)
+    validate_token_if_auth_header_exists(request.headers)
 
     normalized_entity_type = 'Collection'
 
@@ -1169,7 +1169,7 @@ json
 def get_ancestors(id):
     # Token is not required, but if an invalid token provided,
     # we need to tell the client with a 401 error
-    validate_auth_token(request.headers)
+    validate_token_if_auth_header_exists(request.headers)
 
     # Use the internal token to query the target entity 
     # since public entities don't require user token
@@ -1323,7 +1323,7 @@ json
 def get_parents(id):
     # Token is not required, but if an invalid token provided,
     # we need to tell the client with a 401 error
-    validate_auth_token(request.headers)
+    validate_token_if_auth_header_exists(request.headers)
 
     # Use the internal token to query the target entity 
     # since public entities don't require user token
@@ -1729,7 +1729,7 @@ Response
 def get_dataset_globus_url(id):
     # Token is not required, but if an invalid token provided,
     # we need to tell the client with a 401 error
-    validate_auth_token(request.headers)
+    validate_token_if_auth_header_exists(request.headers)
 
     # Use the internal token to query the target entity 
     # since public entities don't require user token
@@ -1969,7 +1969,7 @@ Parameters
 request_headers : request.headers
     The Flask http request headers
 """
-def validate_auth_token(request_headers):
+def validate_token_if_auth_header_exists(request_headers):
     # No matter if token is required or not, when an invalid token provided,
     # we need to tell the client with a 401 error
     # HTTP header names are case-insensitive
