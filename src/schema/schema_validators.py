@@ -111,7 +111,7 @@ def _validate_application_header(normalized_entity_type, request_headers):
     applications_allowed = ['ingest-api']
 
     # HTTP header names are case-insensitive
-    # request_headers.get('X-Hubmap-Application') returns None is the header doesn't exist
+    # request_headers.get('X-Hubmap-Application') returns None if the header doesn't exist
     if not request_headers.get('X-Hubmap-Application'):
         msg = "Unbale to proceed due to missing X-Hubmap-Application header from request"
         raise schema_errors.MissingApplicationHeaderException(msg)
