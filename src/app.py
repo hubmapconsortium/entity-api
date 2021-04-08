@@ -275,8 +275,8 @@ json
 def get_ancestor_organs(id):
     # Token is not required, but if an invalid token provided,
     # we need to tell the client with a 401 error
-    validate_token_if_auth_header_exists(request.headers)
-    
+    validate_token_if_auth_header_exists(request)
+
     # Use the internal token to query the target entity 
     # since public entities don't require user token
     token = get_internal_token()
@@ -292,30 +292,25 @@ def get_ancestor_organs(id):
 
     if normalized_entity_type == 'Sample' and entity_dict['specimen_type'].lower() == 'organ':
         bad_request_error("Cannot get the ancestor organ of an organ.")
-        
-    # Get user token from Authorization header
-    user_token = get_user_token(request.headers) 
 
     # The `data_access_level` of Dataset can be 'public', consortium', or 'protected'
     if normalized_entity_type == 'Dataset':
         # Only published/public datasets don't require token
         if entity_dict['status'].lower() != 'published':
-            # Check if user token is provided
-            # The resulting token is flask.Response on error
-            # Without token, the user can only access published datasets
-            user_token = get_user_token(request.headers, token_required = True)
+            # Token is required and the user must have consortium (HuBMAP-READ group) 
+            # or protected (HUBMAP-PROTECTED-DATA group) level of access
+            token = get_user_token(request, non_public_access_required = True)
     else:
         # The `data_access_level` of Donor/Sample can only be either 'public' or 'consortium'
         if entity_data_access_level == ACCESS_LEVEL_CONSORTIUM:
-            # Require token to access the Donor/Sample that are not public
-            user_token = get_user_token(request.headers, token_required = True)
+            token = get_user_token(request, non_public_access_required = True)
 
     # By now, either the entity is public accessible or the user token has the correct access level
     organs = app_neo4j_queries.get_ancestor_organs(neo4j_driver_instance, entity_dict['uuid'])  
 
     # Skip executing the trigger method to get 'direct_ancestor'
     properties_to_skip = ['direct_ancestor']
-    complete_entities_list = schema_manager.get_complete_entities_list(user_token, organs, properties_to_skip)
+    complete_entities_list = schema_manager.get_complete_entities_list(token, organs, properties_to_skip)
 
     # Final result after normalization
     final_result = schema_manager.normalize_entities_list_for_response(complete_entities_list)
@@ -342,7 +337,7 @@ json
 def get_entity_by_id(id):
     # Token is not required, but if an invalid token provided,
     # we need to tell the client with a 401 error
-    validate_token_if_auth_header_exists(request.headers)
+    validate_token_if_auth_header_exists(request)
 
     # Use the internal token to query the target entity 
     # since public entities don't require user token
@@ -360,19 +355,17 @@ def get_entity_by_id(id):
     if normalized_entity_type == 'Dataset':
         # Only published/public datasets don't require token
         if entity_dict['status'].lower() != 'published':
-            # Check if user token is provided
-            # The resulting token is flask.Response on error
-            # Without token, the user can only access published datasets
-            token = get_user_token(request.headers, token_required = True)
+            # Token is required and the user must have consortium (HuBMAP-READ group) 
+            # or protected (HUBMAP-PROTECTED-DATA group) level of access
+            token = get_user_token(request, non_public_access_required = True)
     elif normalized_entity_type == 'Submission':
         # Submission doesn't have 'data_access_level' property
-        # Always require a token for accessing Submission
-        token = get_user_token(request.headers, token_required = True)
+        # Always require at least consortium group token for accessing Submission
+        token = get_user_token(request, non_public_access_required = True)
     else:
         # The `data_access_level` of Donor/Sample can only be either 'public' or 'consortium'
         if entity_dict['data_access_level'] == ACCESS_LEVEL_CONSORTIUM:
-            # Require token to access the Donor/Sample that are not public
-            token = get_user_token(request.headers, token_required = True)
+            token = get_user_token(request, non_public_access_required = True)
 
     # By now, either the entity is public accessible or the user token has the correct access level
     # We'll need to return all the properties including those 
@@ -448,7 +441,7 @@ json
 def get_entity_provenance(id):
     # Token is not required, but if an invalid token provided,
     # we need to tell the client with a 401 error
-    validate_token_if_auth_header_exists(request.headers)
+    validate_token_if_auth_header_exists(request)
 
     # Use the internal token to query the target entity 
     # since public entities don't require user token
@@ -469,14 +462,13 @@ def get_entity_provenance(id):
     if normalized_entity_type == 'Dataset':
         # Only published/public datasets don't require token
         if entity_dict['status'].lower() != 'published':
-            # Check if user token is provided
-            # The resulting token is flask.Response on error
-            # Without token, the user can only access published datasets
-            token = get_user_token(request.headers, token_required = True)
+            # Token is required and the user must have consortium (HuBMAP-READ group) 
+            # or protected (HUBMAP-PROTECTED-DATA group) level of access
+            token = get_user_token(request, non_public_access_required = True)
     else:
         # The `data_access_level` of Donor/Sample can only be either 'public' or 'consortium'
         if entity_dict['data_access_level'] == ACCESS_LEVEL_CONSORTIUM:
-            token = get_user_token(request.headers, token_required = True)
+            token = get_user_token(request, non_public_access_required = True)
 
     # By now, either the entity is public accessible or the user token has the correct access level
     # Will just proceed to get the provenance informaiton
@@ -546,11 +538,9 @@ json
 def get_entity_types():
     # Token is not required, but if an invalid token provided,
     # we need to tell the client with a 401 error
-    validate_token_if_auth_header_exists(request.headers)
+    validate_token_if_auth_header_exists(request)
 
     return jsonify(schema_manager.get_all_entity_types())
-
-
 
 """
 Retrive all the entity nodes for a given entity type
@@ -606,7 +596,7 @@ def get_entities_by_type(entity_type):
     else:
         # Get user token from Authorization header
         # Currently the Gateway requires a token for this endpoint
-        user_token = get_user_token(request.headers)
+        user_token = get_user_token(request)
 
         # Get back a list of entity dicts for the given entity type
         entities_list = app_neo4j_queries.get_entities_by_type(neo4j_driver_instance, normalized_entity_type)
@@ -650,7 +640,7 @@ json
 def get_collection(id):
     # Token is not required, but if an invalid token provided,
     # we need to tell the client with a 401 error
-    validate_token_if_auth_header_exists(request.headers)
+    validate_token_if_auth_header_exists(request)
 
     # Use the internal token to query the target collection 
     # since public collections don't require user token
@@ -665,7 +655,7 @@ def get_collection(id):
 
     # Try to get user token from Authorization header 
     # It's highly possible that there's no token provided
-    user_token = get_user_token(request.headers)
+    user_token = get_user_token(request)
 
     # The user_token is flask.Response on error
     # Without token, the user can only access public collections, modify the collection result
@@ -680,9 +670,16 @@ def get_collection(id):
         # for Collection.datasets property
         complete_dict = get_complete_public_collection_dict(collection_dict)
     else:
-        # We'll need to return all the properties including those 
-        # generated by `on_read_trigger` to have a complete result
-        complete_dict = schema_manager.get_complete_entity_result(user_token, collection_dict)
+        # When a valid token is given, but the token doesn't have the right permission
+        # Meaning the user doesn't belong to neither HuBMAP-READ or HUBMAP-PROTECTED-DATA group
+        # Only return the public datasets attached to this Collection
+        user_info = auth_helper_instance.getUserDataAccessLevel(request)
+        if user_info['data_access_level'] not in [ACCESS_LEVEL_CONSORTIUM, ACCESS_LEVEL_PROTECTED]:
+            complete_dict = get_complete_public_collection_dict(collection_dict)
+        else:
+            # We'll need to return all the properties including those 
+            # generated by `on_read_trigger` to have a complete result
+            complete_dict = schema_manager.get_complete_entity_result(user_token, collection_dict)
 
     # Will also filter the result based on schema
     normalized_complete_dict = schema_manager.normalize_entity_result_for_response(complete_dict)
@@ -715,7 +712,7 @@ json
 def get_collections():
     # Token is not required, but if an invalid token provided,
     # we need to tell the client with a 401 error
-    validate_token_if_auth_header_exists(request.headers)
+    validate_token_if_auth_header_exists(request)
 
     normalized_entity_type = 'Collection'
 
@@ -777,7 +774,7 @@ json
 @app.route('/entities/<entity_type>', methods = ['POST'])
 def create_entity(entity_type):
     # Get user token from Authorization header
-    user_token = get_user_token(request.headers)
+    user_token = get_user_token(request)
 
     # Normalize user provided entity_type
     normalized_entity_type = schema_manager.normalize_entity_type(entity_type)
@@ -895,7 +892,7 @@ json
 @app.route('/entities/multiple-samples/<count>', methods = ['POST'])
 def create_multiple_samples(count):
     # Get user token from Authorization header
-    user_token = get_user_token(request.headers)
+    user_token = get_user_token(request)
 
     # Normalize user provided entity_type
     normalized_entity_type = 'Sample'
@@ -962,7 +959,7 @@ json
 @app.route('/entities/multiple-samples', methods = ['PUT'])
 def update_multiple_samples():
     # Get user token from Authorization header
-    user_token = get_user_token(request.headers)
+    user_token = get_user_token(request)
 
     # Normalize user provided entity_type
     normalized_entity_type = 'Sample'
@@ -1022,7 +1019,7 @@ json
 @app.route('/entities/<id>', methods = ['PUT'])
 def update_entity(id):
     # Get user token from Authorization header
-    user_token = get_user_token(request.headers)
+    user_token = get_user_token(request)
 
     # Always expect a json body
     require_json(request)
@@ -1169,7 +1166,7 @@ json
 def get_ancestors(id):
     # Token is not required, but if an invalid token provided,
     # we need to tell the client with a 401 error
-    validate_token_if_auth_header_exists(request.headers)
+    validate_token_if_auth_header_exists(request)
 
     # Use the internal token to query the target entity 
     # since public entities don't require user token
@@ -1190,15 +1187,13 @@ def get_ancestors(id):
     if normalized_entity_type == 'Dataset':
         # Only published/public datasets don't require token
         if entity_dict['status'].lower() != 'published':
-            # Check if user token is provided
-            # The resulting token is flask.Response on error
-            # Without token, the user can only access published datasets
-            token = get_user_token(request.headers, token_required = True)
+            # Token is required and the user must have consortium (HuBMAP-READ group) 
+            # or protected (HUBMAP-PROTECTED-DATA group) level of access
+            token = get_user_token(request, non_public_access_required = True)
     else:
         # The `data_access_level` of Donor/Sample can only be either 'public' or 'consortium'
         if entity_dict['data_access_level'] == ACCESS_LEVEL_CONSORTIUM:
-            # Require token to access the Donor/Sample that are not public
-            token = get_user_token(request.headers, token_required = True)
+            token = get_user_token(request, non_public_access_required = True)
 
     # By now, either the entity is public accessible or the user token has the correct access level
     # Result filtering based on query string
@@ -1263,7 +1258,7 @@ json
 @app.route('/descendants/<id>', methods = ['GET'])
 def get_descendants(id):
     # Get user token from Authorization header
-    user_token = get_user_token(request.headers)
+    user_token = get_user_token(request)
 
     # Make sure the id exists in uuid-api and 
     # the corresponding entity also exists in neo4j
@@ -1323,7 +1318,7 @@ json
 def get_parents(id):
     # Token is not required, but if an invalid token provided,
     # we need to tell the client with a 401 error
-    validate_token_if_auth_header_exists(request.headers)
+    validate_token_if_auth_header_exists(request)
 
     # Use the internal token to query the target entity 
     # since public entities don't require user token
@@ -1331,7 +1326,7 @@ def get_parents(id):
 
     # Make sure the id exists in uuid-api and 
     # the corresponding entity also exists in neo4j
-    entity_dict = query_target_entity(id, user_token)
+    entity_dict = query_target_entity(id, token)
     normalized_entity_type = entity_dict['entity_type']
     uuid = entity_dict['uuid']
 
@@ -1344,15 +1339,13 @@ def get_parents(id):
     if normalized_entity_type == 'Dataset':
         # Only published/public datasets don't require token
         if entity_dict['status'].lower() != 'published':
-            # Check if user token is provided
-            # The resulting token is flask.Response on error
-            # Without token, the user can only access published datasets
-            token = get_user_token(request.headers, token_required = True)
+            # Token is required and the user must have consortium (HuBMAP-READ group) 
+            # or protected (HUBMAP-PROTECTED-DATA group) level of access
+            token = get_user_token(request, non_public_access_required = True)
     else:
         # The `data_access_level` of Donor/Sample can only be either 'public' or 'consortium'
         if entity_dict['data_access_level'] == ACCESS_LEVEL_CONSORTIUM:
-            # Require token to access the Donor/Sample that are not public
-            token = get_user_token(request.headers, token_required = True)
+            token = get_user_token(request, non_public_access_required = True)
 
     # By now, either the entity is public accessible or the user token has the correct access level
     # Result filtering based on query string
@@ -1416,7 +1409,7 @@ json
 @app.route('/children/<id>', methods = ['GET'])
 def get_children(id):
     # Get user token from Authorization header
-    user_token = get_user_token(request.headers)
+    user_token = get_user_token(request)
 
     # Make sure the id exists in uuid-api and 
     # the corresponding entity also exists in neo4j
@@ -1476,7 +1469,7 @@ json
 @app.route('/previous_revisions/<id>', methods = ['GET'])
 def get_previous_revisions(id):
     # Get user token from Authorization header
-    user_token = get_user_token(request.headers)
+    user_token = get_user_token(request)
 
     # Make sure the id exists in uuid-api and 
     # the corresponding entity also exists in neo4j
@@ -1536,7 +1529,7 @@ json
 @app.route('/next_revisions/<id>', methods = ['GET'])
 def get_next_revisions(id):
     # Get user token from Authorization header
-    user_token = get_user_token(request.headers)
+    user_token = get_user_token(request)
 
     # Make sure the id exists in uuid-api and 
     # the corresponding entity also exists in neo4j
@@ -1605,7 +1598,7 @@ json
 @app.route('/collections/<collection_uuid>/add-datasets', methods = ['PUT'])
 def add_datasets_to_collection(collection_uuid):
     # Get user token from Authorization header
-    user_token = get_user_token(request.headers)
+    user_token = get_user_token(request)
 
     # Query target entity against uuid-api and neo4j and return as a dict if exists
     entity_dict = query_target_entity(collection_uuid, user_token)
@@ -1729,7 +1722,7 @@ Response
 def get_dataset_globus_url(id):
     # Token is not required, but if an invalid token provided,
     # we need to tell the client with a 401 error
-    validate_token_if_auth_header_exists(request.headers)
+    validate_token_if_auth_header_exists(request)
 
     # Use the internal token to query the target entity 
     # since public entities don't require user token
@@ -1928,21 +1921,21 @@ Parase the token from Authorization header
 
 Parameters
 ----------
-request_headers : request.headers
-    The http request headers
-token_required : bool
-    If the token is required by the request, default to False
+request : falsk.request
+    The flask http request object
+non_public_access_required : bool
+    If a non-public access token is required by the request, default to False
 
 Returns
 -------
 str
     The token string if valid
 """
-def get_user_token(request_headers, token_required = False):
+def get_user_token(request, non_public_access_required = False):
     # Get user token from Authorization header
     # getAuthorizationTokens() also handles MAuthorization header but we are not using that here
     try:
-        user_token = auth_helper_instance.getAuthorizationTokens(request_headers) 
+        user_token = auth_helper_instance.getAuthorizationTokens(request.headers) 
     except Exception:
         msg = "Failed to parse the Authorization token by calling commons.auth_helper.getAuthorizationTokens()"
         # Log the full stack trace, prepend a line with our message
@@ -1950,7 +1943,7 @@ def get_user_token(request_headers, token_required = False):
         internal_server_error(msg)
 
     # Further check the validity of the token if required
-    if token_required:
+    if non_public_access_required:
         # When the token is a flask.Response instance,
         # it MUST be a 401 error with message.
         # That's how commons.auth_helper.getAuthorizationTokens() was designed
@@ -1959,6 +1952,12 @@ def get_user_token(request_headers, token_required = False):
             # The Response.data returns binary string, need to decode
             unauthorized_error(user_token.get_data().decode())
 
+        # Also require at least HuBMAP-Read group to access this non-public entity
+        user_info = auth_helper_instance.getUserDataAccessLevel(request)
+        if user_info['data_access_level'] == ACCESS_LEVEL_PUBLIC:
+            # Return a 403 response since the target entity is not public
+            forbidden_error("Access not granted")
+
     return user_token
 
 """
@@ -1966,16 +1965,16 @@ Validate the provided token when Authorization header presents
 
 Parameters
 ----------
-request_headers : request.headers
-    The Flask http request headers
+request : flask.request object
+    The Flask http request object
 """
-def validate_token_if_auth_header_exists(request_headers):
+def validate_token_if_auth_header_exists(request):
     # No matter if token is required or not, when an invalid token provided,
     # we need to tell the client with a 401 error
     # HTTP header names are case-insensitive
     # request.headers.get('Authorization') returns None if the header doesn't exist
     if request.headers.get('Authorization') is not None:
-        user_token = get_user_token(request.headers)
+        user_token = get_user_token(request)
 
         # When the Authoriztion header provided but the user_token is a flask.Response instance,
         # it MUST be a 401 error with message.
@@ -1984,6 +1983,12 @@ def validate_token_if_auth_header_exists(request_headers):
             # We wrap the message in a json and send back to requester as 401 too
             # The Response.data returns binary string, need to decode
             unauthorized_error(user_token.get_data().decode())
+
+        # Also check if the parased token in invalid or expired
+        user_info = auth_helper_instance.getUserInfo(user_token)
+
+        if isinstance(user_info, Response):
+            unauthorized_error(user_info.get_data().decode())
 
 
 """
