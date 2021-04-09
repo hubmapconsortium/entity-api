@@ -382,7 +382,7 @@ def get_entity_by_id(id):
             # The `next_revision_uuid` and `previous_revision_uuid` only availabe in complete_dict
             # Remove the properties from response if they are not published
             properties_to_pop = ['next_revision_uuid', 'previous_revision_uuid']
-
+            logger.debug(complete_dict)
             for prop in properties_to_pop:
                 if prop in complete_dict:
                     revision_entity_dict = query_target_entity(complete_dict[prop], token)
@@ -670,11 +670,9 @@ def get_collection(id):
         # for Collection.datasets property
         complete_dict = get_complete_public_collection_dict(collection_dict)
     else:
-        # When a valid token is given, but the token doesn't have the right permission
-        # Meaning the user doesn't belong to neither HuBMAP-READ or HUBMAP-PROTECTED-DATA group
+        # When the token is valid, but the user doesn't belong to HuBMAP-READ group
         # Only return the public datasets attached to this Collection
-        user_info = auth_helper_instance.getUserDataAccessLevel(request)
-        if user_info['data_access_level'] not in [ACCESS_LEVEL_CONSORTIUM, ACCESS_LEVEL_PROTECTED]:
+        if not user_in_hubmap_read_group(request):
             complete_dict = get_complete_public_collection_dict(collection_dict)
         else:
             # We'll need to return all the properties including those 
@@ -1942,7 +1940,7 @@ def get_user_token(request, non_public_access_required = False):
         logger.exception(msg)
         internal_server_error(msg)
 
-    # Further check the validity of the token if required
+    # Further check the validity of the token if required non-public access
     if non_public_access_required:
         # When the token is a flask.Response instance,
         # it MUST be a 401 error with message.
@@ -1952,13 +1950,35 @@ def get_user_token(request, non_public_access_required = False):
             # The Response.data returns binary string, need to decode
             unauthorized_error(user_token.get_data().decode())
 
-        # Also require at least HuBMAP-Read group to access this non-public entity
-        user_info = auth_helper_instance.getUserDataAccessLevel(request)
-        if user_info['data_access_level'] == ACCESS_LEVEL_PUBLIC:
-            # Return a 403 response since the target entity is not public
+        # By now the token is already a valid token
+        # But we also need to ensure the user belongs to HuBMAP-Read group
+        # in order to access the non-public entity
+        # Return a 403 response if the user doesn't belong to HuBMAP-READ group
+        if not user_in_hubmap_read_group(request):
             forbidden_error("Access not granted")
 
     return user_token
+
+"""
+Check if the user with token is in the HuBMAP-READ group
+
+Parameters
+----------
+request : falsk.request
+    The flask http request object
+
+Returns
+-------
+bool
+    True if the user belongs to HuBMAP-READ group, otherwise False
+"""
+def user_in_hubmap_read_group(request):
+    # 'hmgroupids' is ALWASYS in the output with using schema_manager.get_user_info()
+    user_info = schema_manager.get_user_info(request)
+    hubmap_read_group_uuid = auth_helper_instance.groupNameToId('HuBMAP-READ')['uuid']
+
+    return (hubmap_read_group_uuid in user_info['hmgroupids'])
+
 
 """
 Validate the provided token when Authorization header presents
