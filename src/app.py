@@ -1177,6 +1177,8 @@ json
 """
 @app.route('/ancestors/<id>', methods = ['GET'])
 def get_ancestors(id):
+    final_result = []
+    
     # Token is not required, but if an invalid token provided,
     # we need to tell the client with a 401 error
     validate_token_if_auth_header_exists(request)
@@ -1195,17 +1197,21 @@ def get_ancestors(id):
     if normalized_entity_type  == 'Collection':
         bad_request_error(f"Unsupported entity type of id {id}: {normalized_entity_type}")
     
-    # The `data_access_level` of Dataset can be 'public', consortium', or 'protected'
     if normalized_entity_type == 'Dataset':
         # Only published/public datasets don't require token
         if entity_dict['status'].lower() != DATASET_STATUS_PUBLISHED:
             # Token is required and the user must have consortium (HuBMAP-READ group) 
             # or protected (HUBMAP-PROTECTED-DATA group) level of access
             token = get_user_token(request, non_public_access_required = True)
-    else:
-        # The `data_access_level` of Donor/Sample can only be either 'public' or 'consortium'
+    elif normalized_entity_type == 'Sample':
+        # The `data_access_level` of Sample can only be either 'public' or 'consortium'
         if entity_dict['data_access_level'] == ACCESS_LEVEL_CONSORTIUM:
             token = get_user_token(request, non_public_access_required = True)
+    else:
+        # Donor and Submission will always get back an empty list
+        # becuase their direct ancestor is Lab, which is being skipped by Neo4j query
+        # So no need to execute the code below
+        return jsonify(final_result)
 
     # By now, either the entity is public accessible or the user token has the correct access level
     # Result filtering based on query string
@@ -1267,6 +1273,8 @@ json
 """
 @app.route('/descendants/<id>', methods = ['GET'])
 def get_descendants(id):
+    final_result = []
+
     # Get user token from Authorization header
     user_token = get_user_token(request)
 
@@ -1328,6 +1336,8 @@ json
 """
 @app.route('/parents/<id>', methods = ['GET'])
 def get_parents(id):
+    final_result = []
+
     # Token is not required, but if an invalid token provided,
     # we need to tell the client with a 401 error
     validate_token_if_auth_header_exists(request)
@@ -1346,17 +1356,21 @@ def get_parents(id):
     if normalized_entity_type == 'Collection':
         bad_request_error(f"Unsupported entity type of id {id}: {normalized_entity_type}")
     
-    # The `data_access_level` of Dataset can be 'public', consortium', or 'protected'
     if normalized_entity_type == 'Dataset':
         # Only published/public datasets don't require token
         if entity_dict['status'].lower() != DATASET_STATUS_PUBLISHED:
             # Token is required and the user must have consortium (HuBMAP-READ group) 
             # or protected (HUBMAP-PROTECTED-DATA group) level of access
             token = get_user_token(request, non_public_access_required = True)
-    else:
-        # The `data_access_level` of Donor/Sample can only be either 'public' or 'consortium'
+    elif normalized_entity_type == 'Sample':
+        # The `data_access_level` of Sample can only be either 'public' or 'consortium'
         if entity_dict['data_access_level'] == ACCESS_LEVEL_CONSORTIUM:
             token = get_user_token(request, non_public_access_required = True)
+    else:
+        # Donor and Submission will always get back an empty list
+        # becuase their direct ancestor is Lab, which is being skipped by Neo4j query
+        # So no need to execute the code below
+        return jsonify(final_result)
 
     # By now, either the entity is public accessible or the user token has the correct access level
     # Result filtering based on query string
@@ -1417,6 +1431,8 @@ json
 """
 @app.route('/children/<id>', methods = ['GET'])
 def get_children(id):
+    final_result = []
+
     # Get user token from Authorization header
     user_token = get_user_token(request)
 
@@ -2037,8 +2053,9 @@ def validate_token_if_auth_header_exists(request):
             # The Response.data returns binary string, need to decode
             unauthorized_error(user_token.get_data().decode())
 
-        # Also check if the parased token in invalid or expired
-        user_info = auth_helper_instance.getUserInfo(user_token)
+        # Also check if the parased token is invalid or expired
+        # Set the second paremeter as False to skip group check
+        user_info = auth_helper_instance.getUserInfo(user_token, False)
 
         if isinstance(user_info, Response):
             unauthorized_error(user_info.get_data().decode())
