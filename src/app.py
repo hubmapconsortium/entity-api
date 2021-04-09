@@ -170,6 +170,10 @@ except Exception:
     logger.exception(msg)
 
 
+####################################################################################################
+## REFERENCE DOI Redirection
+####################################################################################################
+
 ## Read tsv file with the REFERENCE entity redirects
 ## sets the reference_redirects dict which is used
 ## by the /redirect method below
@@ -201,6 +205,7 @@ try:
 except Exception:
     logger.exception("Failed to read tsv file with REFERENCE redirect information")
 
+
 ####################################################################################################
 ## Constants
 ####################################################################################################
@@ -210,6 +215,8 @@ except Exception:
 ACCESS_LEVEL_PUBLIC = 'public'
 ACCESS_LEVEL_CONSORTIUM = 'consortium'
 ACCESS_LEVEL_PROTECTED = 'protected'
+DATASET_STATUS_PUBLISHED = 'published'
+COMMA_SEPARATOR = ','
 
 
 ####################################################################################################
@@ -254,12 +261,14 @@ def get_status():
     return jsonify(status_data)
 
 """
-Retrieve the ancestor organ(s) of a given uuid
+Retrieve the ancestor organ(s) of a given entity
+
+The gateway treats this endpoint as public accessible
 
 Parameters
 ----------
 id : str
-    The HuBMAP ID (e.g. HBM123.ABCD.456) or UUID of target entity 
+    The HuBMAP ID (e.g. HBM123.ABCD.456) or UUID of target entity (Dataset/Sample)
 
 Returns
 -------
@@ -268,11 +277,15 @@ json
     - Only dataset entities can return multiple ancestor organs
       as Samples can only have one parent.
     - If no organ ancestors are found an empty list is returned
-    - If requesting the ancestor organ of a Sample of type Organ or Donor a 400
-      response is returned.
+    - If requesting the ancestor organ of a Sample of type Organ or Donor/Collection/Submission
+      a 400 response is returned.
 """
 @app.route('/entities/<id>/ancestor-organs', methods = ['GET'])
 def get_ancestor_organs(id):
+    # Token is not required, but if an invalid token provided,
+    # we need to tell the client with a 401 error
+    validate_token_if_auth_header_exists(request)
+
     # Use the internal token to query the target entity 
     # since public entities don't require user token
     token = get_internal_token()
@@ -280,42 +293,32 @@ def get_ancestor_organs(id):
     # Query target entity against uuid-api and neo4j and return as a dict if exists
     entity_dict = query_target_entity(id, token)
     normalized_entity_type = entity_dict['entity_type']
-    entity_data_access_level = entity_dict['data_access_level']
 
-    # Checks 
-    if normalized_entity_type in ['Collection', 'Donor']:
-        bad_request_error("Cannot get the ancestor organs for an entity of type Collection or Donor")
+    # A bit validation 
+    unsupported_entity_types = ['Collection', 'Donor', 'Submission']
+    if normalized_entity_type in unsupported_entity_types:
+        bad_request_error(f"Cannot get the ancestor organs for an entity of unsupported types: {COMMA_SEPARATOR.join(unsupported_entity_types)}")
 
     if normalized_entity_type == 'Sample' and entity_dict['specimen_type'].lower() == 'organ':
         bad_request_error("Cannot get the ancestor organ of an organ.")
-        
-    # Get user token from Authorization header
-    # getAuthorizationTokens() also handles MAuthorization header but we are not using that here
-    user_token = auth_helper_instance.getAuthorizationTokens(request.headers) 
 
-    # The `data_access_level` of Dataset can be 'public', consortium', or 'protected'
     if normalized_entity_type == 'Dataset':
         # Only published/public datasets don't require token
-        if entity_dict['status'].lower() != 'published':
-            # Check if user token is provided
-            # The user_token is flask.Response on error
-            # Without token, the user can only access public collections, modify the collection result
-            # by only returning public datasets attached to this collection
-            if isinstance(user_token, Response):
-                forbidden_error("A valid token is required ")
+        if entity_dict['status'].lower() != DATASET_STATUS_PUBLISHED:
+            # Token is required and the user must have consortium (HuBMAP-READ group) 
+            # or protected (HUBMAP-PROTECTED-DATA group) level of access
+            token = get_user_token(request, non_public_access_required = True)
     else:
         # The `data_access_level` of Donor/Sample can only be either 'public' or 'consortium'
-        if entity_data_access_level == ACCESS_LEVEL_CONSORTIUM:
-            # Require token to access the Donor/Sample that are not public
-            if isinstance(user_token, Response):
-                forbidden_error("A valid token is required ")
+        if entity_dict['data_access_level'] == ACCESS_LEVEL_CONSORTIUM:
+            token = get_user_token(request, non_public_access_required = True)
 
     # By now, either the entity is public accessible or the user token has the correct access level
     organs = app_neo4j_queries.get_ancestor_organs(neo4j_driver_instance, entity_dict['uuid'])  
 
-    # Skip executing the trigger method to get 'direct_ancestor'
+    # Skip executing the trigger method to get Sample.direct_ancestor
     properties_to_skip = ['direct_ancestor']
-    complete_entities_list = schema_manager.get_complete_entities_list(user_token, organs, properties_to_skip)
+    complete_entities_list = schema_manager.get_complete_entities_list(token, organs, properties_to_skip)
 
     # Final result after normalization
     final_result = schema_manager.normalize_entities_list_for_response(complete_entities_list)
@@ -325,6 +328,9 @@ def get_ancestor_organs(id):
 
 """
 Retrive the metadata information of a given entity by id
+
+The gateway treats this endpoint as public accessible
+
 Result filtering is supported based on query string
 For example: /entities/<id>?property=data_access_level
 
@@ -340,6 +346,10 @@ json
 """
 @app.route('/entities/<id>', methods = ['GET'])
 def get_entity_by_id(id):
+    # Token is not required, but if an invalid token provided,
+    # we need to tell the client with a 401 error
+    validate_token_if_auth_header_exists(request)
+
     # Use the internal token to query the target entity 
     # since public entities don't require user token
     token = get_internal_token() 
@@ -352,32 +362,43 @@ def get_entity_by_id(id):
     if normalized_entity_type == 'Collection':
         bad_request_error("Please use another API endpoint `/collections/<id>` to query a collection")
 
-    # Get user token from Authorization header
-    # getAuthorizationTokens() also handles MAuthorization header but we are not using that here
-    user_token = auth_helper_instance.getAuthorizationTokens(request.headers) 
-
-    # The `data_access_level` of Dataset can be 'public', consortium', or 'protected'
     if normalized_entity_type == 'Dataset':
         # Only published/public datasets don't require token
-        if entity_dict['status'].lower() != 'published':
-            # Check if user token is provided
-            # The user_token is flask.Response on error
-            # Without token, the user can only access published datasets
-            require_token(user_token)
+        if entity_dict['status'].lower() != DATASET_STATUS_PUBLISHED:
+            # Token is required and the user must have consortium (HuBMAP-READ group) 
+            # or protected (HUBMAP-PROTECTED-DATA group) level of access
+            token = get_user_token(request, non_public_access_required = True)
     elif normalized_entity_type == 'Submission':
         # Submission doesn't have 'data_access_level' property
-        # Always require a token for accessing Submission
-        require_token(user_token)
+        # Always require at least consortium group token for accessing Submission
+        token = get_user_token(request, non_public_access_required = True)
     else:
         # The `data_access_level` of Donor/Sample can only be either 'public' or 'consortium'
         if entity_dict['data_access_level'] == ACCESS_LEVEL_CONSORTIUM:
-            # Require token to access the Donor/Sample that are not public
-            require_token(user_token)
+            token = get_user_token(request, non_public_access_required = True)
 
     # By now, either the entity is public accessible or the user token has the correct access level
     # We'll need to return all the properties including those 
     # generated by `on_read_trigger` to have a complete result
-    complete_dict = schema_manager.get_complete_entity_result(user_token, entity_dict)
+    # E.g., the 'next_revision_uuid' and 'previous_revision_uuid' being used below
+    # On entity retrieval, the 'on_read_trigger' doesn't really need a token
+    complete_dict = schema_manager.get_complete_entity_result(token, entity_dict)
+
+    # Additional handlings to make sure only public accessible info gets returned for Dataset
+    # A Dataset entity is published doesn't ensure its revisions are also published
+    if (normalized_entity_type == 'Dataset') and (entity_dict['status'].lower() == DATASET_STATUS_PUBLISHED):
+        # The `next_revision_uuid` and `previous_revision_uuid` are only availabe in complete_dict
+        # since they are generated by the 'on_read_trigger' methods
+        # Remove the properties from response if they are not published
+        properties_to_pop = ['next_revision_uuid', 'previous_revision_uuid']
+
+        for prop in properties_to_pop:
+            if prop in complete_dict:
+                revision_entity_dict = query_target_entity(complete_dict[prop], token)
+                # Remove the property from the resulting complete_dict
+                # if the revision is not also published
+                if revision_entity_dict['status'].lower() != DATASET_STATUS_PUBLISHED:
+                    complete_dict.pop(prop)
 
     # Also normalize the result based on schema
     final_result = schema_manager.normalize_entity_result_for_response(complete_dict)
@@ -387,14 +408,14 @@ def get_entity_by_id(id):
     # and this filter is being used by gateway to check the data_access_level for file assets
     # The `status` property is only available in Dataset and being used by search-api for revision
     result_filtering_accepted_property_keys = ['data_access_level', 'status']
-    separator = ', '
+
     if bool(request.args):
         property_key = request.args.get('property')
 
         if property_key is not None:
             # Validate the target property
             if property_key not in result_filtering_accepted_property_keys:
-                bad_request_error(f"Only the following property keys are supported in the query string: {separator.join(result_filtering_accepted_property_keys)}")
+                bad_request_error(f"Only the following property keys are supported in the query string: {COMMA_SEPARATOR.join(result_filtering_accepted_property_keys)}")
             
             if property_key == 'status' and normalized_entity_type != 'Dataset':
                 bad_request_error(f"Only Dataset supports 'status' property key in the query string")
@@ -412,8 +433,7 @@ def get_entity_by_id(id):
 """
 Retrive the full tree above the referenced entity and build the provenance document
 
-This endpoint is marked as public in Gateway
-But we need to enforce the access control here
+The gateway treats this endpoint as public accessible
 
 Parameters
 ----------
@@ -427,6 +447,10 @@ json
 """
 @app.route('/entities/<id>/provenance', methods = ['GET'])
 def get_entity_provenance(id):
+    # Token is not required, but if an invalid token provided,
+    # we need to tell the client with a 401 error
+    validate_token_if_auth_header_exists(request)
+
     # Use the internal token to query the target entity 
     # since public entities don't require user token
     token = get_internal_token()
@@ -435,30 +459,22 @@ def get_entity_provenance(id):
     entity_dict = query_target_entity(id, token)
     uuid = entity_dict['uuid']
     normalized_entity_type = entity_dict['entity_type']
-    entity_data_access_level = entity_dict['data_access_level']
 
     # A bit validation to prevent Lab or Collection being queried
     supported_entity_types = ['Donor', 'Sample', 'Dataset']
-    separator = ', '
     if normalized_entity_type not in supported_entity_types:
-        bad_request_error(f"Unable to get the provenance for this {normalized_entity_type}, the requested entity must be one of: {separator.join(supported_entity_types)}")
+        bad_request_error(f"Unable to get the provenance for this {normalized_entity_type}, supported entity types: {COMMA_SEPARATOR.join(supported_entity_types)}")
 
-    # Get user token from Authorization header
-    # getAuthorizationTokens() also handles MAuthorization header but we are not using that here
-    user_token = auth_helper_instance.getAuthorizationTokens(request.headers) 
-
-    # The `data_access_level` of Dataset can be 'public', consortium', or 'protected'
     if normalized_entity_type == 'Dataset':
         # Only published/public datasets don't require token
-        if entity_dict['status'].lower() != 'published':
-            # Check if user token is provided
-            # The user_token is flask.Response on error
-            # Without token, the user can only access published datasets
-            require_token(user_token)
+        if entity_dict['status'].lower() != DATASET_STATUS_PUBLISHED:
+            # Token is required and the user must have consortium (HuBMAP-READ group) 
+            # or protected (HUBMAP-PROTECTED-DATA group) level of access
+            token = get_user_token(request, non_public_access_required = True)
     else:
         # The `data_access_level` of Donor/Sample can only be either 'public' or 'consortium'
-        if entity_data_access_level == ACCESS_LEVEL_CONSORTIUM:
-            require_token(user_token)
+        if entity_dict['data_access_level'] == ACCESS_LEVEL_CONSORTIUM:
+            token = get_user_token(request, non_public_access_required = True)
 
     # By now, either the entity is public accessible or the user token has the correct access level
     # Will just proceed to get the provenance informaiton
@@ -481,10 +497,23 @@ def get_entity_provenance(id):
     for node_dict in raw_provenance_dict['nodes']:
         # The schema yaml doesn't handle Lab nodes, just leave it as is
         if (node_dict['label'] == 'Entity') and (node_dict['entity_type'] != 'Lab'):
-            # We'll need to return all the properties including those 
-            # generated by `on_read_trigger` to have a complete result
-            properties_to_skip = ['direct_ancestors', 'direct_ancestor']
-            complete_entity_dict = schema_manager.get_complete_entity_result(user_token, node_dict, properties_to_skip)
+            # Generate trigger data 
+            # Skip some of the properties that are time-consuming to generate via triggers:
+            # director_ancestor for Sample, and direct_ancestors for Dataset
+            # Also skip next_revision_uuid and previous_revision_uuid for Dataset to avoid additional
+            # checks when the target Dataset is public but the revisions are not public
+            properties_to_skip = [
+                'direct_ancestors', 
+                'direct_ancestor', 
+                'next_revision_uuid', 
+                'previous_revision_uuid'
+            ]
+            
+            # We'll need to return all the properties (except the ones to skip from above list) 
+            # including those generated by `on_read_trigger` to have a complete result
+            # On entity retrieval, the 'on_read_trigger' doesn't really need a token
+            complete_entity_dict = schema_manager.get_complete_entity_result(token, node_dict, properties_to_skip)
+            
             # Filter out properties not defined or not to be exposed in the schema yaml
             normalized_entity_dict = schema_manager.normalize_entity_result_for_response(complete_entity_dict)
 
@@ -506,6 +535,8 @@ def get_entity_provenance(id):
 """
 Show all the supported entity types
 
+The gateway treats this endpoint as public accessible
+
 Returns
 -------
 json
@@ -513,6 +544,10 @@ json
 """
 @app.route('/entity-types', methods = ['GET'])
 def get_entity_types():
+    # Token is not required, but if an invalid token provided,
+    # we need to tell the client with a 401 error
+    validate_token_if_auth_header_exists(request)
+
     return jsonify(schema_manager.get_all_entity_types())
 
 """
@@ -552,11 +587,10 @@ def get_entities_by_type(entity_type):
 
         if property_key is not None:
             result_filtering_accepted_property_keys = ['uuid']
-            separator = ', '
 
             # Validate the target property
             if property_key not in result_filtering_accepted_property_keys:
-                bad_request_error(f"Only the following property keys are supported in the query string: {separator.join(result_filtering_accepted_property_keys)}")
+                bad_request_error(f"Only the following property keys are supported in the query string: {COMMA_SEPARATOR.join(result_filtering_accepted_property_keys)}")
             
             # Only return a list of the filtered property value of each entity
             property_list = app_neo4j_queries.get_entities_by_type(neo4j_driver_instance, normalized_entity_type, property_key)
@@ -568,7 +602,8 @@ def get_entities_by_type(entity_type):
     # Return all the details if no property filtering
     else:
         # Get user token from Authorization header
-        user_token = get_user_token(request.headers)
+        # Currently the Gateway requires a token for this endpoint
+        user_token = get_user_token(request)
 
         # Get back a list of entity dicts for the given entity type
         entities_list = app_neo4j_queries.get_entities_by_type(neo4j_driver_instance, normalized_entity_type)
@@ -588,6 +623,8 @@ def get_entities_by_type(entity_type):
 
 """
 Retrive the collection detail by id
+
+The gateway treats this endpoint as public accessible
 
 An optional Globus nexus token can be provided in a standard Authentication Bearer header. If a valid token
 is provided with group membership in the HuBMAP-Read group any collection matching the id will be returned.
@@ -610,6 +647,10 @@ json
 """
 @app.route('/collections/<id>', methods = ['GET'])
 def get_collection(id):
+    # Token is not required, but if an invalid token provided,
+    # we need to tell the client with a 401 error
+    validate_token_if_auth_header_exists(request)
+
     # Use the internal token to query the target collection 
     # since public collections don't require user token
     token = get_internal_token()
@@ -621,24 +662,32 @@ def get_collection(id):
     if collection_dict['entity_type'] != 'Collection':
         bad_request_error("Target entity of the given id is not a collection")
 
-    # Get user token from Authorization header
-    # getAuthorizationTokens() also handles MAuthorization header but we are not using that here
-    user_token = auth_helper_instance.getAuthorizationTokens(request.headers) 
+    # Try to get user token from Authorization header 
+    # It's highly possible that there's no token provided
+    user_token = get_user_token(request)
 
     # The user_token is flask.Response on error
     # Without token, the user can only access public collections, modify the collection result
     # by only returning public datasets attached to this collection
     if isinstance(user_token, Response):
-        # When the requested collection is not public but the user can only access public data
+        # When the requested collection is not public, send back 401
         if ('has_doi' not in collection_dict) or (not collection_dict['has_doi']):
-            bad_request_error("The reqeusted collection is not public, please send a Globus token with the right access permission in the request.")
-
-        # Only return the public datasets attached to this collection for Collection.datasets property
+            # Require a valid token in this case
+            unauthorized_error("The reqeusted collection is not public, a Globus token with the right access permission is required.")
+        
+        # Otherwise only return the public datasets attached to this collection
+        # for Collection.datasets property
         complete_dict = get_complete_public_collection_dict(collection_dict)
     else:
-        # We'll need to return all the properties including those 
-        # generated by `on_read_trigger` to have a complete result
-        complete_dict = schema_manager.get_complete_entity_result(user_token, collection_dict)
+        # When the nexus token is valid, but the user doesn't belong to HuBMAP-READ group
+        # Or the token is valid but doesn't contain group information (auth token or transfer token)
+        # Only return the public datasets attached to this Collection
+        if not user_in_hubmap_read_group(request):
+            complete_dict = get_complete_public_collection_dict(collection_dict)
+        else:
+            # We'll need to return all the properties including those 
+            # generated by `on_read_trigger` to have a complete result
+            complete_dict = schema_manager.get_complete_entity_result(user_token, collection_dict)
 
     # Will also filter the result based on schema
     normalized_complete_dict = schema_manager.normalize_entity_result_for_response(complete_dict)
@@ -649,6 +698,9 @@ def get_collection(id):
 
 """
 Retrive all the public collections
+
+The gateway treats this endpoint as public accessible
+
 Result filtering is supported based on query string
 For example: /collections?property=uuid
 
@@ -669,6 +721,10 @@ json
 """
 @app.route('/collections', methods = ['GET'])
 def get_collections():
+    # Token is not required, but if an invalid token provided,
+    # we need to tell the client with a 401 error
+    validate_token_if_auth_header_exists(request)
+
     normalized_entity_type = 'Collection'
 
     # Result filtering based on query string
@@ -677,11 +733,10 @@ def get_collections():
 
         if property_key is not None:
             result_filtering_accepted_property_keys = ['uuid']
-            separator = ', '
 
             # Validate the target property
             if property_key not in result_filtering_accepted_property_keys:
-                bad_request_error(f"Only the following property keys are supported in the query string: {separator.join(result_filtering_accepted_property_keys)}")
+                bad_request_error(f"Only the following property keys are supported in the query string: {COMMA_SEPARATOR.join(result_filtering_accepted_property_keys)}")
             
             # Only return a list of the filtered property value of each public collection
             final_result = app_neo4j_queries.get_public_collections(neo4j_driver_instance, property_key)
@@ -729,7 +784,7 @@ json
 @app.route('/entities/<entity_type>', methods = ['POST'])
 def create_entity(entity_type):
     # Get user token from Authorization header
-    user_token = get_user_token(request.headers)
+    user_token = get_user_token(request)
 
     # Normalize user provided entity_type
     normalized_entity_type = schema_manager.normalize_entity_type(entity_type)
@@ -740,6 +795,14 @@ def create_entity(entity_type):
     except schema_errors.InvalidNormalizedEntityTypeException as e:
         bad_request_error(f"Invalid entity type provided: {entity_type}")
 
+    # Execute validators defined in schema yaml before entity creation
+    try:
+        schema_manager.execute_entity_level_validators('before_entity_create_validator', normalized_entity_type, request.headers)
+    except schema_errors.MissingApplicationHeaderException as e: 
+        bad_request_error(e)  
+    except schema_errors.InvalidApplicationHeaderException as e: 
+        bad_request_error(e)
+    
     # Always expect a json body
     require_json(request)
 
@@ -839,7 +902,7 @@ json
 @app.route('/entities/multiple-samples/<count>', methods = ['POST'])
 def create_multiple_samples(count):
     # Get user token from Authorization header
-    user_token = get_user_token(request.headers)
+    user_token = get_user_token(request)
 
     # Normalize user provided entity_type
     normalized_entity_type = 'Sample'
@@ -882,71 +945,6 @@ def create_multiple_samples(count):
 
     return jsonify(generated_ids_dict_list)
 
-"""
-Update properties of multiple samples via one API request
-
-Request json:
-{
-  "<sample-uuid-1>": {
-    "rui_location": "<info-1>",
-    "lab_tissue_sample_id": "<id-1>"
-  },
-  "<sample-uuid-2>": {
-    "rui_location": "<info-2>",
-    "lab_tissue_sample_id": "<id-2>"
-  }
-}
-
-Returns
--------
-json
-    A success message. No need to return the uuids of successfully updated samples
-    since it's a transaction, all updated or none updated
-"""
-@app.route('/entities/multiple-samples', methods = ['PUT'])
-def update_multiple_samples():
-    # Get user token from Authorization header
-    user_token = get_user_token(request.headers)
-
-    # Normalize user provided entity_type
-    normalized_entity_type = 'Sample'
-
-    # Always expect a json body
-    require_json(request)
-
-    # Parse incoming json string into json data(python dict object)
-    samples_data_dict = request.get_json()
-
-    # The key is the sample uuid, value is the properties to be updated
-    for key, value in samples_data_dict.items():
-        # This checks the existence of the sample, 404 if not found
-        target_entity_dict = query_target_entity(key, user_token)
-
-        # Validate properties specified in request json against the yaml schema
-        try:
-            schema_manager.validate_json_data_against_schema(value, normalized_entity_type, target_entity_dict)
-        except schema_errors.SchemaValidationException as e:
-            # No need to log the validation errors
-            bad_request_error(str(e))
-
-    # Pass to neo4j to update
-    try:
-        # No return
-        app_neo4j_queries.update_multiple_samples(neo4j_driver_instance, samples_data_dict)
-    except TransactionError:
-        msg = "Failed to create the linkage between the given datasets and the target collection"
-        # Log the full stack trace, prepend a line with our message
-        logger.exception(msg)
-        # Terminate and let the users know
-        internal_server_error(msg)
-
-    # If all good by now, index the updated Sample nodes in elasticsearch via search-api
-    for uuid in samples_data_dict.keys():
-        reindex_entity(uuid, user_token)
-
-    # If all good by now, return a simple success message
-    return jsonify({'message': 'All the samples have been updated successfully :)'})
-
 
 """
 Update the properties of a given entity, no Collection stuff
@@ -966,7 +964,7 @@ json
 @app.route('/entities/<id>', methods = ['PUT'])
 def update_entity(id):
     # Get user token from Authorization header
-    user_token = get_user_token(request.headers)
+    user_token = get_user_token(request)
 
     # Always expect a json body
     require_json(request)
@@ -980,6 +978,14 @@ def update_entity(id):
     # Normalize user provided entity_type
     normalized_entity_type = schema_manager.normalize_entity_type(entity_dict['entity_type'])
 
+    # Execute validators defined in schema yaml before entity update
+    try:
+        schema_manager.execute_entity_level_validators('before_entity_update_validator', normalized_entity_type, request.headers)
+    except schema_errors.MissingApplicationHeaderException as e: 
+        bad_request_error(e)  
+    except schema_errors.InvalidApplicationHeaderException as e: 
+        bad_request_error(e)
+
     # Validate request json against the yaml schema
     # Pass in the entity_dict for missing required key check, this is different from creating new entity
     try:
@@ -987,6 +993,18 @@ def update_entity(id):
     except schema_errors.SchemaValidationException as e:
         # No need to log the validation errors
         bad_request_error(str(e))
+
+    # Currently only Dataset.status has such proerty level validator
+    # Execute validators defined in schema yaml before entity property update
+    try:
+        schema_manager.execute_property_level_validators('before_property_update_validators', normalized_entity_type, request.headers, json_data_dict)
+    except schema_errors.MissingApplicationHeaderException as e: 
+        bad_request_error(e)  
+    except schema_errors.InvalidApplicationHeaderException as e: 
+        bad_request_error(e)
+    except ValueError as e:
+        bad_request_error(e)
+
 
     # Sample, Dataset, and Submission: additional validation, update entity, after_update_trigger
     # Collection and Donor: update entity
@@ -1076,6 +1094,9 @@ def update_entity(id):
 
 """
 Get all ancestors of the given entity
+
+The gateway treats this endpoint as public accessible
+
 Result filtering based on query string
 For example: /ancestors/<id>?property=uuid
 
@@ -1091,25 +1112,53 @@ json
 """
 @app.route('/ancestors/<id>', methods = ['GET'])
 def get_ancestors(id):
-    # Get user token from Authorization header
-    user_token = get_user_token(request.headers)
+    final_result = []
+    
+    # Token is not required, but if an invalid token provided,
+    # we need to tell the client with a 401 error
+    validate_token_if_auth_header_exists(request)
+
+    # Use the internal token to query the target entity 
+    # since public entities don't require user token
+    token = get_internal_token()
 
     # Make sure the id exists in uuid-api and 
     # the corresponding entity also exists in neo4j
-    entity_dict = query_target_entity(id, user_token)
+    entity_dict = query_target_entity(id, token)
+    normalized_entity_type = entity_dict['entity_type']
     uuid = entity_dict['uuid']
+
+    # Collection doesn't have ancestors
+    if normalized_entity_type  == 'Collection':
+        bad_request_error(f"Unsupported entity type of id {id}: {normalized_entity_type}")
     
+    if normalized_entity_type == 'Dataset':
+        # Only published/public datasets don't require token
+        if entity_dict['status'].lower() != DATASET_STATUS_PUBLISHED:
+            # Token is required and the user must have consortium (HuBMAP-READ group) 
+            # or protected (HUBMAP-PROTECTED-DATA group) level of access
+            token = get_user_token(request, non_public_access_required = True)
+    elif normalized_entity_type == 'Sample':
+        # The `data_access_level` of Sample can only be either 'public' or 'consortium'
+        if entity_dict['data_access_level'] == ACCESS_LEVEL_CONSORTIUM:
+            token = get_user_token(request, non_public_access_required = True)
+    else:
+        # Donor and Submission will always get back an empty list
+        # becuase their direct ancestor is Lab, which is being skipped by Neo4j query
+        # So no need to execute the code below
+        return jsonify(final_result)
+
+    # By now, either the entity is public accessible or the user token has the correct access level
     # Result filtering based on query string
     if bool(request.args):
         property_key = request.args.get('property')
 
         if property_key is not None:
             result_filtering_accepted_property_keys = ['uuid']
-            separator = ', '
 
             # Validate the target property
             if property_key not in result_filtering_accepted_property_keys:
-                bad_request_error(f"Only the following property keys are supported in the query string: {separator.join(result_filtering_accepted_property_keys)}")
+                bad_request_error(f"Only the following property keys are supported in the query string: {COMMA_SEPARATOR.join(result_filtering_accepted_property_keys)}")
             
             # Only return a list of the filtered property value of each entity
             property_list = app_neo4j_queries.get_ancestors(neo4j_driver_instance, uuid, property_key)
@@ -1122,11 +1171,19 @@ def get_ancestors(id):
     else:
         ancestors_list = app_neo4j_queries.get_ancestors(neo4j_driver_instance, uuid)
 
-        # Generate trigger data and merge into a big dict
-        # and skip some of the properties that are time-consuming to generate via triggers
-        # datasts for Collection, director_ancestor for Sample, and direct_ancestors for Dataset
-        properties_to_skip = ['datasets', 'direct_ancestor', 'direct_ancestors']
-        complete_entities_list = schema_manager.get_complete_entities_list(user_token, ancestors_list, properties_to_skip)
+        # Generate trigger data
+        # Skip some of the properties that are time-consuming to generate via triggers:
+        # director_ancestor for Sample, and direct_ancestors for Dataset
+        # Also skip next_revision_uuid and previous_revision_uuid for Dataset to avoid additional
+        # checks when the target Dataset is public but the revisions are not public
+        properties_to_skip = [
+            'direct_ancestor', 
+            'direct_ancestors', 
+            'next_revision_uuid', 
+            'previous_revision_uuid'
+        ]
+
+        complete_entities_list = schema_manager.get_complete_entities_list(token, ancestors_list, properties_to_skip)
 
         # Final result after normalization
         final_result = schema_manager.normalize_entities_list_for_response(complete_entities_list)
@@ -1151,8 +1208,10 @@ json
 """
 @app.route('/descendants/<id>', methods = ['GET'])
 def get_descendants(id):
+    final_result = []
+
     # Get user token from Authorization header
-    user_token = get_user_token(request.headers)
+    user_token = get_user_token(request)
 
     # Make sure the id exists in uuid-api and 
     # the corresponding entity also exists in neo4j
@@ -1165,11 +1224,10 @@ def get_descendants(id):
 
         if property_key is not None:
             result_filtering_accepted_property_keys = ['uuid']
-            separator = ', '
 
             # Validate the target property
             if property_key not in result_filtering_accepted_property_keys:
-                bad_request_error(f"Only the following property keys are supported in the query string: {separator.join(result_filtering_accepted_property_keys)}")
+                bad_request_error(f"Only the following property keys are supported in the query string: {COMMA_SEPARATOR.join(result_filtering_accepted_property_keys)}")
 
             # Only return a list of the filtered property value of each entity
             property_list = app_neo4j_queries.get_descendants(neo4j_driver_instance, uuid, property_key)
@@ -1195,6 +1253,9 @@ def get_descendants(id):
 
 """
 Get all parents of the given entity
+
+The gateway treats this endpoint as public accessible
+
 Result filtering based on query string
 For example: /parents/<id>?property=uuid
 
@@ -1210,25 +1271,53 @@ json
 """
 @app.route('/parents/<id>', methods = ['GET'])
 def get_parents(id):
-    # Get user token from Authorization header
-    user_token = get_user_token(request.headers)
+    final_result = []
+
+    # Token is not required, but if an invalid token provided,
+    # we need to tell the client with a 401 error
+    validate_token_if_auth_header_exists(request)
+
+    # Use the internal token to query the target entity 
+    # since public entities don't require user token
+    token = get_internal_token()
 
     # Make sure the id exists in uuid-api and 
     # the corresponding entity also exists in neo4j
-    entity_dict = query_target_entity(id, user_token)
+    entity_dict = query_target_entity(id, token)
+    normalized_entity_type = entity_dict['entity_type']
     uuid = entity_dict['uuid']
- 
+
+    # Collection doesn't have ancestors
+    if normalized_entity_type == 'Collection':
+        bad_request_error(f"Unsupported entity type of id {id}: {normalized_entity_type}")
+    
+    if normalized_entity_type == 'Dataset':
+        # Only published/public datasets don't require token
+        if entity_dict['status'].lower() != DATASET_STATUS_PUBLISHED:
+            # Token is required and the user must have consortium (HuBMAP-READ group) 
+            # or protected (HUBMAP-PROTECTED-DATA group) level of access
+            token = get_user_token(request, non_public_access_required = True)
+    elif normalized_entity_type == 'Sample':
+        # The `data_access_level` of Sample can only be either 'public' or 'consortium'
+        if entity_dict['data_access_level'] == ACCESS_LEVEL_CONSORTIUM:
+            token = get_user_token(request, non_public_access_required = True)
+    else:
+        # Donor and Submission will always get back an empty list
+        # becuase their direct ancestor is Lab, which is being skipped by Neo4j query
+        # So no need to execute the code below
+        return jsonify(final_result)
+
+    # By now, either the entity is public accessible or the user token has the correct access level
     # Result filtering based on query string
     if bool(request.args):
         property_key = request.args.get('property')
 
         if property_key is not None:
             result_filtering_accepted_property_keys = ['uuid']
-            separator = ', '
 
             # Validate the target property
             if property_key not in result_filtering_accepted_property_keys:
-                bad_request_error(f"Only the following property keys are supported in the query string: {separator.join(result_filtering_accepted_property_keys)}")
+                bad_request_error(f"Only the following property keys are supported in the query string: {COMMA_SEPARATOR.join(result_filtering_accepted_property_keys)}")
             
             # Only return a list of the filtered property value of each entity
             property_list = app_neo4j_queries.get_parents(neo4j_driver_instance, uuid, property_key)
@@ -1241,11 +1330,19 @@ def get_parents(id):
     else:
         parents_list = app_neo4j_queries.get_parents(neo4j_driver_instance, uuid)
 
-        # Generate trigger data and merge into a big dict
-        # and skip some of the properties that are time-consuming to generate via triggers
-        # datasts for Collection, director_ancestor for Sample, and direct_ancestors for Dataset
-        properties_to_skip = ['datasets', 'direct_ancestor', 'direct_ancestors']
-        complete_entities_list = schema_manager.get_complete_entities_list(user_token, parents_list, properties_to_skip)
+        # Generate trigger data
+        # Skip some of the properties that are time-consuming to generate via triggers:
+        # director_ancestor for Sample, and direct_ancestors for Dataset
+        # Also skip next_revision_uuid and previous_revision_uuid for Dataset to avoid additional
+        # checks when the target Dataset is public but the revisions are not public
+        properties_to_skip = [
+            'direct_ancestor', 
+            'direct_ancestors', 
+            'next_revision_uuid', 
+            'previous_revision_uuid'
+        ]
+
+        complete_entities_list = schema_manager.get_complete_entities_list(token, parents_list, properties_to_skip)
 
         # Final result after normalization
         final_result = schema_manager.normalize_entities_list_for_response(complete_entities_list)
@@ -1269,8 +1366,10 @@ json
 """
 @app.route('/children/<id>', methods = ['GET'])
 def get_children(id):
+    final_result = []
+
     # Get user token from Authorization header
-    user_token = get_user_token(request.headers)
+    user_token = get_user_token(request)
 
     # Make sure the id exists in uuid-api and 
     # the corresponding entity also exists in neo4j
@@ -1283,11 +1382,10 @@ def get_children(id):
 
         if property_key is not None:
             result_filtering_accepted_property_keys = ['uuid']
-            separator = ', '
 
             # Validate the target property
             if property_key not in result_filtering_accepted_property_keys:
-                bad_request_error(f"Only the following property keys are supported in the query string: {separator.join(result_filtering_accepted_property_keys)}")
+                bad_request_error(f"Only the following property keys are supported in the query string: {COMMA_SEPARATOR.join(result_filtering_accepted_property_keys)}")
             
             # Only return a list of the filtered property value of each entity
             property_list = app_neo4j_queries.get_children(neo4j_driver_instance, uuid, property_key)
@@ -1330,7 +1428,7 @@ json
 @app.route('/previous_revisions/<id>', methods = ['GET'])
 def get_previous_revisions(id):
     # Get user token from Authorization header
-    user_token = get_user_token(request.headers)
+    user_token = get_user_token(request)
 
     # Make sure the id exists in uuid-api and 
     # the corresponding entity also exists in neo4j
@@ -1343,11 +1441,10 @@ def get_previous_revisions(id):
 
         if property_key is not None:
             result_filtering_accepted_property_keys = ['uuid']
-            separator = ', '
 
             # Validate the target property
             if property_key not in result_filtering_accepted_property_keys:
-                bad_request_error(f"Only the following property keys are supported in the query string: {separator.join(result_filtering_accepted_property_keys)}")
+                bad_request_error(f"Only the following property keys are supported in the query string: {COMMA_SEPARATOR.join(result_filtering_accepted_property_keys)}")
 
             # Only return a list of the filtered property value of each entity
             property_list = app_neo4j_queries.get_previous_revisions(neo4j_driver_instance, uuid, property_key)
@@ -1390,7 +1487,7 @@ json
 @app.route('/next_revisions/<id>', methods = ['GET'])
 def get_next_revisions(id):
     # Get user token from Authorization header
-    user_token = get_user_token(request.headers)
+    user_token = get_user_token(request)
 
     # Make sure the id exists in uuid-api and 
     # the corresponding entity also exists in neo4j
@@ -1403,11 +1500,10 @@ def get_next_revisions(id):
 
         if property_key is not None:
             result_filtering_accepted_property_keys = ['uuid']
-            separator = ', '
 
             # Validate the target property
             if property_key not in result_filtering_accepted_property_keys:
-                bad_request_error(f"Only the following property keys are supported in the query string: {separator.join(result_filtering_accepted_property_keys)}")
+                bad_request_error(f"Only the following property keys are supported in the query string: {COMMA_SEPARATOR.join(result_filtering_accepted_property_keys)}")
 
             # Only return a list of the filtered property value of each entity
             property_list = app_neo4j_queries.get_next_revisions(neo4j_driver_instance, uuid, property_key)
@@ -1459,7 +1555,7 @@ json
 @app.route('/collections/<collection_uuid>/add-datasets', methods = ['PUT'])
 def add_datasets_to_collection(collection_uuid):
     # Get user token from Authorization header
-    user_token = get_user_token(request.headers)
+    user_token = get_user_token(request)
 
     # Query target entity against uuid-api and neo4j and return as a dict if exists
     entity_dict = query_target_entity(collection_uuid, user_token)
@@ -1502,6 +1598,8 @@ def add_datasets_to_collection(collection_uuid):
 """
 Redirect a request from a doi service for a collection of data
 
+The gateway treats this endpoint as public accessible
+
 Parameters
 ----------
 id : str
@@ -1538,8 +1636,17 @@ def collection_redirect(id):
     resp.headers['Location'] = redirect_url
     return resp    
 
-#redirection method created for REFERENCE organ DOI
-#redirection, but can be for others if needed
+
+"""
+Redirection method created for REFERENCE organ DOI redirection, but can be for others if needed
+
+The gateway treats this endpoint as public accessible
+
+Parameters
+----------
+hmid : str
+    The HuBMAP ID (e.g. HBM123.ABCD.456)
+"""
 @app.route('/redirect/<hmid>', methods = ['GET'])
 def redirect(hmid):
     cid = hmid.upper().strip()
@@ -1553,6 +1660,8 @@ def redirect(hmid):
     
 """
 Get the Globus URL to the given dataset
+
+The gateway treats this endpoint as public accessible
 
 It will provide a Globus URL to the dataset directory in of three Globus endpoints based on the access
 level of the user (public, consortium or protected), public only, of course, if no token is provided.
@@ -1581,6 +1690,10 @@ Response
 # New route
 @app.route('/dataset/globus-url/<id>', methods = ['GET'])
 def get_dataset_globus_url(id):
+    # Token is not required, but if an invalid token provided,
+    # we need to tell the client with a 401 error
+    validate_token_if_auth_header_exists(request)
+
     # Use the internal token to query the target entity 
     # since public entities don't require user token
     token = get_internal_token()
@@ -1778,25 +1891,110 @@ Parase the token from Authorization header
 
 Parameters
 ----------
-request_headers: request.headers
-    The http request headers
+request : falsk.request
+    The flask http request object
+non_public_access_required : bool
+    If a non-public access token is required by the request, default to False
 
 Returns
 -------
 str
     The token string if valid
 """
-def get_user_token(request_headers):
+def get_user_token(request, non_public_access_required = False):
     # Get user token from Authorization header
     # getAuthorizationTokens() also handles MAuthorization header but we are not using that here
-    user_token = auth_helper_instance.getAuthorizationTokens(request_headers) 
+    try:
+        user_token = auth_helper_instance.getAuthorizationTokens(request.headers) 
+    except Exception:
+        msg = "Failed to parse the Authorization token by calling commons.auth_helper.getAuthorizationTokens()"
+        # Log the full stack trace, prepend a line with our message
+        logger.exception(msg)
+        internal_server_error(msg)
 
-    # The user_token is flask.Response on error
-    if isinstance(user_token, Response):
-        # The Response.data returns binary string, need to decode
-        unauthorized_error(user_token.data.decode())
+    # Further check the validity of the token if required non-public access
+    if non_public_access_required:
+        # When the token is a flask.Response instance,
+        # it MUST be a 401 error with message.
+        # That's how commons.auth_helper.getAuthorizationTokens() was designed
+        if isinstance(user_token, Response):
+            # We wrap the message in a json and send back to requester as 401 too
+            # The Response.data returns binary string, need to decode
+            unauthorized_error(user_token.get_data().decode())
+
+        # By now the token is already a valid token
+        # But we also need to ensure the user belongs to HuBMAP-Read group
+        # in order to access the non-public entity
+        # Return a 403 response if the user doesn't belong to HuBMAP-READ group
+        if not user_in_hubmap_read_group(request):
+            forbidden_error("Access not granted")
 
     return user_token
+
+"""
+Check if the user with token is in the HuBMAP-READ group
+
+Parameters
+----------
+request : falsk.request
+    The flask http request object that containing the Authorization header
+    with a valid Globus nexus token for checking group information
+
+Returns
+-------
+bool
+    True if the user belongs to HuBMAP-READ group, otherwise False
+"""
+def user_in_hubmap_read_group(request):
+    try:
+        # The property 'hmgroupids' is ALWASYS in the output with using schema_manager.get_user_info()
+        # when the token in request is a nexus_token
+        user_info = schema_manager.get_user_info(request)
+        hubmap_read_group_uuid = auth_helper_instance.groupNameToId('HuBMAP-READ')['uuid']
+    except Exception as e:
+        # Log the full stack trace, prepend a line with our message
+        logger.exception(e)
+
+        # If the token is not a nexus token, no group information available
+        # The commons.hm_auth.AuthCache would return a Response with 500 error message
+        # We treat such cases as the user not in the HuBMAP-READ group
+        return False
+        
+
+    return (hubmap_read_group_uuid in user_info['hmgroupids'])
+
+
+"""
+Validate the provided token when Authorization header presents
+
+Parameters
+----------
+request : flask.request object
+    The Flask http request object
+"""
+def validate_token_if_auth_header_exists(request):
+    # No matter if token is required or not, when an invalid token provided,
+    # we need to tell the client with a 401 error
+    # HTTP header names are case-insensitive
+    # request.headers.get('Authorization') returns None if the header doesn't exist
+    if request.headers.get('Authorization') is not None:
+        user_token = get_user_token(request)
+
+        # When the Authoriztion header provided but the user_token is a flask.Response instance,
+        # it MUST be a 401 error with message.
+        # That's how commons.auth_helper.getAuthorizationTokens() was designed
+        if isinstance(user_token, Response):
+            # We wrap the message in a json and send back to requester as 401 too
+            # The Response.data returns binary string, need to decode
+            unauthorized_error(user_token.get_data().decode())
+
+        # Also check if the parased token is invalid or expired
+        # Set the second paremeter as False to skip group check
+        user_info = auth_helper_instance.getUserInfo(user_token, False)
+
+        if isinstance(user_info, Response):
+            unauthorized_error(user_info.get_data().decode())
+
 
 """
 Get the token for internal use only
@@ -1835,10 +2033,10 @@ def get_complete_public_collection_dict(collection_dict):
     # generated by `on_read_trigger` to have a complete result
     complete_dict = schema_manager.get_complete_entity_result(token, collection_dict)
 
-    # Loop through Collection.datasets and only return the public datasets
+    # Loop through Collection.datasets and only return the published/public datasets
     public_datasets = [] 
     for dataset in complete_dict['datasets']:
-        if dataset['data_access_level'] == 'public':
+        if dataset['status'].lower() == DATASET_STATUS_PUBLISHED:
             public_datasets.append(dataset)
 
     # Modify the result and only show the public datasets in this collection
@@ -2327,19 +2525,6 @@ def require_json(request):
     if not request.is_json:
         bad_request_error("A json body and appropriate Content-Type header are required")
 
-"""
-Check if the token from user request is present and valid
-
-token : str or Response
-    The token string if valid or flask.Response object otherwise
-"""
-def require_token(token):
-    if isinstance(token, Response):
-        # When the token is an Response instance,
-        # it must be a 401 error with message
-        # We wrap the message in a json and send back to requester as 401 too
-        # The Response.data returns binary string, need to decode
-        unauthorized_error(token.data.decode())
 
 """
 Make a call to search-api to reindex this entity node in elasticsearch

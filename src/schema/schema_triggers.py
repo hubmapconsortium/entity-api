@@ -656,8 +656,9 @@ def update_dataset_and_ancestors_data_access_level(property_key, normalized_type
     # Caculate the new data_access_level of this dataset's ancestors (except another dataset is the ancestor)
     # public if any dataset below the Donor/Sample in the provenance hierarchy is published
     ACCESS_LEVEL_PUBLIC = 'public'
+    DATASET_STATUS_PUBLISHED = 'published'
 
-    if existing_data_dict['status'].lower() == "published":
+    if existing_data_dict['status'].lower() == DATASET_STATUS_PUBLISHED:
         try:
             schema_neo4j_queries.update_dataset_and_ancestors_data_access_level(schema_manager.get_neo4j_driver_instance(), existing_data_dict['uuid'], ACCESS_LEVEL_PUBLIC)
         except TransactionError:
