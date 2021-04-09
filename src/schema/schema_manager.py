@@ -350,6 +350,28 @@ def generate_triggered_data(trigger_type, normalized_class, user_token, existing
     # Return after for loop
     return trigger_generated_data_dict
     
+"""
+Filter out the merged dict by getting rid of properties with None value
+
+Parameters
+----------
+merged_dict : dict
+    A merged dict that may contain properties with None values
+
+Returns
+-------
+dict
+    A filtered dict that removed all properties with None values
+"""
+def remove_none_values(merged_dict):
+    filtered_dict = {}
+    for k, v in merged_dict.items():
+        # Only keep the properties whose value is not None
+        if v is not None:
+            filtered_dict[k] = v 
+
+    return filtered_dict
+
 
 """
 Filter out the merged_dict by getting rid of the transitent properties (not to be stored) 
@@ -412,7 +434,8 @@ def get_complete_entity_result(token, entity_dict, properties_to_skip = []):
         # Merge the entity info and the generated on read data into one dictionary
         complete_entity_dict = {**entity_dict, **generated_on_read_trigger_data_dict}
 
-        return complete_entity_dict
+        # Remove properties of None value
+        return remove_none_values(complete_entity_dict)
 
 
 """
@@ -1095,16 +1118,20 @@ dict
 """
 def get_user_info(request):
     global _auth_helper
-
+ 
     # `group_required` is a boolean, when True, 'hmgroupids' is in the output
     user_info = _auth_helper.getUserInfoUsingRequest(request, True)
 
     logger.debug("======get_user_info()======")
     logger.debug(user_info)
 
-    # If returns error response, invalid header or token
+    # It returns error response when:
+    # - invalid header or token
+    # - token is valid but not nexus token, can't find group info
     if isinstance(user_info, Response):
-        msg = "Failed to query the user info with the given globus token from the http request"
+        # Bubble up the actual error message from commons
+        # The Response.data returns binary string, need to decode
+        msg = user_info.get_data().decode()
         # Log the full stack trace, prepend a line with our message
         logger.exception(msg)
         raise Exception(msg)
