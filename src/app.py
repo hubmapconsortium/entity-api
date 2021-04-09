@@ -170,6 +170,10 @@ except Exception:
     logger.exception(msg)
 
 
+####################################################################################################
+## REFERENCE DOI Redirection
+####################################################################################################
+
 ## Read tsv file with the REFERENCE entity redirects
 ## sets the reference_redirects dict which is used
 ## by the /redirect method below
@@ -201,6 +205,7 @@ try:
 except Exception:
     logger.exception("Failed to read tsv file with REFERENCE redirect information")
 
+
 ####################################################################################################
 ## Constants
 ####################################################################################################
@@ -210,6 +215,8 @@ except Exception:
 ACCESS_LEVEL_PUBLIC = 'public'
 ACCESS_LEVEL_CONSORTIUM = 'consortium'
 ACCESS_LEVEL_PROTECTED = 'protected'
+DATASET_STATUS_PUBLISHED = 'published'
+COMMA_SEPARATOR = ','
 
 
 ####################################################################################################
@@ -254,12 +261,14 @@ def get_status():
     return jsonify(status_data)
 
 """
-Retrieve the ancestor organ(s) of a given uuid
+Retrieve the ancestor organ(s) of a given entity
+
+The gateway treats this endpoint as public accessible
 
 Parameters
 ----------
 id : str
-    The HuBMAP ID (e.g. HBM123.ABCD.456) or UUID of target entity 
+    The HuBMAP ID (e.g. HBM123.ABCD.456) or UUID of target entity (Dataset/Sample)
 
 Returns
 -------
@@ -268,8 +277,8 @@ json
     - Only dataset entities can return multiple ancestor organs
       as Samples can only have one parent.
     - If no organ ancestors are found an empty list is returned
-    - If requesting the ancestor organ of a Sample of type Organ or Donor a 400
-      response is returned.
+    - If requesting the ancestor organ of a Sample of type Organ or Donor 
+      a 400 response is returned.
 """
 @app.route('/entities/<id>/ancestor-organs', methods = ['GET'])
 def get_ancestor_organs(id):
@@ -286,9 +295,10 @@ def get_ancestor_organs(id):
     normalized_entity_type = entity_dict['entity_type']
     entity_data_access_level = entity_dict['data_access_level']
 
-    # Checks 
-    if normalized_entity_type in ['Collection', 'Donor']:
-        bad_request_error("Cannot get the ancestor organs for an entity of type Collection or Donor")
+    # A bit validation 
+    unsupported_entity_types = ['Collection', 'Donor', 'Submission']
+    if normalized_entity_type in unsupported_entity_types:
+        bad_request_error(f"Cannot get the ancestor organs for an entity of unsupported types: {COMMA_SEPARATOR.join(unsupported_entity_types)}")
 
     if normalized_entity_type == 'Sample' and entity_dict['specimen_type'].lower() == 'organ':
         bad_request_error("Cannot get the ancestor organ of an organ.")
@@ -296,7 +306,7 @@ def get_ancestor_organs(id):
     # The `data_access_level` of Dataset can be 'public', consortium', or 'protected'
     if normalized_entity_type == 'Dataset':
         # Only published/public datasets don't require token
-        if entity_dict['status'].lower() != 'published':
+        if entity_dict['status'].lower() != DATASET_STATUS_PUBLISHED:
             # Token is required and the user must have consortium (HuBMAP-READ group) 
             # or protected (HUBMAP-PROTECTED-DATA group) level of access
             token = get_user_token(request, non_public_access_required = True)
@@ -320,6 +330,9 @@ def get_ancestor_organs(id):
 
 """
 Retrive the metadata information of a given entity by id
+
+The gateway treats this endpoint as public accessible
+
 Result filtering is supported based on query string
 For example: /entities/<id>?property=data_access_level
 
@@ -354,7 +367,7 @@ def get_entity_by_id(id):
     # The `data_access_level` of Dataset can be 'public', consortium', or 'protected'
     if normalized_entity_type == 'Dataset':
         # Only published/public datasets don't require token
-        if entity_dict['status'].lower() != 'published':
+        if entity_dict['status'].lower() != DATASET_STATUS_PUBLISHED:
             # Token is required and the user must have consortium (HuBMAP-READ group) 
             # or protected (HUBMAP-PROTECTED-DATA group) level of access
             token = get_user_token(request, non_public_access_required = True)
@@ -378,7 +391,7 @@ def get_entity_by_id(id):
     if normalized_entity_type == 'Dataset':
         # This entity is published doesn't ensure its revisions are also published
         # So we need to do some additional checks
-        if entity_dict['status'].lower() == 'published':
+        if entity_dict['status'].lower() == DATASET_STATUS_PUBLISHED:
             # The `next_revision_uuid` and `previous_revision_uuid` only availabe in complete_dict
             # Remove the properties from response if they are not published
             properties_to_pop = ['next_revision_uuid', 'previous_revision_uuid']
@@ -388,7 +401,7 @@ def get_entity_by_id(id):
                     revision_entity_dict = query_target_entity(complete_dict[prop], token)
                     # Remove the property from the resulting complete_dict
                     # if the revision is not also published
-                    if revision_entity_dict['status'].lower() != 'published':
+                    if revision_entity_dict['status'].lower() != DATASET_STATUS_PUBLISHED:
                         complete_dict.pop(prop)
 
     # Also normalize the result based on schema
@@ -399,14 +412,14 @@ def get_entity_by_id(id):
     # and this filter is being used by gateway to check the data_access_level for file assets
     # The `status` property is only available in Dataset and being used by search-api for revision
     result_filtering_accepted_property_keys = ['data_access_level', 'status']
-    separator = ', '
+
     if bool(request.args):
         property_key = request.args.get('property')
 
         if property_key is not None:
             # Validate the target property
             if property_key not in result_filtering_accepted_property_keys:
-                bad_request_error(f"Only the following property keys are supported in the query string: {separator.join(result_filtering_accepted_property_keys)}")
+                bad_request_error(f"Only the following property keys are supported in the query string: {COMMA_SEPARATOR.join(result_filtering_accepted_property_keys)}")
             
             if property_key == 'status' and normalized_entity_type != 'Dataset':
                 bad_request_error(f"Only Dataset supports 'status' property key in the query string")
@@ -424,8 +437,7 @@ def get_entity_by_id(id):
 """
 Retrive the full tree above the referenced entity and build the provenance document
 
-This endpoint is marked as public in Gateway
-But we need to enforce the access control here
+The gateway treats this endpoint as public accessible
 
 Parameters
 ----------
@@ -454,14 +466,13 @@ def get_entity_provenance(id):
 
     # A bit validation to prevent Lab or Collection being queried
     supported_entity_types = ['Donor', 'Sample', 'Dataset']
-    separator = ', '
     if normalized_entity_type not in supported_entity_types:
-        bad_request_error(f"Unable to get the provenance for this {normalized_entity_type}, the requested entity must be one of: {separator.join(supported_entity_types)}")
+        bad_request_error(f"Unable to get the provenance for this {normalized_entity_type}, the requested entity must be one of: {COMMA_SEPARATOR.join(supported_entity_types)}")
 
     # The `data_access_level` of Dataset can be 'public', consortium', or 'protected'
     if normalized_entity_type == 'Dataset':
         # Only published/public datasets don't require token
-        if entity_dict['status'].lower() != 'published':
+        if entity_dict['status'].lower() != DATASET_STATUS_PUBLISHED:
             # Token is required and the user must have consortium (HuBMAP-READ group) 
             # or protected (HUBMAP-PROTECTED-DATA group) level of access
             token = get_user_token(request, non_public_access_required = True)
@@ -529,6 +540,8 @@ def get_entity_provenance(id):
 """
 Show all the supported entity types
 
+The gateway treats this endpoint as public accessible
+
 Returns
 -------
 json
@@ -579,11 +592,10 @@ def get_entities_by_type(entity_type):
 
         if property_key is not None:
             result_filtering_accepted_property_keys = ['uuid']
-            separator = ', '
 
             # Validate the target property
             if property_key not in result_filtering_accepted_property_keys:
-                bad_request_error(f"Only the following property keys are supported in the query string: {separator.join(result_filtering_accepted_property_keys)}")
+                bad_request_error(f"Only the following property keys are supported in the query string: {COMMA_SEPARATOR.join(result_filtering_accepted_property_keys)}")
             
             # Only return a list of the filtered property value of each entity
             property_list = app_neo4j_queries.get_entities_by_type(neo4j_driver_instance, normalized_entity_type, property_key)
@@ -616,6 +628,8 @@ def get_entities_by_type(entity_type):
 
 """
 Retrive the collection detail by id
+
+The gateway treats this endpoint as public accessible
 
 An optional Globus nexus token can be provided in a standard Authentication Bearer header. If a valid token
 is provided with group membership in the HuBMAP-Read group any collection matching the id will be returned.
@@ -689,6 +703,9 @@ def get_collection(id):
 
 """
 Retrive all the public collections
+
+The gateway treats this endpoint as public accessible
+
 Result filtering is supported based on query string
 For example: /collections?property=uuid
 
@@ -721,11 +738,10 @@ def get_collections():
 
         if property_key is not None:
             result_filtering_accepted_property_keys = ['uuid']
-            separator = ', '
 
             # Validate the target property
             if property_key not in result_filtering_accepted_property_keys:
-                bad_request_error(f"Only the following property keys are supported in the query string: {separator.join(result_filtering_accepted_property_keys)}")
+                bad_request_error(f"Only the following property keys are supported in the query string: {COMMA_SEPARATOR.join(result_filtering_accepted_property_keys)}")
             
             # Only return a list of the filtered property value of each public collection
             final_result = app_neo4j_queries.get_public_collections(neo4j_driver_instance, property_key)
@@ -1148,6 +1164,9 @@ def update_entity(id):
 
 """
 Get all ancestors of the given entity
+
+The gateway treats this endpoint as public accessible
+
 Result filtering based on query string
 For example: /ancestors/<id>?property=uuid
 
@@ -1185,7 +1204,7 @@ def get_ancestors(id):
     # The `data_access_level` of Dataset can be 'public', consortium', or 'protected'
     if normalized_entity_type == 'Dataset':
         # Only published/public datasets don't require token
-        if entity_dict['status'].lower() != 'published':
+        if entity_dict['status'].lower() != DATASET_STATUS_PUBLISHED:
             # Token is required and the user must have consortium (HuBMAP-READ group) 
             # or protected (HUBMAP-PROTECTED-DATA group) level of access
             token = get_user_token(request, non_public_access_required = True)
@@ -1201,11 +1220,10 @@ def get_ancestors(id):
 
         if property_key is not None:
             result_filtering_accepted_property_keys = ['uuid']
-            separator = ', '
 
             # Validate the target property
             if property_key not in result_filtering_accepted_property_keys:
-                bad_request_error(f"Only the following property keys are supported in the query string: {separator.join(result_filtering_accepted_property_keys)}")
+                bad_request_error(f"Only the following property keys are supported in the query string: {COMMA_SEPARATOR.join(result_filtering_accepted_property_keys)}")
             
             # Only return a list of the filtered property value of each entity
             property_list = app_neo4j_queries.get_ancestors(neo4j_driver_instance, uuid, property_key)
@@ -1270,11 +1288,10 @@ def get_descendants(id):
 
         if property_key is not None:
             result_filtering_accepted_property_keys = ['uuid']
-            separator = ', '
 
             # Validate the target property
             if property_key not in result_filtering_accepted_property_keys:
-                bad_request_error(f"Only the following property keys are supported in the query string: {separator.join(result_filtering_accepted_property_keys)}")
+                bad_request_error(f"Only the following property keys are supported in the query string: {COMMA_SEPARATOR.join(result_filtering_accepted_property_keys)}")
 
             # Only return a list of the filtered property value of each entity
             property_list = app_neo4j_queries.get_descendants(neo4j_driver_instance, uuid, property_key)
@@ -1300,6 +1317,9 @@ def get_descendants(id):
 
 """
 Get all parents of the given entity
+
+The gateway treats this endpoint as public accessible
+
 Result filtering based on query string
 For example: /parents/<id>?property=uuid
 
@@ -1337,7 +1357,7 @@ def get_parents(id):
     # The `data_access_level` of Dataset can be 'public', consortium', or 'protected'
     if normalized_entity_type == 'Dataset':
         # Only published/public datasets don't require token
-        if entity_dict['status'].lower() != 'published':
+        if entity_dict['status'].lower() != DATASET_STATUS_PUBLISHED:
             # Token is required and the user must have consortium (HuBMAP-READ group) 
             # or protected (HUBMAP-PROTECTED-DATA group) level of access
             token = get_user_token(request, non_public_access_required = True)
@@ -1353,11 +1373,10 @@ def get_parents(id):
 
         if property_key is not None:
             result_filtering_accepted_property_keys = ['uuid']
-            separator = ', '
 
             # Validate the target property
             if property_key not in result_filtering_accepted_property_keys:
-                bad_request_error(f"Only the following property keys are supported in the query string: {separator.join(result_filtering_accepted_property_keys)}")
+                bad_request_error(f"Only the following property keys are supported in the query string: {COMMA_SEPARATOR.join(result_filtering_accepted_property_keys)}")
             
             # Only return a list of the filtered property value of each entity
             property_list = app_neo4j_queries.get_parents(neo4j_driver_instance, uuid, property_key)
@@ -1421,11 +1440,10 @@ def get_children(id):
 
         if property_key is not None:
             result_filtering_accepted_property_keys = ['uuid']
-            separator = ', '
 
             # Validate the target property
             if property_key not in result_filtering_accepted_property_keys:
-                bad_request_error(f"Only the following property keys are supported in the query string: {separator.join(result_filtering_accepted_property_keys)}")
+                bad_request_error(f"Only the following property keys are supported in the query string: {COMMA_SEPARATOR.join(result_filtering_accepted_property_keys)}")
             
             # Only return a list of the filtered property value of each entity
             property_list = app_neo4j_queries.get_children(neo4j_driver_instance, uuid, property_key)
@@ -1481,11 +1499,10 @@ def get_previous_revisions(id):
 
         if property_key is not None:
             result_filtering_accepted_property_keys = ['uuid']
-            separator = ', '
 
             # Validate the target property
             if property_key not in result_filtering_accepted_property_keys:
-                bad_request_error(f"Only the following property keys are supported in the query string: {separator.join(result_filtering_accepted_property_keys)}")
+                bad_request_error(f"Only the following property keys are supported in the query string: {COMMA_SEPARATOR.join(result_filtering_accepted_property_keys)}")
 
             # Only return a list of the filtered property value of each entity
             property_list = app_neo4j_queries.get_previous_revisions(neo4j_driver_instance, uuid, property_key)
@@ -1541,11 +1558,10 @@ def get_next_revisions(id):
 
         if property_key is not None:
             result_filtering_accepted_property_keys = ['uuid']
-            separator = ', '
 
             # Validate the target property
             if property_key not in result_filtering_accepted_property_keys:
-                bad_request_error(f"Only the following property keys are supported in the query string: {separator.join(result_filtering_accepted_property_keys)}")
+                bad_request_error(f"Only the following property keys are supported in the query string: {COMMA_SEPARATOR.join(result_filtering_accepted_property_keys)}")
 
             # Only return a list of the filtered property value of each entity
             property_list = app_neo4j_queries.get_next_revisions(neo4j_driver_instance, uuid, property_key)
@@ -1640,6 +1656,8 @@ def add_datasets_to_collection(collection_uuid):
 """
 Redirect a request from a doi service for a collection of data
 
+The gateway treats this endpoint as public accessible
+
 Parameters
 ----------
 id : str
@@ -1676,8 +1694,17 @@ def collection_redirect(id):
     resp.headers['Location'] = redirect_url
     return resp    
 
-#redirection method created for REFERENCE organ DOI
-#redirection, but can be for others if needed
+
+"""
+Redirection method created for REFERENCE organ DOI redirection, but can be for others if needed
+
+The gateway treats this endpoint as public accessible
+
+Parameters
+----------
+hmid : str
+    The HuBMAP ID (e.g. HBM123.ABCD.456)
+"""
 @app.route('/redirect/<hmid>', methods = ['GET'])
 def redirect(hmid):
     cid = hmid.upper().strip()
@@ -1691,6 +1718,8 @@ def redirect(hmid):
     
 """
 Get the Globus URL to the given dataset
+
+The gateway treats this endpoint as public accessible
 
 It will provide a Globus URL to the dataset directory in of three Globus endpoints based on the access
 level of the user (public, consortium or protected), public only, of course, if no token is provided.
@@ -2064,7 +2093,7 @@ def get_complete_public_collection_dict(collection_dict):
     # Loop through Collection.datasets and only return the published/public datasets
     public_datasets = [] 
     for dataset in complete_dict['datasets']:
-        if dataset['status'].lower() == 'published':
+        if dataset['status'].lower() == DATASET_STATUS_PUBLISHED:
             public_datasets.append(dataset)
 
     # Modify the result and only show the public datasets in this collection

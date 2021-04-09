@@ -351,7 +351,8 @@ def generate_triggered_data(trigger_type, normalized_class, user_token, existing
     return trigger_generated_data_dict
     
 """
-Filter out the merged dict by getting rid of properties with None value
+Filter out the merged dict by getting rid of properties with None values
+This method is used by get_complete_entity_result() for the 'on_read_trigger'
 
 Parameters
 ----------
@@ -389,7 +390,7 @@ normalized_entity_type : str
 Returns
 -------
 dict
-    A filtered dict that removed all properties with None values
+    A filtered dict that removed all transient properties and the ones with None values
 """
 def remove_transient_and_none_values(merged_dict, normalized_entity_type):
     global _schema
