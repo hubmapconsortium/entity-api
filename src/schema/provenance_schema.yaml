@@ -614,7 +614,6 @@ ENTITIES:
       <<: *shared_entity_properties
       description:
         type: string
-        required_on_create: true
         description: "Free text description of the data being submitted."
       title:
         type: string
