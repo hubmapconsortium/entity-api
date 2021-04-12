@@ -84,7 +84,7 @@ request_headers: Flask request.headers object, behaves like a dict
 request_json_data : dict
     The json data in request body, already after the regular validations
 """
-def validate_submission_status_value(property_key, normalized_entity_type, request_headers, request_json_data):
+def validate_upload_status_value(property_key, normalized_entity_type, request_headers, request_json_data):
     accepted_status_values = ['New', 'Valid', 'Invalid', 'Error', 'Submitted']
 
     if request_json_data[property_key] not in accepted_status_values:
