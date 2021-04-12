@@ -277,7 +277,7 @@ json
     - Only dataset entities can return multiple ancestor organs
       as Samples can only have one parent.
     - If no organ ancestors are found an empty list is returned
-    - If requesting the ancestor organ of a Sample of type Organ or Donor/Collection/Submission
+    - If requesting the ancestor organ of a Sample of type Organ or Donor/Collection/Upload
       a 400 response is returned.
 """
 @app.route('/entities/<id>/ancestor-organs', methods = ['GET'])
@@ -366,9 +366,9 @@ def get_entity_by_id(id):
         if entity_dict['status'].lower() != DATASET_STATUS_PUBLISHED:
             # Token is required and the user must belong to HuBMAP-READ group
             token = get_user_token(request, non_public_access_required = True)
-    elif normalized_entity_type == 'Submission':
-        # Submission doesn't have 'data_access_level' property
-        # Always require at least consortium group token for accessing Submission
+    elif normalized_entity_type == 'Upload':
+        # Upload doesn't have 'data_access_level' property
+        # Always require at least consortium group token for accessing Upload
         token = get_user_token(request, non_public_access_required = True)
     else:
         # The `data_access_level` of Donor/Sample can only be either 'public' or 'consortium'
@@ -609,13 +609,13 @@ def get_entities_by_type(entity_type):
 
         # Generate trigger data and merge into a big dict
         # Skip some of the properties that are time-consuming to generate via triggers
-        # direct_ancestor for Sample, direct_ancestors/collections/submission for Dataset, 
-        # datasets for Submission
+        # direct_ancestor for Sample, direct_ancestors/collections/upload for Dataset, 
+        # datasets for Upload
         properties_to_skip = [
             'direct_ancestor', 
             'direct_ancestors', 
             'collections', 
-            'submission', 
+            'upload', 
             'datasets'
         ]
 
@@ -879,7 +879,7 @@ def create_entity(entity_type):
     # For Donor: link to parent Lab node
     # For Sample: link to existing direct ancestor
     # For Dataset: link to direct ancestors
-    # For Submission: link to parent Lab node
+    # For Upload: link to parent Lab node
     after_create(normalized_entity_type, user_token, merged_dict)
 
     # We'll need to return all the properties including those 
@@ -1015,7 +1015,7 @@ def update_entity(id):
         bad_request_error(e)
 
 
-    # Sample, Dataset, and Submission: additional validation, update entity, after_update_trigger
+    # Sample, Dataset, and Upload: additional validation, update entity, after_update_trigger
     # Collection and Donor: update entity
     if normalized_entity_type == 'Sample':
         # A bit more validation for updating the sample and the linkage to existing source entity
@@ -1052,7 +1052,7 @@ def update_entity(id):
         # Handle linkages update via `after_update_trigger` methods 
         if has_direct_ancestor_uuids:
             after_update(normalized_entity_type, user_token, merged_updated_dict)
-    elif normalized_entity_type == 'Submission': 
+    elif normalized_entity_type == 'Upload': 
         has_dataset_uuids_to_link = False
         if ('dataset_uuids_to_link' in json_data_dict) and (json_data_dict['dataset_uuids_to_link']):
             has_dataset_uuids_to_link = True
@@ -1064,7 +1064,7 @@ def update_entity(id):
                 dataset_dict = query_target_entity(dataset_uuid, user_token)
                 # Also make sure it's a Dataset
                 if dataset_dict['entity_type'] != 'Dataset':
-                    bad_request_error(f"The uuid: {dataset_uuid} is not a Dataset, cannot be linked to this Submission")
+                    bad_request_error(f"The uuid: {dataset_uuid} is not a Dataset, cannot be linked to this Upload")
 
         has_dataset_uuids_to_unlink = False
         if ('dataset_uuids_to_unlink' in json_data_dict) and (json_data_dict['dataset_uuids_to_unlink']):
@@ -1151,7 +1151,7 @@ def get_ancestors(id):
         if entity_dict['data_access_level'] == ACCESS_LEVEL_CONSORTIUM:
             token = get_user_token(request, non_public_access_required = True)
     else:
-        # Donor and Submission will always get back an empty list
+        # Donor and Upload will always get back an empty list
         # becuase their direct ancestor is Lab, which is being skipped by Neo4j query
         # So no need to execute the code below
         return jsonify(final_result)
@@ -1181,14 +1181,14 @@ def get_ancestors(id):
 
         # Generate trigger data
         # Skip some of the properties that are time-consuming to generate via triggers:
-        # director_ancestor for Sample, direct_ancestors/collections/submission for Dataset
+        # director_ancestor for Sample, direct_ancestors/collections/upload for Dataset
         # Also skip next_revision_uuid and previous_revision_uuid for Dataset to avoid additional
         # checks when the target Dataset is public but the revisions are not public
         properties_to_skip = [
             'direct_ancestor', 
             'direct_ancestors', 
             'collections',
-            'submission',
+            'upload',
             'next_revision_uuid', 
             'previous_revision_uuid'
         ]
@@ -1228,7 +1228,7 @@ def get_descendants(id):
     entity_dict = query_target_entity(id, user_token)
     uuid = entity_dict['uuid']
 
-    # Collection and Submission don't have descendants via Activity nodes
+    # Collection and Upload don't have descendants via Activity nodes
     # No need to check, it'll always return empty list
 
     # Result filtering based on query string
@@ -1256,12 +1256,12 @@ def get_descendants(id):
         # Generate trigger data and merge into a big dict
         # and skip some of the properties that are time-consuming to generate via triggers
         # director_ancestor for Sample, and 
-        # direct_ancestors/collections/submission/next_revision_uuid/previous_revision_uuid for Dataset
+        # direct_ancestors/collections/upload/next_revision_uuid/previous_revision_uuid for Dataset
         properties_to_skip = [
             'direct_ancestor', 
             'direct_ancestors',
             'collections',
-            'submission',
+            'upload',
             'next_revision_uuid', 
             'previous_revision_uuid'
         ]
@@ -1323,7 +1323,7 @@ def get_parents(id):
         if entity_dict['data_access_level'] == ACCESS_LEVEL_CONSORTIUM:
             token = get_user_token(request, non_public_access_required = True)
     else:
-        # Donor and Submission will always get back an empty list
+        # Donor and Upload will always get back an empty list
         # becuase their direct ancestor is Lab, which is being skipped by Neo4j query
         # So no need to execute the code below
         return jsonify(final_result)
@@ -1353,14 +1353,14 @@ def get_parents(id):
 
         # Generate trigger data
         # Skip some of the properties that are time-consuming to generate via triggers:
-        # director_ancestor for Sample, direct_ancestors/collections/submission for Dataset
+        # director_ancestor for Sample, direct_ancestors/collections/upload for Dataset
         # Also skip next_revision_uuid and previous_revision_uuid for Dataset to avoid additional
         # checks when the target Dataset is public but the revisions are not public
         properties_to_skip = [
             'direct_ancestor', 
             'direct_ancestors', 
             'collections',
-            'submission',
+            'upload',
             'next_revision_uuid', 
             'previous_revision_uuid'
         ]
@@ -1399,7 +1399,7 @@ def get_children(id):
     entity_dict = query_target_entity(id, user_token)
     uuid = entity_dict['uuid']
 
-    # Collection and Submission don't have children via Activity nodes
+    # Collection and Upload don't have children via Activity nodes
     # No need to check, it'll always return empty list
 
     # Result filtering based on query string
@@ -1427,12 +1427,12 @@ def get_children(id):
         # Generate trigger data and merge into a big dict
         # and skip some of the properties that are time-consuming to generate via triggers
         # director_ancestor for Sample, and 
-        # direct_ancestors/collections/submission/next_revision_uuid/previous_revision_uuid for Dataset
+        # direct_ancestors/collections/upload/next_revision_uuid/previous_revision_uuid for Dataset
         properties_to_skip = [
             'direct_ancestor', 
             'direct_ancestors',
             'collections',
-            'submission',
+            'upload',
             'next_revision_uuid', 
             'previous_revision_uuid'
         ]
@@ -1495,7 +1495,7 @@ def get_previous_revisions(id):
         # Generate trigger data and merge into a big dict
         # and skip some of the properties that are time-consuming to generate via triggers
         # datasts for Collection, director_ancestor for Sample, and direct_ancestors for Dataset
-        properties_to_skip = ['collections', 'submission', 'direct_ancestors']
+        properties_to_skip = ['collections', 'upload', 'direct_ancestors']
         complete_entities_list = schema_manager.get_complete_entities_list(user_token, descendants_list, properties_to_skip)
 
         # Final result after normalization
@@ -1554,7 +1554,7 @@ def get_next_revisions(id):
         # Generate trigger data and merge into a big dict
         # and skip some of the properties that are time-consuming to generate via triggers
         # datasts for Collection, director_ancestor for Sample, and direct_ancestors for Dataset
-        properties_to_skip = ['collections', 'submission', 'direct_ancestors']
+        properties_to_skip = ['collections', 'upload', 'direct_ancestors']
         complete_entities_list = schema_manager.get_complete_entities_list(user_token, descendants_list, properties_to_skip)
 
         # Final result after normalization
