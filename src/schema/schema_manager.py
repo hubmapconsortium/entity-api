@@ -689,7 +689,7 @@ Parameters
 validator_type : str
     One of the validator types: before_entity_create_validator, before_entity_update_validator
 normalized_entity_type : str
-    One of the normalized entity types defined in the schema yaml: Donor, Sample, Dataset, Submission
+    One of the normalized entity types defined in the schema yaml: Donor, Sample, Dataset, Upload
 request_headers: Flask request.headers object, behaves like a dict
     The instance of Flask request.headers passed in from application request
 """
@@ -731,7 +731,7 @@ Parameters
 validator_type : str
     For now only: before_property_update_validators
 normalized_entity_type : str
-    One of the normalized entity types defined in the schema yaml: Donor, Sample, Dataset, Submission
+    One of the normalized entity types defined in the schema yaml: Donor, Sample, Dataset, Upload
 request_headers: Flask request.headers object, behaves like a dict
     The instance of Flask request.headers passed in from application request
 request_json_data : dict
@@ -781,7 +781,7 @@ create new entity or update the existing entity of the given type
 Parameters
 ----------
 normalized_entity_type : str
-    One of the normalized entity types: Dataset, Submission
+    One of the normalized entity types: Dataset, Upload
 action : str
     applications_allowed_on_entity_create or applications_allowed_on_entity_update
 
@@ -840,7 +840,7 @@ Check if the application allowed to create or update this entity
 Parameters
 ----------
 normalized_entity_type : str
-    One of the normalized entity types: Dataset, Submission
+    One of the normalized entity types: Dataset, Upload
 request_headers: Flask request.headers object, behaves like a dict
     The instance of Flask request.headers passed in from application request
 action : str
@@ -1264,10 +1264,10 @@ def create_hubmap_ids(normalized_class, json_data_dict, user_token, user_info_di
     }
 
     # Activity and Collection don't require the `parent_ids` in request json
-    if normalized_class in ['Donor', 'Sample', 'Dataset', 'Submission']:
-        # The direct ancestor of Donor and Submission must be Lab
+    if normalized_class in ['Donor', 'Sample', 'Dataset', 'Upload']:
+        # The direct ancestor of Donor and Upload must be Lab
         # The group_uuid is the Lab id in this case
-        if normalized_class in ['Donor', 'Submission']:
+        if normalized_class in ['Donor', 'Upload']:
             # If `group_uuid` is not already set, looks for membership in a single "data provider" group and sets to that. 
             # Otherwise if not set and no single "provider group" membership throws error.  
             # This field is also used to link (Neo4j relationship) to the correct Lab node on creation.
@@ -1340,7 +1340,7 @@ def create_hubmap_ids(normalized_class, json_data_dict, user_token, user_info_di
     response.raise_for_status()
     
     if response.status_code == 200:
-        # For Collection/Dataset/Activity/Submission, no submission_id gets 
+        # For Collection/Dataset/Activity/Upload, no submission_id gets 
         # generated, the uuid-api response looks like:
         """
         [{
