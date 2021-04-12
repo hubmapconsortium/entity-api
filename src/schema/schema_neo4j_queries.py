@@ -266,7 +266,7 @@ def get_dataset_collections(neo4j_driver, uuid, property_key = None):
 
 
 """
-Get the associated Submission for a given dataset
+Get the associated Upload for a given dataset
 
 Parameters
 ----------
@@ -280,16 +280,16 @@ property_key : str
 Returns
 -------
 dict
-    A Submission dict
+    A Upload dict
 """
-def get_dataset_submission(neo4j_driver, uuid, property_key = None):
+def get_dataset_upload(neo4j_driver, uuid, property_key = None):
     result = {}
 
-    query = (f"MATCH (e:Entity)-[:IN_SUBMISSION]->(s:Submission) "
+    query = (f"MATCH (e:Entity)-[:IN_UPLOAD]->(s:Upload) "
              f"WHERE e.uuid = '{uuid}' "
              f"RETURN s AS {record_field_name}")
 
-    logger.debug("======get_dataset_submission() query======")
+    logger.debug("======get_dataset_upload() query======")
     logger.debug(query)
 
     record = None
@@ -340,18 +340,18 @@ def get_collection_datasets(neo4j_driver, uuid):
 
 
 """
-Link the dataset nodes to the target Submission node
+Link the dataset nodes to the target Upload node
 
 Parameters
 ----------
 neo4j_driver : neo4j.Driver object
     The neo4j database connection pool
-submission_uuid : str
-    The uuid of target Submission 
+upload_uuid : str
+    The uuid of target Upload 
 dataset_uuids_list : list
-    A list of dataset uuids to be linked to Submission
+    A list of dataset uuids to be linked to Upload
 """
-def link_datasets_to_submission(neo4j_driver, submission_uuid, dataset_uuids_list):
+def link_datasets_to_upload(neo4j_driver, upload_uuid, dataset_uuids_list):
     # Join the list of uuids and wrap each string in single quote
     joined_str = ', '.join("'{0}'".format(dataset_uuid) for dataset_uuid in dataset_uuids_list)
     # Format a string to be used in Cypher query.
@@ -362,44 +362,44 @@ def link_datasets_to_submission(neo4j_driver, submission_uuid, dataset_uuids_lis
         with neo4j_driver.session() as session:
             tx = session.begin_transaction()
 
-            logger.info("Create relationships between the target Submission and the given Datasets")
+            logger.info("Create relationships between the target Upload and the given Datasets")
 
-            query = (f"MATCH (s:Submission), (d:Dataset) "
-                     f"WHERE s.uuid = '{submission_uuid}' AND d.uuid IN {dataset_uuids_list_str} "
+            query = (f"MATCH (s:Upload), (d:Dataset) "
+                     f"WHERE s.uuid = '{upload_uuid}' AND d.uuid IN {dataset_uuids_list_str} "
                      # Use MERGE instead of CREATE to avoid creating the existing relationship multiple times
                      # MERGE creates the relationship only if there is no existing relationship
-                     f"MERGE (s)<-[r:IN_SUBMISSION]-(d)") 
+                     f"MERGE (s)<-[r:IN_UPLOAD]-(d)") 
 
-            logger.debug("======link_datasets_to_submission() query======")
+            logger.debug("======link_datasets_to_upload() query======")
             logger.debug(query)
 
             tx.run(query)
             tx.commit()
     except TransactionError as te:
-        msg = f"TransactionError from calling link_datasets_to_submission(): {te.value}"
+        msg = f"TransactionError from calling link_datasets_to_upload(): {te.value}"
         # Log the full stack trace, prepend a line with our message
         logger.exception(msg)
 
         if tx.closed() == False:
-            logger.info("Failed to commit link_datasets_to_submission() transaction, rollback")
+            logger.info("Failed to commit link_datasets_to_upload() transaction, rollback")
 
             tx.rollback()
 
         raise TransactionError(msg)
 
 """
-Unlink the dataset nodes from the target Submission node
+Unlink the dataset nodes from the target Upload node
 
 Parameters
 ----------
 neo4j_driver : neo4j.Driver object
     The neo4j database connection pool
-submission_uuid : str
-    The uuid of target Submission 
+upload_uuid : str
+    The uuid of target Upload 
 dataset_uuids_list : list
-    A list of dataset uuids to be unlinked from Submission
+    A list of dataset uuids to be unlinked from Upload
 """
-def unlink_datasets_from_submission(neo4j_driver, submission_uuid, dataset_uuids_list):
+def unlink_datasets_from_upload(neo4j_driver, upload_uuid, dataset_uuids_list):
     # Join the list of uuids and wrap each string in single quote
     joined_str = ', '.join("'{0}'".format(dataset_uuid) for dataset_uuid in dataset_uuids_list)
     # Format a string to be used in Cypher query.
@@ -410,24 +410,24 @@ def unlink_datasets_from_submission(neo4j_driver, submission_uuid, dataset_uuids
         with neo4j_driver.session() as session:
             tx = session.begin_transaction()
 
-            logger.info("Delete relationships between the target Submission and the given Datasets")
+            logger.info("Delete relationships between the target Upload and the given Datasets")
 
-            query = (f"MATCH (s:Submission)<-[r:IN_SUBMISSION]-(d:Dataset) "
-                     f"WHERE s.uuid = '{submission_uuid}' AND d.uuid IN {dataset_uuids_list_str} "
+            query = (f"MATCH (s:Upload)<-[r:IN_UPLOAD]-(d:Dataset) "
+                     f"WHERE s.uuid = '{upload_uuid}' AND d.uuid IN {dataset_uuids_list_str} "
                      f"DELETE r") 
 
-            logger.debug("======unlink_datasets_from_submission() query======")
+            logger.debug("======unlink_datasets_from_upload() query======")
             logger.debug(query)
 
             tx.run(query)
             tx.commit()
     except TransactionError as te:
-        msg = f"TransactionError from calling unlink_datasets_from_submission(): {te.value}"
+        msg = f"TransactionError from calling unlink_datasets_from_upload(): {te.value}"
         # Log the full stack trace, prepend a line with our message
         logger.exception(msg)
 
         if tx.closed() == False:
-            logger.info("Failed to commit unlink_datasets_from_submission() transaction, rollback")
+            logger.info("Failed to commit unlink_datasets_from_upload() transaction, rollback")
 
             tx.rollback()
 
@@ -442,21 +442,21 @@ Parameters
 neo4j_driver : neo4j.Driver object
     The neo4j database connection pool
 uuid : str
-    The uuid of Submission
+    The uuid of Upload
 
 Returns
 -------
 list
     The list containing associated dataset dicts
 """
-def get_submission_datasets(neo4j_driver, uuid):
+def get_upload_datasets(neo4j_driver, uuid):
     results = []
 
-    query = (f"MATCH (e:Entity)-[:IN_SUBMISSION]->(s:Submission) "
+    query = (f"MATCH (e:Entity)-[:IN_UPLOAD]->(s:Upload) "
              f"WHERE s.uuid = '{uuid}' "
              f"RETURN apoc.coll.toSet(COLLECT(e)) AS {record_field_name}")
 
-    logger.debug("======get_submission_datasets() query======")
+    logger.debug("======get_upload_datasets() query======")
     logger.debug(query)
 
     record = None
