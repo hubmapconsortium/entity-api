@@ -527,15 +527,15 @@ def get_descendants(neo4j_driver, uuid, property_key = None):
 
     if property_key:
         query = (f"MATCH (e:Entity)-[r:ACTIVITY_INPUT|:ACTIVITY_OUTPUT*]->(descendant:Entity) "
-                 # Filter out the Lab entities
-                 f"WHERE e.uuid='{uuid}' AND descendant.entity_type <> 'Lab' "
+                 # The target entity can't be a Lab
+                 f"WHERE e.uuid='{uuid}' AND e.entity_type <> 'Lab' "
                  # COLLECT() returns a list
                  # apoc.coll.toSet() reruns a set containing unique nodes
                  f"RETURN apoc.coll.toSet(COLLECT(descendant.{property_key})) AS {record_field_name}")
     else:
         query = (f"MATCH (e:Entity)-[r:ACTIVITY_INPUT|:ACTIVITY_OUTPUT*]->(descendant:Entity) "
-                 # Filter out the Lab entities
-                 f"WHERE e.uuid='{uuid}' AND descendant.entity_type <> 'Lab' "
+                 # The target entity can't be a Lab
+                 f"WHERE e.uuid='{uuid}' AND e.entity_type <> 'Lab' "
                  # COLLECT() returns a list
                  # apoc.coll.toSet() reruns a set containing unique nodes
                  f"RETURN apoc.coll.toSet(COLLECT(descendant)) AS {record_field_name}")
@@ -631,15 +631,15 @@ def get_children(neo4j_driver, uuid, property_key = None):
 
     if property_key:
         query = (f"MATCH (e:Entity)-[:ACTIVITY_INPUT]->(:Activity)-[:ACTIVITY_OUTPUT]->(child:Entity) "
-                 # Filter out the Lab entities
-                 f"WHERE e.uuid='{uuid}' AND child.entity_type <> 'Lab' "
+                 # The target entity can't be a Lab
+                 f"WHERE e.uuid='{uuid}' AND e.entity_type <> 'Lab' "
                  # COLLECT() returns a list
                  # apoc.coll.toSet() reruns a set containing unique nodes
                  f"RETURN apoc.coll.toSet(COLLECT(child.{property_key})) AS {record_field_name}")
     else:
         query = (f"MATCH (e:Entity)-[:ACTIVITY_INPUT]->(:Activity)-[:ACTIVITY_OUTPUT]->(child:Entity) "
-                 # Filter out the Lab entities
-                 f"WHERE e.uuid='{uuid}' AND child.entity_type <> 'Lab' "
+                 # The target entity can't be a Lab
+                 f"WHERE e.uuid='{uuid}' AND e.entity_type <> 'Lab' "
                  # COLLECT() returns a list
                  # apoc.coll.toSet() reruns a set containing unique nodes
                  f"RETURN apoc.coll.toSet(COLLECT(child)) AS {record_field_name}")

@@ -14,6 +14,7 @@ from flask import current_app as app
 # Local modules
 from schema import schema_errors
 from schema import schema_triggers
+from schema import schema_validators
 
 # HuBMAP commons
 from hubmap_commons.hm_auth import AuthHelper
@@ -157,7 +158,7 @@ trigger_type : str
 normalized_class : str
     One of the types defined in the schema yaml: Activity, Collection, Donor, Sample, Dataset
 user_token: str
-    The user's globus nexus token
+    The user's globus nexus token, 'on_read_trigger' doesn't really need this
 existing_data_dict : dict
     A dictionary that contains existing entity data
 new_data_dict : dict
@@ -349,6 +350,29 @@ def generate_triggered_data(trigger_type, normalized_class, user_token, existing
     # Return after for loop
     return trigger_generated_data_dict
     
+"""
+Filter out the merged dict by getting rid of properties with None values
+This method is used by get_complete_entity_result() for the 'on_read_trigger'
+
+Parameters
+----------
+merged_dict : dict
+    A merged dict that may contain properties with None values
+
+Returns
+-------
+dict
+    A filtered dict that removed all properties with None values
+"""
+def remove_none_values(merged_dict):
+    filtered_dict = {}
+    for k, v in merged_dict.items():
+        # Only keep the properties whose value is not None
+        if v is not None:
+            filtered_dict[k] = v 
+
+    return filtered_dict
+
 
 """
 Filter out the merged_dict by getting rid of the transitent properties (not to be stored) 
@@ -366,7 +390,7 @@ normalized_entity_type : str
 Returns
 -------
 dict
-    A filtered dict that removed all properties with None values
+    A filtered dict that removed all transient properties and the ones with None values
 """
 def remove_transient_and_none_values(merged_dict, normalized_entity_type):
     global _schema
@@ -411,7 +435,8 @@ def get_complete_entity_result(token, entity_dict, properties_to_skip = []):
         # Merge the entity info and the generated on read data into one dictionary
         complete_entity_dict = {**entity_dict, **generated_on_read_trigger_data_dict}
 
-        return complete_entity_dict
+        # Remove properties of None value
+        return remove_none_values(complete_entity_dict)
 
 
 """
@@ -602,8 +627,9 @@ def validate_json_data_against_schema(json_data_dict, normalized_entity_type, ex
         # No need to log the validation errors
         raise schema_errors.SchemaValidationException(f"Auto generated keys are not allowed in request json: {separator.join(generated_keys)}")
 
-    # Only check if keys in request json are immutable during entity update via HTTP PUT
+    # Checks for entity update via HTTP PUT
     if existing_entity_dict:
+        # Check if keys in request json are immutable 
         immutable_keys = []
         for key in json_data_keys:
             if ('immutable' in properties[key]) and properties[key]['immutable']:
@@ -654,6 +680,221 @@ def validate_json_data_against_schema(json_data_dict, normalized_entity_type, ex
         # No need to log the validation errors
         raise schema_errors.SchemaValidationException(f"Keys in request json with invalid data types: {separator.join(invalid_data_type_keys)}")
     
+
+"""
+Execute the entity level validators defined in the schema yaml 
+
+Parameters
+----------
+validator_type : str
+    One of the validator types: before_entity_create_validator, before_entity_update_validator
+normalized_entity_type : str
+    One of the normalized entity types defined in the schema yaml: Donor, Sample, Dataset, Upload
+request_headers: Flask request.headers object, behaves like a dict
+    The instance of Flask request.headers passed in from application request
+"""
+def execute_entity_level_validators(validator_type, normalized_entity_type, request_headers):
+    global _schema
+
+    # A bit validation
+    validate_entity_level_validator_type(validator_type)
+    validate_normalized_entity_type(normalized_entity_type)
+
+    entity = _schema['ENTITIES'][normalized_entity_type]
+
+    for key in entity:
+         if validator_type == key:
+            validator_method_name = entity[validator_type]
+
+            try:
+                # Get the target validator method defined in the schema_validators.py module
+                validator_method_to_call = getattr(schema_validators, validator_method_name)
+                
+                logger.debug(f"To run {validator_type}: {validator_method_name} defined for entity {normalized_entity_type}")
+
+                validator_method_to_call(normalized_entity_type, request_headers)
+            except schema_errors.MissingApplicationHeaderException as e: 
+                raise schema_errors.MissingApplicationHeaderException(e) 
+            except schema_errors.InvalidApplicationHeaderException as e: 
+                raise schema_errors.InvalidApplicationHeaderException(e)
+            except Exception:
+                msg = f"Failed to call the {validator_type} method: {validator_method_name} defiend for entity {normalized_entity_type}"
+                # Log the full stack trace, prepend a line with our message
+                logger.exception(msg)
+
+
+"""
+Execute the property level validators defined in the schema yaml 
+
+Parameters
+----------
+validator_type : str
+    For now only: before_property_update_validators
+normalized_entity_type : str
+    One of the normalized entity types defined in the schema yaml: Donor, Sample, Dataset, Upload
+request_headers: Flask request.headers object, behaves like a dict
+    The instance of Flask request.headers passed in from application request
+request_json_data : dict
+    The json data in request body, already after the regular validations
+"""
+def execute_property_level_validators(validator_type, normalized_entity_type, request_headers, request_json_data):
+    global _schema
+
+    schema_section = None
+
+    # A bit validation
+    validate_property_level_validator_type(validator_type)
+    validate_normalized_entity_type(normalized_entity_type)
+
+    properties = _schema['ENTITIES'][normalized_entity_type]['properties']
+
+    for key in properties:
+        # Only run the validators for keys present in the request json
+        if (key in request_json_data) and (validator_type in properties[key]):
+            # Get a list of defined validators on this property
+            validators_list = properties[key][validator_type]
+            # Run each validator defined on this property
+            for validator_method_name in validators_list:
+                try:
+                    # Get the target validator method defined in the schema_validators.py module
+                    validator_method_to_call = getattr(schema_validators, validator_method_name)
+                    
+                    logger.debug(f"To run {validator_type}: {validator_method_name} defined for entity {normalized_entity_type} on property {key}")
+
+                    validator_method_to_call(key, normalized_entity_type, request_headers, request_json_data)
+                except schema_errors.MissingApplicationHeaderException as e: 
+                    raise schema_errors.MissingApplicationHeaderException(e) 
+                except schema_errors.InvalidApplicationHeaderException as e: 
+                    raise schema_errors.InvalidApplicationHeaderException(e)
+                except ValueError as e:
+                    raise ValueError(e)
+                except Exception:
+                    msg = f"Failed to call the {validator_type} method: {validator_method_name} defiend for entity {normalized_entity_type} on property {key}"
+                    # Log the full stack trace, prepend a line with our message
+                    logger.exception(msg)
+
+
+"""
+Get a list of application applications (other than users) that can 
+create new entity or update the existing entity of the given type
+
+Parameters
+----------
+normalized_entity_type : str
+    One of the normalized entity types: Dataset, Upload
+action : str
+    applications_allowed_on_entity_create or applications_allowed_on_entity_update
+
+Returns
+-------
+list
+    A list of applications (normlized with lowercase)
+"""
+def get_entity_level_allowed_applications(normalize_entity_type, action):
+    global _schema
+
+    applications = []
+    entity = _schema['ENTITIES'][normalize_entity_type]
+    key = action
+
+    # When not specified, both users and applications can create this entity
+    if (key in entity) and isinstance(entity[key], list):
+        # Lowercase all applications in the list via a list comprehension
+        applications = [application.lower() for application in entity[key]]
+
+    return applications
+
+"""
+Get a list of applications (other than users) that can 
+update the existing entity property of the given property key
+
+Parameters
+----------
+normalized_entity_type : str
+    Dataset (Dataset.status is the only property requires this for now)
+property_key : str
+    The target property key that requires allowed applications to update
+
+Returns
+-------
+list
+    A list of applications (normlized with lowercase)
+"""
+def get_property_level_allowed_applications_on_update_only(normalize_entity_type, property_key):
+    global _schema
+
+    applications = []
+    properties = _schema['ENTITIES'][normalize_entity_type]['properties']
+    action = 'applications_allowed_on_property_update'
+
+    # When not specified, both users and applications can update this entity
+    if (property_key in properties) and (action in properties[property_key]) and isinstance(properties[property_key][action], list):
+        # Lowercase all applications in the list via a list comprehension
+        applications = [application.lower() for application in properties[property_key][action]]
+
+    return applications
+
+"""
+Check if the application allowed to create or update this entity
+
+Parameters
+----------
+normalized_entity_type : str
+    One of the normalized entity types: Dataset, Upload
+request_headers: Flask request.headers object, behaves like a dict
+    The instance of Flask request.headers passed in from application request
+action : str
+    applications_allowed_on_entity_create or applications_allowed_on_entity_update
+"""
+def validate_entity_level_application(normalized_entity_type, request_headers, action):
+    # Get the list of applications allowed to create or update this entity
+    # Returns empty list if no restrictions, meaning both users and aplications can create or update
+    applications_allowed = get_entity_level_allowed_applications(normalized_entity_type, action)
+
+    # When application required
+    if applications_allowed:
+        # HTTP header names are case-insensitive
+        # request_headers.get('X-Hubmap-Application') returns None is the header doesn't exist
+        if not request_headers.get('X-Hubmap-Application'):
+            msg = "Unbale to proceed due to missing X-Hubmap-Application header from request"
+            raise schema_errors.MissingApplicationHeaderException(msg)
+
+        # Use lowercase for comparing the application header value against the yaml
+        if request_headers.get('X-Hubmap-Application').lower() not in applications_allowed:
+            msg = f"Unable to proceed due to invalid X-Hubmap-Application header value: {request_headers.get('X-Hubmap-Application')}"
+            raise schema_errors.InvalidApplicationHeaderException(msg)
+
+
+"""
+Check if the application allowed to update this entity property
+
+Parameters
+----------
+normalized_entity_type : str
+    Dataset (Dataset.status is the only property requires this for now)
+property_key : str
+    The target property key that requires allowed applications to update
+request_headers: Flask request.headers object, behaves like a dict
+    The instance of Flask request.headers passed in from application request
+"""
+def validate_property_level_application_on_update_only(normalized_entity_type, property_key, request_headers):
+    # Get the list of applications allowed to update this entity property, e.g., Dataset.status
+    # Returns empty list if no restrictions, meaning both users and aplications can update
+    applications_allowed = get_property_level_allowed_applications_on_update_only(normalized_entity_type, property_key)
+
+    # When application required
+    if applications_allowed:
+        # HTTP header names are case-insensitive
+        # request_headers.get('X-Hubmap-Application') returns None is the header doesn't exist
+        if not request_headers.get('X-Hubmap-Application'):
+            msg = f"Unable to update {property_key} due to missing X-Hubmap-Application header from request"
+            raise schema_errors.MissingApplicationHeaderException(msg)
+
+        # Use lowercase for comparing the application header value against the yaml
+        if request_headers.get('X-Hubmap-Application').lower() not in applications_allowed:
+            msg = f"Unable to update {property_key} due to invalid application header value: {request_headers.get('X-Hubmap-Application')}"
+            raise schema_errors.InvalidApplicationHeaderException(msg)
+
 
 """
 Get a list of entity types that can be used as derivation source in the schmea yaml
@@ -730,6 +971,42 @@ def validate_trigger_type(trigger_type):
 
     if trigger_type.lower() not in accepted_trigger_types:
         msg = f"Invalid trigger type: {trigger_type}. The trigger type must be one of the following: {separator.join(accepted_trigger_types)}"
+        # Log the full stack trace, prepend a line with our message
+        logger.exception(msg)
+        raise ValueError(msg)
+
+"""
+Validate the provided entity level validator type
+
+Parameters
+----------
+validator_type : str
+    One of the validator types: before_create_validator, before_update_validator
+"""
+def validate_entity_level_validator_type(validator_type):
+    accepted_validator_types = ['before_entity_create_validator', 'before_entity_update_validator']
+    separator = ', '
+
+    if validator_type.lower() not in accepted_validator_types:
+        msg = f"Invalid validator type: {validator_type}. The validator type must be one of the following: {separator.join(accepted_validator_types)}"
+        # Log the full stack trace, prepend a line with our message
+        logger.exception(msg)
+        raise ValueError(msg)
+
+"""
+Validate the provided property level validator type
+
+Parameters
+----------
+validator_type : str
+    One of the validator types: before_create_validator, before_update_validator
+"""
+def validate_property_level_validator_type(validator_type):
+    accepted_validator_types = ['before_property_update_validators']
+    separator = ', '
+
+    if validator_type.lower() not in accepted_validator_types:
+        msg = f"Invalid validator type: {validator_type}. The validator type must be one of the following: {separator.join(accepted_validator_types)}"
         # Log the full stack trace, prepend a line with our message
         logger.exception(msg)
         raise ValueError(msg)
@@ -842,16 +1119,20 @@ dict
 """
 def get_user_info(request):
     global _auth_helper
-
+ 
     # `group_required` is a boolean, when True, 'hmgroupids' is in the output
     user_info = _auth_helper.getUserInfoUsingRequest(request, True)
 
     logger.debug("======get_user_info()======")
     logger.debug(user_info)
 
-    # If returns error response, invalid header or token
+    # It returns error response when:
+    # - invalid header or token
+    # - token is valid but not nexus token, can't find group info
     if isinstance(user_info, Response):
-        msg = "Failed to query the user info with the given globus token from the http request"
+        # Bubble up the actual error message from commons
+        # The Response.data returns binary string, need to decode
+        msg = user_info.get_data().decode()
         # Log the full stack trace, prepend a line with our message
         logger.exception(msg)
         raise Exception(msg)
@@ -983,10 +1264,10 @@ def create_hubmap_ids(normalized_class, json_data_dict, user_token, user_info_di
     }
 
     # Activity and Collection don't require the `parent_ids` in request json
-    if normalized_class in ['Donor', 'Sample', 'Dataset', 'Submission']:
-        # The direct ancestor of Donor and Submission must be Lab
+    if normalized_class in ['Donor', 'Sample', 'Dataset', 'Upload']:
+        # The direct ancestor of Donor and Upload must be Lab
         # The group_uuid is the Lab id in this case
-        if normalized_class in ['Donor', 'Submission']:
+        if normalized_class in ['Donor', 'Upload']:
             # If `group_uuid` is not already set, looks for membership in a single "data provider" group and sets to that. 
             # Otherwise if not set and no single "provider group" membership throws error.  
             # This field is also used to link (Neo4j relationship) to the correct Lab node on creation.
@@ -1059,7 +1340,7 @@ def create_hubmap_ids(normalized_class, json_data_dict, user_token, user_info_di
     response.raise_for_status()
     
     if response.status_code == 200:
-        # For Collection/Dataset/Activity/Submission, no submission_id gets 
+        # For Collection/Dataset/Activity/Upload, no submission_id gets 
         # generated, the uuid-api response looks like:
         """
         [{
