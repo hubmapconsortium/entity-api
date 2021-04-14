@@ -65,7 +65,7 @@ request_json_data : dict
     The json data in request body, already after the regular validations
 """
 def validate_dataset_status_value(property_key, normalized_entity_type, request_headers, request_json_data):
-    accepted_status_values = ['New', 'Published', 'QA', 'Error', 'Hold', 'Invalid']
+    accepted_status_values = ['New', 'Processing', 'Published', 'QA', 'Error', 'Hold', 'Invalid']
 
     if request_json_data[property_key] not in accepted_status_values:
         raise ValueError("The provided status value is not valid")
