@@ -98,11 +98,11 @@ doi_properties: &doi_properties
     description: "True if the entity has a doi registered for it, meaning it's a public entity. False otherwise."
   registered_doi:
     type: string
-    immutable: true
+    #immutable: true
     description: "The doi of the registered entity. e.g. 10.35079/hbm289.pcbm.487"
   doi_url:
     type: string
-    immutable: true
+    #immutable: true
     description: "The url from the doi registry for this entity. e.g. https://doi.org/10.35079/hbm289.pcbm.487"
   # Currently cretors and contacts are only available for public Collections
   # they are required for doi registration
