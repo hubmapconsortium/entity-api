@@ -93,6 +93,9 @@ ACTIVITIES:
 
 doi_properties: &doi_properties
   ###### DOI properties ######
+  has_doi:
+    type: boolean
+    description: "True if the entity has a doi registered for it, meaning it's a public entity. False otherwise."
   registered_doi:
     type: string
     immutable: true
@@ -179,9 +182,6 @@ ENTITIES:
       title:
         type: string
         required_on_create: true
-      has_doi:
-        type: boolean
-        description: "True if the collection has a doi registered for it, meaning it's a public collection. False otherwise."
       ###### Transient properties ######
       datasets:
         type: list
