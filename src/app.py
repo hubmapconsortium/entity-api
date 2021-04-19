@@ -637,8 +637,8 @@ An optional Globus nexus token can be provided in a standard Authentication Bear
 is provided with group membership in the HuBMAP-Read group any collection matching the id will be returned.
 otherwise if no token is provided or a valid token with no HuBMAP-Read group membership then
 only a public collection will be returned.  Public collections are defined as being published via a DOI 
-(collection.has_doi == true) and at least one of the connected datasets is public
-(dataset.data_access_level == 'public'). For public collections only connected datasets that are
+(collection.registered_doi not null) and at least one of the connected datasets is public
+(dataset.status == 'Published'). For public collections only connected datasets that are
 public are returned with it.
 
 Parameters
@@ -678,7 +678,7 @@ def get_collection(id):
     # by only returning public datasets attached to this collection
     if isinstance(user_token, Response):
         # When the requested collection is not public, send back 401
-        if ('has_doi' not in collection_dict) or (not collection_dict['has_doi']):
+        if ('registered_doi' not in collection_dict) or ('doi_url' not in collection_dict):
             # Require a valid token in this case
             unauthorized_error("The reqeusted collection is not public, a Globus token with the right access permission is required.")
         
@@ -717,7 +717,7 @@ Only return public collections, for either
 - no token at all
 
 Public collections are defined as being published via a DOI 
-(collection.has_doi == True) and at least one of the connected datasets is published
+(collection.registered_doi is not null) and at least one of the connected datasets is published
 (dataset.status == 'Published'). For public collections only connected datasets that are
 published are returned with it.
 

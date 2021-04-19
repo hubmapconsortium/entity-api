@@ -93,19 +93,17 @@ ACTIVITIES:
 
 doi_properties: &doi_properties
   ###### DOI properties ######
-  has_doi:
-    type: boolean
-    description: "True if the entity has a doi registered for it, meaning it's a public entity. False otherwise."
   registered_doi:
+    # This property gets set via a PUT by ingest-api after the DOI is created via DataCite
+    # So we can't define it as `immutable: true`
     type: string
-    #immutable: true
     description: "The doi of the registered entity. e.g. 10.35079/hbm289.pcbm.487"
   doi_url:
+    # This property gets set via a PUT by ingest-api after the DOI is created via DataCite
+    # So we can't define it as `immutable: true`
     type: string
-    #immutable: true
     description: "The url from the doi registry for this entity. e.g. https://doi.org/10.35079/hbm289.pcbm.487"
   # Currently cretors and contacts are only available for public Collections
-  # they are required for doi registration
   creators:
     type: list
     description: "A list of the people who created the entity with full name, email, ORCID iD, institution, etc.. This is analogus to the author list on a publication."
