@@ -1640,8 +1640,11 @@ Parameters
 id : str
     The HuBMAP ID (e.g. HBM123.ABCD.456) or UUID of the target entity
 """
+# To continue supporting the already published collection DOIs
+@app.route('/collection/redirect/<id>', methods = ['GET'])
+# New route
 @app.route('/doi/redirect/<id>', methods = ['GET'])
-def collection_redirect(id):
+def doi_redirect(id):
     # Use the internal token to query the target entity 
     # since public entities don't require user token
     token = get_internal_token()
