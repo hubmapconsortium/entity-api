@@ -1631,16 +1631,16 @@ def add_datasets_to_collection(collection_uuid):
     return jsonify(message = "Successfully added all the specified datasets to the target collection")
 
 """
-Redirect a request from a doi service for a collection of data
+Redirect a request from a doi service for a dataset or collection
 
 The gateway treats this endpoint as public accessible
 
 Parameters
 ----------
 id : str
-    The HuBMAP ID (e.g. HBM123.ABCD.456) or UUID of the target collection
+    The HuBMAP ID (e.g. HBM123.ABCD.456) or UUID of the target entity
 """
-@app.route('/collection/redirect/<id>', methods = ['GET'])
+@app.route('/doi/redirect/<id>', methods = ['GET'])
 def collection_redirect(id):
     # Use the internal token to query the target entity 
     # since public entities don't require user token
@@ -1649,26 +1649,32 @@ def collection_redirect(id):
     # Query target entity against uuid-api and neo4j and return as a dict if exists
     entity_dict = query_target_entity(id, token)
 
+    entity_type = entity_dict['entity_type']
+
     # Only for collection
-    if entity_dict['entity_type'] != 'Collection':
-        bad_request_error("The target entity of the specified id is not a Collection")
+    if entity_type not in ['Collection', 'Dataset']:
+        bad_request_error("The target entity of the specified id must be a Collection or Dataset")
 
     uuid = entity_dict['uuid']
 
     # URL template
-    redirect_url = app.config['COLLECTION_REDIRECT_URL']
+    redirect_url = app.config['DOI_REDIRECT_URL']
 
-    if redirect_url.lower().find('<identifier>') == -1:
+    if (redirect_url.lower().find('<entity_type>') == -1) or (redirect_url.lower().find('<identifier>') == -1):
         # Log the full stack trace, prepend a line with our message
-        msg = "Incorrect configuration value for 'COLLECTION_REDIRECT_URL'"
+        msg = "Incorrect configuration value for 'DOI_REDIRECT_URL'"
         logger.exception(msg)
         internal_server_error(msg)
 
-    rep_pattern = re.compile(re.escape('<identifier>'), re.RegexFlag.IGNORECASE)
-    redirect_url = rep_pattern.sub(uuid, redirect_url)
+    rep_entity_type_pattern = re.compile(re.escape('<entity_type>'), re.RegexFlag.IGNORECASE)
+    redirect_url = rep_entity_type_pattern.sub(entity_type, redirect_url)
+
+    rep_identifier_pattern = re.compile(re.escape('<identifier>'), re.RegexFlag.IGNORECASE)
+    redirect_url = rep_identifier_pattern.sub(uuid, redirect_url)
 
     resp = Response("page has moved", 307)
     resp.headers['Location'] = redirect_url
+
     return resp    
 
 
