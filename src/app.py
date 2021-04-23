@@ -637,8 +637,8 @@ An optional Globus nexus token can be provided in a standard Authentication Bear
 is provided with group membership in the HuBMAP-Read group any collection matching the id will be returned.
 otherwise if no token is provided or a valid token with no HuBMAP-Read group membership then
 only a public collection will be returned.  Public collections are defined as being published via a DOI 
-(collection.has_doi == true) and at least one of the connected datasets is public
-(dataset.data_access_level == 'public'). For public collections only connected datasets that are
+(collection.registered_doi not null) and at least one of the connected datasets is public
+(dataset.status == 'Published'). For public collections only connected datasets that are
 public are returned with it.
 
 Parameters
@@ -678,7 +678,7 @@ def get_collection(id):
     # by only returning public datasets attached to this collection
     if isinstance(user_token, Response):
         # When the requested collection is not public, send back 401
-        if ('has_doi' not in collection_dict) or (not collection_dict['has_doi']):
+        if ('registered_doi' not in collection_dict) or ('doi_url' not in collection_dict):
             # Require a valid token in this case
             unauthorized_error("The reqeusted collection is not public, a Globus token with the right access permission is required.")
         
@@ -717,7 +717,7 @@ Only return public collections, for either
 - no token at all
 
 Public collections are defined as being published via a DOI 
-(collection.has_doi == True) and at least one of the connected datasets is published
+(collection.registered_doi is not null) and at least one of the connected datasets is published
 (dataset.status == 'Published'). For public collections only connected datasets that are
 published are returned with it.
 
@@ -1631,17 +1631,20 @@ def add_datasets_to_collection(collection_uuid):
     return jsonify(message = "Successfully added all the specified datasets to the target collection")
 
 """
-Redirect a request from a doi service for a collection of data
+Redirect a request from a doi service for a dataset or collection
 
 The gateway treats this endpoint as public accessible
 
 Parameters
 ----------
 id : str
-    The HuBMAP ID (e.g. HBM123.ABCD.456) or UUID of the target collection
+    The HuBMAP ID (e.g. HBM123.ABCD.456) or UUID of the target entity
 """
+# To continue supporting the already published collection DOIs
 @app.route('/collection/redirect/<id>', methods = ['GET'])
-def collection_redirect(id):
+# New route
+@app.route('/doi/redirect/<id>', methods = ['GET'])
+def doi_redirect(id):
     # Use the internal token to query the target entity 
     # since public entities don't require user token
     token = get_internal_token()
@@ -1649,26 +1652,32 @@ def collection_redirect(id):
     # Query target entity against uuid-api and neo4j and return as a dict if exists
     entity_dict = query_target_entity(id, token)
 
+    entity_type = entity_dict['entity_type']
+
     # Only for collection
-    if entity_dict['entity_type'] != 'Collection':
-        bad_request_error("The target entity of the specified id is not a Collection")
+    if entity_type not in ['Collection', 'Dataset']:
+        bad_request_error("The target entity of the specified id must be a Collection or Dataset")
 
     uuid = entity_dict['uuid']
 
     # URL template
-    redirect_url = app.config['COLLECTION_REDIRECT_URL']
+    redirect_url = app.config['DOI_REDIRECT_URL']
 
-    if redirect_url.lower().find('<identifier>') == -1:
+    if (redirect_url.lower().find('<entity_type>') == -1) or (redirect_url.lower().find('<identifier>') == -1):
         # Log the full stack trace, prepend a line with our message
-        msg = "Incorrect configuration value for 'COLLECTION_REDIRECT_URL'"
+        msg = "Incorrect configuration value for 'DOI_REDIRECT_URL'"
         logger.exception(msg)
         internal_server_error(msg)
 
-    rep_pattern = re.compile(re.escape('<identifier>'), re.RegexFlag.IGNORECASE)
-    redirect_url = rep_pattern.sub(uuid, redirect_url)
+    rep_entity_type_pattern = re.compile(re.escape('<entity_type>'), re.RegexFlag.IGNORECASE)
+    redirect_url = rep_entity_type_pattern.sub(entity_type, redirect_url)
+
+    rep_identifier_pattern = re.compile(re.escape('<identifier>'), re.RegexFlag.IGNORECASE)
+    redirect_url = rep_identifier_pattern.sub(uuid, redirect_url)
 
     resp = Response("page has moved", 307)
     resp.headers['Location'] = redirect_url
+
     return resp    
 
 
