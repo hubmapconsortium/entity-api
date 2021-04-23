@@ -98,11 +98,17 @@ doi_properties: &doi_properties
     # So we can't define it as `immutable: true`
     type: string
     description: "The doi of the registered entity. e.g. 10.35079/hbm289.pcbm.487"
+    # Only allowed applications can update this property via PUT
+    before_property_update_validators: 
+      - validate_application_header_before_property_update
   doi_url:
     # This property gets set via a PUT by ingest-api after the DOI is created via DataCite
     # So we can't define it as `immutable: true`
     type: string
     description: "The url from the doi registry for this entity. e.g. https://doi.org/10.35079/hbm289.pcbm.487"
+    # Only allowed applications can update this property via PUT
+    before_property_update_validators: 
+      - validate_application_header_before_property_update
   # Currently cretors and contacts are only available for public Collections
   creators:
     type: list
@@ -218,13 +224,13 @@ ENTITIES:
         required_on_create: true # Only required for create via POST, not update via PUT
         description: "True if the data contains any human genetic sequence information."
       status:
-        # Only allowed applications can update the `status` via PUT
+        # Only allowed applications can update this property via PUT
         before_property_update_validators: 
           - validate_application_header_before_property_update
           - validate_dataset_status_value
         type: string
         generated: true
-        description: "One of: Published|New|QA|Error|Hold|Invalid"
+        description: "One of: New|Processing|QA|Published|Error|Hold|Invalid"
         before_create_trigger: set_dataset_status_new
         after_update_trigger: update_dataset_and_ancestors_data_access_level
       title:
