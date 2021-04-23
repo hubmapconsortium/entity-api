@@ -1670,7 +1670,7 @@ def doi_redirect(id):
         internal_server_error(msg)
 
     rep_entity_type_pattern = re.compile(re.escape('<entity_type>'), re.RegexFlag.IGNORECASE)
-    redirect_url = rep_entity_type_pattern.sub(entity_type, redirect_url)
+    redirect_url = rep_entity_type_pattern.sub(entity_type.lower(), redirect_url)
 
     rep_identifier_pattern = re.compile(re.escape('<identifier>'), re.RegexFlag.IGNORECASE)
     redirect_url = rep_identifier_pattern.sub(uuid, redirect_url)
