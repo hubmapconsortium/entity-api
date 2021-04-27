@@ -628,7 +628,7 @@ ENTITIES:
           - validate_upload_status_value
         type: string
         generated: true
-        description: "One of: New|Valid|Invalid|Error|Submitted"
+        description: "One of: New|Valid|Invalid|Error|Reorganized|Processing"
         # Trigger method will set the status to "New" on create
         before_create_trigger: set_upload_status_new
       validation_message:
