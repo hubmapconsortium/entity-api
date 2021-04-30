@@ -145,13 +145,13 @@ def get_public_collections(neo4j_driver, property_key = None):
 
     if property_key:
         query = (f"MATCH (e:Collection) "
-                 f"WHERE e.has_doi = true "
+                 f"WHERE e.registered_doi IS NOT NULL AND e.doi_url IS NOT NULL "
                  # COLLECT() returns a list
                  # apoc.coll.toSet() reruns a set containing unique nodes
                  f"RETURN apoc.coll.toSet(COLLECT(e.{property_key})) AS {record_field_name}")
     else:
         query = (f"MATCH (e:Collection) "
-                 f"WHERE e.has_doi = true "
+                 f"WHERE e.registered_doi IS NOT NULL AND e.doi_url IS NOT NULL "
                  # COLLECT() returns a list
                  # apoc.coll.toSet() reruns a set containing unique nodes
                  f"RETURN apoc.coll.toSet(COLLECT(e)) AS {record_field_name}")
