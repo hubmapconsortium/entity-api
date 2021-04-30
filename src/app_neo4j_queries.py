@@ -474,14 +474,14 @@ def get_ancestors(neo4j_driver, uuid, property_key = None):
     results = []
 
     if property_key:
-        query = (f"MATCH (e:Entity)<-[r:ACTIVITY_INPUT|:ACTIVITY_OUTPUT*]-(ancestor:Entity) "
+        query = (f"MATCH (e:Entity)<-[:ACTIVITY_INPUT|ACTIVITY_OUTPUT*]-(ancestor:Entity) "
                  # Filter out the Lab entities
                  f"WHERE e.uuid='{uuid}' AND ancestor.entity_type <> 'Lab' "
                  # COLLECT() returns a list
                  # apoc.coll.toSet() reruns a set containing unique nodes
                  f"RETURN apoc.coll.toSet(COLLECT(ancestor.{property_key})) AS {record_field_name}")
     else:
-        query = (f"MATCH (e:Entity)<-[r:ACTIVITY_INPUT|:ACTIVITY_OUTPUT*]-(ancestor:Entity) "
+        query = (f"MATCH (e:Entity)<-[:ACTIVITY_INPUT|ACTIVITY_OUTPUT*]-(ancestor:Entity) "
                  # Filter out the Lab entities
                  f"WHERE e.uuid='{uuid}' AND ancestor.entity_type <> 'Lab' "
                  # COLLECT() returns a list
@@ -526,14 +526,14 @@ def get_descendants(neo4j_driver, uuid, property_key = None):
     results = []
 
     if property_key:
-        query = (f"MATCH (e:Entity)-[r:ACTIVITY_INPUT|:ACTIVITY_OUTPUT*]->(descendant:Entity) "
+        query = (f"MATCH (e:Entity)-[:ACTIVITY_INPUT|ACTIVITY_OUTPUT*]->(descendant:Entity) "
                  # The target entity can't be a Lab
                  f"WHERE e.uuid='{uuid}' AND e.entity_type <> 'Lab' "
                  # COLLECT() returns a list
                  # apoc.coll.toSet() reruns a set containing unique nodes
                  f"RETURN apoc.coll.toSet(COLLECT(descendant.{property_key})) AS {record_field_name}")
     else:
-        query = (f"MATCH (e:Entity)-[r:ACTIVITY_INPUT|:ACTIVITY_OUTPUT*]->(descendant:Entity) "
+        query = (f"MATCH (e:Entity)-[:ACTIVITY_INPUT|ACTIVITY_OUTPUT*]->(descendant:Entity) "
                  # The target entity can't be a Lab
                  f"WHERE e.uuid='{uuid}' AND e.entity_type <> 'Lab' "
                  # COLLECT() returns a list
