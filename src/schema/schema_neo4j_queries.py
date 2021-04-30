@@ -489,7 +489,7 @@ int
     below the target entity (Donor, Sample and Collection)
 """
 def count_attached_published_datasets(neo4j_driver, entity_type, uuid):
-    query = (f"MATCH (e:{entity_type})-[r:ACTIVITY_INPUT|:ACTIVITY_OUTPUT*]->(d:Dataset) "
+    query = (f"MATCH (e:{entity_type})-[:ACTIVITY_INPUT|ACTIVITY_OUTPUT*]->(d:Dataset) "
              # Use the string function toLower() to avoid case-sensetivity issue
              f"WHERE e.uuid='{uuid}' AND toLower(d.status) = 'published' "
              # COLLECT() returns a list
@@ -524,7 +524,7 @@ data_access_level : str
     The new data_access_level to be updated for the given dataset and its ancestors (Sample/Donor)
 """
 def update_dataset_and_ancestors_data_access_level(neo4j_driver, uuid, data_access_level):
-    query = (f"MATCH (e:Entity)-[r:ACTIVITY_INPUT|:ACTIVITY_OUTPUT*]->(d:Dataset) "
+    query = (f"MATCH (e:Entity)-[:ACTIVITY_INPUT|ACTIVITY_OUTPUT*]->(d:Dataset) "
              f"WHERE e.entity_type IN ['Donor', 'Sample'] AND d.uuid='{uuid}' "
              f"SET e.data_access_level = '{data_access_level}', d.data_access_level = '{data_access_level}' "
              # We don't really use the returned value
