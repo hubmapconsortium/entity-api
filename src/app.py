@@ -1729,11 +1729,11 @@ Response
     401 Unauthorized (bad or expired token)
     500 Unexpected server or other error
 """
-# Thd old route for backward compatibility - will be deprecated eventually
+# Thd old routes for backward compatibility - will be deprecated eventually
 @app.route('/entities/dataset/globus-url/<id>', methods = ['GET'])
 @app.route('/dataset/globus-url/<id>', methods = ['GET'])
 # New route
-@app.route('/globus-url/<id>', methods = ['GET'])
+@app.route('/entities/<id>/globus-url', methods = ['GET'])
 def get_globus_url(entity_type, id):
     # Token is not required, but if an invalid token provided,
     # we need to tell the client with a 401 error
@@ -1754,7 +1754,8 @@ def get_globus_url(entity_type, id):
     if normalized_entity_type not in ['Dataset', 'Upload']:
         bad_request_error("The target entity of the specified id is not a Dataset nor a Upload")
     
-    # If no access level is present on the dataset default to protected
+    # Upload doesn't have this 'data_access_level' property, we treat it as 'protected'
+    # For Dataset, if no access level is present, default to protected too
     if not 'data_access_level' in entity_dict or string_helper.isBlank(entity_dict['data_access_level']):
         entity_data_access_level = ACCESS_LEVEL_PROTECTED
     else:
@@ -1811,30 +1812,22 @@ def get_globus_url(entity_type, id):
     globus_server_uuid = None     
     dir_path = ''
     
-    # Upload is always protected
-    if normalized_entity_type = 'Upload':
-        # protected access
-        if (entity_data_access_level == ACCESS_LEVEL_PROTECTED) and (user_data_access_level == ACCESS_LEVEL_PROTECTED):
-            globus_server_uuid = app.config['GLOBUS_PROTECTED_ENDPOINT_UUID']
-            access_dir = access_level_prefix_dir(app.config['PROTECTED_DATA_SUBDIR'])
-            dir_path = dir_path + access_dir + group_name + "/"
-    # Cases for Dataset
-    else:
-        # public access
-        if entity_data_access_level == ACCESS_LEVEL_PUBLIC:
-            globus_server_uuid = app.config['GLOBUS_PUBLIC_ENDPOINT_UUID']
-            access_dir = access_level_prefix_dir(app.config['PUBLIC_DATA_SUBDIR'])
-            dir_path = dir_path +  access_dir + "/"
-        # consortium access
-        elif (entity_data_access_level == ACCESS_LEVEL_CONSORTIUM) and (not user_data_access_level == ACCESS_LEVEL_PUBLIC):
-            globus_server_uuid = app.config['GLOBUS_CONSORTIUM_ENDPOINT_UUID']
-            access_dir = access_level_prefix_dir(app.config['CONSORTIUM_DATA_SUBDIR'])
-            dir_path = dir_path + access_dir + group_name + "/"
-        # protected access
-        elif (entity_data_access_level == ACCESS_LEVEL_PROTECTED) and (user_data_access_level == ACCESS_LEVEL_PROTECTED):
-            globus_server_uuid = app.config['GLOBUS_PROTECTED_ENDPOINT_UUID']
-            access_dir = access_level_prefix_dir(app.config['PROTECTED_DATA_SUBDIR'])
-            dir_path = dir_path + access_dir + group_name + "/"
+    # Note: `entity_data_access_level` for Upload is always default to 'protected'
+    # public access
+    if entity_data_access_level == ACCESS_LEVEL_PUBLIC:
+        globus_server_uuid = app.config['GLOBUS_PUBLIC_ENDPOINT_UUID']
+        access_dir = access_level_prefix_dir(app.config['PUBLIC_DATA_SUBDIR'])
+        dir_path = dir_path +  access_dir + "/"
+    # consortium access
+    elif (entity_data_access_level == ACCESS_LEVEL_CONSORTIUM) and (not user_data_access_level == ACCESS_LEVEL_PUBLIC):
+        globus_server_uuid = app.config['GLOBUS_CONSORTIUM_ENDPOINT_UUID']
+        access_dir = access_level_prefix_dir(app.config['CONSORTIUM_DATA_SUBDIR'])
+        dir_path = dir_path + access_dir + group_name + "/"
+    # protected access
+    elif (entity_data_access_level == ACCESS_LEVEL_PROTECTED) and (user_data_access_level == ACCESS_LEVEL_PROTECTED):
+        globus_server_uuid = app.config['GLOBUS_PROTECTED_ENDPOINT_UUID']
+        access_dir = access_level_prefix_dir(app.config['PROTECTED_DATA_SUBDIR'])
+        dir_path = dir_path + access_dir + group_name + "/"
 
     if globus_server_uuid is None:
         forbidden_error("Access not granted")
