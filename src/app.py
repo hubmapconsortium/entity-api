@@ -1734,7 +1734,7 @@ Response
 @app.route('/dataset/globus-url/<id>', methods = ['GET'])
 # New route
 @app.route('/entities/<id>/globus-url', methods = ['GET'])
-def get_globus_url(entity_type, id):
+def get_globus_url(id):
     # Token is not required, but if an invalid token provided,
     # we need to tell the client with a 401 error
     validate_token_if_auth_header_exists(request)
