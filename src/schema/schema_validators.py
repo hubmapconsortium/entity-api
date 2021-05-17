@@ -85,7 +85,7 @@ request_json_data : dict
     The json data in request body, already after the regular validations
 """
 def validate_upload_status_value(property_key, normalized_entity_type, request_headers, request_json_data):
-    accepted_status_values = ['New', 'Valid', 'Invalid', 'Error', 'Submitted']
+    accepted_status_values = ['New', 'Valid', 'Invalid', 'Error', 'Reorganized', 'Processing']
 
     if request_json_data[property_key] not in accepted_status_values:
         raise ValueError("The provided status value is not valid")
