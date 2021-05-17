@@ -1207,9 +1207,9 @@ paths:
           description: Invalid or misformatted collection identifier
         '500':
           description: Internal error
-  '/entities/dataset/globus-url/{id}':
+  '/entities/{id}/globus-url':
     get:
-      summary: Get the Globus URL to the given dataset
+      summary: Get the Globus URL to the given Dataset or Upload entity
       parameters:
         - name: id
           in: path
@@ -1219,7 +1219,7 @@ paths:
             type: string
       responses:
         '200':
-          description: Returns the Globus service URL pointing to the dataset data is returned
+          description: Returns the Globus service URL pointing to the Dataset or Upload data is returned
           content:
             text/plain:
               schema:
