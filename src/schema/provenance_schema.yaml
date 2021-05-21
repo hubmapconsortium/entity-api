@@ -187,6 +187,9 @@ ENTITIES:
         type: string
         description: "The title of the Collection."
         required_on_create: true
+      description:
+        type: string
+        description: "Free text description of the collection"
       ###### Transient properties ######
       datasets:
         type: list
