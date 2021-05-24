@@ -67,7 +67,7 @@ shared_properties: &shared_properties
     type: string
     generated: true
     immutable: true
-    description: "E.g., HBM###.XXXX.###.  A HuBMAP specific id "
+    description: "A HuBMAP Consortium wide unique identifier randomly generated in the format HBM###.ABCD.### for every entity."
     before_create_trigger: set_hubmap_id
 
 
@@ -141,7 +141,7 @@ shared_entity_properties: &shared_entity_properties
     type: string
     generated: true
     auto_update: true
-    description: "The subject id as provided by the authorization mechanism for the person or process authenticated when the object was modified."
+    description: "The subject id of the user who last modified the entity as provided by the authorization mechanism for the person or process authenticated when the object was modified."
     # Set on both create and update
     before_create_trigger: set_user_sub
     before_update_trigger: set_user_sub
@@ -185,6 +185,7 @@ ENTITIES:
       <<: *doi_properties
       title:
         type: string
+        description: "The title of the Collection."
         required_on_create: true
       description:
         type: string
@@ -243,7 +244,7 @@ ENTITIES:
       data_types:
         type: list
         required_on_create: true # Only required for create via POST, not update via PUT
-        description: "The data or assay types contained in this dataset as a json array of strings.  Each is an assay code from https://github.com/hubmapconsortium/search-api/blob/devel/src/search-schema/data/definitions/enums/assay_types.yaml."
+        description: "The data or assay types contained in this dataset as a json array of strings.  Each is an assay code from [assay types](https://github.com/hubmapconsortium/search-api/blob/master/src/search-schema/data/definitions/enums/assay_types.yaml)."
       collections:
         type: list
         transient: true
@@ -270,6 +271,7 @@ ENTITIES:
         after_update_trigger: link_dataset_to_direct_ancestors
       direct_ancestors:
         type: list
+        description: "A list of direct parent ancensters (one level above) that the Dataset was derived from."
         generated: true
         transient: true
         on_read_trigger: get_dataset_direct_ancestors
@@ -314,7 +316,7 @@ ENTITIES:
       group_uuid:
         type: string
         immutable: true
-        description: "The uuid of globus group which the user who created this entity is a member of"
+        description: "The uuid of globus group which the user who created this entity is a member of.  This is required on Create/POST if the user creating the Donor is a member of more than one write group.  This property cannot be set via PUT (only on Create/POST)."
         before_create_trigger: set_group_uuid #method that, if group_uuid is not already set looks for membership in a single "data provider" group and sets to that. Otherwise if not set and no single "provider group" membership throws error
       # Must set in neo4j
       group_name:
@@ -413,7 +415,7 @@ ENTITIES:
       group_uuid:
         type: string
         immutable: true
-        description: "The uuid of globus group which the user who created this entity is a member of"
+        description: "The uuid of globus group which the user who created this entity is a member of.  This is required on Create/POST if the user creating the Donor is a member of more than one write group.  This property cannot be set via PUT (only on Create/POST)."
         before_create_trigger: set_group_uuid #method that, if group_uuid is not already set looks for membership in a single "data provider" group and sets to that. Otherwise if not set and no single "provider group" membership throws error.  This field is also used to link (Neo4j relationship) to the correct Lab node on creation.
         # Note: link_donor_to_lab() will always delete all the old linkages first
         after_create_trigger: link_donor_to_lab
@@ -466,7 +468,7 @@ ENTITIES:
       specimen_type:
         type: string
         required_on_create: true # Only required for create via POST, not update via PUT
-        description: "A code representing the type of specimen.  Must be one of the codes specified in: https://github.com/hubmapconsortium/search-api/blob/devel/src/search-schema/data/definitions/enums/tissue_sample_types.yaml"
+        description: "A code representing the type of specimen.  Must be one of the codes specified in: [tissue sample types](https://github.com/hubmapconsortium/search-api/blob/master/src/search-schema/data/definitions/enums/tissue_sample_types.yaml)"
       specimen_type_other:
         type: string
         description: "The user provided sample type if the 'other' sample_type is chosen."
@@ -486,7 +488,7 @@ ENTITIES:
       group_uuid:
         type: string
         immutable: true
-        description: "The uuid of globus group which the user who created this entity is a member of"
+        description: "The uuid of globus group which the user who created this entity is a member of.  This is required on Create/POST if the user creating the Donor is a member of more than one write group.  This property cannot be set via PUT (only on Create/POST)."
         before_create_trigger: set_group_uuid #method that, if group_uuid is not already set looks for membership in a single "data provider" group and sets to that. Otherwise if not set and no single "provider group" membership throws error.  This field is also used to link (Neo4j relationship) to the correct Lab node on creation.
       # Must set in neo4j
       group_name:
@@ -498,7 +500,7 @@ ENTITIES:
       # Should be required on create only when specimen_type==organ
       organ:
         type: string
-        description: "Organ code specifier, only set if sample_type == organ.  Valid values found in: https://github.com/hubmapconsortium/search-api/blob/devel/src/search-schema/data/definitions/enums/organ_types.yaml"
+        description: "Organ code specifier, only set if sample_type == organ.  Valid values found in: [organ types](https://github.com/hubmapconsortium/search-api/blob/master/src/search-schema/data/definitions/enums/organ_types.yaml)"
       organ_other:
         type: string
         description: The organ type provided by the user if "other" organ type is selected
@@ -507,7 +509,7 @@ ENTITIES:
         required_on_create: true # Creating the hubmap ids via uuid-api requires `parent_ids`
         transient: true
         exposed: false
-        description: "The uuid of source entity from which this new entity is derived from. Used on creation or edit to create an action and relationship to the ancestor"
+        description: "The uuid of source entity from which this new entity is derived from. Used on creation or edit to create an action and relationship to the ancestor.  The direct ancestor must be a Donor or Sample.  If the direct ancestor is a Donor, the sample must be of type organ."
         # Note: link_sample_to_direct_ancestor() will always delete all the old linkages first
         after_create_trigger: link_sample_to_direct_ancestor
         after_update_trigger: link_sample_to_direct_ancestor
@@ -516,6 +518,7 @@ ENTITIES:
         generated: true
         transient: true
         on_read_trigger: get_sample_direct_ancestor
+        description: "The entitiy directly above this sample in the provenance graph (direct parent)."
       # No submission_id for Dataset, Collection, and Upload
       # Only Donor and Sample have this property
       submission_id:
@@ -631,7 +634,7 @@ ENTITIES:
           - validate_upload_status_value
         type: string
         generated: true
-        description: "One of: New|Valid|Invalid|Error|Submitted"
+        description: "One of: New|Valid|Invalid|Error|Reorganized|Processing"
         # Trigger method will set the status to "New" on create
         before_create_trigger: set_upload_status_new
       validation_message:
@@ -640,7 +643,7 @@ ENTITIES:
       group_uuid:
         type: string
         immutable: true
-        description: "The uuid of globus group which the user who created this entity is a member of"
+        description: "The uuid of globus group which the user who created this entity is a member of.  This is required on Create/POST if the user creating the Donor is a member of more than one write group.  This property cannot be set via PUT (only on Create/POST)."
         before_create_trigger: set_group_uuid #method that, if group_uuid is not already set looks for membership in a single "data provider" group and sets to that. Otherwise if not set and no single "provider group" membership throws error.  This field is also used to link (Neo4j relationship) to the correct Lab node on creation.
         # Note: link_upload_to_lab() will always delete all the old linkages first
         after_create_trigger: link_upload_to_lab

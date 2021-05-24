@@ -1,0 +1,23 @@
+html, body 
+{ 
+    height: 100%; 
+} 
+
+#divHeader
+{
+    height: 100px;
+}
+
+#divContent
+{
+    min-height: 100%; 
+    height: auto !important; /*Cause footer to stick to bottom in IE 6*/
+    height: 100%; 
+    margin: 0 auto -100px; /*Allow for footer height*/
+    vertical-align:bottom;
+}
+
+#divFooter, #divPush
+{
+    height: 100px; /*Push must be same height as Footer */
+}

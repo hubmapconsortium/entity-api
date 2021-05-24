@@ -1703,16 +1703,16 @@ def redirect(hmid):
         return Response(f"{hmid} not found.", 404)
     
 """
-Get the Globus URL to the given dataset
+Get the Globus URL to the given Dataset or Upload
 
 The gateway treats this endpoint as public accessible
 
-It will provide a Globus URL to the dataset directory in of three Globus endpoints based on the access
+It will provide a Globus URL to the dataset/upload directory in of three Globus endpoints based on the access
 level of the user (public, consortium or protected), public only, of course, if no token is provided.
-If a dataset isn't found a 404 will be returned. There is a chance that a 500 can be returned, but not
+If a dataset/upload isn't found a 404 will be returned. There is a chance that a 500 can be returned, but not
 likely under normal circumstances, only for a misconfigured or failing in some way endpoint. 
 
-If the Auth token is provided but is expired or invalid a 401 is returned. If access to the dataset 
+If the Auth token is provided but is expired or invalid a 401 is returned. If access to the dataset/upload 
 is not allowed for the user (or lack of user) a 403 is returned.
 
 Parameters
@@ -1723,17 +1723,18 @@ id : str
 Returns
 -------
 Response
-    200 with the Globus Application URL to the datasets's directory
-    404 Dataset not found
+    200 with the Globus Application URL to the directory of dataset/upload
+    404 Dataset/Upload not found
     403 Access Forbidden
     401 Unauthorized (bad or expired token)
     500 Unexpected server or other error
 """
-# Thd old route for backward compatibility - will be removed later
+# Thd old routes for backward compatibility - will be deprecated eventually
 @app.route('/entities/dataset/globus-url/<id>', methods = ['GET'])
-# New route
 @app.route('/dataset/globus-url/<id>', methods = ['GET'])
-def get_dataset_globus_url(id):
+# New route
+@app.route('/entities/<id>/globus-url', methods = ['GET'])
+def get_globus_url(id):
     # Token is not required, but if an invalid token provided,
     # we need to tell the client with a 401 error
     validate_token_if_auth_header_exists(request)
@@ -1749,11 +1750,12 @@ def get_dataset_globus_url(id):
     uuid = entity_dict['uuid']
     normalized_entity_type = entity_dict['entity_type']
     
-    # Only for dataset
-    if normalized_entity_type != 'Dataset':
-        bad_request_error("The target entity of the specified id is not a Dataset")
+    # Only for Dataset and Upload
+    if normalized_entity_type not in ['Dataset', 'Upload']:
+        bad_request_error("The target entity of the specified id is not a Dataset nor a Upload")
     
-    # If no access level is present on the dataset default to protected
+    # Upload doesn't have this 'data_access_level' property, we treat it as 'protected'
+    # For Dataset, if no access level is present, default to protected too
     if not 'data_access_level' in entity_dict or string_helper.isBlank(entity_dict['data_access_level']):
         entity_data_access_level = ACCESS_LEVEL_PROTECTED
     else:
@@ -1764,7 +1766,7 @@ def get_dataset_globus_url(id):
     groups_by_id_dict = globus_groups_info['by_id']
   
     if not 'group_uuid' in entity_dict or string_helper.isBlank(entity_dict['group_uuid']):
-        msg = f"The 'group_uuid' property is not set for dataset with uuid: {uuid}"
+        msg = f"The 'group_uuid' property is not set for {normalized_entity_type} with uuid: {uuid}"
         logger.exception(msg)
         internal_server_error(msg)
 
@@ -1774,7 +1776,7 @@ def get_dataset_globus_url(id):
     try:
         schema_manager.validate_entity_group_uuid(group_uuid)
     except schema_errors.NoDataProviderGroupException:
-        msg = f"Invalid 'group_uuid': {group_uuid} for dataset with uuid: {uuid}"
+        msg = f"Invalid 'group_uuid': {group_uuid} for {normalized_entity_type} with uuid: {uuid}"
         logger.exception(msg)
         internal_server_error(msg)
 
@@ -1796,7 +1798,7 @@ def get_dataset_globus_url(id):
         user_data_access_level = ACCESS_LEVEL_PROTECTED
     else:
         if not 'data_access_level' in user_info:
-            msg = f"Unexpected error, data access level could not be found for user trying to access dataset id: {id}"
+            msg = f"Unexpected error, data access level could not be found for user trying to access {normalized_entity_type} id: {id}"
             logger.exception(msg)
             return internal_server_error(msg)        
         
@@ -1810,6 +1812,7 @@ def get_dataset_globus_url(id):
     globus_server_uuid = None     
     dir_path = ''
     
+    # Note: `entity_data_access_level` for Upload is always default to 'protected'
     # public access
     if entity_data_access_level == ACCESS_LEVEL_PUBLIC:
         globus_server_uuid = app.config['GLOBUS_PUBLIC_ENDPOINT_UUID']
