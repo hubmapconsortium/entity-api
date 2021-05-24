@@ -62,7 +62,54 @@ components:
         uniprot_accession_number:
           type: string
           description: ""
-
+    DonorMetadata:
+      type: object
+      properties:
+        code:
+          type: string
+          description: ""
+        sab:
+          type: string
+          description: ""
+        concept_id:
+          type: string
+          description: ""
+        data_type:
+          type: string
+          description: ""
+        data_value:
+          type: string
+          description: ""
+        numeric_operator:
+          type: string
+          description: ""
+        units:
+          type: string
+          description: ""
+        preferred_term:
+          type: string
+          description: ""
+        grouping_concept:
+          type: string
+          description: ""
+        grouping_concept_preferred_term:
+          type: string
+          description: ""
+        grouping_code:
+          type: string
+          description: ""
+        grouoping_sab:
+          type: string
+          description: ""
+        graph_version:
+          type: string
+          description: ""
+        start_datetime:
+          type: integer
+          description: ""
+        end_datetime:
+          type: integer
+          description: ""
     File:
       type: object
       properties:
@@ -172,6 +219,17 @@ components:
           description: 'List of image files previously uploaded to delete. Provide as a json array of the file_uuids of the file like: ["232934234234234234234270c0ea6c51d604a850558ef2247d0b4", "230948203482234234234a57bfe9c056d08a0f8e6cd612baa3bfa"]'
         metadata:
           type: object
+          properties:
+            organ_donor_data:
+              type: array
+	      description: "Information about the donor who's organ(s) was/were used.  The organ was obtained via an organ donation program from a deceaced donor. Only living_donor_data or organ_donor_data, not both can be defined for a single donor."
+              items:
+                $ref: '#/components/schemas/DonorMetadata'
+            living_donor_data:
+              type: array
+	      description: "Information about the donor who's tissue was used.  The tissue was obtained during a procedure. Only living_donor_data or organ_donor_data, not both can be defined for a single donor."
+              items:
+                $ref: '#/components/schemas/DonorMetadata'
           description: "Donor metadata as an array of UMLS codes and descriptions"
         protocol_url:
           type: string
