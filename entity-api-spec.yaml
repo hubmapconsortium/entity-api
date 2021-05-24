@@ -110,6 +110,55 @@ components:
         end_datetime:
           type: integer
           description: ""
+    SampleMetadata:
+      type: object
+      description: "The sample specific metadata derived from the uploaded sample_metadata.tsv file. Returned as a json object."
+      properties:
+        sample_id:
+          type: string
+          description: ""
+        vital_state:
+          type: string
+          description: ""
+        health_status:
+          type: string
+          description: ""
+        organ_condition:
+          type: string
+          description: ""
+        procedure_date:
+          type: string
+          description: ""
+        perfusion_solution:
+          type: string
+          description: ""
+        pathologist_report:
+          type: string
+          description: ""
+        warm_ischemia_time_value:
+          type: integer
+          description: ""
+        warm_ischemia_time_unit:
+          type: string
+          description: ""
+        cold_ischemia_time_value:
+          type: integer
+          description: ""
+        cold_ischemia_time_unit:
+          type: string
+          description: ""
+        specimen_preservation_temperature:
+          type: string
+          description: ""
+        specimen_quality_criteria:
+          type: string
+          description: ""
+        specimen_tumor_distance_value:
+          type: string
+          description: ""
+        specimen_tumor_distance_unit:
+          type: string
+          description: ""
     File:
       type: object
       properties:
@@ -222,12 +271,12 @@ components:
           properties:
             organ_donor_data:
               type: array
-	      description: "Information about the donor who's organ(s) was/were used.  The organ was obtained via an organ donation program from a deceaced donor. Only living_donor_data or organ_donor_data, not both can be defined for a single donor."
+              description: "Information about the donor who's organ(s) was/were used.  The organ was obtained via an organ donation program from a deceaced donor. Only living_donor_data or organ_donor_data, not both can be defined for a single donor."
               items:
                 $ref: '#/components/schemas/DonorMetadata'
             living_donor_data:
               type: array
-	      description: "Information about the donor who's tissue was used.  The tissue was obtained during a procedure. Only living_donor_data or organ_donor_data, not both can be defined for a single donor."
+              description: "Information about the donor who's tissue was used.  The tissue was obtained during a procedure. Only living_donor_data or organ_donor_data, not both can be defined for a single donor."
               items:
                 $ref: '#/components/schemas/DonorMetadata'
           description: "Donor metadata as an array of UMLS codes and descriptions"
@@ -443,8 +492,7 @@ components:
           type: string
           description: "Lab specific id for the sample."
         metadata:
-          type: object
-          description: "The sample specific metadata derived from the uploaded sample_metadata.tsv file. Returned as a json object."
+          $ref: '#/components/schemas/SampleMetadata'
         rui_location:
           type: object
           description: "The sample location and orientation in the ancestor organ as specified in the RUI tool. Returned as a json object."
