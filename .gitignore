@@ -2,6 +2,8 @@
 src/instance/app.cfg
 *~
 
+venv-entity-api
+
 # Ignore copied files
 docker/entity-api/src
 docker/entity-api/VERSION
