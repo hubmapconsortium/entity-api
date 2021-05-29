@@ -5,7 +5,7 @@ info:
   title: HuBMAP Entity API
   contact:
     name: HuBMAP Help Desk
-    email: api-developers@hubmapconsortium.org
+    email: help@hubmapconsortium.org
   license:
     name: MIT License
     url: 'https://github.com/hubmapconsortium/entity-api/blob/master/license.txt'
