@@ -1467,24 +1467,22 @@ def _commit_files(target_property_key, property_key, normalized_type, user_token
         else:
             entity_uuid = existing_data_dict['uuid']
 
+        # Commit the files via ingest-api call
+        ingest_api_target_url = schema_manager.get_ingest_api_url() + '/file-commit'
+
+        request_headers = {}
+
         for file_info in new_data_dict[property_key]:
-            #file_uuid_info = schema_manager.get_file_upload_helper_instance().commit_file(file_info['temp_file_id'], entity_uuid, user_token)
-            
-            # Commit the files via ingest-api call
-            target_url = schema_manager.get_ingest_api_url() + '/file-commit'
-
-            request_headers = {
-
-            }
-
             json_to_post = {
                 'temp_file_id': file_info['temp_file_id'],
                 'entity_uuid': entity_uuid,
                 'user_token': user_token
             }
 
+            logger.info("Commit the file via ingest-api call...")
+
             # Disable ssl certificate verification
-            response = requests.post(url = target_url, headers = request_headers, json = json_to_post, verify = False) 
+            response = requests.post(url = ingest_api_target_url, headers = request_headers, json = json_to_post, verify = False) 
     
             if response.status_code != 200:
                 msg = f"Failed to commit the files via ingest-api for entity uuid: {entity_uuid}"
@@ -1585,11 +1583,9 @@ def _delete_files(target_property_key, property_key, normalized_type, user_token
         file_uuids.append(file_uuid)
 
     # Remove the files via ingest-api call
-    target_url = schema_manager.get_ingest_api_url() + '/file-remove'
+    ingest_api_target_url = schema_manager.get_ingest_api_url() + '/file-remove'
 
-    request_headers = {
-
-    }
+    request_headers = {}
 
     json_to_post = {
         'entity_uuid': entity_uuid,
@@ -1597,8 +1593,10 @@ def _delete_files(target_property_key, property_key, normalized_type, user_token
         'files_info_list': files_info_list
     }
 
+    logger.info("Remove the files via ingest-api call...")
+
     # Disable ssl certificate verification
-    response = requests.post(url = target_url, headers = request_headers, json = json_to_post, verify = False) 
+    response = requests.post(url = ingest_api_target_url, headers = request_headers, json = json_to_post, verify = False) 
 
     if response.status_code != 200:
         msg = f"Failed to remove the files via ingest-api for entity uuid: {entity_uuid}"

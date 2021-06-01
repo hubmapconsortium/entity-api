@@ -39,7 +39,6 @@ _uuid_api_url = None
 _ingest_api_url = None
 _auth_helper = None
 _neo4j_driver = None
-_file_upload_helper = None
 
 ####################################################################################################
 ## Provenance yaml schema initialization
@@ -60,15 +59,13 @@ def initialize(valid_yaml_file,
                uuid_api_url,
                ingest_api_url, 
                auth_helper_instance,
-               neo4j_driver_instance,
-               file_upload_helper_instance):
+               neo4j_driver_instance):
     # Specify as module-scope variables
     global _schema
     global _uuid_api_url
     global _ingest_api_url
     global _auth_helper
     global _neo4j_driver
-    global _file_upload_helper
 
     _schema = load_provenance_schema(valid_yaml_file)
     _uuid_api_url = uuid_api_url
@@ -77,7 +74,6 @@ def initialize(valid_yaml_file,
     # Get the helper instances
     _auth_helper = auth_helper_instance
     _neo4j_driver = neo4j_driver_instance
-    _file_upload_helper = file_upload_helper_instance
 
 
 ####################################################################################################
@@ -1583,20 +1579,6 @@ def get_neo4j_driver_instance():
     global _neo4j_driver
     
     return _neo4j_driver
-
-
-"""
-Get the UploadFileHelper instance to be used by trigger methods
-
-Returns
--------
-UploadFileHelper
-    The UploadFileHelper instance
-"""
-def get_file_upload_helper_instance():
-    global _file_upload_helper
-    
-    return _file_upload_helper
 
 
 ####################################################################################################

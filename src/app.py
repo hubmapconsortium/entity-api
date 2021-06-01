@@ -127,30 +127,6 @@ def close_neo4j_driver(error):
 
 
 ####################################################################################################
-## File upload initialization
-####################################################################################################
-
-try:
-    # Initialize the UploadFileHelper class and ensure singleton
-    if UploadFileHelper.is_initialized() == False:
-        file_upload_helper_instance = UploadFileHelper.create(app.config['FILE_UPLOAD_TEMP_DIR'], 
-                                                              app.config['FILE_UPLOAD_DIR'],
-                                                              app.config['UUID_API_URL'])
-
-        logger.info("Initialized UploadFileHelper class successfully :)")
-
-        # This will delete all the temp dirs on restart
-        #file_upload_helper_instance.clean_temp_dir()
-    else:
-        file_upload_helper_instance = UploadFileHelper.instance()
-# Use a broad catch-all here
-except Exception:
-    msg = "Failed to initialize the UploadFileHelper class"
-    # Log the full stack trace, prepend a line with our message
-    logger.exception(msg)
-
-
-####################################################################################################
 ## Schema initialization
 ####################################################################################################
 
@@ -161,8 +137,7 @@ try:
                               app.config['UUID_API_URL'],
                               app.config['INGEST_API_URL'],
                               auth_helper_instance,
-                              neo4j_driver_instance,
-                              file_upload_helper_instance)
+                              neo4j_driver_instance)
 
     logger.info("Initialized schema_manager module successfully :)")
 # Use a broad catch-all here
@@ -1841,39 +1816,6 @@ def get_globus_url(id):
     url = hm_file_helper.ensureTrailingSlashURL(app.config['GLOBUS_APP_BASE_URL']) + "file-manager?origin_id=" + globus_server_uuid + "&origin_path=" + dir_path  
             
     return Response(url, 200)
-
-"""
-File upload handling for Donor and Sample
-
-Returns
--------
-json
-    A JSON containing the temp file uuid
-"""
-@app.route('/file-upload', methods=['POST'])
-def upload_file():
-    # Check if the post request has the file part
-    if 'file' not in request.files:
-        bad_request_error('No file part')
-
-    file = request.files['file']
-
-    if file.filename == '':
-        bad_request_error('No selected file')
-
-    try:
-        temp_id = file_upload_helper_instance.save_temp_file(file)
-        rspn_data = {
-            "temp_file_id": temp_id
-        }
-
-        return jsonify(rspn_data), 201
-    except Exception as e:
-        # Log the full stack trace, prepend a line with our message
-        msg = "Failed to upload files"
-        logger.exception(msg)
-        internal_server_error(msg)
-
 
 ####################################################################################################
 ## Internal Functions
