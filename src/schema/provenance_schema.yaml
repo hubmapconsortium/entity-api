@@ -243,7 +243,7 @@ ENTITIES:
         description: "The dataset title."
       lab_dataset_id:
         type: string
-        description: "The lab dataset id"
+        description: "A name or identifier used by the lab who is uploading the data to cross reference the data locally"
       data_types:
         type: list
         required_on_create: true # Only required for create via POST, not update via PUT
