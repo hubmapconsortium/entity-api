@@ -241,6 +241,9 @@ ENTITIES:
         type: string
         required_on_create: true # Only required for create via POST, not update via PUT
         description: "The dataset title."
+      lab_dataset_id:
+        type: string
+        description: "The lab dataset id"
       data_types:
         type: list
         required_on_create: true # Only required for create via POST, not update via PUT
