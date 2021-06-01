@@ -1,9 +1,10 @@
+import os
 import ast
 import json
 import logging
 import datetime
+import requests
 from neo4j.exceptions import TransactionError
-import os
 
 # Local modules
 from schema import schema_manager
@@ -1467,8 +1468,30 @@ def _commit_files(target_property_key, property_key, normalized_type, user_token
             entity_uuid = existing_data_dict['uuid']
 
         for file_info in new_data_dict[property_key]:
-            file_uuid_info = schema_manager.get_file_upload_helper_instance().commit_file(file_info['temp_file_id'], entity_uuid, user_token)
+            #file_uuid_info = schema_manager.get_file_upload_helper_instance().commit_file(file_info['temp_file_id'], entity_uuid, user_token)
             
+            # Commit the file via ingest-api call
+            request_headers = {
+
+            }
+
+            json_to_post = {
+                'temp_file_id': file_info['temp_file_id'],
+                'entity_uuid': entity_uuid,
+                'user_token': user_token
+            }
+
+            # Disable ssl certificate verification
+            response = requests.post(url = _ingest_api_url, headers = request_headers, json = json_to_post, verify = False) 
+    
+            if response.status_code != 200:
+                msg = f"Failed to commit the file via ingest-api for entity uuid: {entity_uuid}"
+                logger.error(msg)
+                raise schema_errors.FileUploadException(msg)
+
+            file_uuid_info = response.json()
+            
+
             file_info_to_add = {
                 'filename': file_uuid_info['filename'],
                 'file_uuid': file_uuid_info['file_uuid']
