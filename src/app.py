@@ -39,6 +39,7 @@ app.config.from_pyfile('app.cfg')
 
 # Remove trailing slash / from URL base to avoid "//" caused by config with trailing slash
 app.config['UUID_API_URL'] = app.config['UUID_API_URL'].strip('/')
+app.config['INGEST_API_URL'] = app.config['INGEST_API_URL'].strip('/')
 app.config['SEARCH_API_URL'] = app.config['SEARCH_API_URL'].strip('/')
 
 # Suppress InsecureRequestWarning warning when requesting status on https with ssl cert verify disabled
@@ -158,6 +159,7 @@ try:
     # Pass in auth_helper_instance, neo4j_driver instance, and file_upload_helper instance
     schema_manager.initialize(app.config['SCHEMA_YAML_FILE'], 
                               app.config['UUID_API_URL'],
+                              app.config['INGEST_API_URL'],
                               auth_helper_instance,
                               neo4j_driver_instance,
                               file_upload_helper_instance)

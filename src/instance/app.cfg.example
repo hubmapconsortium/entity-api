@@ -17,6 +17,10 @@ NEO4J_PASSWORD = '123'
 # Works regardless of the trailing slash
 UUID_API_URL = 'http://hubmap-auth:9999/hmuuid'
 
+# URL for talking to Ingest API (default value used for PSC DEV)
+# Works regardless of the trailing slash
+INGEST_API_URL = 'https://ingest-api.dev.hubmapconsortium.org'
+
 # URL for talking to Search API (default value used for docker deployment, no token needed)
 # Don't use localhost since search-api is running on a different container
 # Point to remote URL for non-docker development
