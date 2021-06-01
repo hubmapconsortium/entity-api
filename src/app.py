@@ -13,7 +13,6 @@ import logging
 # Local modules
 import app_neo4j_queries
 import provenance
-from file_upload_helper import UploadFileHelper
 from schema import schema_manager
 from schema import schema_errors
 
