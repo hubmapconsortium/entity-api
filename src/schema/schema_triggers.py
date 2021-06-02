@@ -1470,8 +1470,6 @@ def _commit_files(target_property_key, property_key, normalized_type, user_token
         # Commit the files via ingest-api call
         ingest_api_target_url = schema_manager.get_ingest_api_url() + '/file-commit'
 
-        request_headers = {}
-
         for file_info in new_data_dict[property_key]:
             json_to_post = {
                 'temp_file_id': file_info['temp_file_id'],
@@ -1479,10 +1477,10 @@ def _commit_files(target_property_key, property_key, normalized_type, user_token
                 'user_token': user_token
             }
 
-            logger.info("Commit the file via ingest-api call...")
+            logger.info(f"Commit the uploaded file for entity {entity_uuid} via ingest-api call...")
 
             # Disable ssl certificate verification
-            response = requests.post(url = ingest_api_target_url, headers = request_headers, json = json_to_post, verify = False) 
+            response = requests.post(url = ingest_api_target_url, json = json_to_post, verify = False) 
     
             if response.status_code != 200:
                 msg = f"Failed to commit the files via ingest-api for entity uuid: {entity_uuid}"
@@ -1585,18 +1583,16 @@ def _delete_files(target_property_key, property_key, normalized_type, user_token
     # Remove the files via ingest-api call
     ingest_api_target_url = schema_manager.get_ingest_api_url() + '/file-remove'
 
-    request_headers = {}
-
     json_to_post = {
         'entity_uuid': entity_uuid,
         'file_uuids': file_uuids,
         'files_info_list': files_info_list
     }
 
-    logger.info("Remove the files via ingest-api call...")
+    logger.info(f"Remove the uploaded files for entity {entity_uuid} via ingest-api call...")
 
     # Disable ssl certificate verification
-    response = requests.post(url = ingest_api_target_url, headers = request_headers, json = json_to_post, verify = False) 
+    response = requests.post(url = ingest_api_target_url, json = json_to_post, verify = False) 
 
     if response.status_code != 200:
         msg = f"Failed to remove the files via ingest-api for entity uuid: {entity_uuid}"
