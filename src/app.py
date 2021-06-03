@@ -450,7 +450,7 @@ def get_entity_provenance(id):
             token = get_user_token(request, non_public_access_required = True)
 
     # By now, either the entity is public accessible or the user token has the correct access level
-    # Will just proceed to get the provenance informaiton
+    # Will just proceed to get the provenance information
     # Get the `depth` from query string if present and it's used by neo4j query
     # to set the maximum number of hops in the traversal
     depth = None
@@ -464,7 +464,7 @@ def get_entity_provenance(id):
     # Normalize the raw provenance nodes based on the yaml schema
     normalized_provenance_dict = {
         'relationships': raw_provenance_dict['relationships'],
-        'nodes':[]
+        'nodes': []
     }
 
     for node_dict in raw_provenance_dict['nodes']:
@@ -490,9 +490,9 @@ def get_entity_provenance(id):
             # Filter out properties not defined or not to be exposed in the schema yaml
             normalized_entity_dict = schema_manager.normalize_entity_result_for_response(complete_entity_dict)
 
-            # Now the node to be used by provenance is all regulated by the schmea
+            # Now the node to be used by provenance is all regulated by the schema
             normalized_provenance_dict['nodes'].append(normalized_entity_dict)
-        elif (node_dict['label'] == 'Activity'):
+        elif node_dict['label'] == 'Activity':
             # Normalize Activity nodes too
             normalized_activity_dict = schema_manager.normalize_activity_result_for_response(node_dict)
             normalized_provenance_dict['nodes'].append(normalized_activity_dict)
@@ -500,7 +500,7 @@ def get_entity_provenance(id):
             # Skip Entity Lab nodes
             normalized_provenance_dict['nodes'].append(node_dict)
 
-    provenance_json = provenance.get_provenance_history(normalized_provenance_dict)
+    provenance_json = provenance.get_provenance_history(uuid, normalized_provenance_dict)
     
     # Response with the provenance details
     return Response(response = provenance_json, mimetype = "application/json")
@@ -1003,8 +1003,8 @@ def update_entity(id):
             # Check existence of the source entity
             direct_ancestor_dict = query_target_entity(direct_ancestor_uuid, user_token)
             # Also make sure it's either another Sample or a Donor
-            if dataset_dict['entity_type'] not in ['Donor', 'Sample']:
-                bad_request_error(f"The uuid: {dataset_uuid} is not a Donor neither a Sample, cannot be used as the direct ancestor of this Sample")
+            if direct_ancestor_dict['entity_type'] not in ['Donor', 'Sample']:
+                bad_request_error(f"The uuid: {direct_ancestor_uuid} is not a Donor neither a Sample, cannot be used as the direct ancestor of this Sample")
 
         # Generate 'before_update_triiger' data and update the entity details in Neo4j
         merged_updated_dict = update_entity_details(request, normalized_entity_type, user_token, json_data_dict, entity_dict)
