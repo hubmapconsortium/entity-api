@@ -1480,7 +1480,7 @@ def _commit_files(target_property_key, property_key, normalized_type, user_token
             logger.info(f"Commit the uploaded file for entity {entity_uuid} via ingest-api call...")
 
             # Disable ssl certificate verification
-            response = requests.post(url = ingest_api_target_url, json = json_to_post, verify = False) 
+            response = requests.post(url = ingest_api_target_url, headers = schema_manager._create_request_headers(user_token), json = json_to_post, verify = False) 
     
             if response.status_code != 200:
                 msg = f"Failed to commit the files via ingest-api for entity uuid: {entity_uuid}"
@@ -1592,7 +1592,7 @@ def _delete_files(target_property_key, property_key, normalized_type, user_token
     logger.info(f"Remove the uploaded files for entity {entity_uuid} via ingest-api call...")
 
     # Disable ssl certificate verification
-    response = requests.post(url = ingest_api_target_url, json = json_to_post, verify = False) 
+    response = requests.post(url = ingest_api_target_url, headers = schema_manager._create_request_headers(user_token), json = json_to_post, verify = False) 
 
     if response.status_code != 200:
         msg = f"Failed to remove the files via ingest-api for entity uuid: {entity_uuid}"
