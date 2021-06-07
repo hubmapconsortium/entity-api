@@ -7,24 +7,20 @@ APP_CLIENT_SECRET = ''
 
 # Neo4j connection (default value used for docker localhost deployment)
 # Point to remote neo4j for dev/test/stage/prod deployment
-NEO4J_URI = 'bolt://hubmap-neo4j:7687'
+NEO4J_URI = 'bolt://hubmap-neo4j-localhost:7687'
 NEO4J_USERNAME = 'neo4j'
 NEO4J_PASSWORD = '123'
-
-# Directory where file uploads will be placed temporarily
-# until they are committed
-# Remember to set the proper file system user and group permission
-FILE_UPLOAD_TEMP_DIR = '/hubmap-data/hm_uploads_tmp'
-
-# Directory where file uploads are permanantly stored
-# Remember to set the proper file system user and group permission
-FILE_UPLOAD_DIR = '/hubmap-data/hm_uploads'
 
 # URL for talking to UUID API (default value used for docker deployment, no token needed)
 # Don't use localhost since uuid-api is running on a different container
 # Point to remote URL for non-docker development
 # Works regardless of the trailing slash
 UUID_API_URL = 'http://hubmap-auth:9999/hmuuid'
+
+# URL for talking to Ingest API (default value used for PSC DEV)
+# Use INGEST_API_URL = 'http://hubmap-auth:4444' for localhost docker
+# Works regardless of the trailing slash
+INGEST_API_URL = 'https://ingest-api.dev.hubmapconsortium.org'
 
 # URL for talking to Search API (default value used for docker deployment, no token needed)
 # Don't use localhost since search-api is running on a different container

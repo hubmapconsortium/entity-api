@@ -20,6 +20,8 @@ https://www.w3.org/TR/prov-dm/
 
 Parameters
 ----------
+uuid : str
+    The UUID of the associated entity
 normalized_provenance_dict : dict
     The dict that contains all the normalized entity properties defined by the schema yaml
 
@@ -28,7 +30,7 @@ Returns
 str
     A JSON string representation of the provenance document
 """
-def get_provenance_history(normalized_provenance_dict):
+def get_provenance_history(uuid, normalized_provenance_dict):
     prov_doc = ProvDocument()
     # The 'prov' prefix is build-in namespace, no need to redefine here
     prov_doc.add_namespace(HUBMAP_NAMESPACE, 'https://hubmapconsortium.org/')
