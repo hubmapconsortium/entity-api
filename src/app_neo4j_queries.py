@@ -891,25 +891,24 @@ uuid : str
     The uuid of target dataset
 """
 def get_dataset_revision_number(neo4j_driver, uuid):
-    result = {}
+    revision_number = 1
 
-    query = (f"MATCH (e:Dataset)-[r:REVISION_OF*]->(next:Dataset) "
+    query = (f"MATCH (e:Dataset)<-[r:REVISION_OF*]-(prev:Dataset) "
              f"WHERE e.uuid='{uuid}' "
-             f"WITH LAST(COLLECT(next)) as latest "
-             f"RETURN latest AS {record_field_name}")
+             # COLLECT() returns a list
+             f"RETURN COUNT(COLLECT(prev)) AS {record_field_name}")
 
-    logger.debug("======get_dataset_latest_revision() query======")
+    logger.debug("======get_dataset_revision_number() query======")
     logger.debug(query)
 
-    record = None
     with neo4j_driver.session() as session:
         record = session.read_transaction(_execute_readonly_tx, query)
-    
-    if record:
-        # Convert the neo4j node into Python dict
-        result = _node_to_dict(record[record_field_name])
+        
+        # The revision number is the number of previous revisions plus 1
+        revision_number = record + 1
 
-    return result
+    return revision_number
+    
 
 ####################################################################################################
 ## Internal Functions
