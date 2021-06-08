@@ -239,8 +239,10 @@ ENTITIES:
         after_update_trigger: update_dataset_and_ancestors_data_access_level
       title:
         type: string
-        required_on_create: true # Only required for create via POST, not update via PUT
         description: "The dataset title."
+      lab_dataset_id:
+        type: string
+        description: "A name or identifier used by the lab who is uploading the data to cross reference the data locally"
       data_types:
         type: list
         required_on_create: true # Only required for create via POST, not update via PUT
