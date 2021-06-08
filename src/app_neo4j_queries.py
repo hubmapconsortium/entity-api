@@ -848,6 +848,38 @@ def get_provenance(neo4j_driver, uuid, depth):
         return session.read_transaction(_execute_readonly_tx, query)
 
 
+"""
+Retrive the latest revision dataset of the given dataset
+
+Parameters
+----------
+neo4j_driver : neo4j.Driver object
+    The neo4j database connection pool
+uuid : str
+    The uuid of target dataset
+"""
+def get_dataset_latest_revision(neo4j_driver, uuid):
+    result = {}
+
+    query = (f"MATCH (e:Dataset)-[r:REVISION_OF*]->(next:Dataset) "
+             f"WHERE e.uuid='{uuid}' "
+             f"WITH LAST(COLLECT(next)) as latest "
+             f"RETURN latest AS {record_field_name}")
+
+    logger.debug("======get_dataset_latest_revision() query======")
+    logger.debug(query)
+
+    record = None
+    with neo4j_driver.session() as session:
+        record = session.read_transaction(_execute_readonly_tx, query)
+    
+    if record:
+        # Convert the neo4j node into Python dict
+        result = _node_to_dict(record[record_field_name])
+
+    return result
+
+
 ####################################################################################################
 ## Internal Functions
 ####################################################################################################

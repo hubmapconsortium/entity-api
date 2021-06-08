@@ -1816,6 +1816,58 @@ def get_globus_url(id):
             
     return Response(url, 200)
 
+
+
+
+
+
+"""
+Retrive the  the latest (newest) revision of a Dataset
+
+Parameters
+----------
+id : str
+    The HuBMAP ID (e.g. HBM123.ABCD.456) or UUID of target entity 
+
+Returns
+-------
+json
+    The detail of the latest revision dataset
+"""
+@app.route('/datasets/<id>/latest-revision', methods = ['GET'])
+def get_dataset_latest_revision(id):
+    # Token is not required, but if an invalid token provided,
+    # we need to tell the client with a 401 error
+    validate_token_if_auth_header_exists(request)
+
+    # Use the internal token to query the target entity 
+    # since public entities don't require user token
+    token = get_internal_token() 
+
+    # Query target entity against uuid-api and neo4j and return as a dict if exists
+    entity_dict = query_target_entity(id, token)
+    normalized_entity_type = entity_dict['entity_type']
+
+    # Only for Dataset 
+    if normalized_entity_type != 'Dataset':
+        bad_request_error("The entity of given id is not a Dataset")
+
+    # Only published/public datasets don't require token
+    if entity_dict['status'].lower() != DATASET_STATUS_PUBLISHED:
+        # Token is required and the user must belong to HuBMAP-READ group
+        token = get_user_token(request, non_public_access_required = True)
+
+    # By now, either the entity is public accessible or 
+    # the user token has the correct access level
+    latest_revision_dict = app_neo4j_queries.get_dataset_latest_revision(neo4j_driver_instance, entity_dict['uuid'])
+    
+
+
+
+
+
+
+
 ####################################################################################################
 ## Internal Functions
 ####################################################################################################
