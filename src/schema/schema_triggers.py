@@ -1,9 +1,10 @@
+import os
 import ast
 import json
 import logging
 import datetime
+import requests
 from neo4j.exceptions import TransactionError
-import os
 
 # Local modules
 from schema import schema_manager
@@ -1466,9 +1467,29 @@ def _commit_files(target_property_key, property_key, normalized_type, user_token
         else:
             entity_uuid = existing_data_dict['uuid']
 
+        # Commit the files via ingest-api call
+        ingest_api_target_url = schema_manager.get_ingest_api_url() + '/file-commit'
+
         for file_info in new_data_dict[property_key]:
-            file_uuid_info = schema_manager.get_file_upload_helper_instance().commit_file(file_info['temp_file_id'], entity_uuid, user_token)
-            
+            json_to_post = {
+                'temp_file_id': file_info['temp_file_id'],
+                'entity_uuid': entity_uuid,
+                'user_token': user_token
+            }
+
+            logger.info(f"Commit the uploaded file for entity {entity_uuid} via ingest-api call...")
+
+            # Disable ssl certificate verification
+            response = requests.post(url = ingest_api_target_url, headers = schema_manager._create_request_headers(user_token), json = json_to_post, verify = False) 
+    
+            if response.status_code != 200:
+                msg = f"Failed to commit the files via ingest-api for entity uuid: {entity_uuid}"
+                logger.error(msg)
+                raise schema_errors.FileUploadException(msg)
+
+            file_uuid_info = response.json()
+
+
             file_info_to_add = {
                 'filename': file_uuid_info['filename'],
                 'file_uuid': file_uuid_info['file_uuid']
@@ -1553,15 +1574,33 @@ def _delete_files(target_property_key, property_key, normalized_type, user_token
                 files_info_list = ext_prop
     else:
         files_info_list = generated_dict[target_property_key]
-
-    # `upload_dir` is already normalized with trailing slash
-    entity_upload_dir = schema_manager.get_file_upload_helper_instance().upload_dir + entity_uuid + os.sep
-            
-    # Remove physical files from the file system
-    for filename in new_data_dict[property_key]:
-        # Get back the updated files_info_list
-        files_info_list = schema_manager.get_file_upload_helper_instance().remove_file(entity_upload_dir, filename, files_info_list)
     
+    file_uuids = []
+    # Remove physical files from the file system
+    for file_uuid in new_data_dict[property_key]:
+        file_uuids.append(file_uuid)
+
+    # Remove the files via ingest-api call
+    ingest_api_target_url = schema_manager.get_ingest_api_url() + '/file-remove'
+
+    json_to_post = {
+        'entity_uuid': entity_uuid,
+        'file_uuids': file_uuids,
+        'files_info_list': files_info_list
+    }
+
+    logger.info(f"Remove the uploaded files for entity {entity_uuid} via ingest-api call...")
+
+    # Disable ssl certificate verification
+    response = requests.post(url = ingest_api_target_url, headers = schema_manager._create_request_headers(user_token), json = json_to_post, verify = False) 
+
+    if response.status_code != 200:
+        msg = f"Failed to remove the files via ingest-api for entity uuid: {entity_uuid}"
+        logger.error(msg)
+        raise schema_errors.FileUploadException(msg)
+
+    files_info_list = response.json()
+
     generated_dict[target_property_key] = files_info_list
 
     return generated_dict

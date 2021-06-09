@@ -13,7 +13,6 @@ import logging
 # Local modules
 import app_neo4j_queries
 import provenance
-from file_upload_helper import UploadFileHelper
 from schema import schema_manager
 from schema import schema_errors
 
@@ -39,6 +38,7 @@ app.config.from_pyfile('app.cfg')
 
 # Remove trailing slash / from URL base to avoid "//" caused by config with trailing slash
 app.config['UUID_API_URL'] = app.config['UUID_API_URL'].strip('/')
+app.config['INGEST_API_URL'] = app.config['INGEST_API_URL'].strip('/')
 app.config['SEARCH_API_URL'] = app.config['SEARCH_API_URL'].strip('/')
 
 # Suppress InsecureRequestWarning warning when requesting status on https with ssl cert verify disabled
@@ -126,30 +126,6 @@ def close_neo4j_driver(error):
 
 
 ####################################################################################################
-## File upload initialization
-####################################################################################################
-
-try:
-    # Initialize the UploadFileHelper class and ensure singleton
-    if UploadFileHelper.is_initialized() == False:
-        file_upload_helper_instance = UploadFileHelper.create(app.config['FILE_UPLOAD_TEMP_DIR'], 
-                                                              app.config['FILE_UPLOAD_DIR'],
-                                                              app.config['UUID_API_URL'])
-
-        logger.info("Initialized UploadFileHelper class successfully :)")
-
-        # This will delete all the temp dirs on restart
-        #file_upload_helper_instance.clean_temp_dir()
-    else:
-        file_upload_helper_instance = UploadFileHelper.instance()
-# Use a broad catch-all here
-except Exception:
-    msg = "Failed to initialize the UploadFileHelper class"
-    # Log the full stack trace, prepend a line with our message
-    logger.exception(msg)
-
-
-####################################################################################################
 ## Schema initialization
 ####################################################################################################
 
@@ -158,9 +134,9 @@ try:
     # Pass in auth_helper_instance, neo4j_driver instance, and file_upload_helper instance
     schema_manager.initialize(app.config['SCHEMA_YAML_FILE'], 
                               app.config['UUID_API_URL'],
+                              app.config['INGEST_API_URL'],
                               auth_helper_instance,
-                              neo4j_driver_instance,
-                              file_upload_helper_instance)
+                              neo4j_driver_instance)
 
     logger.info("Initialized schema_manager module successfully :)")
 # Use a broad catch-all here
@@ -474,7 +450,7 @@ def get_entity_provenance(id):
             token = get_user_token(request, non_public_access_required = True)
 
     # By now, either the entity is public accessible or the user token has the correct access level
-    # Will just proceed to get the provenance informaiton
+    # Will just proceed to get the provenance information
     # Get the `depth` from query string if present and it's used by neo4j query
     # to set the maximum number of hops in the traversal
     depth = None
@@ -488,7 +464,7 @@ def get_entity_provenance(id):
     # Normalize the raw provenance nodes based on the yaml schema
     normalized_provenance_dict = {
         'relationships': raw_provenance_dict['relationships'],
-        'nodes':[]
+        'nodes': []
     }
 
     for node_dict in raw_provenance_dict['nodes']:
@@ -514,9 +490,9 @@ def get_entity_provenance(id):
             # Filter out properties not defined or not to be exposed in the schema yaml
             normalized_entity_dict = schema_manager.normalize_entity_result_for_response(complete_entity_dict)
 
-            # Now the node to be used by provenance is all regulated by the schmea
+            # Now the node to be used by provenance is all regulated by the schema
             normalized_provenance_dict['nodes'].append(normalized_entity_dict)
-        elif (node_dict['label'] == 'Activity'):
+        elif node_dict['label'] == 'Activity':
             # Normalize Activity nodes too
             normalized_activity_dict = schema_manager.normalize_activity_result_for_response(node_dict)
             normalized_provenance_dict['nodes'].append(normalized_activity_dict)
@@ -524,7 +500,7 @@ def get_entity_provenance(id):
             # Skip Entity Lab nodes
             normalized_provenance_dict['nodes'].append(node_dict)
 
-    provenance_json = provenance.get_provenance_history(normalized_provenance_dict)
+    provenance_json = provenance.get_provenance_history(uuid, normalized_provenance_dict)
     
     # Response with the provenance details
     return Response(response = provenance_json, mimetype = "application/json")
@@ -1027,8 +1003,8 @@ def update_entity(id):
             # Check existence of the source entity
             direct_ancestor_dict = query_target_entity(direct_ancestor_uuid, user_token)
             # Also make sure it's either another Sample or a Donor
-            if dataset_dict['entity_type'] not in ['Donor', 'Sample']:
-                bad_request_error(f"The uuid: {dataset_uuid} is not a Donor neither a Sample, cannot be used as the direct ancestor of this Sample")
+            if direct_ancestor_dict['entity_type'] not in ['Donor', 'Sample']:
+                bad_request_error(f"The uuid: {direct_ancestor_uuid} is not a Donor neither a Sample, cannot be used as the direct ancestor of this Sample")
 
         # Generate 'before_update_triiger' data and update the entity details in Neo4j
         merged_updated_dict = update_entity_details(request, normalized_entity_type, user_token, json_data_dict, entity_dict)
@@ -1839,39 +1815,6 @@ def get_globus_url(id):
     url = hm_file_helper.ensureTrailingSlashURL(app.config['GLOBUS_APP_BASE_URL']) + "file-manager?origin_id=" + globus_server_uuid + "&origin_path=" + dir_path  
             
     return Response(url, 200)
-
-"""
-File upload handling for Donor and Sample
-
-Returns
--------
-json
-    A JSON containing the temp file uuid
-"""
-@app.route('/file-upload', methods=['POST'])
-def upload_file():
-    # Check if the post request has the file part
-    if 'file' not in request.files:
-        bad_request_error('No file part')
-
-    file = request.files['file']
-
-    if file.filename == '':
-        bad_request_error('No selected file')
-
-    try:
-        temp_id = file_upload_helper_instance.save_temp_file(file)
-        rspn_data = {
-            "temp_file_id": temp_id
-        }
-
-        return jsonify(rspn_data), 201
-    except Exception as e:
-        # Log the full stack trace, prepend a line with our message
-        msg = "Failed to upload files"
-        logger.exception(msg)
-        internal_server_error(msg)
-
 
 ####################################################################################################
 ## Internal Functions
