@@ -1817,10 +1817,6 @@ def get_globus_url(id):
     return Response(url, 200)
 
 
-
-
-
-
 """
 Retrive the latest (newest) revision of a Dataset
 

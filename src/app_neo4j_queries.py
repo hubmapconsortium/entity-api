@@ -614,13 +614,13 @@ def get_previous_revisions(neo4j_driver, uuid, property_key = None):
     results = []
 
     if property_key:
-        query = (f"MATCH (e:Entity)<-[r:REVISION_OF*]-(prev:Entity) "
+        query = (f"MATCH (e:Entity)<-[:REVISION_OF*]-(prev:Entity) "
                  f"WHERE e.uuid='{uuid}' "
                  # COLLECT() returns a list
                  # apoc.coll.toSet() reruns a set containing unique nodes
                  f"RETURN apoc.coll.toSet(COLLECT(prev.{property_key})) AS {record_field_name}")
     else:
-        query = (f"MATCH (e:Entity)<-[r:REVISION_OF*]-(prev:Entity) "
+        query = (f"MATCH (e:Entity)<-[:REVISION_OF*]-(prev:Entity) "
                  f"WHERE e.uuid='{uuid}' "
                  # COLLECT() returns a list
                  # apoc.coll.toSet() reruns a set containing unique nodes
@@ -664,13 +664,13 @@ def get_next_revisions(neo4j_driver, uuid, property_key = None):
     results = []
 
     if property_key:
-        query = (f"MATCH (e:Entity)-[r:REVISION_OF*]->(next:Entity) "
+        query = (f"MATCH (e:Entity)-[:REVISION_OF*]->(next:Entity) "
                  f"WHERE e.uuid='{uuid}' "
                  # COLLECT() returns a list
                  # apoc.coll.toSet() reruns a set containing unique nodes
                  f"RETURN apoc.coll.toSet(COLLECT(next.{property_key})) AS {record_field_name}")
     else:
-        query = (f"MATCH (e:Entity)-[r:REVISION_OF*]->(next:Entity) "
+        query = (f"MATCH (e:Entity)-[:REVISION_OF*]->(next:Entity) "
                  f"WHERE e.uuid='{uuid}' "
                  # COLLECT() returns a list
                  # apoc.coll.toSet() reruns a set containing unique nodes
