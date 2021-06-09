@@ -425,8 +425,9 @@ dict
     A dictionary of complete entity with all the generated 'on_read_trigger' data
 """
 def get_complete_entity_result(token, entity_dict, properties_to_skip = []):
-    # In case some incorrectly created entities don't have the `entity_type` property
-    if 'entity_type' in entity_dict:
+    # In case entity_dict is None or 
+    # an incorrectly created entity that doesn't have the `entity_type` property
+    if entity_dict and ('entity_type' in entity_dict):
         # No error handling here since if a 'on_read_trigger' method failed, 
         # the property value will be the error message
         # Pass {} since no new_data_dict for 'on_read_trigger'
@@ -437,6 +438,9 @@ def get_complete_entity_result(token, entity_dict, properties_to_skip = []):
 
         # Remove properties of None value
         return remove_none_values(complete_entity_dict)
+    else:
+        # Just return the original entity_dict otherwise
+        return entity_dict
 
 
 """
@@ -519,41 +523,45 @@ dict
 def normalize_entity_result_for_response(entity_dict, properties_to_exclude = []):
     global _schema
 
-    normalized_entity_type = entity_dict['entity_type']
-    properties = _schema['ENTITIES'][normalized_entity_type]['properties']
-
     normalized_entity = {}
-    for key in entity_dict:
-        # Only return the properties defined in the schema yaml
-        # Exclude additional properties if specified
-        if (key in properties) and (key not in properties_to_exclude):
-            # Skip properties with None value and the ones that are marked as not to be exposed.
-            # By default, all properties are exposed if not marked as `exposed: false`
-            # It's still possible to see `exposed: true` marked explictly
-            if (entity_dict[key] is not None) and ('exposed' not in properties[key]) or (('exposed' in properties[key]) and properties[key]['exposed']):
-                # Safely evaluate a string containing a Python dict or list literal
-                # Only convert to Python list/dict when the string literal is not empty
-                # instead of returning the json-as-string or array-as-string
-                if isinstance(entity_dict[key], str) and entity_dict[key] and (properties[key]['type'] in ['list', 'json_string']):
-                    # ast uses compile to compile the source string (which must be an expression) into an AST
-                    # If the source string is not a valid expression (like an empty string), a SyntaxError will be raised by compile
-                    # If, on the other hand, the source string would be a valid expression (e.g. a variable name like foo), 
-                    # compile will succeed but then literal_eval() might fail with a ValueError
-                    # Also this fails with a TypeError: literal_eval("{{}: 'value'}")
-                    try:
-                        entity_dict[key] = ast.literal_eval(entity_dict[key])
-                    except (SyntaxError, ValueError, TypeError) as e:
-                        logger.debug(f"Invalid expression (string value) of key: {key} for ast.literal_eval()")
-                        logger.debug(entity_dict[key])
-                        msg = "Failed to convert the source string with ast.literal_eval()"
-                        logger.exception(msg)
-                
-                # Add the target key with correct value of data type to the normalized_entity dict
-                normalized_entity[key] = entity_dict[key]
 
-                # Final step: remove properties with empty string value, empty dict {}, and empty list []
-                if (isinstance(normalized_entity[key], (str, dict, list)) and (not normalized_entity[key])):
-                    normalized_entity.pop(key)
+    # In case entity_dict is None or 
+    # an incorrectly created entity that doesn't have the `entity_type` property
+    if entity_dict and ('entity_type' in entity_dict):
+        normalized_entity_type = entity_dict['entity_type']
+        properties = _schema['ENTITIES'][normalized_entity_type]['properties']
+
+        for key in entity_dict:
+            # Only return the properties defined in the schema yaml
+            # Exclude additional properties if specified
+            if (key in properties) and (key not in properties_to_exclude):
+                # Skip properties with None value and the ones that are marked as not to be exposed.
+                # By default, all properties are exposed if not marked as `exposed: false`
+                # It's still possible to see `exposed: true` marked explictly
+                if (entity_dict[key] is not None) and ('exposed' not in properties[key]) or (('exposed' in properties[key]) and properties[key]['exposed']):
+                    # Safely evaluate a string containing a Python dict or list literal
+                    # Only convert to Python list/dict when the string literal is not empty
+                    # instead of returning the json-as-string or array-as-string
+                    if isinstance(entity_dict[key], str) and entity_dict[key] and (properties[key]['type'] in ['list', 'json_string']):
+                        # ast uses compile to compile the source string (which must be an expression) into an AST
+                        # If the source string is not a valid expression (like an empty string), a SyntaxError will be raised by compile
+                        # If, on the other hand, the source string would be a valid expression (e.g. a variable name like foo), 
+                        # compile will succeed but then literal_eval() might fail with a ValueError
+                        # Also this fails with a TypeError: literal_eval("{{}: 'value'}")
+                        try:
+                            entity_dict[key] = ast.literal_eval(entity_dict[key])
+                        except (SyntaxError, ValueError, TypeError) as e:
+                            logger.debug(f"Invalid expression (string value) of key: {key} for ast.literal_eval()")
+                            logger.debug(entity_dict[key])
+                            msg = "Failed to convert the source string with ast.literal_eval()"
+                            logger.exception(msg)
+                    
+                    # Add the target key with correct value of data type to the normalized_entity dict
+                    normalized_entity[key] = entity_dict[key]
+
+                    # Final step: remove properties with empty string value, empty dict {}, and empty list []
+                    if (isinstance(normalized_entity[key], (str, dict, list)) and (not normalized_entity[key])):
+                        normalized_entity.pop(key)
 
     return normalized_entity
 

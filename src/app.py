@@ -1832,7 +1832,8 @@ id : str
 Returns
 -------
 json
-    The detail of the latest revision dataset
+    The detail of the latest revision dataset if exists
+    Otherwise an empty JSON object {}
 """
 @app.route('/datasets/<id>/latest-revision', methods = ['GET'])
 def get_dataset_latest_revision(id):

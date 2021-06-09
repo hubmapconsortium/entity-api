@@ -861,7 +861,9 @@ uuid : str
 def get_dataset_latest_revision(neo4j_driver, uuid):
     result = {}
 
-    query = (f"MATCH (e:Dataset)-[r:REVISION_OF*]->(next:Dataset) "
+    # Don't use [r:REVISION_OF] because 
+    # Binding a variable length relationship pattern to a variable ('r') is deprecated
+    query = (f"MATCH (e:Dataset)-[:REVISION_OF*]->(next:Dataset) "
              f"WHERE e.uuid='{uuid}' "
              f"WITH LAST(COLLECT(next)) as latest "
              f"RETURN latest AS {record_field_name}")
@@ -869,13 +871,13 @@ def get_dataset_latest_revision(neo4j_driver, uuid):
     logger.debug("======get_dataset_latest_revision() query======")
     logger.debug(query)
 
-    record = None
     with neo4j_driver.session() as session:
+        # Returns a Record object
         record = session.read_transaction(_execute_readonly_tx, query)
     
-    if record:
-        # Convert the neo4j node into Python dict
-        result = _node_to_dict(record[record_field_name])
+        if record[record_field_name]:
+            # Convert the neo4j node into Python dict
+            result = _node_to_dict(record[record_field_name])
 
     return result
 
@@ -893,10 +895,11 @@ uuid : str
 def get_dataset_revision_number(neo4j_driver, uuid):
     revision_number = 1
 
-    query = (f"MATCH (e:Dataset)<-[r:REVISION_OF*]-(prev:Dataset) "
+    # Don't use [r:REVISION_OF] because 
+    # Binding a variable length relationship pattern to a variable ('r') is deprecated
+    query = (f"MATCH (e:Dataset)<-[:REVISION_OF*]-(prev:Dataset) "
              f"WHERE e.uuid='{uuid}' "
-             # COLLECT() returns a list
-             f"RETURN COUNT(COLLECT(prev)) AS {record_field_name}")
+             f"RETURN COUNT(prev) AS {record_field_name}")
 
     logger.debug("======get_dataset_revision_number() query======")
     logger.debug(query)
@@ -905,10 +908,10 @@ def get_dataset_revision_number(neo4j_driver, uuid):
         record = session.read_transaction(_execute_readonly_tx, query)
         
         # The revision number is the number of previous revisions plus 1
-        revision_number = record + 1
+        revision_number = record[record_field_name] + 1
 
     return revision_number
-    
+
 
 ####################################################################################################
 ## Internal Functions
