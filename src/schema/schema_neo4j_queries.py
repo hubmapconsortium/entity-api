@@ -164,6 +164,8 @@ dict
 def get_previous_revision_uuid(neo4j_driver, uuid):
     result = None
 
+    # Don't use [r:REVISION_OF] because 
+    # Binding a variable length relationship pattern to a variable ('r') is deprecated
     query = (f"MATCH (e:Entity)-[:REVISION_OF]->(previous_revision:Entity) "
              f"WHERE e.uuid='{uuid}' "
              f"RETURN previous_revision.uuid AS {record_field_name}")
@@ -198,6 +200,8 @@ dict
 def get_next_revision_uuid(neo4j_driver, uuid):
     result = None
 
+    # Don't use [r:REVISION_OF] because 
+    # Binding a variable length relationship pattern to a variable ('r') is deprecated
     query = (f"MATCH (e:Entity)<-[:REVISION_OF]-(next_revision:Entity) "
              f"WHERE e.uuid='{uuid}' "
              f"RETURN next_revision.uuid AS {record_field_name}")

@@ -785,16 +785,25 @@ neo4j_driver : neo4j.Driver object
     The neo4j database connection pool
 uuid : str
     The uuid of target dataset
+public : bool
+    If get back the latest public revision dataset or the real one
 """
-def get_dataset_latest_revision(neo4j_driver, uuid):
+def get_dataset_latest_revision(neo4j_driver, uuid, public = False):
     result = {}
 
-    # Don't use [r:REVISION_OF] because 
-    # Binding a variable length relationship pattern to a variable ('r') is deprecated
-    query = (f"MATCH (e:Dataset)-[:REVISION_OF*]->(next:Dataset) "
-             f"WHERE e.uuid='{uuid}' "
-             f"WITH LAST(COLLECT(next)) as latest "
-             f"RETURN latest AS {record_field_name}")
+    if public:
+        # Don't use [r:REVISION_OF] because 
+        # Binding a variable length relationship pattern to a variable ('r') is deprecated
+        query = (f"MATCH (e:Dataset)-[:REVISION_OF*]->(next:Dataset) "
+                 f"WHERE e.uuid='{uuid}' AND next.status='Published' "
+                 f"WITH LAST(COLLECT(next)) as latest "
+                 f"RETURN latest AS {record_field_name}")
+
+    else:
+        query = (f"MATCH (e:Dataset)-[:REVISION_OF*]->(next:Dataset) "
+                 f"WHERE e.uuid='{uuid}' "
+                 f"WITH LAST(COLLECT(next)) as latest "
+                 f"RETURN latest AS {record_field_name}")
 
     logger.debug("======get_dataset_latest_revision() query======")
     logger.debug(query)
