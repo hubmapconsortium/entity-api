@@ -1,4 +1,3 @@
-import json
 from neo4j.exceptions import TransactionError
 import logging
 

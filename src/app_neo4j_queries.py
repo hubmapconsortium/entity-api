@@ -1,6 +1,5 @@
 from neo4j.exceptions import TransactionError
 import logging
-import json
 
 logger = logging.getLogger(__name__)
 
