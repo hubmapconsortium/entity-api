@@ -10,8 +10,6 @@ record_field_name = 'result'
 ## Directly called by schema_triggers.py
 ####################################################################################################
 
-
-
 """
 Get the direct ancestors uuids of a given dataset by uuid
 
@@ -48,7 +46,7 @@ def get_dataset_direct_ancestors(neo4j_driver, uuid, property_key = None):
     with neo4j_driver.session() as session:
         record = session.read_transaction(_execute_readonly_tx, query)
 
-        if record[record_field_name]:
+        if record and record[record_field_name]:
             if property_key:
                 # Just return the list of property values from each entity node
                 results = record[record_field_name]
@@ -176,7 +174,7 @@ def get_previous_revision_uuid(neo4j_driver, uuid):
     with neo4j_driver.session() as session:
         record = session.read_transaction(_execute_readonly_tx, query)
 
-        if record[record_field_name]:
+        if record and record[record_field_name]:
             result = record[record_field_name]
 
     return result
@@ -212,7 +210,7 @@ def get_next_revision_uuid(neo4j_driver, uuid):
     with neo4j_driver.session() as session:
         record = session.read_transaction(_execute_readonly_tx, query)
 
-        if record[record_field_name]:
+        if record and record[record_field_name]:
             result = record[record_field_name]
 
     return result
@@ -253,7 +251,7 @@ def get_dataset_collections(neo4j_driver, uuid, property_key = None):
     with neo4j_driver.session() as session:
         record = session.read_transaction(_execute_readonly_tx, query)
 
-        if record[record_field_name]:
+        if record and record[record_field_name]:
             if property_key:
                 # Just return the list of property values from each entity node
                 results = record[record_field_name]
@@ -294,7 +292,7 @@ def get_dataset_upload(neo4j_driver, uuid, property_key = None):
     with neo4j_driver.session() as session:
         record = session.read_transaction(_execute_readonly_tx, query)
 
-        if record[record_field_name]:
+        if record and record[record_field_name]:
             # Convert the node to a dict
             result = _node_to_dict(record[record_field_name])
 
@@ -329,7 +327,7 @@ def get_collection_datasets(neo4j_driver, uuid):
     with neo4j_driver.session() as session:
         record = session.read_transaction(_execute_readonly_tx, query)
 
-        if record[record_field_name]:
+        if record and record[record_field_name]:
             # Convert the list of nodes to a list of dicts
             results = _nodes_to_dicts(record[record_field_name])
 
@@ -459,7 +457,7 @@ def get_upload_datasets(neo4j_driver, uuid):
     with neo4j_driver.session() as session:
         record = session.read_transaction(_execute_readonly_tx, query)
 
-        if record[record_field_name]:
+        if record and record[record_field_name]:
             # Convert the list of nodes to a list of dicts
             results = _nodes_to_dicts(record[record_field_name])
 
@@ -588,7 +586,7 @@ def get_sample_direct_ancestor(neo4j_driver, uuid, property_key = None):
     with neo4j_driver.session() as session:
         record = session.read_transaction(_execute_readonly_tx, query)
 
-        if record[record_field_name]:
+        if record and record[record_field_name]:
             if property_key:
                 result = record[record_field_name]
             else:

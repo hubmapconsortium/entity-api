@@ -34,7 +34,7 @@ def check_connection(neo4j_driver):
         
         # When record[record_field_name] is not None (namely the cypher result is not null) 
         # and the value equals 1
-        if record[record_field_name] and (record[record_field_name] == 1):
+        if record and record[record_field_name] and (record[record_field_name] == 1):
             logger.info("Neo4j is connected :)")
             return True
 
@@ -71,7 +71,7 @@ def get_entity(neo4j_driver, uuid):
     with neo4j_driver.session() as session:
         record = session.read_transaction(_execute_readonly_tx, query)
     
-        if record[record_field_name]:
+        if record and record[record_field_name]:
             # Convert the neo4j node into Python dict
             result = _node_to_dict(record[record_field_name])
 
@@ -114,7 +114,7 @@ def get_entities_by_type(neo4j_driver, entity_type, property_key = None):
     with neo4j_driver.session() as session:
         record = session.read_transaction(_execute_readonly_tx, query)
        
-        if record[record_field_name]:
+        if record and record[record_field_name]:
             if property_key:
                 # Just return the list of property values from each entity node
                 results = record[record_field_name]
@@ -161,7 +161,7 @@ def get_public_collections(neo4j_driver, property_key = None):
     with neo4j_driver.session() as session:
         record = session.read_transaction(_execute_readonly_tx, query)
 
-        if record[record_field_name]:
+        if record and record[record_field_name]:
             if property_key:
                 # Just return the list of property values from each entity node
                 results = record[record_field_name]
@@ -201,7 +201,7 @@ def get_ancestor_organs(neo4j_driver, entity_uuid):
     with neo4j_driver.session() as session:
         record = session.read_transaction(_execute_readonly_tx, query)
 
-        if record[record_field_name]:
+        if record and record[record_field_name]:
             results = _nodes_to_dicts(record[record_field_name])
 
     return results
@@ -428,7 +428,7 @@ def get_ancestors(neo4j_driver, uuid, property_key = None):
     with neo4j_driver.session() as session:
         record = session.read_transaction(_execute_readonly_tx, query)
 
-        if record[record_field_name]:
+        if record and record[record_field_name]:
             if property_key:
                 # Just return the list of property values from each entity node
                 results = record[record_field_name]
@@ -479,7 +479,7 @@ def get_descendants(neo4j_driver, uuid, property_key = None):
     with neo4j_driver.session() as session:
         record = session.read_transaction(_execute_readonly_tx, query)
 
-        if record[record_field_name]:
+        if record and record[record_field_name]:
             if property_key:
                 # Just return the list of property values from each entity node
                 results = record[record_field_name]
@@ -530,7 +530,7 @@ def get_parents(neo4j_driver, uuid, property_key = None):
     with neo4j_driver.session() as session:
         record = session.read_transaction(_execute_readonly_tx, query)
 
-        if record[record_field_name]:
+        if record and record[record_field_name]:
             if property_key:
                 # Just return the list of property values from each entity node
                 results = record[record_field_name]
@@ -581,7 +581,7 @@ def get_children(neo4j_driver, uuid, property_key = None):
     with neo4j_driver.session() as session:
         record = session.read_transaction(_execute_readonly_tx, query)
 
-        if record[record_field_name]:
+        if record and record[record_field_name]:
             if property_key:
                 # Just return the list of property values from each entity node
                 results = record[record_field_name]
@@ -631,7 +631,7 @@ def get_previous_revisions(neo4j_driver, uuid, property_key = None):
     with neo4j_driver.session() as session:
         record = session.read_transaction(_execute_readonly_tx, query)
 
-        if record[record_field_name]:
+        if record and record[record_field_name]:
             if property_key:
                 # Just return the list of property values from each entity node
                 results = record[record_field_name]
@@ -681,7 +681,7 @@ def get_next_revisions(neo4j_driver, uuid, property_key = None):
     with neo4j_driver.session() as session:
         record = session.read_transaction(_execute_readonly_tx, query)
 
-        if record[record_field_name]:
+        if record and record[record_field_name]:
             if property_key:
                 # Just return the list of property values from each entity node
                 results = record[record_field_name]
@@ -812,7 +812,7 @@ def get_dataset_latest_revision(neo4j_driver, uuid, public = False):
         record = session.read_transaction(_execute_readonly_tx, query)
     
         # Only convert when record[record_field_name] is not None (namely the cypher result is not null)
-        if record[record_field_name]:
+        if record and record[record_field_name]:
             # Convert the neo4j node into Python dict
             result = _node_to_dict(record[record_field_name])
 
@@ -844,8 +844,9 @@ def get_dataset_revision_number(neo4j_driver, uuid):
     with neo4j_driver.session() as session:
         record = session.read_transaction(_execute_readonly_tx, query)
         
-        # The revision number is the number of previous revisions plus 1
-        revision_number = record[record_field_name] + 1
+        if record and record[record_field_name]:
+            # The revision number is the number of previous revisions plus 1
+            revision_number = record[record_field_name] + 1
 
     return revision_number
 
