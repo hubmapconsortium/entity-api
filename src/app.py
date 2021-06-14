@@ -846,6 +846,15 @@ def create_entity(entity_type):
             if previous_version_dict['entity_type'] not in ['Dataset', 'Sample']:
                 bad_request_error(f"The previous_revision_uuid specified for this dataset must be either a Dataset or Sample")
 
+            # Also need to validate if the given 'previous_revision_uuid' has already had 
+            # an exisiting next revision
+            # Only return a list of the uuids, no need to get back the list of dicts
+            next_revisions_list = app_neo4j_queries.get_next_revisions(neo4j_driver_instance, previous_version_dict['uuid'], 'uuid')
+            
+            # As long as the list is not empty, tell the users to use a different 'previous_revision_uuid'
+            if next_revisions_list:
+                bad_request_error(f"The previous_revision_uuid specified for this dataset has already had a next revision")
+
         # Generate 'before_create_triiger' data and create the entity details in Neo4j
         merged_dict = create_entity_details(request, normalized_entity_type, user_token, json_data_dict)
     else:
