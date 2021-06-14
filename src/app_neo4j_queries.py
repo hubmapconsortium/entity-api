@@ -613,13 +613,13 @@ def get_previous_revisions(neo4j_driver, uuid, property_key = None):
     results = []
 
     if property_key:
-        query = (f"MATCH (e:Entity)<-[:REVISION_OF*]-(prev:Entity) "
+        query = (f"MATCH (e:Entity)-[:REVISION_OF*]->(prev:Entity) "
                  f"WHERE e.uuid='{uuid}' "
                  # COLLECT() returns a list
                  # apoc.coll.toSet() reruns a set containing unique nodes
                  f"RETURN apoc.coll.toSet(COLLECT(prev.{property_key})) AS {record_field_name}")
     else:
-        query = (f"MATCH (e:Entity)<-[:REVISION_OF*]-(prev:Entity) "
+        query = (f"MATCH (e:Entity)-[:REVISION_OF*]->(prev:Entity) "
                  f"WHERE e.uuid='{uuid}' "
                  # COLLECT() returns a list
                  # apoc.coll.toSet() reruns a set containing unique nodes
@@ -663,13 +663,13 @@ def get_next_revisions(neo4j_driver, uuid, property_key = None):
     results = []
 
     if property_key:
-        query = (f"MATCH (e:Entity)-[:REVISION_OF*]->(next:Entity) "
+        query = (f"MATCH (e:Entity)<-[:REVISION_OF*]-(next:Entity) "
                  f"WHERE e.uuid='{uuid}' "
                  # COLLECT() returns a list
                  # apoc.coll.toSet() reruns a set containing unique nodes
                  f"RETURN apoc.coll.toSet(COLLECT(next.{property_key})) AS {record_field_name}")
     else:
-        query = (f"MATCH (e:Entity)-[:REVISION_OF*]->(next:Entity) "
+        query = (f"MATCH (e:Entity)<-[:REVISION_OF*]-(next:Entity) "
                  f"WHERE e.uuid='{uuid}' "
                  # COLLECT() returns a list
                  # apoc.coll.toSet() reruns a set containing unique nodes
@@ -789,18 +789,18 @@ public : bool
     If get back the latest public revision dataset or the real one
 """
 def get_dataset_latest_revision(neo4j_driver, uuid, public = False):
-    result = {}
+    # Defaut the latest revision to this entity itself
+    result = get_entity(neo4j_driver, uuid)
 
     if public:
         # Don't use [r:REVISION_OF] because 
         # Binding a variable length relationship pattern to a variable ('r') is deprecated
-        query = (f"MATCH (e:Dataset)-[:REVISION_OF*]->(next:Dataset) "
+        query = (f"MATCH (e:Dataset)<-[:REVISION_OF*]-(next:Dataset) "
                  f"WHERE e.uuid='{uuid}' AND next.status='Published' "
                  f"WITH LAST(COLLECT(next)) as latest "
                  f"RETURN latest AS {record_field_name}")
-
     else:
-        query = (f"MATCH (e:Dataset)-[:REVISION_OF*]->(next:Dataset) "
+        query = (f"MATCH (e:Dataset)<-[:REVISION_OF*]-(next:Dataset) "
                  f"WHERE e.uuid='{uuid}' "
                  f"WITH LAST(COLLECT(next)) as latest "
                  f"RETURN latest AS {record_field_name}")
@@ -834,7 +834,7 @@ def get_dataset_revision_number(neo4j_driver, uuid):
 
     # Don't use [r:REVISION_OF] because 
     # Binding a variable length relationship pattern to a variable ('r') is deprecated
-    query = (f"MATCH (e:Dataset)<-[:REVISION_OF*]-(prev:Dataset) "
+    query = (f"MATCH (e:Dataset)-[:REVISION_OF*]->(prev:Dataset) "
              f"WHERE e.uuid='{uuid}' "
              f"RETURN COUNT(prev) AS {record_field_name}")
 
@@ -845,7 +845,7 @@ def get_dataset_revision_number(neo4j_driver, uuid):
         record = session.read_transaction(_execute_readonly_tx, query)
         
         if record and record[record_field_name]:
-            # The revision number is the number of previous revisions plus 1
+            # The revision number is the count of previous revisions plus 1
             revision_number = record[record_field_name] + 1
 
     return revision_number
