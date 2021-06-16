@@ -1,7 +1,7 @@
 openapi: 3.0.0
 info:
   description: 'The HuBMAP Entity API is a standard RESTful web service with create, update and read operations for the standard HuBMAP provenance graph entities.<br><br>'
-  version: 2.0.9
+  version: 2.0.11
   title: HuBMAP Entity API
   contact:
     name: HuBMAP Help Desk
@@ -1365,33 +1365,54 @@ paths:
           description: The target entity could not be found
         '500':
           description: Internal error
-  /file-upload:
-    post:
-      summary: "Upload a file to temporarily stage.  On success the file will be staged and a temporary id will be returned to reference the staged file by.  The temporary id can be used by the *_files_to_add properties during PUT/POST for Donors and Samples to commit the file permanantly and associate with an entity." 
-      requestBody:
-        content:
-          multipart/form-data:
-            schema:
-              type: object
-              properties:
-                file:
-                  type: string
-                  format: binary
+  '/datasets/{id}/latest-revision':
+    get:
+      summary: 'Retrive the latest (newest) revision of a given Dataset. Public/Consortium access rules apply - if no token/consortium access then must be for a public dataset and the returned Dataset must be the latest public version. If the given dataset itself is the latest revision, meaning it has no next revisions, this dataset gets returned.'
+      parameters:
+        - name: id
+          in: path
+          description: The unique identifier of entity.  This identifier can be either an HuBMAP ID (e.g. HBM123.ABCD.456) or UUID
+          required: true
+          schema:
+            type: string
       responses:
         '200':
-          description: The file was successfully uploaded and staged, the temporary file id is returned.
+          description: successful operation
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  temp_file_id:
-                    type: string
+                $ref: '#/components/schemas/Dataset'
         '400':
-          description: Missing file
+          description: Invalid or misformatted entity identifier, or the given entity is not a Dataset
         '401':
           description: The user's token has expired or the user did not supply a valid token
         '403':
-          description: The user is not authorized to upload the file.
+          description: The user is not authorized to query the latest revision of the given dataset.
+        '404':
+          description: The target dataset could not be found
         '500':
           description: Internal error
+  '/datasets/{id}/revision':
+    get:
+      summary: 'Retrive the calculated revision number of a Dataset. The calculated revision is number is based on the [:REVISION_OF] relationships to the oldest dataset in a revision chain. Where the oldest dataset = 1 and each newer version is incremented by one (1, 2, 3 ...). Public/Consortium access rules apply, if is for a non-public dataset and no token or a token without membership in HuBMAP-Read group is sent with the request then a 403 response should be returned.'
+      parameters:
+        - name: id
+          in: path
+          description: The unique identifier of entity.  This identifier can be either an HuBMAP ID (e.g. HBM123.ABCD.456) or UUID
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: The revision number (integer) on successful operation
+        '400':
+          description: Invalid or misformatted entity identifier, or the given entity is not a Dataset
+        '401':
+          description: The user's token has expired or the user did not supply a valid token
+        '403':
+          description: The user is not authorized to query the revision number of the given dataset.
+        '404':
+          description: The target dataset could not be found
+        '500':
+          description: Internal error
+         
