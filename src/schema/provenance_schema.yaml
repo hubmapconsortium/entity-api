@@ -343,10 +343,9 @@ ENTITIES:
         description: "The uuid of next revision dataset"
         on_read_trigger: get_next_revision_uuid
       # Added by Zhou 6/16/2021 for thumbnail image
-      # Should the value be the original path or the one with generated file_uuid/thumbnail.jpg?
-      thumbnail_image:
-        type: string
-        description: "The full file path to the thumbnail image"
+      thumbnail_image_file:
+        type: json_string
+        description: "The dataset thumbnail image file detail. Stored in db as a stringfied json, e.g., {'filename': 'thumbnail.jpg', 'file_uuid': 'dadasdasdadda'}"
 
 
   ############################################# Donor #############################################
