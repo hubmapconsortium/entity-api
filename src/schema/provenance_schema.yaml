@@ -343,14 +343,10 @@ ENTITIES:
         description: "The uuid of next revision dataset"
         on_read_trigger: get_next_revision_uuid
       # Added by Zhou 6/16/2021 for thumbnail image
+      # Should the value be the original path or the one with generated file_uuid/thumbnail.jpg?
       thumbnail_image:
         type: string
         description: "The full file path to the thumbnail image"
-        # The updated_peripherally tag is a temporary measure to correctly handle any attributes
-        # which are potentially updated by multiple triggers
-        updated_peripherally: true
-        before_update_trigger: upload_and_commit_thumbnail_image
-        
 
 
   ############################################# Donor #############################################
