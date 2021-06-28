@@ -43,7 +43,7 @@ components:
           description: "The name of the antibody."
         channel_id:
           type: string
-          description: "The assay specific identifier for the channel corresponding to the antibody." 
+          description: "The assay specific identifier for the channel corresponding to the antibody."
         conjugated_cat_number:
           type: string
           description: "An antibody may be conjugated to a fluorescent tag or a metal tag for detection. Conjugated antibodies may be purchased from commercial providers. Blank if not applicable."
@@ -447,7 +447,7 @@ components:
             - snatacseq
             - snrnaseq
             - tissue_lysate
-            - wgs    
+            - wgs
           description: "A code representing the type of specimen.  Must be one of the codes specified in: [tissue sample types](https://github.com/hubmapconsortium/search-api/blob/master/src/search-schema/data/definitions/enums/tissue_sample_types.yaml)"
         specimen_type_other:
           type: string
@@ -934,7 +934,7 @@ security:
 paths:
   '/entities/{id}':
     get:
-      summary: Retrieve a provenance entity by id.  Entity types of Donor, Sample and Datasets. 
+      summary: Retrieve a provenance entity by id.  Entity types of Donor, Sample and Datasets.
       security:
         - bearerAuth: []
       parameters:
@@ -1322,7 +1322,7 @@ paths:
           description: Internal error
   '/doi/redirect/{id}':
     get:
-      summary: Redirect a request from a doi service  
+      summary: Redirect a request from a doi service
       parameters:
         - name: id
           in: path
@@ -1415,4 +1415,3 @@ paths:
           description: The target dataset could not be found
         '500':
           description: Internal error
-         
