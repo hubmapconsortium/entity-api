@@ -32,6 +32,7 @@ src/VERSION
 #ignore PyCharm files
 .idea/
 ../.idea/
+venv
 
 #ignore test venv
 **/testenv/
