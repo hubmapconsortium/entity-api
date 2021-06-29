@@ -10,7 +10,7 @@ import yaml
 
 tag='X-replace-enum-list' #this is the value that is searched for within the dictionary. For now it is hard coded, but could be passed as argument
 def input_from_yaml():
-    with open('entity-api-spec-TEMPLATE.yaml') as file: #opens yaml file and sets it to 'file'
+    with open('yaml-templates/entity-api-spec-TEMPLATE.yaml') as file: #opens yaml file and sets it to 'file'
         yaml_template = yaml.load(file, Loader=yaml.FullLoader)  #creates a dictionary called yaml_template and loads the yaml file 'file' to it.
         return yaml_template
 def get_url_from_item(item):
@@ -37,13 +37,12 @@ def recursive_nested_dictionary_iterator(nested_dictionary, the_yaml_url):  # re
             return 4
         if depth == 4:  # we are now at the correct location we want to change
             thisvalue.update({'enum': replaced_section})  # update the value with the list we created earlier. The key is hard coded for now
-def output_to_yaml(yaml_template):
-    with open('new-entity-spec-api.yaml', 'w') as outfile:
+def output_to_yaml():
+    with open('yaml-templates/new-entity-spec-api.yaml', 'w') as outfile:
         yaml.dump(yaml_template, outfile, sort_keys=False)
 
 
 yaml_template = input_from_yaml()
-
 for item in nested_lookup.nested_lookup('X-replace-enum-list',yaml_template): #for every item in the dictionary yaml_template, it searches for a specfic phrase
     yaml_url = get_url_from_item(item)
     yaml_resource_file = get_yaml_from_url()
@@ -52,7 +51,8 @@ for item in nested_lookup.nested_lookup('X-replace-enum-list',yaml_template): #f
         replaced_section.append(key) #for each key in the dictionary, add it to the list
     recursive_nested_dictionary_iterator(yaml_template, yaml_url) #calls the recursive program
 
-output_to_yaml(yaml_template)
+
+output_to_yaml()
 
 
 
