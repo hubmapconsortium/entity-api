@@ -343,9 +343,9 @@ ENTITIES:
         description: "The uuid of next revision dataset"
         on_read_trigger: get_next_revision_uuid
       # Added by Zhou 6/16/2021 for thumbnail image
-      thumbnail_image_file:
+      thumbnail_file:
         type: json_string
-        description: "The dataset thumbnail image file detail. Stored in db as a stringfied json, e.g., {'filename': 'thumbnail.jpg', 'file_uuid': 'dadasdasdadda'}"
+        description: "The dataset thumbnail file detail. Stored in db as a stringfied json, e.g., {'filename': 'thumbnail.jpg', 'file_uuid': 'dadasdasdadda'}"
 
 
   ############################################# Donor #############################################
