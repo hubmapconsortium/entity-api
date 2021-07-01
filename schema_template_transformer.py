@@ -1,6 +1,9 @@
+#!/usr/bin/env python3
+
 import nested_lookup
 import urllib.request
 import yaml
+import sys
 
 #This python program takes in a template yaml file. It then reads through the file looking for
 #specific tags. When it reaches those tags, it begins looking for a url. It then fetches another
@@ -13,12 +16,12 @@ def input_from_yaml():
     with open('yaml-templates/entity-api-spec-TEMPLATE.yaml') as file: #opens yaml file and sets it to 'file'
         yaml_template = yaml.load(file, Loader=yaml.FullLoader)  #creates a dictionary called yaml_template and loads the yaml file 'file' to it.
         return yaml_template
-def get_url_from_item(item):
-    tag_value_string = str(item)  # when the given phrase is found, the corresponding value to that key is placed as a string inside tag_string
-    url_start = tag_value_string.find('https')  # marks the start point of the string as the beginning of the url. Will want to create a cleaner implementation later
-    url_end = tag_value_string.find('\'}')  # marks the end of the string as just before the '}
-    yaml_url = tag_value_string[url_start:url_end]  # modifies the string to include only the url.
-    return yaml_url
+#def get_url_from_item(item):
+    #tag_value_string = str(item)  # when the given phrase is found, the corresponding value to that key is placed as a string inside tag_string
+    #url_start = tag_value_string.find('https')  # marks the start point of the string as the beginning of the url. Will want to create a cleaner implementation later
+    #url_end = tag_value_string.find('\'}')  # marks the end of the string as just before the '}
+    #yaml_url = tag_value_string[url_start:url_end]  # modifies the string to include only the url.
+    #return yaml_url
 def get_yaml_from_url():
     with urllib.request.urlopen(yaml_url) as urlfile: #opens a yaml file from a url and sets it to 'urlfile'
         yaml_resource_file = yaml.load(urlfile, Loader=yaml.FullLoader) #creates a dictionary called yaml_resource file that holds the contents of the yaml file
@@ -41,10 +44,14 @@ def output_to_yaml():
     with open('yaml-templates/new-entity-spec-api.yaml', 'w') as outfile:
         yaml.dump(yaml_template, outfile, sort_keys=False)
 
+if len(sys.argv)>1:
+    tag = str(sys.argv[1])
+
 
 yaml_template = input_from_yaml()
 for item in nested_lookup.nested_lookup('X-replace-enum-list',yaml_template): #for every item in the dictionary yaml_template, it searches for a specfic phrase
-    yaml_url = get_url_from_item(item)
+    yaml_url=item.get('enum-file-ref')
+    #yaml_url = get_url_from_item(item)
     yaml_resource_file = get_yaml_from_url()
     replaced_section = [] #instantiates an empty list
     for key, value in yaml_resource_file.items():#fills the list with the keys from yaml_resource_file
@@ -52,7 +59,7 @@ for item in nested_lookup.nested_lookup('X-replace-enum-list',yaml_template): #f
     recursive_nested_dictionary_iterator(yaml_template, yaml_url) #calls the recursive program
 
 
-output_to_yaml()
+#output_to_yaml()
 
 
 
