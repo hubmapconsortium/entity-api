@@ -1004,10 +1004,7 @@ Returns
 dict: The updated generated dict
 """
 def commit_thumbnail_file(target_property_key, property_key, normalized_type, user_token, existing_data_dict, new_data_dict, generated_dict):
-    # Do nothing if no files to add are provided (missing or empty property)
-    # For image files the property name is "image_files_to_add"
-    # For metadata files the property name is "metadata_files_to_add"
-    # But other may be used in the future
+    # Do nothing if no thumbnail file to add (missing or empty property)
     if (not property_key in new_data_dict) or (not new_data_dict[property_key]):
         return generated_dict
 
@@ -1017,29 +1014,34 @@ def commit_thumbnail_file(target_property_key, property_key, normalized_type, us
         else:
             entity_uuid = existing_data_dict['uuid']
 
-        # Commit the files via ingest-api call
+        # Commit the thumbnail file via ingest-api call
         ingest_api_target_url = schema_manager.get_ingest_api_url() + '/file-commit'
+        
+        # Example: {"temp_file_id":"dzevgd6xjs4d5grmcp4n"}
+        thumbnail_file_dict = new_data_dict[property_key]
 
-        file_info_dict = new_data_dict[property_key]
+        tmp_file_id = thumbnail_file_dict['temp_file_id']
 
         json_to_post = {
-            'temp_file_id': file_info_dict['temp_file_id'],
+            'temp_file_id': tmp_file_id,
             'entity_uuid': entity_uuid,
             'user_token': user_token
         }
 
-        logger.info(f"Commit the uploaded thumbnail file for entity {entity_uuid} via ingest-api call...")
+        logger.info(f"Commit the uploaded thumbnail file of tmp file id {tmp_file_id} for entity {entity_uuid} via ingest-api call...")
 
         # Disable ssl certificate verification
         response = requests.post(url = ingest_api_target_url, headers = schema_manager._create_request_headers(user_token), json = json_to_post, verify = False) 
 
         if response.status_code != 200:
-            msg = f"Failed to commit the thumbnail file via ingest-api for entity uuid: {entity_uuid}"
+            msg = f"Failed to commit the thumbnail file of tmp file id {tmp_file_id} via ingest-api for entity uuid: {entity_uuid}"
             logger.error(msg)
             raise schema_errors.FileUploadException(msg)
 
+        # Get back the file uuid dict
         file_uuid_info = response.json()
 
+        # Update the target_property_key (`thumbnail_file`) to be saved in Neo4j
         generated_dict[target_property_key] = {
             'filename': file_uuid_info['filename'],
             'file_uuid': file_uuid_info['file_uuid']
@@ -1054,7 +1056,7 @@ def commit_thumbnail_file(target_property_key, property_key, normalized_type, us
 
 
 """
-Trigger event method for removing the thumbnail from a dataset during update
+Trigger event method for removing the thumbnail file from a dataset during update
 
 File is stored in a json encoded text field with property name 'target_property_key' in the entity dict
 The file to remove is specified as file uuid in the `property_key` field
@@ -1081,7 +1083,8 @@ Returns
 dict: The updated generated dict
 """
 def delete_thumbnail_file(target_property_key, property_key, normalized_type, user_token, existing_data_dict, new_data_dict, generated_dict):
-    #do nothing if no files to delete are provided in the field specified by property_key
+    # Do nothing if no thumbnail file to delete 
+    # is provided in the field specified by property_key
     if (not property_key in new_data_dict) or (not new_data_dict[property_key]):
         return generated_dict
 
@@ -1089,17 +1092,21 @@ def delete_thumbnail_file(target_property_key, property_key, normalized_type, us
         raise KeyError(f"Missing 'uuid' key in 'existing_data_dict' during calling 'delete_thumbnail_file()' trigger method for property '{target_property_key}'.")
 
     entity_uuid = existing_data_dict['uuid']
+
+    # The property_key (`thumbnail_file_to_remove`) is just a file uuid string
+    file_uuid = new_data_dict[property_key]
     
-    #If POST or PUT where the target doesn't exist create the file info array
+    #If POST or PUT where the target doesn't exist create the file info dict
     #if generated_dict doesn't contain the property yet, copy it from the existing_data_dict
     #if it isn't in the existing_dictionary throw and error 
     #or if it doesn't exist in existing_data_dict create it
     if not target_property_key in generated_dict:
         if not target_property_key in existing_data_dict:
-            raise KeyError(f"Missing '{target_property_key}' key missing during calling '_delete_files()' trigger method on entity {entity_uuid}.")
-        # Otherwise this is a PUT where the target array exists already
+            raise KeyError(f"Missing '{target_property_key}' key missing during calling 'delete_thumbnail_file()' trigger method on entity {entity_uuid}.")
+        # Otherwise this is a PUT where the target thumbnail file exists already
         else:
-            # Note: The property, name specified by `target_property_key`, is stored in Neo4j as a string representation of the Python list
+            # Note: The property, name specified by `target_property_key`, 
+            # is stored in Neo4j as a string representation of the Python dict
             # It's not stored in Neo4j as a json string! And we can't store it as a json string 
             # due to the way that Cypher handles single/double quotes.
             ext_prop = existing_data_dict[target_property_key]
@@ -1110,28 +1117,30 @@ def delete_thumbnail_file(target_property_key, property_key, normalized_type, us
     else:
         file_info_dict = generated_dict[target_property_key]
     
-    # Remove the files via ingest-api call
+    # Remove the thumbnail file via ingest-api call
     ingest_api_target_url = schema_manager.get_ingest_api_url() + '/file-remove'
 
+    # ingest-api's /file-remove takes a list of files to remove
+    # In this case, we only need to remove the single thumbnail file
     json_to_post = {
         'entity_uuid': entity_uuid,
-        'file_uuids': [new_data_dict[property_key]], # Just one file uuid
-        'files_info_list': [file_info_dict] # Just one
+        'file_uuids': [file_uuid],
+        'files_info_list': [file_info_dict]
     }
 
-    logger.info(f"Remove the uploaded thumbnail file for entity {entity_uuid} via ingest-api call...")
+    logger.info(f"Remove the uploaded thumbnail file {file_uuid} for entity {entity_uuid} via ingest-api call...")
 
     # Disable ssl certificate verification
     response = requests.post(url = ingest_api_target_url, headers = schema_manager._create_request_headers(user_token), json = json_to_post, verify = False) 
 
+    # response.json() returns an empty array because
+    # there's no thumbnail file left once the only one gets removed
     if response.status_code != 200:
-        msg = f"Failed to remove the thumbnail file via ingest-api for entity uuid: {entity_uuid}"
+        msg = f"Failed to remove the thumbnail file {file_uuid} via ingest-api for dataset uuid: {entity_uuid}"
         logger.error(msg)
         raise schema_errors.FileUploadException(msg)
 
-    # Set target_property_key to empty dict 
-    # because no thumbnail file left once removed the only one thumbnail file
-    # response.json() also returns an empty array
+    # Update the value of target_property_key `thumbnail_file` to empty json string 
     generated_dict[target_property_key] = {}
 
     return generated_dict
@@ -1638,24 +1647,26 @@ def _commit_files(target_property_key, property_key, normalized_type, user_token
         ingest_api_target_url = schema_manager.get_ingest_api_url() + '/file-commit'
 
         for file_info in new_data_dict[property_key]:
+            temp_file_id = file_info['temp_file_id']
+
             json_to_post = {
-                'temp_file_id': file_info['temp_file_id'],
+                'temp_file_id': temp_file_id,
                 'entity_uuid': entity_uuid,
                 'user_token': user_token
             }
 
-            logger.info(f"Commit the uploaded file for entity {entity_uuid} via ingest-api call...")
+            logger.info(f"Commit the uploaded file of temp_file_id {temp_file_id} for entity {entity_uuid} via ingest-api call...")
 
             # Disable ssl certificate verification
             response = requests.post(url = ingest_api_target_url, headers = schema_manager._create_request_headers(user_token), json = json_to_post, verify = False) 
     
             if response.status_code != 200:
-                msg = f"Failed to commit the files via ingest-api for entity uuid: {entity_uuid}"
+                msg = f"Failed to commit the file of temp_file_id {temp_file_id} via ingest-api for entity uuid: {entity_uuid}"
                 logger.error(msg)
                 raise schema_errors.FileUploadException(msg)
 
+            # Get back the file uuid dict
             file_uuid_info = response.json()
-
 
             file_info_to_add = {
                 'filename': file_uuid_info['filename'],
@@ -1669,6 +1680,7 @@ def _commit_files(target_property_key, property_key, normalized_type, user_token
             # Add to list
             files_info_list.append(file_info_to_add)
 
+            # Update the target_property_key value
             generated_dict[target_property_key] = files_info_list
             
         return generated_dict
@@ -1740,7 +1752,6 @@ def _delete_files(target_property_key, property_key, normalized_type, user_token
         files_info_list = generated_dict[target_property_key]
     
     file_uuids = []
-    # Remove physical files from the file system
     for file_uuid in new_data_dict[property_key]:
         file_uuids.append(file_uuid)
 
@@ -1765,6 +1776,7 @@ def _delete_files(target_property_key, property_key, normalized_type, user_token
 
     files_info_list = response.json()
 
+    # Update the target_property_key value to be saved in Neo4j
     generated_dict[target_property_key] = files_info_list
 
     return generated_dict

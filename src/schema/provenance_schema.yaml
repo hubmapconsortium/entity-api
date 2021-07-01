@@ -342,7 +342,8 @@ ENTITIES:
         immutable: true
         description: "The uuid of next revision dataset"
         on_read_trigger: get_next_revision_uuid
-      # Added by Zhou 6/30/2021 for thumbnail image
+      # No like image and metadata files handling for Donor/Sample
+      # Dataset has only one thumbnail file
       thumbnail_file:
         generated: true
         type: json_string
@@ -350,13 +351,13 @@ ENTITIES:
         # The updated_peripherally tag is a temporary measure to correctly handle any attributes
         # which are potentially updated by multiple triggers
         updated_peripherally: true
+      # There's no before_update_trigger for `thumbnail_file_to_add` since no description to update
       thumbnail_file_to_add:
-        type: list 
+        type: json_string 
         transient: true
         exposed: false
         description: 'Just a temporary file id. Provide as a json object with an temp_file_id like {"temp_file_id":"dzevgd6xjs4d5grmcp4n"}'
         before_create_trigger: commit_thumbnail_file
-        before_update_trigger: commit_thumbnail_file
         # The updated_peripherally tag is a temporary measure to correctly handle any attributes
         # which are potentially updated by multiple triggers
         updated_peripherally: true
@@ -365,7 +366,7 @@ ENTITIES:
         type: string 
         transient: true
         exposed: false
-        description: 'The thumbnail image file previously uploaded to delete. Provide as a string of the file_uuid of the file like: "232934234234234234234270c0ea6c51d604a850558ef2247d0b4"'
+        description: 'The thumbnail image file previously uploaded to delete. Provide as a string of the file_uuid like: "232934234234234234234270c0ea6c51d604a850558ef2247d0b4"'
         before_update_trigger: delete_thumbnail_file
         # The updated_peripherally tag is a temporary measure to correctly handle any attributes
         # which are potentially updated by multiple triggers
