@@ -971,6 +971,172 @@ def get_next_revision_uuid(property_key, normalized_type, user_token, existing_d
     return property_key, next_revision_uuid
 
 
+"""
+Trigger event method to commit thumbnail file saved that were previously uploaded via ingest-api
+
+The information, filename is saved in the field with name specified by `target_property_key`
+in the provided data_dict.  The thumbnail file needed to be previously uploaded
+using the temp file service.  The temp file id provided must be provided
+in the field `thumbnail_file_to_add` in the data_dict for file being committed
+in a JSON object like below: 
+
+{"temp_file_id": "eiaja823jafd"}
+
+Parameters
+----------
+target_property_key : str
+    The name of the property where the file information is stored
+property_key : str
+    The property key for which the original trigger method is defined
+normalized_type : str
+    One of the types defined in the schema yaml: Donor, Sample
+user_token: str
+    The user's globus nexus token
+existing_data_dict : dict
+    A dictionary that contains all existing entity properties
+new_data_dict : dict
+    A merged dictionary that contains all possible input data to be used
+generated_dict : dict 
+    A dictionary that contains all final data
+
+Returns
+-------
+dict: The updated generated dict
+"""
+def commit_thumbnail_file(target_property_key, property_key, normalized_type, user_token, existing_data_dict, new_data_dict, generated_dict):
+    # Do nothing if no files to add are provided (missing or empty property)
+    # For image files the property name is "image_files_to_add"
+    # For metadata files the property name is "metadata_files_to_add"
+    # But other may be used in the future
+    if (not property_key in new_data_dict) or (not new_data_dict[property_key]):
+        return generated_dict
+
+    try:
+        if 'uuid' in new_data_dict:
+            entity_uuid = new_data_dict['uuid']
+        else:
+            entity_uuid = existing_data_dict['uuid']
+
+        # Commit the files via ingest-api call
+        ingest_api_target_url = schema_manager.get_ingest_api_url() + '/file-commit'
+
+        file_info_dict = new_data_dict[property_key]
+
+        json_to_post = {
+            'temp_file_id': file_info_dict['temp_file_id'],
+            'entity_uuid': entity_uuid,
+            'user_token': user_token
+        }
+
+        logger.info(f"Commit the uploaded thumbnail file for entity {entity_uuid} via ingest-api call...")
+
+        # Disable ssl certificate verification
+        response = requests.post(url = ingest_api_target_url, headers = schema_manager._create_request_headers(user_token), json = json_to_post, verify = False) 
+
+        if response.status_code != 200:
+            msg = f"Failed to commit the thumbnail file via ingest-api for entity uuid: {entity_uuid}"
+            logger.error(msg)
+            raise schema_errors.FileUploadException(msg)
+
+        file_uuid_info = response.json()
+
+        generated_dict[target_property_key] = {
+            'filename': file_uuid_info['filename'],
+            'file_uuid': file_uuid_info['file_uuid']
+        }
+  
+        return generated_dict
+    except schema_errors.FileUploadException as e:
+        raise
+    except Exception as e:
+        # No need to log
+        raise
+
+
+"""
+Trigger event method for removing the thumbnail from a dataset during update
+
+File is stored in a json encoded text field with property name 'target_property_key' in the entity dict
+The file to remove is specified as file uuid in the `property_key` field
+
+Parameters
+----------
+target_property_key : str
+    The name of the property where the file information is stored
+property_key : str
+    The property key for which the original trigger method is defined
+normalized_type : str
+    One of the types defined in the schema yaml: Donor, Sample
+user_token: str
+    The user's globus nexus token
+existing_data_dict : dict
+    A dictionary that contains all existing entity properties
+new_data_dict : dict
+    A merged dictionary that contains all possible input data to be used
+generated_dict : dict 
+    A dictionary that contains all final data
+
+Returns
+-------
+dict: The updated generated dict
+"""
+def delete_thumbnail_file(target_property_key, property_key, normalized_type, user_token, existing_data_dict, new_data_dict, generated_dict):
+    #do nothing if no files to delete are provided in the field specified by property_key
+    if (not property_key in new_data_dict) or (not new_data_dict[property_key]):
+        return generated_dict
+
+    if 'uuid' not in existing_data_dict:
+        raise KeyError(f"Missing 'uuid' key in 'existing_data_dict' during calling 'delete_thumbnail_file()' trigger method for property '{target_property_key}'.")
+
+    entity_uuid = existing_data_dict['uuid']
+    
+    #If POST or PUT where the target doesn't exist create the file info array
+    #if generated_dict doesn't contain the property yet, copy it from the existing_data_dict
+    #if it isn't in the existing_dictionary throw and error 
+    #or if it doesn't exist in existing_data_dict create it
+    if not target_property_key in generated_dict:
+        if not target_property_key in existing_data_dict:
+            raise KeyError(f"Missing '{target_property_key}' key missing during calling '_delete_files()' trigger method on entity {entity_uuid}.")
+        # Otherwise this is a PUT where the target array exists already
+        else:
+            # Note: The property, name specified by `target_property_key`, is stored in Neo4j as a string representation of the Python list
+            # It's not stored in Neo4j as a json string! And we can't store it as a json string 
+            # due to the way that Cypher handles single/double quotes.
+            ext_prop = existing_data_dict[target_property_key]
+            if isinstance(ext_prop, str):
+                file_info_dict = ast.literal_eval(ext_prop)
+            else:
+                file_info_dict = ext_prop
+    else:
+        file_info_dict = generated_dict[target_property_key]
+    
+    # Remove the files via ingest-api call
+    ingest_api_target_url = schema_manager.get_ingest_api_url() + '/file-remove'
+
+    json_to_post = {
+        'entity_uuid': entity_uuid,
+        'file_uuids': [new_data_dict[property_key]], # Just one file uuid
+        'files_info_list': [file_info_dict] # Just one
+    }
+
+    logger.info(f"Remove the uploaded thumbnail file for entity {entity_uuid} via ingest-api call...")
+
+    # Disable ssl certificate verification
+    response = requests.post(url = ingest_api_target_url, headers = schema_manager._create_request_headers(user_token), json = json_to_post, verify = False) 
+
+    if response.status_code != 200:
+        msg = f"Failed to remove the thumbnail file via ingest-api for entity uuid: {entity_uuid}"
+        logger.error(msg)
+        raise schema_errors.FileUploadException(msg)
+
+    # Set target_property_key to empty dict 
+    # because no thumbnail file left once removed the only one thumbnail file
+    # response.json() also returns an empty array
+    generated_dict[target_property_key] = {}
+
+    return generated_dict
+
+
 ####################################################################################################
 ## Trigger methods specific to Donor - DO NOT RENAME
 ####################################################################################################
@@ -1417,7 +1583,7 @@ in a JSON array like below ("description" is optional):
 Parameters
 ----------
 target_property_key : str
-    The target property key of the value to be generated
+    The name of the property where the file information is stored
 property_key : str
     The property key for which the original trigger method is defined
 normalized_type : str
@@ -1428,11 +1594,12 @@ existing_data_dict : dict
     A dictionary that contains all existing entity properties
 new_data_dict : dict
     A merged dictionary that contains all possible input data to be used
+generated_dict : dict 
+    A dictionary that contains all final data
 
 Returns
 -------
-str: The target property key
-list: The file info dicts in a list
+dict: The updated generated dict
 """
 def _commit_files(target_property_key, property_key, normalized_type, user_token, existing_data_dict, new_data_dict, generated_dict):
     # Do nothing if no files to add are provided (missing or empty property)
@@ -1513,7 +1680,7 @@ def _commit_files(target_property_key, property_key, normalized_type, user_token
 
 
 """
-Trigger event methods for removing files from an entity during update
+Trigger event method for removing files from an entity during update
 
 Files are stored in a json encoded text field with property name 'target_property_key' in the entity dict
 The files to remove are specified as file uuids in the `property_key` field
@@ -1524,7 +1691,7 @@ field name to private method, _delete_files along with the other required trigge
 Parameters
 ----------
 target_property_key : str
-    The target property key of the value to be generated
+    The name of the property where the file information is stored
 property_key : str
     The property key for which the original trigger method is defined
 normalized_type : str
@@ -1535,15 +1702,12 @@ existing_data_dict : dict
     A dictionary that contains all existing entity properties
 new_data_dict : dict
     A merged dictionary that contains all possible input data to be used
-
------------
-target_property_key: str
-    The name of the property where the file information is stored
+generated_dict : dict 
+    A dictionary that contains all final data
 
 Returns
 -------
-str: The target property key
-list: The file info dicts in a list
+dict: The updated generated dict
 """
 def _delete_files(target_property_key, property_key, normalized_type, user_token, existing_data_dict, new_data_dict, generated_dict):
     #do nothing if no files to delete are provided in the field specified by property_key
