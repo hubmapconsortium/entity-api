@@ -984,8 +984,6 @@ in a JSON object like below:
 
 Parameters
 ----------
-target_property_key : str
-    The name of the property where the file information is stored
 property_key : str
     The property key for which the original trigger method is defined
 normalized_type : str
@@ -1003,7 +1001,10 @@ Returns
 -------
 dict: The updated generated dict
 """
-def commit_thumbnail_file(target_property_key, property_key, normalized_type, user_token, existing_data_dict, new_data_dict, generated_dict):
+def commit_thumbnail_file(property_key, normalized_type, user_token, existing_data_dict, new_data_dict, generated_dict):
+    # The name of the property where the file information is stored
+    target_property_key = 'thumbnail_file'
+
     # Do nothing if no thumbnail file to add (missing or empty property)
     if (not property_key in new_data_dict) or (not new_data_dict[property_key]):
         return generated_dict
@@ -1063,8 +1064,6 @@ The file to remove is specified as file uuid in the `property_key` field
 
 Parameters
 ----------
-target_property_key : str
-    The name of the property where the file information is stored
 property_key : str
     The property key for which the original trigger method is defined
 normalized_type : str
@@ -1082,7 +1081,10 @@ Returns
 -------
 dict: The updated generated dict
 """
-def delete_thumbnail_file(target_property_key, property_key, normalized_type, user_token, existing_data_dict, new_data_dict, generated_dict):
+def delete_thumbnail_file(property_key, normalized_type, user_token, existing_data_dict, new_data_dict, generated_dict):
+    # The name of the property where the file information is stored
+    target_property_key = 'thumbnail_file'
+    
     # Do nothing if no thumbnail file to delete 
     # is provided in the field specified by property_key
     if (not property_key in new_data_dict) or (not new_data_dict[property_key]):
