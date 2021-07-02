@@ -351,13 +351,14 @@ ENTITIES:
         # The updated_peripherally tag is a temporary measure to correctly handle any attributes
         # which are potentially updated by multiple triggers
         updated_peripherally: true
-      # There's no before_update_trigger for `thumbnail_file_to_add` since no description to update
       thumbnail_file_to_add:
         type: json_string 
         transient: true
         exposed: false
         description: 'Just a temporary file id. Provide as a json object with an temp_file_id like {"temp_file_id":"dzevgd6xjs4d5grmcp4n"}'
         before_create_trigger: commit_thumbnail_file
+        # This before_update_trigger with the same commit process can be used by ingest-api to update the dataset via PUT call
+        before_update_trigger: commit_thumbnail_file
         # The updated_peripherally tag is a temporary measure to correctly handle any attributes
         # which are potentially updated by multiple triggers
         updated_peripherally: true
