@@ -303,7 +303,7 @@ components:
           type: boolean
         vitessce-hints:
           type: array
-            items:
-              type: string
-    X-ref-Donor:
-      Donor-file-ref: https://raw.githubusercontent.com/hubmapconsortium/entity-api/73d880fbeefb0ec5a9527cbea8b83ddd3d7f4e50/entity-api-spec.yaml
+        items:
+          type: string
+    X-replace-schema:
+        schema-file-ref: yaml-templates/base-schema.yaml
