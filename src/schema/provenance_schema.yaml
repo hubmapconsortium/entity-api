@@ -203,7 +203,7 @@ ENTITIES:
   ############################################# Dataset #############################################
   Dataset:
     # Only allowed applications can create new Dataset via POST
-    before_entity_create_validator: validate_application_header_before_dataset_create
+    before_entity_create_validator: validate_application_header_before_entity_create
     # Dataset can be either derivation source or target
     derivation:
       source: true
@@ -616,7 +616,7 @@ ENTITIES:
   # Eventually we might allow folks to bulk register Samples or Donors through the same mechanism.
   Upload:
     # Only allowed applications can create new Upload via POST
-    before_entity_create_validator: validate_application_header_before_upload_create
+    before_entity_create_validator: validate_application_header_before_entity_create
     # Upload requires an ancestor of Lab, and and has no allowed decesndents 
     derivation:
       source: false

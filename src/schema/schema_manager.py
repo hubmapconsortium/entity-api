@@ -690,19 +690,20 @@ def validate_json_data_against_schema(json_data_dict, normalized_entity_type, ex
     
 
 """
-Execute the entity level validators defined in the schema yaml 
+Execute the entity level validator of the given type defined in the schema yaml 
 before entity creation via POST or entity update via PUT
+Only one validator defined per given validator type, no need to use multiple validators
 
 Parameters
 ----------
 validator_type : str
-    One of the validator types: before_entity_create_validator, before_entity_update_validator
+    One of the validator types: before_entity_create, before_entity_update
 normalized_entity_type : str
     One of the normalized entity types defined in the schema yaml: Donor, Sample, Dataset, Upload
 request_headers: Flask request.headers object, behaves like a dict
     The instance of Flask request.headers passed in from application request
 """
-def execute_entity_level_validators(validator_type, normalized_entity_type, request_headers):
+def execute_entity_level_validator(validator_type, normalized_entity_type, request_headers):
     global _schema
 
     # A bit validation
@@ -739,7 +740,7 @@ before property update via PUT
 Parameters
 ----------
 validator_type : str
-    For now only: before_property_update_validators (support multiple validators)
+    For now only: before_property_update (support multiple validators)
 normalized_entity_type : str
     One of the normalized entity types defined in the schema yaml: Donor, Sample, Dataset, Upload
 request_headers: Flask request.headers object, behaves like a dict
@@ -871,10 +872,10 @@ Validate the provided entity level validator type
 Parameters
 ----------
 validator_type : str
-    One of the validator types: before_create_validator, before_update_validator
+    One of the validator types: before_entity_create, before_entity_update
 """
 def validate_entity_level_validator_type(validator_type):
-    accepted_validator_types = ['before_entity_create_validator', 'before_entity_update_validator']
+    accepted_validator_types = ['before_entity_create', 'before_entity_update']
     separator = ', '
 
     if validator_type.lower() not in accepted_validator_types:
@@ -892,7 +893,7 @@ validator_type : str
     One of the validator types: before_create_validator, before_update_validator
 """
 def validate_property_level_validator_type(validator_type):
-    accepted_validator_types = ['before_property_update_validators']
+    accepted_validator_types = ['before_property_update']
     separator = ', '
 
     if validator_type.lower() not in accepted_validator_types:

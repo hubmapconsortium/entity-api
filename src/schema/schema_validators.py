@@ -5,14 +5,19 @@ from schema import schema_errors
 
 logger = logging.getLogger(__name__)
 
+# Shared constants
+INGEST_API_APP = 'ingest-api'
+INGEST_PIPELINE_APP = 'ingest-pipeline'
+HUBMAP_APP_HEADER = 'X-Hubmap-Application'
+DATASET_STATUS_PUBLISHED = 'published'
 
 ####################################################################################################
-## Entity Level Validators specific to Dataset
+## Entity Level Validators
 ####################################################################################################
 
 """
-Validate the application specified in the custom HTTP header 'X-Hubmap-Application'
-for creating a new Dataset via POST
+Validate the application specified in the custom HTTP header
+for creating a new entity via POST
 
 Parameters
 ----------
@@ -21,33 +26,11 @@ normalized_type : str
 request_headers: Flask request.headers object, behaves like a dict
     The instance of Flask request.headers passed in from application request
 """
-def validate_application_header_before_dataset_create(normalized_entity_type, request_headers):
-    # A list of applications allowed to create new Dataset
+def validate_application_header_before_entity_create(normalized_entity_type, request_headers):
+    # A list of applications allowed to create this new entity
+    # Currently only ingest-api is allowed to create Dataset and Upload
     # Use lowercase for comparison
-    applications_allowed = ['ingest-api']
-
-    _validate_application_header(applications_allowed, request_headers)
-
-
-####################################################################################################
-## Entity Level Validators specific to Upload
-####################################################################################################
-
-"""
-Validate the application specified in the custom HTTP header 'X-Hubmap-Application'
-for creating a new Upload via POST
-
-Parameters
-----------
-normalized_type : str
-    One of the types defined in the schema yaml: Donor, Sample, Dataset, Upload
-request_headers: Flask request.headers object, behaves like a dict
-    The instance of Flask request.headers passed in from application request
-"""
-def validate_application_header_before_upload_create(normalized_entity_type, request_headers):
-    # A list of applications allowed to create new Upload
-    # Use lowercase for comparison
-    applications_allowed = ['ingest-api']
+    applications_allowed = [INGEST_API_APP]
 
     _validate_application_header(applications_allowed, request_headers)
 
@@ -57,7 +40,7 @@ def validate_application_header_before_upload_create(normalized_entity_type, req
 ####################################################################################################
 
 """
-Validate the application specified in the custom HTTP header 'X-Hubmap-Application'
+Validate the application specified in the custom HTTP header
 for updating Dataset.status via PUT
 
 Parameters
@@ -76,7 +59,7 @@ new_data_dict : dict
 def validate_application_header_before_dataset_status_update(property_key, normalized_entity_type, request_headers, existing_data_dict, new_data_dict):
     # A list of applications allowed to update this property
     # Use lowercase for comparison
-    applications_allowed = ['ingest-api', 'ingest-pipeline']
+    applications_allowed = [INGEST_API_APP, INGEST_PIPELINE_APP]
 
     _validate_application_header(applications_allowed, request_headers)
 
@@ -86,7 +69,7 @@ def validate_application_header_before_dataset_status_update(property_key, norma
 ####################################################################################################
 
 """
-Validate the application specified in the custom HTTP header 'X-Hubmap-Application'
+Validate the application specified in the custom HTTP header
 for updating registered_doi property of an exisiting entity via PUT
 
 Parameters
@@ -105,13 +88,13 @@ new_data_dict : dict
 def validate_application_header_before_registered_doi_update(property_key, normalized_entity_type, request_headers, existing_data_dict, new_data_dict):
     # A list of applications allowed to update this property
     # Use lowercase for comparison
-    applications_allowed = ['ingest-api']
+    applications_allowed = [INGEST_API_APP]
 
     _validate_application_header(normalized_entity_type, request_headers)
 
 
 """
-Validate the application specified in the custom HTTP header 'X-Hubmap-Application'
+Validate the application specified in the custom HTTP header
 for updating doi_url property of an exisiting entity via PUT
 
 Parameters
@@ -130,7 +113,7 @@ new_data_dict : dict
 def validate_application_header_before_doi_url_update(property_key, normalized_entity_type, request_headers, existing_data_dict, new_data_dict):
     # A list of applications allowed to update this property
     # Use lowercase for comparison
-    applications_allowed = ['ingest-api']
+    applications_allowed = [INGEST_API_APP]
 
     _validate_application_header(normalized_entity_type, request_headers)
 
@@ -167,17 +150,17 @@ def validate_dataset_status_value(property_key, normalized_entity_type, request_
 
     # If status == 'Published' already in Neo4j, then fail for any changes at all
     # Because once published, the dataset should be read-only
-    if existing_data_dict['staus'].lower() == 'published':
+    if existing_data_dict['status'].lower() == DATASET_STATUS_PUBLISHED:
         raise ValueError("This dataset is already published, status change is not allowed")
 
     # HTTP header names are case-insensitive
     # request_headers.get('X-Hubmap-Application') returns None if the header doesn't exist
-    app_header = request_headers.get('X-Hubmap-Application')
+    app_header = request_headers.get(HUBMAP_APP_HEADER)
 
-    # If status is being changed to 'Published', fail
-    # This can only happen via ingest-api because file system changes are needed
-    if (new_status == 'published') and (app_header.lower() != 'ingest-api'):
-        raise ValueError("Status change to 'Published' can only be made via ingest-api")
+    # Change status to 'Published' can only happen via ingest-api 
+    # because file system changes are needed
+    if (new_status == DATASET_STATUS_PUBLISHED) and (app_header.lower() != INGEST_API_APP):
+        raise ValueError(f"Dataset status change to 'Published' can only be made via {INGEST_API_APP}")
 
 
 ####################################################################################################
@@ -227,14 +210,14 @@ request_headers: Flask request.headers object, behaves like a dict
 def _validate_application_header(applications_allowed, request_headers):
     # HTTP header names are case-insensitive
     # request_headers.get('X-Hubmap-Application') returns None if the header doesn't exist
-    app_header = request_headers.get('X-Hubmap-Application')
+    app_header = request_headers.get(HUBMAP_APP_HEADER)
 
     if not app_header:
-        msg = "Unbale to proceed due to missing X-Hubmap-Application header from request"
+        msg = f"Unbale to proceed due to missing {HUBMAP_APP_HEADER} header from request"
         raise schema_errors.MissingApplicationHeaderException(msg)
 
     # Use lowercase for comparing the application header value against the yaml
     if app_header.lower() not in applications_allowed:
-        msg = f"Unable to proceed due to invalid X-Hubmap-Application header value: {app_header}"
+        msg = f"Unable to proceed due to invalid {HUBMAP_APP_HEADER} header value: {app_header}"
         raise schema_errors.InvalidApplicationHeaderException(msg)
 
