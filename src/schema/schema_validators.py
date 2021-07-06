@@ -12,11 +12,12 @@ logger = logging.getLogger(__name__)
 
 """
 Validate the application specified in the custom HTTP header 'X-Hubmap-Application'
+for creating a new entity via POST
 
 Parameters
 ----------
 normalized_type : str
-    One of the types defined in the schema yaml: Donor, Sample, Dataset, Submission
+    One of the types defined in the schema yaml: Donor, Sample, Dataset, Upload
 request_headers: Flask request.headers object, behaves like a dict
     The instance of Flask request.headers passed in from application request
 """
@@ -34,24 +35,27 @@ def validate_application_header_before_entity_update(normalized_entity_type, req
 
 """
 Validate the application specified in the custom HTTP header 'X-Hubmap-Application'
+for updating the properties of an exisiting entity via PUT
 
 Parameters
 ----------
 property_key : str
     The target property key
 normalized_type : str
-    One of the types defined in the schema yaml: Donor, Sample, Dataset, Submission
+    One of the types defined in the schema yaml: Donor, Sample, Dataset, Upload
 request_headers: Flask request.headers object, behaves like a dict
     The instance of Flask request.headers passed in from application request
-request_json_data : dict
+existing_data_dict : dict
+    A dictionary that contains all existing entity properties
+new_data_dict : dict
     The json data in request body, already after the regular validations
 """
-def validate_application_header_before_property_update(property_key, normalized_entity_type, request_headers, request_json_data):
+def validate_application_header_before_property_update(property_key, normalized_entity_type, request_headers, existing_data_dict, new_data_dict):
     _validate_application_header(normalized_entity_type, request_headers)
 
 
 """
-Validate the provided value of Dataset.status on update
+Validate the provided value of Dataset.status on update via PUT
 
 Parameters
 ----------
