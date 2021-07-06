@@ -742,10 +742,12 @@ normalized_entity_type : str
     One of the normalized entity types defined in the schema yaml: Donor, Sample, Dataset, Upload
 request_headers: Flask request.headers object, behaves like a dict
     The instance of Flask request.headers passed in from application request
-request_json_data : dict
+existing_data_dict : dict
+    A dictionary that contains all existing entity properties
+new_data_dict : dict
     The json data in request body, already after the regular validations
 """
-def execute_property_level_validators(validator_type, normalized_entity_type, request_headers, request_json_data):
+def execute_property_level_validators(validator_type, normalized_entity_type, request_headers, existing_data_dict, new_data_dict):
     global _schema
 
     schema_section = None
@@ -758,7 +760,7 @@ def execute_property_level_validators(validator_type, normalized_entity_type, re
 
     for key in properties:
         # Only run the validators for keys present in the request json
-        if (key in request_json_data) and (validator_type in properties[key]):
+        if (key in new_data_dict) and (validator_type in properties[key]):
             # Get a list of defined validators on this property
             validators_list = properties[key][validator_type]
             # Run each validator defined on this property
@@ -769,7 +771,7 @@ def execute_property_level_validators(validator_type, normalized_entity_type, re
                     
                     logger.debug(f"To run {validator_type}: {validator_method_name} defined for entity {normalized_entity_type} on property {key}")
 
-                    validator_method_to_call(key, normalized_entity_type, request_headers, request_json_data)
+                    validator_method_to_call(key, normalized_entity_type, request_headers, existing_data_dict, new_data_dict)
                 except schema_errors.MissingApplicationHeaderException as e: 
                     raise schema_errors.MissingApplicationHeaderException(e) 
                 except schema_errors.InvalidApplicationHeaderException as e: 

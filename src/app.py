@@ -974,7 +974,7 @@ def update_entity(id):
 
     # Execute validators defined in schema yaml before entity update
     try:
-        schema_manager.execute_entity_level_validators('before_entity_update_validator', normalized_entity_type, request.headers)
+        schema_manager.execute_entity_level_validators('before_entity_update_validator', normalized_entity_type, request.headers, entity_dict)
     except schema_errors.MissingApplicationHeaderException as e: 
         bad_request_error(e)  
     except schema_errors.InvalidApplicationHeaderException as e: 
