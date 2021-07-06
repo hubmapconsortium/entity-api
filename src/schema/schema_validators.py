@@ -7,12 +7,12 @@ logger = logging.getLogger(__name__)
 
 
 ####################################################################################################
-## Entity Level Validators
+## Entity Level Validators specific to Dataset
 ####################################################################################################
 
 """
 Validate the application specified in the custom HTTP header 'X-Hubmap-Application'
-for creating a new entity via POST
+for creating a new Dataset via POST
 
 Parameters
 ----------
@@ -21,21 +21,44 @@ normalized_type : str
 request_headers: Flask request.headers object, behaves like a dict
     The instance of Flask request.headers passed in from application request
 """
-def validate_application_header_before_entity_create(normalized_entity_type, request_headers):
-    _validate_application_header(normalized_entity_type, request_headers)
+def validate_application_header_before_dataset_create(normalized_entity_type, request_headers):
+    # A list of applications allowed to create new Dataset
+    # Use lowercase for comparison
+    applications_allowed = ['ingest-api']
 
-def validate_application_header_before_entity_update(normalized_entity_type, request_headers):
-    _validate_application_header(normalized_entity_type, request_headers)
+    _validate_application_header(applications_allowed, request_headers)
 
 
 ####################################################################################################
-## Property Level Validators
+## Entity Level Validators specific to Upload
 ####################################################################################################
-
 
 """
 Validate the application specified in the custom HTTP header 'X-Hubmap-Application'
-for updating the properties of an exisiting entity via PUT
+for creating a new Upload via POST
+
+Parameters
+----------
+normalized_type : str
+    One of the types defined in the schema yaml: Donor, Sample, Dataset, Upload
+request_headers: Flask request.headers object, behaves like a dict
+    The instance of Flask request.headers passed in from application request
+"""
+def validate_application_header_before_upload_create(normalized_entity_type, request_headers):
+    # A list of applications allowed to create new Upload
+    # Use lowercase for comparison
+    applications_allowed = ['ingest-api']
+
+    _validate_application_header(applications_allowed, request_headers)
+
+
+####################################################################################################
+## Property Level Validators specific to Dataset
+####################################################################################################
+
+"""
+Validate the application specified in the custom HTTP header 'X-Hubmap-Application'
+for updating Dataset.status via PUT
 
 Parameters
 ----------
@@ -50,9 +73,70 @@ existing_data_dict : dict
 new_data_dict : dict
     The json data in request body, already after the regular validations
 """
-def validate_application_header_before_property_update(property_key, normalized_entity_type, request_headers, existing_data_dict, new_data_dict):
+def validate_application_header_before_dataset_status_update(property_key, normalized_entity_type, request_headers, existing_data_dict, new_data_dict):
+    # A list of applications allowed to update this property
+    # Use lowercase for comparison
+    applications_allowed = ['ingest-api', 'ingest-pipeline']
+
+    _validate_application_header(applications_allowed, request_headers)
+
+
+####################################################################################################
+## Property Level Validators shared by Dataset and Collection (currently)
+####################################################################################################
+
+"""
+Validate the application specified in the custom HTTP header 'X-Hubmap-Application'
+for updating registered_doi property of an exisiting entity via PUT
+
+Parameters
+----------
+property_key : str
+    The target property key
+normalized_type : str
+    One of the types defined in the schema yaml: Donor, Sample, Dataset, Upload
+request_headers: Flask request.headers object, behaves like a dict
+    The instance of Flask request.headers passed in from application request
+existing_data_dict : dict
+    A dictionary that contains all existing entity properties
+new_data_dict : dict
+    The json data in request body, already after the regular validations
+"""
+def validate_application_header_before_registered_doi_update(property_key, normalized_entity_type, request_headers, existing_data_dict, new_data_dict):
+    # A list of applications allowed to update this property
+    # Use lowercase for comparison
+    applications_allowed = ['ingest-api']
+
     _validate_application_header(normalized_entity_type, request_headers)
 
+
+"""
+Validate the application specified in the custom HTTP header 'X-Hubmap-Application'
+for updating doi_url property of an exisiting entity via PUT
+
+Parameters
+----------
+property_key : str
+    The target property key
+normalized_type : str
+    One of the types defined in the schema yaml: Donor, Sample, Dataset, Upload
+request_headers: Flask request.headers object, behaves like a dict
+    The instance of Flask request.headers passed in from application request
+existing_data_dict : dict
+    A dictionary that contains all existing entity properties
+new_data_dict : dict
+    The json data in request body, already after the regular validations
+"""
+def validate_application_header_before_doi_url_update(property_key, normalized_entity_type, request_headers, existing_data_dict, new_data_dict):
+    # A list of applications allowed to update this property
+    # Use lowercase for comparison
+    applications_allowed = ['ingest-api']
+
+    _validate_application_header(normalized_entity_type, request_headers)
+
+####################################################################################################
+## Property Level Validators specific to Dataset
+####################################################################################################
 
 """
 Validate the provided value of Dataset.status on update via PUT
@@ -71,13 +155,12 @@ new_data_dict : dict
     The json data in request body, already after the regular validations
 """
 def validate_dataset_status_value(property_key, normalized_entity_type, request_headers, existing_data_dict, new_data_dict):
-    accepted_status_values = ['new', 'processing', 'published', 'qa', 'error', 'hold', 'invalid']
-
     # Use lowercase for comparison
+    accepted_status_values = ['new', 'processing', 'published', 'qa', 'error', 'hold', 'invalid']
     new_status = new_data_dict[property_key].lower()
 
     if new_status not in accepted_status_values:
-        raise ValueError("The provided status value is not valid")
+        raise ValueError("The provided status value of Dataset is not valid")
 
     if 'status' not in existing_data_dict:
         raise KeyError("Missing 'status' key in 'existing_data_dict' during calling 'validate_dataset_status_value()' validator method.")
@@ -96,8 +179,13 @@ def validate_dataset_status_value(property_key, normalized_entity_type, request_
     if (new_status == 'published') and (app_header.lower() != 'ingest-api'):
         raise ValueError("Status change to 'Published' can only be made via ingest-api")
 
+
+####################################################################################################
+## Property Level Validators specific to Upload
+####################################################################################################
+
 """
-Validate the provided value of Submission.status on update
+Validate the provided value of Upload.status on update via PUT
 
 Parameters
 ----------
@@ -113,13 +201,12 @@ new_data_dict : dict
     The json data in request body, already after the regular validations
 """
 def validate_upload_status_value(property_key, normalized_entity_type, request_headers, existing_data_dict, new_data_dict):
-    accepted_status_values = ['new', 'valid', 'invalid', 'error', 'reorganized', 'processing']
-    
     # Use lowercase for comparison
+    accepted_status_values = ['new', 'valid', 'invalid', 'error', 'reorganized', 'processing']
     new_status = new_data_dict[property_key].lower()
 
     if new_status not in accepted_status_values:
-        raise ValueError("The provided status value is not valid")
+        raise ValueError("The provided status value of Upload is not valid")
 
     
 ####################################################################################################
@@ -131,16 +218,13 @@ Validate the application specified in the custom HTTP header 'X-Hubmap-Applicati
 
 Parameters
 ----------
-normalized_type : str
-    One of the types defined in the schema yaml: Donor, Sample, Dataset, Submission
+applications_allowed : list
+    A list of applications allowed to create the target entity or update the target property
+    Items in this list ALL LOWERCASED to ease comparison
 request_headers: Flask request.headers object, behaves like a dict
     The instance of Flask request.headers passed in from application request
 """
-def _validate_application_header(normalized_entity_type, request_headers):
-    # Get the list of applications allowed to create or update this entity
-    # Returns empty list if no restrictions, meaning both users and aplications can create or update
-    applications_allowed = ['ingest-api', 'ingest-pipeline']
-
+def _validate_application_header(applications_allowed, request_headers):
     # HTTP header names are case-insensitive
     # request_headers.get('X-Hubmap-Application') returns None if the header doesn't exist
     app_header = request_headers.get('X-Hubmap-Application')
@@ -151,6 +235,6 @@ def _validate_application_header(normalized_entity_type, request_headers):
 
     # Use lowercase for comparing the application header value against the yaml
     if app_header.lower() not in applications_allowed:
-        msg = f"Unable to proceed due to invalid X-Hubmap-Application header value: {request_headers.get('X-Hubmap-Application')}"
+        msg = f"Unable to proceed due to invalid X-Hubmap-Application header value: {app_header}"
         raise schema_errors.InvalidApplicationHeaderException(msg)
 

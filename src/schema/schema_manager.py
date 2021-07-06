@@ -691,6 +691,7 @@ def validate_json_data_against_schema(json_data_dict, normalized_entity_type, ex
 
 """
 Execute the entity level validators defined in the schema yaml 
+before entity creation via POST or entity update via PUT
 
 Parameters
 ----------
@@ -733,11 +734,12 @@ def execute_entity_level_validators(validator_type, normalized_entity_type, requ
 
 """
 Execute the property level validators defined in the schema yaml 
+before property update via PUT
 
 Parameters
 ----------
 validator_type : str
-    For now only: before_property_update_validators
+    For now only: before_property_update_validators (support multiple validators)
 normalized_entity_type : str
     One of the normalized entity types defined in the schema yaml: Donor, Sample, Dataset, Upload
 request_headers: Flask request.headers object, behaves like a dict
