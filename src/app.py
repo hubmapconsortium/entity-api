@@ -782,7 +782,7 @@ def create_entity(entity_type):
 
     # Execute entity level validator defined in schema yaml before entity creation
     try:
-        schema_manager.execute_entity_level_validator('before_entity_create', normalized_entity_type, request.headers)
+        schema_manager.execute_entity_level_validator('before_entity_create_validator', normalized_entity_type, request.headers)
     except schema_errors.MissingApplicationHeaderException as e: 
         bad_request_error(e)  
     except schema_errors.InvalidApplicationHeaderException as e: 
@@ -974,7 +974,7 @@ def update_entity(id):
 
     # Execute entity level validator defined in schema yaml before entity update
     try:
-        schema_manager.execute_entity_level_validator('before_entity_update', normalized_entity_type, request.headers, entity_dict)
+        schema_manager.execute_entity_level_validator('before_entity_update_validator', normalized_entity_type, request.headers)
     except (schema_errors.MissingApplicationHeaderException, 
             schema_errors.InvalidApplicationHeaderException) as e: 
         bad_request_error(e)
@@ -989,7 +989,7 @@ def update_entity(id):
 
     # Execute property level validators defined in schema yaml before entity property update
     try:
-        schema_manager.execute_property_level_validators('before_property_update', normalized_entity_type, request.headers, json_data_dict)
+        schema_manager.execute_property_level_validators('before_property_update_validators', normalized_entity_type, request.headers, entity_dict, json_data_dict)
     except (schema_errors.MissingApplicationHeaderException, 
             schema_errors.InvalidApplicationHeaderException, 
             KeyError, 

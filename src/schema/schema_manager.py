@@ -875,7 +875,7 @@ validator_type : str
     One of the validator types: before_entity_create, before_entity_update
 """
 def validate_entity_level_validator_type(validator_type):
-    accepted_validator_types = ['before_entity_create', 'before_entity_update']
+    accepted_validator_types = ['before_entity_create_validator', 'before_entity_update_validator']
     separator = ', '
 
     if validator_type.lower() not in accepted_validator_types:
@@ -890,10 +890,10 @@ Validate the provided property level validator type
 Parameters
 ----------
 validator_type : str
-    One of the validator types: before_create_validator, before_update_validator
+    One of the validator types: before_property_update_validators
 """
 def validate_property_level_validator_type(validator_type):
-    accepted_validator_types = ['before_property_update']
+    accepted_validator_types = ['before_property_update_validators']
     separator = ', '
 
     if validator_type.lower() not in accepted_validator_types:
