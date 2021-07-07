@@ -98,19 +98,11 @@ doi_properties: &doi_properties
     # So we can't define it as `immutable: true`
     type: string
     description: "The doi of the registered entity. e.g. 10.35079/hbm289.pcbm.487"
-    # Only allowed applications can update this property via PUT
-    # Currently for publishing Collection and Dataset only
-    before_property_update_validators: 
-      - validate_application_header_before_registered_doi_update
   doi_url:
     # This property gets set via a PUT by ingest-api after the DOI is created via DataCite
     # So we can't define it as `immutable: true`
     type: string
     description: "The url from the doi registry for this entity. e.g. https://doi.org/10.35079/hbm289.pcbm.487"
-    # Only allowed applications can update this property via PUT
-    # Currently for publishing Collection and Dataset only
-    before_property_update_validators: 
-      - validate_application_header_before_doi_url_update
   # Currently cretors and contacts are only available for public Collections
   creators:
     type: list
@@ -203,7 +195,9 @@ ENTITIES:
   ############################################# Dataset #############################################
   Dataset:
     # Only allowed applications can create new Dataset via POST
-    before_entity_create_validator: validate_application_header_before_entity_create
+    before_entity_create_validator: validate_application_header
+    # Only allowed applications can update existing Dataset via PUT
+    before_entity_update_validator: validate_application_header
     # Dataset can be either derivation source or target
     derivation:
       source: true
@@ -230,9 +224,7 @@ ENTITIES:
         required_on_create: true # Only required for create via POST, not update via PUT
         description: "True if the data contains any human genetic sequence information."
       status:
-        # Only allowed applications can update this property via PUT
         before_property_update_validators: 
-          - validate_application_header_before_dataset_status_update
           - validate_dataset_status_value
         type: string
         generated: true
@@ -616,7 +608,9 @@ ENTITIES:
   # Eventually we might allow folks to bulk register Samples or Donors through the same mechanism.
   Upload:
     # Only allowed applications can create new Upload via POST
-    before_entity_create_validator: validate_application_header_before_entity_create
+    before_entity_create_validator: validate_application_header
+    # Only allowed applications can update existing Upload via PUT
+    before_entity_update_validator: validate_application_header
     # Upload requires an ancestor of Lab, and and has no allowed decesndents 
     derivation:
       source: false

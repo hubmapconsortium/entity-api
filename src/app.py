@@ -781,6 +781,7 @@ def create_entity(entity_type):
         bad_request_error(f"Invalid entity type provided: {entity_type}")
 
     # Execute entity level validator defined in schema yaml before entity creation
+    # Currently on Dataset and Upload creation require application header
     try:
         schema_manager.execute_entity_level_validator('before_entity_create_validator', normalized_entity_type, request.headers)
     except schema_errors.MissingApplicationHeaderException as e: 
@@ -973,6 +974,7 @@ def update_entity(id):
     normalized_entity_type = schema_manager.normalize_entity_type(entity_dict['entity_type'])
 
     # Execute entity level validator defined in schema yaml before entity update
+    # Currently only Dataset and Upload require application header on PUT
     try:
         schema_manager.execute_entity_level_validator('before_entity_update_validator', normalized_entity_type, request.headers)
     except (schema_errors.MissingApplicationHeaderException, 

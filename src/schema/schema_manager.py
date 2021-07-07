@@ -692,12 +692,12 @@ def validate_json_data_against_schema(json_data_dict, normalized_entity_type, ex
 """
 Execute the entity level validator of the given type defined in the schema yaml 
 before entity creation via POST or entity update via PUT
-Only one validator defined per given validator type, no need to use multiple validators
+Only one validator defined per given validator type, no need to support multiple validators
 
 Parameters
 ----------
 validator_type : str
-    One of the validator types: before_entity_create, before_entity_update
+    One of the validator types: before_entity_create_validator, before_entity_update_validator
 normalized_entity_type : str
     One of the normalized entity types defined in the schema yaml: Donor, Sample, Dataset, Upload
 request_headers: Flask request.headers object, behaves like a dict
@@ -872,7 +872,7 @@ Validate the provided entity level validator type
 Parameters
 ----------
 validator_type : str
-    One of the validator types: before_entity_create, before_entity_update
+    One of the validator types: before_entity_create_validator, before_entity_update_validator
 """
 def validate_entity_level_validator_type(validator_type):
     accepted_validator_types = ['before_entity_create_validator', 'before_entity_update_validator']
