@@ -3,20 +3,25 @@ import urllib.request
 import yaml
 import sys
 
-#This program takes in as an argument a reference to a yaml file. It will then scan through the file looking for particular tags, and then upon finding those tags, replacing them with text from other yaml files a given address
+#This program takes in as an argument a reference to a yaml file. It will then scan through the file looking for
+# #particular tags, and then upon finding those tags, replacing them with text from other yaml files a given address
 
-def input_from_yaml(inputfile): #This function accepts a file path to a yaml file and returns the contents of the yaml file as a dictionary
+#This function accepts a file path to a yaml file and returns the contents of the yaml file as a dictionary
+def input_from_yaml(inputfile):
     with open(inputfile) as file:
         yaml_template = yaml.load(file, Loader=yaml.FullLoader)
         return yaml_template
-def get_yaml_from_url(yaml_url): #This function accepts a url for a yaml file, and returns the contents of the yaml file in a python dictionary
+#This function accepts a url for a yaml file, and returns the contents of the yaml file in a python dictionary
+def get_yaml_from_url(yaml_url):
     with urllib.request.urlopen(yaml_url) as urlfile:
         yaml_resource_file = yaml.load(urlfile, Loader=yaml.FullLoader)
         return yaml_resource_file
-def output_to_yaml(): #This function accepts a python dictionary and outputs a yaml file to a given file path with the content of that library inside.
+#This function accepts a python dictionary and outputs a yaml file to a given file path with the content of that library inside.
+def output_to_yaml():
     with open('yaml-templates/new-spec-api.yaml', 'w') as outfile:
         yaml.dump(outputyaml, outfile, sort_keys=False)
-def create_new_yaml(nested_dict): #This function takes in a strongly nested dictionary, then recursively traverses it looking for certain tags. It then replaces the tags with text from other files and then returns a new file.
+#This function takes in a strongly nested dictionary, then recursively traverses it looking for certain tags. It then replaces the tags with text from other files and then returns a new file.
+def create_new_yaml(nested_dict):
     emptydict = {}
     for mykey, myvalue in nested_dict.items():
         mykeystring = str(mykey)
@@ -45,7 +50,7 @@ def create_new_yaml(nested_dict): #This function takes in a strongly nested dict
             if searchstring == 'schema-file-ref':
                 for thatkey, thatvalue in emptydict.items():
                     storagedict[thatkey] = thatvalue
-                #for tempkey, tempvalue in yaml_obj.items():                          for right now, this just goes through each key/value in base-schema and adds it to the storagedict.
+                #for tempkey, tempvalue in yaml_obj.items():
                 #    storagedict[tempkey] = tempvalue
                 internalcall = create_new_yaml(yaml_obj)
                 for tempkey, tempvalue in internalcall.items():
