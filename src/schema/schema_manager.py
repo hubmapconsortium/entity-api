@@ -740,7 +740,7 @@ before property update via PUT
 Parameters
 ----------
 validator_type : str
-    For now only: before_property_update (support multiple validators)
+    For now only: before_property_update_validators (support multiple validators)
 normalized_entity_type : str
     One of the normalized entity types defined in the schema yaml: Donor, Sample, Dataset, Upload
 request_headers: Flask request.headers object, behaves like a dict
