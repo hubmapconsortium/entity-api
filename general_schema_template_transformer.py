@@ -18,7 +18,7 @@ def get_yaml_from_url(yaml_url):
         return yaml_resource_file
 #This function accepts a python dictionary and outputs a yaml file to a given file path with the content of that library inside.
 def output_to_yaml():
-    with open('yaml-templates/new-spec-api.yaml', 'w') as outfile:
+    with open('new-spec-api.yaml', 'w') as outfile:
         yaml.dump(outputyaml, outfile, sort_keys=False)
 #This function takes in a strongly nested dictionary, then recursively traverses it looking for certain tags. It then replaces the tags with text from other files and then returns a new file.
 def create_new_yaml(nested_dict):
