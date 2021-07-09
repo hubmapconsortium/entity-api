@@ -8,9 +8,12 @@ import sys
 
 #This function accepts a file path to a yaml file and returns the contents of the yaml file as a dictionary
 def input_from_yaml(inputfile):
-    with open(inputfile) as file:
-        yaml_template = yaml.load(file, Loader=yaml.FullLoader)
-        return yaml_template
+    try:
+        with open(inputfile) as file:
+            yaml_template = yaml.load(file, Loader=yaml.FullLoader)
+            return yaml_template
+    except FileNotFoundError as e:
+        print(e)
 #This function accepts a url for a yaml file, and returns the contents of the yaml file in a python dictionary
 def get_yaml_from_url(yaml_url):
     with urllib.request.urlopen(yaml_url) as urlfile:
@@ -18,8 +21,9 @@ def get_yaml_from_url(yaml_url):
         return yaml_resource_file
 #This function accepts a python dictionary and outputs a yaml file to a given file path with the content of that library inside.
 def output_to_yaml():
-    with open('new-spec-api.yaml', 'w') as outfile:
-        yaml.dump(outputyaml, outfile, sort_keys=False)
+    yaml.safe_dump(outputyaml, sys.stdout, allow_unicode=True, default_flow_style=False, sort_keys=False)
+    #with open('new-spec-api.yaml', 'w') as outfile:
+    #   yaml.dump(outputyaml, outfile, sort_keys=False)
 #This function takes in a strongly nested dictionary, then recursively traverses it looking for certain tags. It then replaces the tags with text from other files and then returns a new file.
 def create_new_yaml(nested_dict):
     emptydict = {}
@@ -39,35 +43,47 @@ def create_new_yaml(nested_dict):
                     emptydict['enum'] = secondstorage.get('enum')
         if mykeystring.startswith('X-replace'):
             if mykeystring == 'X-replace-enum-list':
-                searchstring='enum-file-ref'
-            if mykeystring == 'X-replace-schema':
-                searchstring='schema-file-ref'
-            yaml_url=str(myvalue.get(searchstring))
-            if yaml_url.startswith('http') == False:
-                yaml_obj = input_from_yaml(yaml_url)
-            if yaml_url.startswith('http'):
-                yaml_obj = get_yaml_from_url(yaml_url)
-            if searchstring == 'schema-file-ref':
-                for thatkey, thatvalue in emptydict.items():
-                    storagedict[thatkey] = thatvalue
-                #for tempkey, tempvalue in yaml_obj.items():
-                #    storagedict[tempkey] = tempvalue
-                internalcall = create_new_yaml(yaml_obj)
-                for tempkey, tempvalue in internalcall.items():
-                    storagedict[tempkey] = tempvalue
-                return 2
-            if searchstring == 'enum-file-ref':
+                yaml_url=str(myvalue.get('enum-file-ref'))
+                if yaml_url.startswith('http') == False:
+                    yaml_obj = input_from_yaml(yaml_url)
+                if yaml_url.startswith('http'):
+                    yaml_obj = get_yaml_from_url(yaml_url)
                 replaced_section = []
                 for key, value in yaml_obj.items():
                     replaced_section.append(key)
-                #emptydict['enum'] = replaced_section
+                # emptydict['enum'] = replaced_section
                 secondstorage['enum'] = replaced_section
                 return 3
+            if mykeystring == 'X-replace-schema':
+                yaml_url_list=(myvalue.get('schema-file-ref'))
+                for thatkey, thatvalue in emptydict.items():
+                    storagedict[thatkey] = thatvalue
+                for thisitem in yaml_url_list:
+                    yaml_url = str(thisitem)
+                    if yaml_url.startswith('http') == False:
+                        yaml_obj = input_from_yaml(yaml_url)
+                    if yaml_url.startswith('http'):
+                        yaml_obj = get_yaml_from_url(yaml_url)
+                    #for tempkey, tempvalue in yaml_obj.items():
+                    #    storagedict[tempkey] = tempvalue
+                    internalcall = create_new_yaml(yaml_obj)
+                    for tempkey, tempvalue in internalcall.items():
+                        storagedict[tempkey] = tempvalue
+                return 2
+
+
     return emptydict
 
-if len(sys.argv)>1: #Makes sure that there is at least one argument being passed to this program. If there is, the argument is assigned to a variable. input_from_yaml is then called with this variable as a parameter.
+#if len(sys.argv)>1: #Makes sure that there is at least one argument being passed to this program. If there is, the argument is assigned to a variable. input_from_yaml is then called with this variable as a parameter.
+#   input_file = str(sys.argv[1])
+try:
     input_file = str(sys.argv[1])
-yaml_template = input_from_yaml(input_file)
+    yaml_template = input_from_yaml(input_file)
+except Exception as e:
+    print(e)
+
+
+
 storagedict = {} #Instantiates a global dictionary. This provides temporary storage of dictionary elements to be used with create_new_yaml function
 secondstorage = {} #Instantiates a second global dictionary. This is only used for collecting enum lists to use at earlier loops through the recursive function
 outputyaml = create_new_yaml(yaml_template)

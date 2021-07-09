@@ -306,4 +306,10 @@ components:
         items:
           type: string
     X-replace-schema:
-        schema-file-ref: yaml-templates/base-schema.yaml
+      schema-file-ref:
+        - yaml-templates/donor-schema.yaml
+        - yaml-templates/sample-schema.yaml
+        - yaml-templates/dataset-schema.yaml
+        - yaml-templates/upload-schema.yaml
+        - yaml-templates/collections-schema.yaml
+

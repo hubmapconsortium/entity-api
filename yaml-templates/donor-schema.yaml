@@ -1,0 +1,129 @@
+Donor:
+  type: object
+  properties:
+    created_timestamp:
+      type: integer
+      readOnly: true
+      description: "The timestamp of when the node was created.  The format is an integer representing milliseconds since midnight Jan 1, 1970"
+    created_by_user_displayname:
+      type: string
+      readOnly: true
+      description: "The name of the person or process authenticated when creating the object"
+    created_by_user_email:
+      type: string
+      readOnly: true
+      description: "The email address of the person or process authenticated when creating the object."
+    created_by_user_sub:
+      type: string
+      readOnly: true
+      description: "The subject id as provided by the authorization mechanism for the person or process authenticated when creating the object."
+    uuid:
+      type: string
+      readOnly: true
+      description: "The HuBMAP unique identifier, intended for internal software use only.  This is a 32 digit hexadecimal uuid e.g. 461bbfdc353a2673e381f632510b0f17"
+    hubmap_id:
+      type: string
+      readOnly: true
+      description: "A HuBMAP Consortium wide unique identifier randomly generated in the format HBM###.ABCD.### for every entity."
+    last_modified_timestamp:
+      type: integer
+      readOnly: true
+      description: "The timestamp of when the object was last modified.  The format is an integer representing milliseconds since midnight, Jan 1, 1970"
+    last_modified_user_sub:
+      type: string
+      readOnly: true
+      description: "The subject id of the user who last modified the entity as provided by the authorization mechanism for the person or process authenticated when the object was modified."
+    last_modified_user_email:
+      type: string
+      readOnly: true
+      description: "The email address of the person or process which authenticated when the object was last modified."
+    last_modified_user_displayname:
+      type: string
+      readOnly: true
+      description: "The name of the person or process which authenticated when the object was last modified."
+    ###### All other shared properties ######
+    entity_type:
+      type: string
+      readOnly: true
+      description: "One of the normalized entity types: Dataset, Collection, Sample, Donor, Upload"
+    registered_doi:
+      type: string
+      description: "The doi of a the registered entity. e.g. 10.35079/hbm289.pcbm.487.  This is set during the publication process and currently available for certain Collections and Datasets."
+    doi_url:
+      type: string
+      readOnly: true
+      description: "The url from the doi registry for this entity. e.g. https://doi.org/10.35079/hbm289.pcbm.487"
+    creators:
+      type: array
+      items:
+        $ref: '#/components/schemas/Person'
+      description: "A list of the people who created the entity with full name, email, ORCID iD, institution, etc.. This is analogus to the author list on a publication."
+    contacts:
+      type: array
+      items:
+        $ref: '#/components/schemas/Person'
+      description: "A list of the people who are the main contacts to get information about the entity."
+    description:
+      type: string
+      description: "Free text description of the donor"
+    data_access_level:
+      type: string
+      readOnly: true
+      enum:
+        - consortium
+        - public
+      description: "One of the values: public, consortium"
+    image_files:
+      readOnly: true
+      type: array
+      items:
+        $ref: '#/components/schemas/File'
+      description: "List of uploaded image files and descriptions of the files. Stored in db as a stringfied json array."
+    image_files_to_add:
+      writeOnly: true
+      type: array
+      items:
+        type: string
+        format: file_id
+      description: 'List of temporary file ids with an optional description. Provide as a json array with an temp_file_id and description attribute for each element like {"files": [{"temp_file_id":"dzevgd6xjs4d5grmcp4n","description":"This is image file one"},{"temp_file_id":"yrahjadfhadf","description":"This is image file two"}]}'
+    image_files_to_remove:
+      writeOnly: true
+      type: array
+      items:
+        type: string
+        format: file_id
+      description: 'List of image files previously uploaded to delete. Provide as a json array of the file_uuids of the file like: ["232934234234234234234270c0ea6c51d604a850558ef2247d0b4", "230948203482234234234a57bfe9c056d08a0f8e6cd612baa3bfa"]'
+    metadata:
+      type: object
+      properties:
+        organ_donor_data:
+          type: array
+          description: "Information about the donor who's organ(s) was/were used.  The organ was obtained via an organ donation program from a deceaced donor. Only living_donor_data or organ_donor_data, not both can be defined for a single donor."
+          items:
+            $ref: '#/components/schemas/DonorMetadata'
+        living_donor_data:
+          type: array
+          description: "Information about the donor who's tissue was used.  The tissue was obtained during a procedure. Only living_donor_data or organ_donor_data, not both can be defined for a single donor."
+          items:
+            $ref: '#/components/schemas/DonorMetadata'
+      description: "Donor metadata as an array of UMLS codes and descriptions"
+    protocol_url:
+      type: string
+      description: "The protocols.io doi url pointing the protocol describing the donor selection, inclusion/exclusion criteria"
+    lab_donor_id:
+      type: string
+      description: "A lab specific identifier for the donor."
+    submission_id:
+      readOnly: true
+      type: string
+      description: "The hubmap internal id with embedded semantic information e.g.: VAN0003. This id is generated at creation time which tracks the lab, donor, organ and sample hierarchy per the following: https://docs.google.com/document/d/1DjHgmqWF1VA5-3mfzLFNfabbzmc8KLSG9xWx1DDLlzo/edit?usp=sharing"
+    group_uuid:
+      type: string
+      description: "The uuid of globus group which the user who created this entity is a member of.  This is required on Create/POST if the user creating the Donor is a member of more than one write group.  This property cannot be set via PUT (only on Create/POST)."
+    group_name:
+      readOnly: true
+      type: string
+      description: "The displayname of globus group which the user who created this entity is a member of"
+    label:
+      type: string
+      description: "Lab provided, de-identified name for the donor"
