@@ -690,7 +690,9 @@ def validate_json_data_against_schema(json_data_dict, normalized_entity_type, ex
     
 
 """
-Execute the entity level validators defined in the schema yaml 
+Execute the entity level validator of the given type defined in the schema yaml 
+before entity creation via POST or entity update via PUT
+Only one validator defined per given validator type, no need to support multiple validators
 
 Parameters
 ----------
@@ -701,7 +703,7 @@ normalized_entity_type : str
 request_headers: Flask request.headers object, behaves like a dict
     The instance of Flask request.headers passed in from application request
 """
-def execute_entity_level_validators(validator_type, normalized_entity_type, request_headers):
+def execute_entity_level_validator(validator_type, normalized_entity_type, request_headers):
     global _schema
 
     # A bit validation
@@ -733,19 +735,22 @@ def execute_entity_level_validators(validator_type, normalized_entity_type, requ
 
 """
 Execute the property level validators defined in the schema yaml 
+before property update via PUT
 
 Parameters
 ----------
 validator_type : str
-    For now only: before_property_update_validators
+    For now only: before_property_update_validators (support multiple validators)
 normalized_entity_type : str
     One of the normalized entity types defined in the schema yaml: Donor, Sample, Dataset, Upload
 request_headers: Flask request.headers object, behaves like a dict
     The instance of Flask request.headers passed in from application request
-request_json_data : dict
+existing_data_dict : dict
+    A dictionary that contains all existing entity properties
+new_data_dict : dict
     The json data in request body, already after the regular validations
 """
-def execute_property_level_validators(validator_type, normalized_entity_type, request_headers, request_json_data):
+def execute_property_level_validators(validator_type, normalized_entity_type, request_headers, existing_data_dict, new_data_dict):
     global _schema
 
     schema_section = None
@@ -758,7 +763,7 @@ def execute_property_level_validators(validator_type, normalized_entity_type, re
 
     for key in properties:
         # Only run the validators for keys present in the request json
-        if (key in request_json_data) and (validator_type in properties[key]):
+        if (key in new_data_dict) and (validator_type in properties[key]):
             # Get a list of defined validators on this property
             validators_list = properties[key][validator_type]
             # Run each validator defined on this property
@@ -769,7 +774,7 @@ def execute_property_level_validators(validator_type, normalized_entity_type, re
                     
                     logger.debug(f"To run {validator_type}: {validator_method_name} defined for entity {normalized_entity_type} on property {key}")
 
-                    validator_method_to_call(key, normalized_entity_type, request_headers, request_json_data)
+                    validator_method_to_call(key, normalized_entity_type, request_headers, existing_data_dict, new_data_dict)
                 except schema_errors.MissingApplicationHeaderException as e: 
                     raise schema_errors.MissingApplicationHeaderException(e) 
                 except schema_errors.InvalidApplicationHeaderException as e: 
@@ -780,128 +785,6 @@ def execute_property_level_validators(validator_type, normalized_entity_type, re
                     msg = f"Failed to call the {validator_type} method: {validator_method_name} defiend for entity {normalized_entity_type} on property {key}"
                     # Log the full stack trace, prepend a line with our message
                     logger.exception(msg)
-
-
-"""
-Get a list of application applications (other than users) that can 
-create new entity or update the existing entity of the given type
-
-Parameters
-----------
-normalized_entity_type : str
-    One of the normalized entity types: Dataset, Upload
-action : str
-    applications_allowed_on_entity_create or applications_allowed_on_entity_update
-
-Returns
--------
-list
-    A list of applications (normlized with lowercase)
-"""
-def get_entity_level_allowed_applications(normalize_entity_type, action):
-    global _schema
-
-    applications = []
-    entity = _schema['ENTITIES'][normalize_entity_type]
-    key = action
-
-    # When not specified, both users and applications can create this entity
-    if (key in entity) and isinstance(entity[key], list):
-        # Lowercase all applications in the list via a list comprehension
-        applications = [application.lower() for application in entity[key]]
-
-    return applications
-
-"""
-Get a list of applications (other than users) that can 
-update the existing entity property of the given property key
-
-Parameters
-----------
-normalized_entity_type : str
-    Dataset (Dataset.status is the only property requires this for now)
-property_key : str
-    The target property key that requires allowed applications to update
-
-Returns
--------
-list
-    A list of applications (normlized with lowercase)
-"""
-def get_property_level_allowed_applications_on_update_only(normalize_entity_type, property_key):
-    global _schema
-
-    applications = []
-    properties = _schema['ENTITIES'][normalize_entity_type]['properties']
-    action = 'applications_allowed_on_property_update'
-
-    # When not specified, both users and applications can update this entity
-    if (property_key in properties) and (action in properties[property_key]) and isinstance(properties[property_key][action], list):
-        # Lowercase all applications in the list via a list comprehension
-        applications = [application.lower() for application in properties[property_key][action]]
-
-    return applications
-
-"""
-Check if the application allowed to create or update this entity
-
-Parameters
-----------
-normalized_entity_type : str
-    One of the normalized entity types: Dataset, Upload
-request_headers: Flask request.headers object, behaves like a dict
-    The instance of Flask request.headers passed in from application request
-action : str
-    applications_allowed_on_entity_create or applications_allowed_on_entity_update
-"""
-def validate_entity_level_application(normalized_entity_type, request_headers, action):
-    # Get the list of applications allowed to create or update this entity
-    # Returns empty list if no restrictions, meaning both users and aplications can create or update
-    applications_allowed = get_entity_level_allowed_applications(normalized_entity_type, action)
-
-    # When application required
-    if applications_allowed:
-        # HTTP header names are case-insensitive
-        # request_headers.get('X-Hubmap-Application') returns None is the header doesn't exist
-        if not request_headers.get('X-Hubmap-Application'):
-            msg = "Unbale to proceed due to missing X-Hubmap-Application header from request"
-            raise schema_errors.MissingApplicationHeaderException(msg)
-
-        # Use lowercase for comparing the application header value against the yaml
-        if request_headers.get('X-Hubmap-Application').lower() not in applications_allowed:
-            msg = f"Unable to proceed due to invalid X-Hubmap-Application header value: {request_headers.get('X-Hubmap-Application')}"
-            raise schema_errors.InvalidApplicationHeaderException(msg)
-
-
-"""
-Check if the application allowed to update this entity property
-
-Parameters
-----------
-normalized_entity_type : str
-    Dataset (Dataset.status is the only property requires this for now)
-property_key : str
-    The target property key that requires allowed applications to update
-request_headers: Flask request.headers object, behaves like a dict
-    The instance of Flask request.headers passed in from application request
-"""
-def validate_property_level_application_on_update_only(normalized_entity_type, property_key, request_headers):
-    # Get the list of applications allowed to update this entity property, e.g., Dataset.status
-    # Returns empty list if no restrictions, meaning both users and aplications can update
-    applications_allowed = get_property_level_allowed_applications_on_update_only(normalized_entity_type, property_key)
-
-    # When application required
-    if applications_allowed:
-        # HTTP header names are case-insensitive
-        # request_headers.get('X-Hubmap-Application') returns None is the header doesn't exist
-        if not request_headers.get('X-Hubmap-Application'):
-            msg = f"Unable to update {property_key} due to missing X-Hubmap-Application header from request"
-            raise schema_errors.MissingApplicationHeaderException(msg)
-
-        # Use lowercase for comparing the application header value against the yaml
-        if request_headers.get('X-Hubmap-Application').lower() not in applications_allowed:
-            msg = f"Unable to update {property_key} due to invalid application header value: {request_headers.get('X-Hubmap-Application')}"
-            raise schema_errors.InvalidApplicationHeaderException(msg)
 
 
 """
@@ -989,7 +872,7 @@ Validate the provided entity level validator type
 Parameters
 ----------
 validator_type : str
-    One of the validator types: before_create_validator, before_update_validator
+    One of the validator types: before_entity_create_validator, before_entity_update_validator
 """
 def validate_entity_level_validator_type(validator_type):
     accepted_validator_types = ['before_entity_create_validator', 'before_entity_update_validator']
@@ -1007,7 +890,7 @@ Validate the provided property level validator type
 Parameters
 ----------
 validator_type : str
-    One of the validator types: before_create_validator, before_update_validator
+    One of the validator types: before_property_update_validators
 """
 def validate_property_level_validator_type(validator_type):
     accepted_validator_types = ['before_property_update_validators']
