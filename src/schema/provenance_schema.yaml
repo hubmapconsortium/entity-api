@@ -10,7 +10,7 @@
 # - updated_peripherally: a temporary measure to correctly handle any attributes which are potentially updated by multiple triggers
 
 # Entity level validator: 
-# - types: before_entity_create_validator|before_entity_update_validator, a single validation method needed for creating or updating the entity
+# - types: before_entity_create_validator, a single validation method needed for creating or updating the entity
 
 # Property level validators: 
 # - types: before_property_update_validators, a list of validation methods
@@ -202,9 +202,7 @@ ENTITIES:
   ############################################# Dataset #############################################
   Dataset:
     # Only allowed applications can create new Dataset via POST
-    before_entity_create_validator: validate_application_header
-    # Only allowed applications can update existing Dataset via PUT
-    before_entity_update_validator: validate_application_header
+    before_entity_create_validator: validate_application_header_before_entity_create
     # Dataset can be either derivation source or target
     derivation:
       source: true
@@ -232,6 +230,7 @@ ENTITIES:
         description: "True if the data contains any human genetic sequence information."
       status:
         before_property_update_validators: 
+          - validate_application_header_before_property_update
           - validate_dataset_status_value
         type: string
         generated: true
@@ -615,9 +614,7 @@ ENTITIES:
   # Eventually we might allow folks to bulk register Samples or Donors through the same mechanism.
   Upload:
     # Only allowed applications can create new Upload via POST
-    before_entity_create_validator: validate_application_header
-    # Only allowed applications can update existing Upload via PUT
-    before_entity_update_validator: validate_application_header
+    before_entity_create_validator: validate_application_header_before_entity_create
     # Upload requires an ancestor of Lab, and and has no allowed decesndents 
     derivation:
       source: false
@@ -634,6 +631,7 @@ ENTITIES:
         description: "Title of the datasets, a sentance or less"
       status:
         before_property_update_validators: 
+          - validate_application_header_before_property_update
           - validate_upload_status_value
         type: string
         generated: true
