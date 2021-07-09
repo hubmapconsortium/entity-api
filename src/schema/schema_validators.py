@@ -26,30 +26,45 @@ normalized_type : str
 request_headers: Flask request.headers object, behaves like a dict
     The instance of Flask request.headers passed in from application request
 """
-def validate_application_header(normalized_entity_type, request_headers):
+def validate_application_header_before_entity_create(normalized_entity_type, request_headers):
     # A list of applications allowed to create this new entity
     # Currently only ingest-api and ingest-pipeline are allowed
     # to create or update Dataset and Upload
     # Use lowercase for comparison
     applications_allowed = [INGEST_API_APP, INGEST_PIPELINE_APP]
 
-    # HTTP header names are case-insensitive
-    # request_headers.get('X-Hubmap-Application') returns None if the header doesn't exist
-    app_header = request_headers.get(HUBMAP_APP_HEADER)
-
-    if not app_header:
-        msg = f"Unbale to proceed due to missing {HUBMAP_APP_HEADER} header from request"
-        raise schema_errors.MissingApplicationHeaderException(msg)
-
-    # Use lowercase for comparing the application header value against the yaml
-    if app_header.lower() not in applications_allowed:
-        msg = f"Unable to proceed due to invalid {HUBMAP_APP_HEADER} header value: {app_header}"
-        raise schema_errors.InvalidApplicationHeaderException(msg)
+    _validate_application_header(applications_allowed, request_headers)
 
 
 ##############################################################################################
-## Property Level Validators specific to Dataset
+## Property Level Validators
 ####################################################################################################
+
+"""
+Validate the provided value of Dataset.status on update via PUT
+
+Parameters
+----------
+property_key : str
+    The target property key
+normalized_type : str
+    Dataset
+request_headers: Flask request.headers object, behaves like a dict
+    The instance of Flask request.headers passed in from application request
+existing_data_dict : dict
+    A dictionary that contains all existing entity properties
+new_data_dict : dict
+    The json data in request body, already after the regular validations
+"""
+def validate_application_header_before_property_update(property_key, normalized_entity_type, request_headers, existing_data_dict, new_data_dict):
+    # A list of applications allowed to update this property
+    # Currently only ingest-api and ingest-pipeline are allowed
+    # to update Dataset.status or Upload.status
+    # Use lowercase for comparison
+    applications_allowed = [INGEST_API_APP, INGEST_PIPELINE_APP]
+
+    _validate_application_header(applications_allowed, request_headers)
+
 
 """
 Validate the provided value of Dataset.status on update via PUT
@@ -93,10 +108,6 @@ def validate_dataset_status_value(property_key, normalized_entity_type, request_
         raise ValueError(f"Dataset status change to 'Published' can only be made via {INGEST_API_APP}")
 
 
-####################################################################################################
-## Property Level Validators specific to Upload
-####################################################################################################
-
 """
 Validate the provided value of Upload.status on update via PUT
 
@@ -120,3 +131,32 @@ def validate_upload_status_value(property_key, normalized_entity_type, request_h
 
     if new_status not in accepted_status_values:
         raise ValueError("The provided status value of Upload is not valid")
+
+
+####################################################################################################
+## Internal Functions
+####################################################################################################
+
+"""
+Validate the application specified in the custom HTTP header
+
+Parameters
+----------
+applications_allowed : list
+    A list of applications allowed, use lowercase for comparison
+request_headers: Flask request.headers object, behaves like a dict
+    The instance of Flask request.headers passed in from application request
+"""
+def _validate_application_header(applications_allowed, request_headers):
+    # HTTP header names are case-insensitive
+    # request_headers.get('X-Hubmap-Application') returns None if the header doesn't exist
+    app_header = request_headers.get(HUBMAP_APP_HEADER)
+
+    if not app_header:
+        msg = f"Unbale to proceed due to missing {HUBMAP_APP_HEADER} header from request"
+        raise schema_errors.MissingApplicationHeaderException(msg)
+
+    # Use lowercase for comparing the application header value against the yaml
+    if app_header.lower() not in applications_allowed:
+        msg = f"Unable to proceed due to invalid {HUBMAP_APP_HEADER} header value: {app_header}"
+        raise schema_errors.InvalidApplicationHeaderException(msg)
