@@ -780,9 +780,10 @@ def create_entity(entity_type):
     except schema_errors.InvalidNormalizedEntityTypeException as e:
         bad_request_error(f"Invalid entity type provided: {entity_type}")
 
-    # Execute validators defined in schema yaml before entity creation
+    # Execute entity level validator defined in schema yaml before entity creation
+    # Currently on Dataset and Upload creation require application header
     try:
-        schema_manager.execute_entity_level_validators('before_entity_create_validator', normalized_entity_type, request.headers)
+        schema_manager.execute_entity_level_validator('before_entity_create_validator', normalized_entity_type, request.headers)
     except schema_errors.MissingApplicationHeaderException as e: 
         bad_request_error(e)  
     except schema_errors.InvalidApplicationHeaderException as e: 
@@ -972,13 +973,8 @@ def update_entity(id):
     # Normalize user provided entity_type
     normalized_entity_type = schema_manager.normalize_entity_type(entity_dict['entity_type'])
 
-    # Execute validators defined in schema yaml before entity update
-    try:
-        schema_manager.execute_entity_level_validators('before_entity_update_validator', normalized_entity_type, request.headers)
-    except schema_errors.MissingApplicationHeaderException as e: 
-        bad_request_error(e)  
-    except schema_errors.InvalidApplicationHeaderException as e: 
-        bad_request_error(e)
+    # Note, we don't support entity level validators on entity update via PUT
+    # Only entity create via POST is supported at the entity level
 
     # Validate request json against the yaml schema
     # Pass in the entity_dict for missing required key check, this is different from creating new entity
@@ -988,17 +984,14 @@ def update_entity(id):
         # No need to log the validation errors
         bad_request_error(str(e))
 
-    # Currently only Dataset.status has such proerty level validator
-    # Execute validators defined in schema yaml before entity property update
+    # Execute property level validators defined in schema yaml before entity property update
     try:
-        schema_manager.execute_property_level_validators('before_property_update_validators', normalized_entity_type, request.headers, json_data_dict)
-    except schema_errors.MissingApplicationHeaderException as e: 
-        bad_request_error(e)  
-    except schema_errors.InvalidApplicationHeaderException as e: 
+        schema_manager.execute_property_level_validators('before_property_update_validators', normalized_entity_type, request.headers, entity_dict, json_data_dict)
+    except (schema_errors.MissingApplicationHeaderException, 
+            schema_errors.InvalidApplicationHeaderException, 
+            KeyError, 
+            ValueError) as e: 
         bad_request_error(e)
-    except ValueError as e:
-        bad_request_error(e)
-
 
     # Sample, Dataset, and Upload: additional validation, update entity, after_update_trigger
     # Collection and Donor: update entity
