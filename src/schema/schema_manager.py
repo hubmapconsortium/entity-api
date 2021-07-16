@@ -1254,7 +1254,7 @@ def create_hubmap_ids(normalized_class, json_data_dict, user_token, user_info_di
 
         # Remove the "hubmap_base_id" key
         for d in ids_list:
-        	d.pop('hubmap_base_id')
+            d.pop('hubmap_base_id')
 
         logger.debug("======create_hubmap_ids() generated ids from uuid-api======")
         logger.debug(ids_list)
