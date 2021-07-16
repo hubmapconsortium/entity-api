@@ -195,7 +195,7 @@ def get_ancestor_organs(neo4j_driver, entity_uuid):
              # apoc.coll.toSet() reruns a set containing unique nodes
              f"RETURN apoc.coll.toSet(COLLECT(organ)) AS {record_field_name}")
     
-    logger.debug("======create_entity() query======")
+    logger.debug("======get_ancestor_organs() query======")
     logger.debug(query)
 
     with neo4j_driver.session() as session:

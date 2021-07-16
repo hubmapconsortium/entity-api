@@ -537,9 +537,6 @@ def update_file_descriptions(property_key, normalized_type, user_token, existing
             raise KeyError(f"Missing '{property_key}' key in 'generated_dict' during calling 'update_file_descriptions()' trigger method.")            
         existing_files_list = generated_dict[property_key]
 
-
-
-
     file_info_by_uuid_dict = {}
 
     for file_info in existing_files_list:
