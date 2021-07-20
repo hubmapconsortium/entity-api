@@ -307,9 +307,9 @@ components:
           type: string
     X-replace-schema:
       schema-file-ref:
-        - yaml-templates/donor-schema.yaml
-        - yaml-templates/sample-schema.yaml
-        - yaml-templates/dataset-schema.yaml
-        - yaml-templates/upload-schema.yaml
-        - yaml-templates/collections-schema.yaml
+        - example-yaml-templates/donor-schema.yaml
+        - example-yaml-templates/sample-schema.yaml
+        - example-yaml-templates/dataset-schema.yaml
+        - example-yaml-templates/upload-schema.yaml
+        - example-yaml-templates/collections-schema.yaml
 
