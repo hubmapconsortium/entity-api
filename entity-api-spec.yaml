@@ -1,7 +1,7 @@
 openapi: 3.0.0
 info:
   description: 'The HuBMAP Entity API is a standard RESTful web service with create, update and read operations for the standard HuBMAP provenance graph entities.<br><br>'
-  version: 2.0.11
+  version: 2.0.12
   title: HuBMAP Entity API
   contact:
     name: HuBMAP Help Desk
@@ -238,7 +238,6 @@ components:
           type: string
           readOnly: true
           description: "The name of the person or process which authenticated when the object was last modified."
-        ###### All other shared properties ######
         entity_type:
           type: string
           readOnly: true
@@ -281,14 +280,14 @@ components:
           type: array
           items:
             type: string
-            format: file_id
+            format: temp_file_id
           description: 'List of temporary file ids with an optional description. Provide as a json array with an temp_file_id and description attribute for each element like {"files": [{"temp_file_id":"dzevgd6xjs4d5grmcp4n","description":"This is image file one"},{"temp_file_id":"yrahjadfhadf","description":"This is image file two"}]}'
         image_files_to_remove:
           writeOnly: true
           type: array
           items:
             type: string
-            format: file_id
+            format: file_uuid
           description: 'List of image files previously uploaded to delete. Provide as a json array of the file_uuids of the file like: ["232934234234234234234270c0ea6c51d604a850558ef2247d0b4", "230948203482234234234a57bfe9c056d08a0f8e6cd612baa3bfa"]'
         metadata:
           type: object
@@ -367,7 +366,6 @@ components:
           type: string
           readOnly: true
           description: "The name of the person or process which authenticated when the object was last modified."
-        ###### All other shared properties ######
         entity_type:
           type: string
           readOnly: true
@@ -534,14 +532,14 @@ components:
           type: array
           items:
             type: string
-            format: file_id
+            format: temp_file_id
           description: 'List of temporary file ids with an optional description. Provide as a json array with an temp_file_id and description attribute for each element like {"files": [{"temp_file_id":"dzevgd6xjs4d5grmcp4n","description":"This is image file one"},{"temp_file_id":"yrahjadfhadf","description":"This is image file two"}]}'
         image_files_to_remove:
           writeOnly: true
           type: array
           items:
             type: string
-            format: file_id
+            format: file_uuid
           description: 'List of image files previously uploaded to delete. Provide as a json array of the file_uuids of the file like: ["232934234234234234234270c0ea6c51d604a850558ef2247d0b4", "230948203482234234234a57bfe9c056d08a0f8e6cd612baa3bfa"]'
         metadata_files:
           readOnly: true
@@ -553,13 +551,13 @@ components:
           type: array
           items:
             type: string
-            format: file_id
+            format: temp_file_id
           description: 'List of temporary file ids with an optional description. Provide as a json array with an temp_file_id and description attribute for each element like {"files": [{"temp_file_id":"dzevgd6xjs4d5grmcp4n","description":"This is image file one"},{"temp_file_id":"yrahjadfhadf","description":"This is image file two"}]}'
         metadata_files_to_remove:
           type: array
           items:
             type: string
-            format: file_id
+            format: file_uuid
           description: 'List of image files previously uploaded to delete. Provide as a json array of the file_uuids of the file like: ["232934234234234234234270c0ea6c51d604a850558ef2247d0b4", "230948203482234234234a57bfe9c056d08a0f8e6cd612baa3bfa"]'
     Dataset:
       type: object
@@ -604,7 +602,6 @@ components:
           type: string
           readOnly: true
           description: "The name of the person or process which authenticated when the object was last modified."
-        ###### All other shared properties ######
         entity_type:
           type: string
           readOnly: true
@@ -770,6 +767,17 @@ components:
           type: string
           readOnly: true
           description: "The uuid of next revision dataset"
+        thumbnail_file:
+          readOnly: true
+          description: "The dataset thumbnail file detail. Stored in db as a stringfied json, e.g., {'filename': 'thumbnail.jpg', 'file_uuid': 'dadasdasdadda'}"
+        thumbnail_file_to_add:
+          type: string
+          format: temp_file_id
+          description: 'Just a temporary file id. Provide as a json object with an temp_file_id like {"temp_file_id":"dzevgd6xjs4d5grmcp4n"}'
+        thumbnail_file_to_remove:
+          type: string
+          format: file_uuid
+          description: 'The thumbnail image file previously uploaded to delete. Provide as a string of the file_uuid like: "232934234234234234234270c0ea6c51d604a850558ef2247d0b4"'
     Upload:
       type: object
       properties:
@@ -897,7 +905,6 @@ components:
           type: string
           readOnly: true
           description: "The name of the person or process which authenticated when the object was last modified."
-        ###### All other shared properties ######
         entity_type:
           type: string
           readOnly: true
