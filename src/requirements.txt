@@ -3,7 +3,8 @@ Flask==1.1.2
 neo4j==4.2.1
 prov==2.0.0
 Werkzeug==1.0.1
-nose2==0.10.0
+
+# For schema templating
 nested-lookup==0.2.22
 
 # The commons package requires requests>=2.22.0 and PyYAML>=5.3.1
@@ -13,3 +14,6 @@ PyYAML==5.4.1
 # The branch name of commons to be used during image build
 # Default is master branch specified in docker-compose.yml if not set
 git+git://github.com/hubmapconsortium/commons.git@${COMMONS_BRANCH}#egg=hubmap-commons
+
+# For unit test
+nose2==0.10.0

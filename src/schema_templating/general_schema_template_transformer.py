@@ -74,13 +74,21 @@ def create_new_yaml(nested_dict):
                         storagedict[tempkey] = tempvalue
                 return "schema replaced"
     return emptydict
-if len(sys.argv)>1: #Makes sure that there is at least one argument being passed to this program. If there is, the argument is assigned to a variable. input_from_yaml is then called with this variable as a parameter.
-   input_file = str(sys.argv[1])
-else:
-    print("Must pass in exactly 1 argument: the name of an existing file")
-yaml_template = input_from_yaml(input_file)
 
-storagedict = {} #Instantiates a global dictionary. This provides temporary storage of dictionary elements to be used with create_new_yaml function
-secondstorage = {} #Instantiates a second global dictionary. This is only used for collecting enum lists to use at earlier loops through the recursive function
-outputyaml = create_new_yaml(yaml_template)
-output_to_yaml()
+
+# Running this python file as a script
+# python3 -m general_schema_template_transformer <input_file>
+if __name__ == "__main__":
+    #Makes sure that there is at least one argument being passed to this program. If there is, the argument is assigned to a variable. input_from_yaml is then called with this variable as a parameter.
+    try:
+        input_file = sys.argv[1]
+    except IndexError as e:
+        msg = "Must pass in exactly 1 argument: the name of an existing file"
+        sys.exit(msg)
+
+    yaml_template = input_from_yaml(input_file)
+
+    storagedict = {} #Instantiates a global dictionary. This provides temporary storage of dictionary elements to be used with create_new_yaml function
+    secondstorage = {} #Instantiates a second global dictionary. This is only used for collecting enum lists to use at earlier loops through the recursive function
+    outputyaml = create_new_yaml(yaml_template)
+    output_to_yaml()
