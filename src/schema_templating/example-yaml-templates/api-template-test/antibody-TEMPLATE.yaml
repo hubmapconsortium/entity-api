@@ -1,0 +1,115 @@
+x-ref-openapi: 3.0.0
+x-ref-info:
+  x-ref-description: 'The HuBMAP Antibody API is a standard RESTful web service with create operations.<br><br>'
+  x-ref-version: 1.0.0
+  x-ref-title: HuBMAP Antibody API
+  x-ref-contact:
+    x-ref-name: HuBMAP Help Desk
+    x-ref-email: api-developers@hubmapconsortium.org
+  x-ref-license:
+   x-ref-name: MIT License
+    x-ref-url: 'https://github.com/hubmapconsortium/antibody-api/blob/master/license.txt'
+x-ref-servers:
+  - x-ref-url: 'https://antibody.api.hubmapconsortium.org'
+x-ref-components:
+  x-ref-securitySchemes:
+    x-ref-bearerAuth:
+      x-ref-type: http
+      x-ref-scheme: bearer
+  x-ref-schemas:
+    x-ref-Antibody:
+      x-ref-type: object
+      x-ref-properties:
+        avr_url:
+          type: string
+          description: "The URL of the AVR PDF."
+        protocols_io_doi:
+          type: string
+          description: "The protocols.io doi pointing the protocol under wich the sample was obtained and/or prepared."
+        x-ref-uniprot_accession_number:
+          x-ref-type: string
+        target_name:
+          type: string
+          description: "The name of the antibody's target."
+        rrid:
+          type: string
+        x-ref-antibody_name:
+          x-ref-type: string
+          x-ref-description: "The antibody's name."
+        host_organism:
+          type: string
+          description: "The antibody's host organism."
+        clonality:
+          type: string
+          enum:
+            - monoclonal
+            - polyclonal
+          description: "One of the values: monoclonal, polyclonal."
+        vendor:
+          type: string
+          description: "The antibody's vendor."
+        catalog_number:
+          type: string
+        x-ref-lot_number:
+          x-ref-type: string
+        recombinant:
+          type: boolean
+          description: "True if the antibody is recombinant."
+        organ_or_tissue:
+          type: string
+          description: "Organ or tissue affected."
+        hubmap_platform:
+          type: string
+          description: "The assay employed for the antibody."
+        submitter_orciid:
+          type: string
+          description: "The ORCID iD of the submitter."
+        created_by_user_displayname:
+          type: string
+          description: "The name of the person or process authenticated when creating the object"
+        created_by_user_email:
+          type: string
+          description: "The email address of the person or process authenticated when creating the object."
+        created_by_user_sub:
+          type: string
+          description: "The subject id as provided by the authorization mechanism for the person or process authenticated when creating the object."
+        group_uuid:
+          type: string
+          description: "The uuid of globus group which the user who created this antibody is a member of."
+x-ref-security:
+  - x-ref-bearerAuth: []
+x-ref-paths:
+  '/antibodies':
+    post:
+      summary: Create an antibody
+      parameters:
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                antibody:
+                  $ref: '#/components/schemas/Antibody'
+                  description: "The Antibody to be created."
+      responses:
+        '200':
+          description: The antibody was successfully created and the new ID is returned
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: integer
+                    description: "The ID of the Antibody just created."
+        '400':
+          description: No JSON body supplied
+        '401':
+          description: The user's token has expired or the user did not supply a valid token
+        '403':
+          description: The user is not authorized to create the entity
+        '406':
+          description: The antibody data submitted did not pass validation
+        '500':
+          description: Internal error
