@@ -28,3 +28,11 @@ src/VERSION
 #ignore eclipse files
 .project
 .pydevproject
+
+#ignore PyCharm files
+.idea/
+../.idea/
+venv
+
+#ignore test venv
+**/testenv/

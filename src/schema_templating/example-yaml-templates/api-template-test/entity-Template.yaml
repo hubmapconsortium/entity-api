@@ -1,22 +1,22 @@
-openapi: 3.0.0
-info:
-  description: 'The HuBMAP Entity API is a standard RESTful web service with create, update and read operations for the standard HuBMAP provenance graph entities.<br><br>'
-  version: 2.0.12
-  title: HuBMAP Entity API
-  contact:
-    name: HuBMAP Help Desk
-    email: help@hubmapconsortium.org
-  license:
-    name: MIT License
-    url: 'https://github.com/hubmapconsortium/entity-api/blob/master/license.txt'
-servers:
-  - url: 'https://entity.api.hubmapconsortium.org'
-components:
-  securitySchemes:
-    bearerAuth:
-      type: http
-      scheme: bearer
-  schemas:
+x-ref-openapi: 3.0.0
+x-ref-info:
+  x-ref-description: 'The HuBMAP Entity API is a standard RESTful web service with create, update and read operations for the standard HuBMAP provenance graph entities.<br><br>'
+  x-ref-version: 2.0.11
+  x-ref-title: HuBMAP Entity API
+  x-ref-contact:
+    x-ref-name: HuBMAP Help Desk
+    x-ref-email: help@hubmapconsortium.org
+  x-ref-license:
+    x-ref-name: MIT License
+    x-ref-url: 'https://github.com/hubmapconsortium/entity-api/blob/master/license.txt'
+x-ref-servers:
+  - x-ref-url: 'https://entity.api.hubmapconsortium.org'
+x-ref-components:
+  x-ref-securitySchemes:
+    x-ref-bearerAuth:
+      x-ref-type: http
+      x-ref-scheme: bearer
+  x-ref-schemas:
     Person:
       type: object
       properties:
@@ -35,12 +35,12 @@ components:
         affiliation:
           type: string
           description: The institution that the person is affiliated with.
-    Antibody:
-      type: object
-      properties:
-        antibody_name:
-          type: string
-          description: "The name of the antibody."
+    x-ref-Antibody:
+      x-ref-type: object
+      x-ref-properties:
+        x-ref-antibody_name:
+          x-ref-type: string
+          x-ref-description: "The name of the antibody."
         channel_id:
           type: string
           description: "The assay specific identifier for the channel corresponding to the antibody."
@@ -53,14 +53,14 @@ components:
         dilution:
           type: string
           description: "The dilition ratio, e.g. 1/200 for the antibody.  Blank if not applicable."
-        lot_number:
-          type: string
+        x-ref-lot_number:
+          x-ref-type: string
           description: "The antibody lot number from the vendor."
         rr_id:
           type: string
           description: "The unique antibody identifier from the Antibody Registry (https://antibodyregistry.org). "
-        uniprot_accession_number:
-          type: string
+        x-ref-uniprot_accession_number:
+          x-ref-type: string
           description: "The unique identifier for the target protein in the UniProt database (https://www.uniprot.org)."
     DonorMetadata:
       type: object
@@ -238,6 +238,7 @@ components:
           type: string
           readOnly: true
           description: "The name of the person or process which authenticated when the object was last modified."
+        ###### All other shared properties ######
         entity_type:
           type: string
           readOnly: true
@@ -280,14 +281,14 @@ components:
           type: array
           items:
             type: string
-            format: temp_file_id
+            format: file_id
           description: 'List of temporary file ids with an optional description. Provide as a json array with an temp_file_id and description attribute for each element like {"files": [{"temp_file_id":"dzevgd6xjs4d5grmcp4n","description":"This is image file one"},{"temp_file_id":"yrahjadfhadf","description":"This is image file two"}]}'
         image_files_to_remove:
           writeOnly: true
           type: array
           items:
             type: string
-            format: file_uuid
+            format: file_id
           description: 'List of image files previously uploaded to delete. Provide as a json array of the file_uuids of the file like: ["232934234234234234234270c0ea6c51d604a850558ef2247d0b4", "230948203482234234234a57bfe9c056d08a0f8e6cd612baa3bfa"]'
         metadata:
           type: object
@@ -366,6 +367,7 @@ components:
           type: string
           readOnly: true
           description: "The name of the person or process which authenticated when the object was last modified."
+        ###### All other shared properties ######
         entity_type:
           type: string
           readOnly: true
@@ -532,14 +534,14 @@ components:
           type: array
           items:
             type: string
-            format: temp_file_id
+            format: file_id
           description: 'List of temporary file ids with an optional description. Provide as a json array with an temp_file_id and description attribute for each element like {"files": [{"temp_file_id":"dzevgd6xjs4d5grmcp4n","description":"This is image file one"},{"temp_file_id":"yrahjadfhadf","description":"This is image file two"}]}'
         image_files_to_remove:
           writeOnly: true
           type: array
           items:
             type: string
-            format: file_uuid
+            format: file_id
           description: 'List of image files previously uploaded to delete. Provide as a json array of the file_uuids of the file like: ["232934234234234234234270c0ea6c51d604a850558ef2247d0b4", "230948203482234234234a57bfe9c056d08a0f8e6cd612baa3bfa"]'
         metadata_files:
           readOnly: true
@@ -551,17 +553,17 @@ components:
           type: array
           items:
             type: string
-            format: temp_file_id
+            format: file_id
           description: 'List of temporary file ids with an optional description. Provide as a json array with an temp_file_id and description attribute for each element like {"files": [{"temp_file_id":"dzevgd6xjs4d5grmcp4n","description":"This is image file one"},{"temp_file_id":"yrahjadfhadf","description":"This is image file two"}]}'
         metadata_files_to_remove:
           type: array
           items:
             type: string
-            format: file_uuid
+            format: file_id
           description: 'List of image files previously uploaded to delete. Provide as a json array of the file_uuids of the file like: ["232934234234234234234270c0ea6c51d604a850558ef2247d0b4", "230948203482234234234a57bfe9c056d08a0f8e6cd612baa3bfa"]'
-    Dataset:
-      type: object
-      properties:
+    x-ref-Dataset:
+      x-ref-type: object
+      x-ref-properties:
         created_timestamp:
           type: integer
           readOnly: true
@@ -578,8 +580,8 @@ components:
           type: string
           readOnly: true
           description: "The subject id as provided by the authorization mechanism for the person or process authenticated when creating the object."
-        uuid:
-          type: string
+        x-ref-uuid:
+          x-ref-type: string
           readOnly: true
           description: "The HuBMAP unique identifier, intended for internal software use only.  This is a 32 digit hexadecimal uuid e.g. 461bbfdc353a2673e381f632510b0f17"
         hubmap_id:
@@ -602,6 +604,7 @@ components:
           type: string
           readOnly: true
           description: "The name of the person or process which authenticated when the object was last modified."
+        ###### All other shared properties ######
         entity_type:
           type: string
           readOnly: true
@@ -641,8 +644,8 @@ components:
         contains_human_genetic_sequences:
           type: boolean
           description: "True if the data contains any human genetic sequence information. Can only be set at CREATE/POST time"
-        status:
-              type: string
+        x-ref-status:
+              x-ref-type: string
               enum:
                 - New
                 - Processing
@@ -767,17 +770,6 @@ components:
           type: string
           readOnly: true
           description: "The uuid of next revision dataset"
-        thumbnail_file:
-          readOnly: true
-          description: "The dataset thumbnail file detail. Stored in db as a stringfied json, e.g., {'filename': 'thumbnail.jpg', 'file_uuid': 'dadasdasdadda'}"
-        thumbnail_file_to_add:
-          type: string
-          format: temp_file_id
-          description: 'Just a temporary file id. Provide as a json object with an temp_file_id like {"temp_file_id":"dzevgd6xjs4d5grmcp4n"}'
-        thumbnail_file_to_remove:
-          type: string
-          format: file_uuid
-          description: 'The thumbnail image file previously uploaded to delete. Provide as a string of the file_uuid like: "232934234234234234234270c0ea6c51d604a850558ef2247d0b4"'
     Upload:
       type: object
       properties:
@@ -862,9 +854,9 @@ components:
             $ref: '#/components/schemas/Dataset'
           readOnly: true
           description: "The datasets that are contained in this Upload."
-    Collection:
-      type: object
-      properties:
+    x-ref-Collection:
+      x-ref-type: object
+      x-ref-properties:
         created_timestamp:
           type: integer
           readOnly: true
@@ -881,8 +873,8 @@ components:
           type: string
           readOnly: true
           description: "The subject id as provided by the authorization mechanism for the person or process authenticated when creating the object."
-        uuid:
-          type: string
+        x-ref-uuid:
+          x-ref-type: string
           readOnly: true
           description: "The HuBMAP unique identifier, intended for internal software use only.  This is a 32 digit hexadecimal uuid e.g. 461bbfdc353a2673e381f632510b0f17"
         hubmap_id:
@@ -905,6 +897,7 @@ components:
           type: string
           readOnly: true
           description: "The name of the person or process which authenticated when the object was last modified."
+        ###### All other shared properties ######
         entity_type:
           type: string
           readOnly: true
@@ -936,9 +929,9 @@ components:
             $ref: '#/components/schemas/Dataset'
           description: "The datasets that are contained in the Collection."
 
-security:
-  - bearerAuth: []
-paths:
+x-ref-security:
+  - x-ref-bearerAuth: []
+x-ref-paths:
   '/entities/{id}':
     get:
       summary: Retrieve a provenance entity by id.  Entity types of Donor, Sample and Datasets.

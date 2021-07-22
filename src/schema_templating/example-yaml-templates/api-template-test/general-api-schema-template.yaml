@@ -1,0 +1,56 @@
+openapi: 3.0.0
+info:
+  description:
+  version:
+  title:
+  contact:
+    email:
+    name:
+  license:
+    name:
+    url:
+servers:
+  -url:
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+    globus_auth:
+      type: oauth2
+      flows:
+        implicit:
+          authorizationUrl: "https://auth.globus.org/v2/oauth2/authorize"
+          scopes:
+  schemas:
+    Dataset:
+      type: object
+      properties:
+        uuid:
+          type: string
+        status:
+          type: string
+    Collection:
+      type: object
+      properties:
+        uuid:
+          type: string
+    Antibody:
+      type: object
+      properites:
+        antibody_name:
+          type:
+          description:
+        lot_number:
+          type: string
+        uniprot_accession_number:
+          type: string
+security:
+    - bearerAuth: []
+    - JWTBearerAuth: []
+tags:
+  - name:
+    description:
+paths:
+
+
