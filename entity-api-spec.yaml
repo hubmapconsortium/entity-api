@@ -1,7 +1,7 @@
 openapi: 3.0.0
 info:
   description: 'The HuBMAP Entity API is a standard RESTful web service with create, update and read operations for the standard HuBMAP provenance graph entities.<br><br>'
-  version: 2.0.12
+  version: 2.0.14
   title: HuBMAP Entity API
   contact:
     name: HuBMAP Help Desk
@@ -191,7 +191,7 @@ components:
           description: "The name of the file."
         description:
           type: string
-          description: "A description of the file."
+          description: "A description of the file. The Dataset.thumbnail_file does not have this file description."
         file_uuid:
           type: string
           description: "The HuBMAP unique identifier for the file."
@@ -769,15 +769,17 @@ components:
           description: "The uuid of next revision dataset"
         thumbnail_file:
           readOnly: true
-          description: "The dataset thumbnail file detail. Stored in db as a stringfied json, e.g., {'filename': 'thumbnail.jpg', 'file_uuid': 'dadasdasdadda'}"
+          description: 'The dataset thumbnail file detail. Stored in db as a stringfied json, e.g., {"filename": "thumbnail.jpg", "file_uuid": "c35002f9c3d49f8b77e1e2cd4a01803d"}'
         thumbnail_file_to_add:
+          writeOnly: true
           type: string
           format: temp_file_id
           description: 'Just a temporary file id. Provide as a json object with an temp_file_id like {"temp_file_id":"dzevgd6xjs4d5grmcp4n"}'
         thumbnail_file_to_remove:
+          writeOnly: true
           type: string
           format: file_uuid
-          description: 'The thumbnail image file previously uploaded to delete. Provide as a string of the file_uuid like: "232934234234234234234270c0ea6c51d604a850558ef2247d0b4"'
+          description: 'The thumbnail image file previously uploaded to delete. Provide as a string of the file_uuid like: "c35002f9c3d49f8b77e1e2cd4a01803d"'
     Upload:
       type: object
       properties:
