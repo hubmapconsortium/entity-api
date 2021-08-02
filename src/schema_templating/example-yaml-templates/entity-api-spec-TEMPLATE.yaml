@@ -1,7 +1,7 @@
 openapi: 3.0.0
 info:
   description: 'The HuBMAP Entity API is a standard RESTful web service with create, update and read operations for the standard HuBMAP provenance graph entities.<br><br>'
-  version: 2.0.14
+  version: 2.0.11
   title: HuBMAP Entity API
   contact:
     name: HuBMAP Help Desk
@@ -191,7 +191,7 @@ components:
           description: "The name of the file."
         description:
           type: string
-          description: "A description of the file. The Dataset.thumbnail_file does not have this file description."
+          description: "A description of the file."
         file_uuid:
           type: string
           description: "The HuBMAP unique identifier for the file."
@@ -238,6 +238,7 @@ components:
           type: string
           readOnly: true
           description: "The name of the person or process which authenticated when the object was last modified."
+        ###### All other shared properties ######
         entity_type:
           type: string
           readOnly: true
@@ -280,14 +281,14 @@ components:
           type: array
           items:
             type: string
-            format: temp_file_id
+            format: file_id
           description: 'List of temporary file ids with an optional description. Provide as a json array with an temp_file_id and description attribute for each element like {"files": [{"temp_file_id":"dzevgd6xjs4d5grmcp4n","description":"This is image file one"},{"temp_file_id":"yrahjadfhadf","description":"This is image file two"}]}'
         image_files_to_remove:
           writeOnly: true
           type: array
           items:
             type: string
-            format: file_uuid
+            format: file_id
           description: 'List of image files previously uploaded to delete. Provide as a json array of the file_uuids of the file like: ["232934234234234234234270c0ea6c51d604a850558ef2247d0b4", "230948203482234234234a57bfe9c056d08a0f8e6cd612baa3bfa"]'
         metadata:
           type: object
@@ -366,6 +367,7 @@ components:
           type: string
           readOnly: true
           description: "The name of the person or process which authenticated when the object was last modified."
+        ###### All other shared properties ######
         entity_type:
           type: string
           readOnly: true
@@ -399,53 +401,8 @@ components:
         specimen_type:
           type: string
           enum:
-            - atacseq
-            - biopsy
-            - blood
-            - cell_lysate
-            - clarity_hydrogel
-            - codex
-            - cryosections_curls_from_fresh_frozen_oct
-            - cryosections_curls_rnalater
-            - ffpe_block
-            - ffpe_slide
-            - fixed_frozen_section_slide
-            - fixed_tissue_piece
-            - flash_frozen_liquid_nitrogen
-            - formalin_fixed_oct_block
-            - fresh_frozen_oct_block
-            - fresh_frozen_section_slide
-            - fresh_frozen_tissue
-            - fresh_frozen_tissue_section
-            - fresh_tissue
-            - frozen_cell_pellet_buffy_coat
-            - gdna
-            - module
-            - nuclei
-            - nuclei_rnalater
-            - organ
-            - organ_piece
-            - other
-            - pbmc
-            - pfa_fixed_frozen_oct_block
-            - plasma
-            - protein
-            - ran_poly_a_enriched
-            - rna_total
-            - rnalater_treated_and_stored
-            - rnaseq
-            - scatacseq
-            - scrnaseq
-            - segment
-            - seqfish
-            - sequence_library
-            - serum
-            - sequence_library
-            - single_cell_cryopreserved
-            - snatacseq
-            - snrnaseq
-            - tissue_lysate
-            - wgs
+            X-replace-enum-list:
+              enum-file-ref: https://raw.githubusercontent.com/hubmapconsortium/search-api/test-release/src/search-schema/data/definitions/enums/tissue_sample_types.yaml
           description: "A code representing the type of specimen.  Must be one of the codes specified in: [tissue sample types](https://github.com/hubmapconsortium/search-api/blob/master/src/search-schema/data/definitions/enums/tissue_sample_types.yaml)"
         specimen_type_other:
           type: string
@@ -463,38 +420,8 @@ components:
         organ:
           type: string
           enum:
-            - AO
-            - BL
-            - BD
-            - BM
-            - BR
-            - LF
-            - RF
-            - HT
-            - LB
-            - LE
-            - LI
-            - LK
-            - LL
-            - LV
-            - LY
-            - LO
-            - RO
-            - OT
-            - PA
-            - PL
-            - RB
-            - RE
-            - RK
-            - RL
-            - SI
-            - SK
-            - SP
-            - ST
-            - TH
-            - TR
-            - UR
-            - UT
+            X-replace-enum-list:
+              enum-file-ref: https://raw.githubusercontent.com/hubmapconsortium/search-api/test-release/src/search-schema/data/definitions/enums/organ_types.yaml
           description: "Organ code specifier, only set if sample_type == organ.  Valid values found in: [organ types](https://github.com/hubmapconsortium/search-api/blob/master/src/search-schema/data/definitions/enums/organ_types.yaml)"
         organ_other:
           type: string
@@ -532,14 +459,14 @@ components:
           type: array
           items:
             type: string
-            format: temp_file_id
+            format: file_id
           description: 'List of temporary file ids with an optional description. Provide as a json array with an temp_file_id and description attribute for each element like {"files": [{"temp_file_id":"dzevgd6xjs4d5grmcp4n","description":"This is image file one"},{"temp_file_id":"yrahjadfhadf","description":"This is image file two"}]}'
         image_files_to_remove:
           writeOnly: true
           type: array
           items:
             type: string
-            format: file_uuid
+            format: file_id
           description: 'List of image files previously uploaded to delete. Provide as a json array of the file_uuids of the file like: ["232934234234234234234270c0ea6c51d604a850558ef2247d0b4", "230948203482234234234a57bfe9c056d08a0f8e6cd612baa3bfa"]'
         metadata_files:
           readOnly: true
@@ -551,13 +478,13 @@ components:
           type: array
           items:
             type: string
-            format: temp_file_id
+            format: file_id
           description: 'List of temporary file ids with an optional description. Provide as a json array with an temp_file_id and description attribute for each element like {"files": [{"temp_file_id":"dzevgd6xjs4d5grmcp4n","description":"This is image file one"},{"temp_file_id":"yrahjadfhadf","description":"This is image file two"}]}'
         metadata_files_to_remove:
           type: array
           items:
             type: string
-            format: file_uuid
+            format: file_id
           description: 'List of image files previously uploaded to delete. Provide as a json array of the file_uuids of the file like: ["232934234234234234234270c0ea6c51d604a850558ef2247d0b4", "230948203482234234234a57bfe9c056d08a0f8e6cd612baa3bfa"]'
     Dataset:
       type: object
@@ -602,6 +529,7 @@ components:
           type: string
           readOnly: true
           description: "The name of the person or process which authenticated when the object was last modified."
+        ###### All other shared properties ######
         entity_type:
           type: string
           readOnly: true
@@ -660,49 +588,8 @@ components:
           items:
             type: string
             enum:
-              - AF
-              - ATACseq-bulk
-              - bulk_atacseq
-              - cell-dive
-              - CODEX
-              - codex_cytokit
-              - DART-FISH
-              - image_pyramid
-              - IMC
-              - 3D-IMC
-              - lc-ms_label-free
-              - lc-ms_labeled
-              - lc-ms-ms_label-free
-              - lc-ms-ms_labeled
-              - LC-MS-untargeted
-              - Lightsheet
-              - MALDI-IMS-neg
-              - MALDI-IMS-pos
-              - MxIF
-              - PAS
-              - bulk-RNA
-              - salmon_rnaseq_bulk
-              - SNAREseq
-              - sc_atac_seq_snare_lab
-              - sc_atac_seq_snare
-              - scRNA-Seq-10x
-              - salmon_rnaseq_10x
-              - sc_rna_seq_snare_lab
-              - salmon_rnaseq_snareseq
-              - sciATACseq
-              - sc_atac_seq_sci
-              - sciRNAseq
-              - salmon_rnaseq_sciseq
-              - seqFish
-              - seqFish_lab_processed
-              - snATACseq
-              - sn_atac_seq
-              - snRNAseq
-              - salmon_sn_rnaseq_10x
-              - Slide-seq
-              - Targeted-Shotgun-LC-MS
-              - TMT-LC-MS
-              - WGS
+              X-replace-enum-list:
+                enum-file-ref: https://raw.githubusercontent.com/hubmapconsortium/search-api/test-release/src/search-schema/data/definitions/enums/assay_types.yaml
           description: "The data or assay types contained in this dataset as a json array of strings.  Each is an assay code from [assay types](https://github.com/hubmapconsortium/search-api/blob/master/src/search-schema/data/definitions/enums/assay_types.yaml)."
         collections:
           readOnly: true
@@ -767,19 +654,6 @@ components:
           type: string
           readOnly: true
           description: "The uuid of next revision dataset"
-        thumbnail_file:
-          readOnly: true
-          description: 'The dataset thumbnail file detail. Stored in db as a stringfied json, e.g., {"filename": "thumbnail.jpg", "file_uuid": "c35002f9c3d49f8b77e1e2cd4a01803d"}'
-        thumbnail_file_to_add:
-          writeOnly: true
-          type: string
-          format: temp_file_id
-          description: 'Just a temporary file id. Provide as a json object with an temp_file_id like {"temp_file_id":"dzevgd6xjs4d5grmcp4n"}'
-        thumbnail_file_to_remove:
-          writeOnly: true
-          type: string
-          format: file_uuid
-          description: 'The thumbnail image file previously uploaded to delete. Provide as a string of the file_uuid like: "c35002f9c3d49f8b77e1e2cd4a01803d"'
     Upload:
       type: object
       properties:
@@ -907,6 +781,7 @@ components:
           type: string
           readOnly: true
           description: "The name of the person or process which authenticated when the object was last modified."
+        ###### All other shared properties ######
         entity_type:
           type: string
           readOnly: true
