@@ -759,7 +759,7 @@ Create an entity of the target type in neo4j
 Parameters
 ----------
 entity_type : str
-    One of the target entity types (case-insensitive since will be normalized): Dataset, Donor, Sample
+    One of the target entity types (case-insensitive since will be normalized): Dataset, Donor, Sample, Upload
 
 Returns
 -------
@@ -2420,13 +2420,12 @@ def create_multiple_samples_details(request, normalized_entity_type, user_token,
         samples_dict_list.append(sample_dict)
 
     # Generate property values for the only one Activity node
-    # The resulting list contains only one dict in this case by using the default count = 1
-    activity_data_dict_list = schema_manager.generate_activity_data(normalized_entity_type, user_token, user_info_dict)
+    activity_data_dict = schema_manager.generate_activity_data(normalized_entity_type, user_token, user_info_dict)
     
     # Create new sample nodes and needed relationships as well as activity node in one transaction
     try:
         # No return value
-        app_neo4j_queries.create_multiple_samples(neo4j_driver_instance, samples_dict_list, activity_data_dict_list[0], json_data_dict['direct_ancestor_uuid'])
+        app_neo4j_queries.create_multiple_samples(neo4j_driver_instance, samples_dict_list, activity_data_dict, json_data_dict['direct_ancestor_uuid'])
     except TransactionError:
         msg = "Failed to create multiple samples"
         # Log the full stack trace, prepend a line with our message

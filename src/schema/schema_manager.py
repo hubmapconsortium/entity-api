@@ -1389,7 +1389,7 @@ def get_entity_group_name(group_uuid):
 
 
 """
-Generate properties data of one or more Activity nodes
+Generate properties data of the target Activity node
 
 Parameters
 ----------
@@ -1404,9 +1404,9 @@ count : int
 
 Returns
 -------
-list: A list of gnerated Activity data dicts
+dict: A dict of gnerated Activity data
 """
-def generate_activity_data(normalized_entity_type, user_token, user_info_dict, count = 1):
+def generate_activity_data(normalized_entity_type, user_token, user_info_dict):
     # Activity is not an Entity
     normalized_activity_type = 'Activity'
 
@@ -1414,20 +1414,15 @@ def generate_activity_data(normalized_entity_type, user_token, user_info_dict, c
     # Will be used when calling `set_activity_creation_action()` trigger method
     normalized_entity_type_dict = {'normalized_entity_type': normalized_entity_type}
 
-    # Create new ids for each new Activity node
-    new_ids_dict_list = create_hubmap_ids(normalized_activity_type, json_data_dict = None, user_token = user_token, user_info_dict = None, count = count)
-    
-    activity_data_dict_list = []
-    for new_ids_dict in new_ids_dict_list:
-        data_dict_for_activity = {**user_info_dict, **normalized_entity_type_dict, **new_ids_dict}
-    
-        # Generate property values for Activity node
-        generated_activity_data_dict = generate_triggered_data('before_create_trigger', normalized_activity_type, user_token, {}, data_dict_for_activity)
+    # Create new ids for the Activity node
+    # This resulting list has only one dict
+    new_ids_dict_list = create_hubmap_ids(normalized_activity_type, json_data_dict = None, user_token = user_token, user_info_dict = None)
+    data_dict_for_activity = {**user_info_dict, **normalized_entity_type_dict, **new_ids_dict_list[0]}
 
-        # Add to list
-        activity_data_dict_list.append(generated_activity_data_dict)
-    
-    return activity_data_dict_list
+    # Generate property values for Activity node
+    generated_activity_data_dict = generate_triggered_data('before_create_trigger', normalized_activity_type, user_token, {}, data_dict_for_activity)
+
+    return generated_activity_data_dict
 
 
 """
