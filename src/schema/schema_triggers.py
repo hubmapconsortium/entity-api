@@ -770,14 +770,12 @@ def link_dataset_to_direct_ancestors(property_key, normalized_type, user_token, 
 
     direct_ancestor_uuids = existing_data_dict['direct_ancestor_uuids']
 
-    # Generate property values for each Activity node
-    count = len(direct_ancestor_uuids)
-    activity_data_dict_list = schema_manager.generate_activity_data(normalized_type, user_token, existing_data_dict, count)
+    # Generate property values for Activity node
+    activity_data_dict = schema_manager.generate_activity_data(normalized_type, user_token, existing_data_dict)
 
     try:
-        # Create a linkage (via Activity node) between the dataset node 
-        # and each direct ancestor node in neo4j
-        schema_neo4j_queries.link_entity_to_direct_ancestors(schema_manager.get_neo4j_driver_instance(), existing_data_dict['uuid'], direct_ancestor_uuids, activity_data_dict_list)
+        # Create a linkage (via one Activity node) between the dataset node and its direct ancestors in neo4j
+        schema_neo4j_queries.link_entity_to_direct_ancestors(schema_manager.get_neo4j_driver_instance(), existing_data_dict['uuid'], direct_ancestor_uuids, activity_data_dict)
     except TransactionError:
         # No need to log
         raise
@@ -1177,14 +1175,13 @@ def link_donor_to_lab(property_key, normalized_type, user_token, existing_data_d
     # Only one uuid in the list in this case
     direct_ancestor_uuids = [existing_data_dict['group_uuid']]
 
-    # Generate property values for Activity
-    # Only one Activity in this case, using the default count = 1
-    activity_data_dict_list = schema_manager.generate_activity_data(normalized_type, user_token, existing_data_dict)
+    # Generate property values for Activity node
+    activity_data_dict = schema_manager.generate_activity_data(normalized_type, user_token, existing_data_dict)
 
     try:
         # Create a linkage (via Activity node) 
         # between the Donor node and the parent Lab node in neo4j
-        schema_neo4j_queries.link_entity_to_direct_ancestors(schema_manager.get_neo4j_driver_instance(), existing_data_dict['uuid'], direct_ancestor_uuids, activity_data_dict_list)
+        schema_neo4j_queries.link_entity_to_direct_ancestors(schema_manager.get_neo4j_driver_instance(), existing_data_dict['uuid'], direct_ancestor_uuids, activity_data_dict)
     except TransactionError:
         # No need to log
         raise
@@ -1304,14 +1301,13 @@ def link_sample_to_direct_ancestor(property_key, normalized_type, user_token, ex
     # Only one uuid in the list in this case
     direct_ancestor_uuids = [existing_data_dict['direct_ancestor_uuid']]
 
-    # Generate property values for Activity
-    # Only one Activity in this case, using the default count = 1
-    activity_data_dict_list = schema_manager.generate_activity_data(normalized_type, user_token, existing_data_dict)
+    # Generate property values for Activity node
+    activity_data_dict = schema_manager.generate_activity_data(normalized_type, user_token, existing_data_dict)
 
     try:
         # Create a linkage (via Activity node) 
         # between the Sample node and the source entity node in neo4j
-        schema_neo4j_queries.link_entity_to_direct_ancestors(schema_manager.get_neo4j_driver_instance(), existing_data_dict['uuid'], direct_ancestor_uuids, activity_data_dict_list)
+        schema_neo4j_queries.link_entity_to_direct_ancestors(schema_manager.get_neo4j_driver_instance(), existing_data_dict['uuid'], direct_ancestor_uuids, activity_data_dict)
     except TransactionError:
         # No need to log
         raise
@@ -1412,14 +1408,13 @@ def link_upload_to_lab(property_key, normalized_type, user_token, existing_data_
     # Only one uuid in the list in this case
     direct_ancestor_uuids = [existing_data_dict['group_uuid']]
 
-    # Generate property values for Activity
-    # Only one Activity in this case, using the default count = 1
-    activity_data_dict_list = schema_manager.generate_activity_data(normalized_type, user_token, existing_data_dict)
+    # Generate property values for Activity node
+    activity_data_dict = schema_manager.generate_activity_data(normalized_type, user_token, existing_data_dict)
 
     try:
         # Create a linkage (via Activity node) 
         # between the Submission node and the parent Lab node in neo4j
-        schema_neo4j_queries.link_entity_to_direct_ancestors(schema_manager.get_neo4j_driver_instance(), existing_data_dict['uuid'], direct_ancestor_uuids, activity_data_dict_list)
+        schema_neo4j_queries.link_entity_to_direct_ancestors(schema_manager.get_neo4j_driver_instance(), existing_data_dict['uuid'], direct_ancestor_uuids, activity_data_dict)
     except TransactionError:
         # No need to log
         raise

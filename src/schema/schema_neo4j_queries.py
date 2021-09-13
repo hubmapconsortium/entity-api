@@ -70,32 +70,30 @@ entity_uuid : str
     The uuid of target child entity
 direct_ancestor_uuids : list
     A list of uuids of direct ancestors
-activity_data_dict_list : list
-    A list of activity properties for each activity node to be created
+activity_data_dict : dict
+    A dict of activity properties to be created
 """
-def link_entity_to_direct_ancestors(neo4j_driver, entity_uuid, direct_ancestor_uuids, activity_data_dict_list):
+def link_entity_to_direct_ancestors(neo4j_driver, entity_uuid, direct_ancestor_uuids, activity_data_dict):
     try:
         with neo4j_driver.session() as session:
             tx = session.begin_transaction()
 
-            # First delete all the old linkages between this entity node and its direct ancestors
-            _delete_direct_ancestor_linkages_tx(tx, entity_uuid)
+            # First delete all the old linkages and Activity node between this entity and its direct ancestors
+            _delete_activity_node_and_linkages_tx(tx, entity_uuid)
 
-            # Loop over two lists at the same time using indexes to look up corresponding elements
-            for index, direct_ancestor_uuid in enumerate(direct_ancestor_uuids):
-                # Get the corresponding activity uuid
-                activity_data_dict = activity_data_dict_list[index]
-                activity_uuid = activity_data_dict['uuid']
+            # Get the activity uuid
+            activity_uuid = activity_data_dict['uuid']
 
-                # Create the Acvitity node
-                _create_activity_tx(tx, activity_data_dict)
+            # Create the Acvitity node
+            _create_activity_tx(tx, activity_data_dict)
 
-                # Create relationship from ancestor entity node to this Activity node
+            # Create relationship from this Activity node to the target entity node
+            _create_relationship_tx(tx, activity_uuid, entity_uuid, 'ACTIVITY_OUTPUT', '->')
+
+            # Create relationship from each ancestor entity node to this Activity node
+            for direct_ancestor_uuid in direct_ancestor_uuids:
                 _create_relationship_tx(tx, direct_ancestor_uuid, activity_uuid, 'ACTIVITY_INPUT', '->')
                     
-                # Create relationship from this Activity node to the target entity node
-                _create_relationship_tx(tx, activity_uuid, entity_uuid, 'ACTIVITY_OUTPUT', '->')
-
             tx.commit()
     except TransactionError as te:
         msg = "TransactionError from calling link_entity_to_direct_ancestors(): "
@@ -701,7 +699,7 @@ def _create_activity_tx(tx, activity_data_dict):
     return node
 
 """
-Delete thelinkages between an entity and its direct ancestors
+Delete the Activity node and linkages between an entity and its direct ancestors
 
 Parameters
 ----------
@@ -710,13 +708,12 @@ tx : neo4j.Transaction object
 uuid : str
     The uuid to target entity (child of those direct ancestors)
 """
-def _delete_direct_ancestor_linkages_tx(tx, uuid):
+def _delete_activity_node_and_linkages_tx(tx, uuid):
     query = (f"MATCH (s:Entity)-[in:ACTIVITY_INPUT]->(a:Activity)-[out:ACTIVITY_OUTPUT]->(t:Entity) "
              f"WHERE t.uuid = '{uuid}' "
-             # Delete the Activity node and in input/output relationships
              f"DELETE in, a, out")
 
-    logger.debug("======_delete_direct_ancestor_linkages_tx() query======")
+    logger.debug("======_delete_activity_node_and_linkages_tx() query======")
     logger.debug(query)
 
     result = tx.run(query)
