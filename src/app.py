@@ -2202,7 +2202,7 @@ def create_entity_details(request, normalized_entity_type, user_token, json_data
     except schema_errors.UnmatchedDataProviderGroupException:
         msg = "The user does not belong to the given Globus group, can't create the entity"
         logger.exception(msg)
-        bad_request_error(msg)
+        forbidden_error(msg)
     except schema_errors.MultipleDataProviderGroupException:
         msg = "The user has mutiple Globus groups associated with, please specify one using 'group_uuid'"
         logger.exception(msg)
@@ -2250,7 +2250,7 @@ def create_entity_details(request, normalized_entity_type, user_token, json_data
         # Log the full stack trace, prepend a line with our message
         msg = "The user does not belong to the given Globus group, can't create the entity"
         logger.exception(msg)
-        bad_request_error(msg)
+        forbidden_error(msg)
     except schema_errors.MultipleDataProviderGroupException:
         # Log the full stack trace, prepend a line with our message
         msg = "The user has mutiple Globus groups associated with, please specify one using 'group_uuid'"
@@ -2347,7 +2347,7 @@ def create_multiple_samples_details(request, normalized_entity_type, user_token,
         # Log the full stack trace, prepend a line with our message
         msg = "The user does not belong to the given Globus group, can't create the entity"
         logger.exception(msg)
-        bad_request_error(msg)
+        forbidden_error(msg)
     except schema_errors.MultipleDataProviderGroupException:
         # Log the full stack trace, prepend a line with our message
         msg = "The user has mutiple Globus groups associated with, please specify one using 'group_uuid'"
@@ -2388,7 +2388,7 @@ def create_multiple_samples_details(request, normalized_entity_type, user_token,
         # Log the full stack trace, prepend a line with our message
         msg = "The user does not belong to the given Globus group, can't create the entity"
         logger.exception(msg)
-        bad_request_error(msg)
+        forbidden_error(msg)
     except schema_errors.MultipleDataProviderGroupException:
         # Log the full stack trace, prepend a line with our message
         msg = "The user has mutiple Globus groups associated with, please specify one using 'group_uuid'"
