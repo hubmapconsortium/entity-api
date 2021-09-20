@@ -105,7 +105,7 @@ except Exception:
 # as well as being passed to the schema_manager
 try:
     # neo4j_driver_instance = neo4j_driver.instance(app.config['NEO4J_URI'], app.config['NEO4J_USERNAME'], app.config['NEO4J_PASSWORD'])
-      neo4j_driver_instance = neo4j.GraphDatabase.driver(uri='bolt://localhost:7687', auth=('neo4j', 'password'), encrypted=False)
+      neo4j_driver_instance = neo4j.GraphDatabase.driver(uri='bolt://localhost:7687', auth=('neo4j', 'Primal$4'), encrypted=False)
       logger.info("Initialized neo4j_driver module successfully :)")
 except Exception:
     msg = "Failed to initialize the neo4j_driver module"
@@ -1438,48 +1438,48 @@ Returns
 json
     A list of entities that are the previous revisions of the target entity
 """
-@app.route('/previous_revisions/<id>', methods = ['GET'])
-def get_previous_revisions(id):
-    # Get user token from Authorization header
-    user_token = get_user_token(request)
-
-    # Make sure the id exists in uuid-api and 
-    # the corresponding entity also exists in neo4j
-    entity_dict = query_target_entity(id, user_token)
-    uuid = entity_dict['uuid']
-
-    # Result filtering based on query string
-    if bool(request.args):
-        property_key = request.args.get('property')
-
-        if property_key is not None:
-            result_filtering_accepted_property_keys = ['uuid']
-
-            # Validate the target property
-            if property_key not in result_filtering_accepted_property_keys:
-                bad_request_error(f"Only the following property keys are supported in the query string: {COMMA_SEPARATOR.join(result_filtering_accepted_property_keys)}")
-
-            # Only return a list of the filtered property value of each entity
-            property_list = app_neo4j_queries.get_previous_revisions(neo4j_driver_instance, uuid, property_key)
-
-            # Final result
-            final_result = property_list
-        else:
-            bad_request_error("The specified query string is not supported. Use '?property=<key>' to filter the result")
-    # Return all the details if no property filtering
-    else:
-        descendants_list = app_neo4j_queries.get_previous_revisions(neo4j_driver_instance, uuid)
-
-        # Generate trigger data and merge into a big dict
-        # and skip some of the properties that are time-consuming to generate via triggers
-        # datasts for Collection, director_ancestor for Sample, and direct_ancestors for Dataset
-        properties_to_skip = ['collections', 'upload', 'direct_ancestors']
-        complete_entities_list = schema_manager.get_complete_entities_list(user_token, descendants_list, properties_to_skip)
-
-        # Final result after normalization
-        final_result = schema_manager.normalize_entities_list_for_response(complete_entities_list)
-
-    return jsonify(final_result)
+# @app.route('/previous_revisions/<id>', methods = ['GET'])
+# def get_previous_revisions(id):
+#     # Get user token from Authorization header
+#     user_token = get_user_token(request)
+#
+#     # Make sure the id exists in uuid-api and
+#     # the corresponding entity also exists in neo4j
+#     entity_dict = query_target_entity(id, user_token)
+#     uuid = entity_dict['uuid']
+#
+#     # Result filtering based on query string
+#     if bool(request.args):
+#         property_key = request.args.get('property')
+#
+#         if property_key is not None:
+#             result_filtering_accepted_property_keys = ['uuid']
+#
+#             # Validate the target property
+#             if property_key not in result_filtering_accepted_property_keys:
+#                 bad_request_error(f"Only the following property keys are supported in the query string: {COMMA_SEPARATOR.join(result_filtering_accepted_property_keys)}")
+#
+#             # Only return a list of the filtered property value of each entity
+#             property_list = app_neo4j_queries.get_previous_revisions(neo4j_driver_instance, uuid, property_key)
+#
+#             # Final result
+#             final_result = property_list
+#         else:
+#             bad_request_error("The specified query string is not supported. Use '?property=<key>' to filter the result")
+#     # Return all the details if no property filtering
+#     else:
+#         descendants_list = app_neo4j_queries.get_previous_revisions(neo4j_driver_instance, uuid)
+#
+#         # Generate trigger data and merge into a big dict
+#         # and skip some of the properties that are time-consuming to generate via triggers
+#         # datasts for Collection, director_ancestor for Sample, and direct_ancestors for Dataset
+#         properties_to_skip = ['collections', 'upload', 'direct_ancestors']
+#         complete_entities_list = schema_manager.get_complete_entities_list(user_token, descendants_list, properties_to_skip)
+#
+#         # Final result after normalization
+#         final_result = schema_manager.normalize_entities_list_for_response(complete_entities_list)
+#
+#     return jsonify(final_result)
 
 
 """
@@ -1943,7 +1943,7 @@ def get_dataset_revision_number(id):
     return jsonify(revision_number)
 
 @app.route('/datasets/<id>/revisions', methods=['GET'])
-def get_revisions_list():
+def get_revisions_list(id):
     # Token is not required, but if an invalid token provided,
     # we need to tell the client with a 401 error
     validate_token_if_auth_header_exists(request)
@@ -1963,52 +1963,72 @@ def get_revisions_list():
     # Only published/public datasets don't require token
     if entity_dict['status'].lower() != DATASET_STATUS_PUBLISHED:
         # Token is required and the user must belong to HuBMAP-READ group
-        token = get_user_token(request, non_public_access_required = True)
+        token = get_user_token(request, non_public_access_required=True)
 
     # By now, either the entity is public accessible or
     # the user token has the correct access level
     revision_number = app_neo4j_queries.get_dataset_revision_number(neo4j_driver_instance, entity_dict['uuid'])
 ####################################################################################################
-    list_of_revisions = []
-    max_revision_number = revision_number
-    revisions = {}
-    revision = {}
-    dataset = {}
-    previous_uuid = None
-    next_uuid = None
-    revision['revision_number'] = revision_number
-    revision['dataset_uuid'] = entity_dict['uuid']
-    dataset = {"Internal Api call to entity api"}
-    revision['dataset'] = dataset
-    previous_uuid = dataset['previous_revision_uuid']
-    next_uuid = dataset['next_revision_uuid']
-    revisions[revision_number] = revision
-    while revision_number > 1:
-        revision_number = revision_number - 1
-        revision = {}
-        dataset = {}
-        dataset = {"Internal Api call to entity api"} #uses previous_uuid
-        revision['revision_number'] = revision_number
-        revision['dataset_uuid'] = dataset['uuid']
-        previous_uuid = dataset['previous_revision_uuid']
-        revision['dataset'] = dataset
-        revisions[revision_number] = revision
-    while next_uuid is not None:
-        revision_number = revision_number + 1
-        max_revision_number = revision_number
-        revision = {}
-        dataset = {}
-        dataset = {"Internal Api call to entity api"} #uses next_revision_uuid
-        revision['revision_number'] = revision_number
-        revision['dataset_uuid'] = dataset['uuid']
-        next_uuid = dataset['next_uuid']
-        revision['dataset'] = dataset
-        revisions[revision_number] = revision
-    i = max_revision_number
-    while i > 1:
-        list_of_revisions.append(revisions[i])
-        i = i-1
-    return Response(json.dumps(list_of_revisions),200, mimetype='application/json')
+    # list_of_revisions = []
+    # max_revision_number = revision_number
+    # revisions = {}
+    # revision = {}
+    # revision['revision_number'] = revision_number
+    # revision['dataset_uuid'] = entity_dict['uuid']
+    # entity_dict = query_target_entity(id, token)
+    # complete_dict = schema_manager.get_complete_entity_result(token, entity_dict)
+    # final_result = schema_manager.normalize_entity_result_for_response(complete_dict)
+    # dataset = final_result
+    # revision['dataset'] = dataset
+    # previous_uuid = dataset['previous_revision_uuid']
+    # next_uuid = dataset['next_revision_uuid']
+    # revisions[revision_number] = revision
+    # while revision_number > 1:
+    #     revision_number = revision_number - 1
+    #     revision = {}
+    #     entity_dict = query_target_entity(previous_uuid, token)
+    #     complete_dict = schema_manager.get_complete_entity_result(token, entity_dict)
+    #     final_result = schema_manager.normalize_entity_result_for_response(complete_dict)
+    #     dataset = final_result
+    #     revision['revision_number'] = revision_number
+    #     revision['dataset_uuid'] = dataset['uuid']
+    #     previous_uuid = dataset['previous_revision_uuid']
+    #     revision['dataset'] = dataset
+    #     revisions[revision_number] = revision
+    # while next_uuid is not None:
+    #     revision_number = revision_number + 1
+    #     max_revision_number = revision_number
+    #     revision = {}
+    #     entity_dict = query_target_entity(next_uuid, token)
+    #     complete_dict = schema_manager.get_complete_entity_result(token, entity_dict)
+    #     final_result = schema_manager.normalize_entity_result_for_response(complete_dict)
+    #     dataset = final_result
+    #     revision['revision_number'] = revision_number
+    #     revision['dataset_uuid'] = dataset['uuid']
+    #     next_uuid = dataset['next_revision_uuid']
+    #     revision['dataset'] = dataset
+    #     revisions[revision_number] = revision
+    # i = max_revision_number
+    # while i > 1:
+    #     list_of_revisions.append(revisions[i])
+    #     i = i-1
+    # return Response(json.dumps(list_of_revisions),200, mimetype='application/json')
+########################################################################################################################
+    complete_dict = schema_manager.get_complete_entity_result(token, entity_dict)
+    final_result = schema_manager.normalize_entity_result_for_response(complete_dict)
+    uuid = final_result['uuid']
+    previous_revisions = app_neo4j_queries.get_previous_revisions(neo4j_driver_instance, uuid)
+    complete_previous_list = schema_manager.get_complete_entities_list(previous_revisions)
+    print(f"\n \n this is the complete list of previous revisions\n \n {complete_previous_list} \n \n")
+    next_revisions = app_neo4j_queries.get_next_revisions(neo4j_driver_instance, uuid)
+    complete_next_list = schema_manager.get_complete_entities_list(next_revisions)
+    print(f"\n \n this is the complete list of next revisions \n \n {complete_next_list} \n \n ")
+
+
+
+
+
+
 ####################################################################################################
 ## Internal Functions
 ####################################################################################################
