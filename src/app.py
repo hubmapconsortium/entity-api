@@ -2041,12 +2041,20 @@ def get_revisions_list(id):
     outputjson.append(revision)
     total_revisions = total_revisions + 1
     for j in complete_next_list:
+        can_display = True
         revision = collections.OrderedDict()
         j = schema_manager.normalize_entity_result_for_response(j)
         revision['dataset'] = j
         revision['dataset_uuid'] = j['uuid']
         revision['revision_number'] = total_revisions
-        outputjson.append(revision)
+        if j['status'].lower() != DATASET_STATUS_PUBLISHED:
+            user_token = auth_helper_instance.getAuthorizationTokens(request.headers)
+            if not user_in_hubmap_read_group(request) or isinstance(user_token, Response):
+                can_display = False
+                if 'next_revision_uuid' in outputjson[-1]['dataset']:
+                    outputjson[-1]['dataset'].pop('next_revision_uuid')
+        if can_display:
+            outputjson.append(revision)
         total_revisions = total_revisions + 1
     outputjson.reverse()
     return Response(json.dumps(outputjson, sort_keys=True), 200, mimetype='application/json')
