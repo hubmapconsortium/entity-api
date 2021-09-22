@@ -1,9 +1,6 @@
 import collections
-
-import flask
 from flask import Flask, g, jsonify, abort, request, Response, redirect
-#from neo4j.exceptions import TransactionError
-import neo4j.exceptions
+from neo4j.exceptions import TransactionError
 import os
 import json
 import re
@@ -107,8 +104,9 @@ except Exception:
 # This neo4j_driver_instance will be used for application-specifc neo4j queries
 # as well as being passed to the schema_manager
 try:
-    # neo4j_driver_instance = neo4j_driver.instance(app.config['NEO4J_URI'], app.config['NEO4J_USERNAME'], app.config['NEO4J_PASSWORD'])
-    neo4j_driver_instance = neo4j.GraphDatabase.driver(uri='bolt://neo4j.dev.hubmapconsortium.org:7687', auth=('neo4j', 's4S^Y@pQcc*HE@'), encrypted=False)
+    neo4j_driver_instance = neo4j_driver.instance(app.config['NEO4J_URI'],
+                                                  app.config['NEO4J_USERNAME'],
+                                                  app.config['NEO4J_PASSWORD'])
     logger.info("Initialized neo4j_driver module successfully :)")
 except Exception:
     msg = "Failed to initialize the neo4j_driver module"
@@ -1601,7 +1599,7 @@ def add_datasets_to_collection(collection_uuid):
 
     try:
         app_neo4j_queries.add_datasets_to_collection(neo4j_driver_instance, collection_uuid, dataset_uuids_list)
-    except neo4j.exceptions.TransactionError:
+    except TransactionError:
         msg = "Failed to create the linkage between the given datasets and the target collection"
         # Log the full stack trace, prepend a line with our message
         logger.exception(msg)
@@ -1970,53 +1968,7 @@ def get_revisions_list(id):
 
     # By now, either the entity is public accessible or
     # the user token has the correct access level
-    revision_number = app_neo4j_queries.get_dataset_revision_number(neo4j_driver_instance, entity_dict['uuid'])
-####################################################################################################
-    # list_of_revisions = []
-    # max_revision_number = revision_number
-    # revisions = {}
-    # revision = {}
-    # revision['revision_number'] = revision_number
-    # revision['dataset_uuid'] = entity_dict['uuid']
-    # entity_dict = query_target_entity(id, token)
-    # complete_dict = schema_manager.get_complete_entity_result(token, entity_dict)
-    # final_result = schema_manager.normalize_entity_result_for_response(complete_dict)
-    # dataset = final_result
-    # revision['dataset'] = dataset
-    # previous_uuid = dataset['previous_revision_uuid']
-    # next_uuid = dataset['next_revision_uuid']
-    # revisions[revision_number] = revision
-    # while revision_number > 1:
-    #     revision_number = revision_number - 1
-    #     revision = {}
-    #     entity_dict = query_target_entity(previous_uuid, token)
-    #     complete_dict = schema_manager.get_complete_entity_result(token, entity_dict)
-    #     final_result = schema_manager.normalize_entity_result_for_response(complete_dict)
-    #     dataset = final_result
-    #     revision['revision_number'] = revision_number
-    #     revision['dataset_uuid'] = dataset['uuid']
-    #     previous_uuid = dataset['previous_revision_uuid']
-    #     revision['dataset'] = dataset
-    #     revisions[revision_number] = revision
-    # while next_uuid is not None:
-    #     revision_number = revision_number + 1
-    #     max_revision_number = revision_number
-    #     revision = {}
-    #     entity_dict = query_target_entity(next_uuid, token)
-    #     complete_dict = schema_manager.get_complete_entity_result(token, entity_dict)
-    #     final_result = schema_manager.normalize_entity_result_for_response(complete_dict)
-    #     dataset = final_result
-    #     revision['revision_number'] = revision_number
-    #     revision['dataset_uuid'] = dataset['uuid']
-    #     next_uuid = dataset['next_revision_uuid']
-    #     revision['dataset'] = dataset
-    #     revisions[revision_number] = revision
-    # i = max_revision_number
-    # while i > 1:
-    #     list_of_revisions.append(revisions[i])
-    #     i = i-1
-    # return Response(json.dumps(list_of_revisions),200, mimetype='application/json')
-########################################################################################################################
+
     complete_dict = schema_manager.get_complete_entity_result(token, entity_dict)
     final_result = schema_manager.normalize_entity_result_for_response(complete_dict)
     uuid = final_result['uuid']
@@ -2058,8 +2010,6 @@ def get_revisions_list(id):
         total_revisions = total_revisions + 1
     outputjson.reverse()
     return Response(json.dumps(outputjson, sort_keys=True), 200, mimetype='application/json')
-########################################################################################################################
-
 
 ####################################################################################################
 ## Internal Functions
@@ -2401,7 +2351,7 @@ def create_entity_details(request, normalized_entity_type, user_token, json_data
         # as string expression literals in it. That's why properties like entity_dict['direct_ancestor_uuids']
         # will need to use ast.literal_eval() in the schema_triggers.py
         entity_dict = app_neo4j_queries.create_entity(neo4j_driver_instance, normalized_entity_type, filtered_merged_dict)
-    except neo4j.exceptions.TransactionError:
+    except TransactionError:
         msg = "Failed to create the new " + normalized_entity_type
         # Log the full stack trace, prepend a line with our message
         logger.exception(msg)
@@ -2544,7 +2494,7 @@ def create_multiple_samples_details(request, normalized_entity_type, user_token,
     try:
         # No return value
         app_neo4j_queries.create_multiple_samples(neo4j_driver_instance, samples_dict_list, activity_data_dict, json_data_dict['direct_ancestor_uuid'])
-    except neo4j.exceptions.TransactionError:
+    except TransactionError:
         msg = "Failed to create multiple samples"
         # Log the full stack trace, prepend a line with our message
         logger.exception(msg)
@@ -2645,7 +2595,7 @@ def update_entity_details(request, normalized_entity_type, user_token, json_data
     # Update the exisiting entity
     try:
         updated_entity_dict = app_neo4j_queries.update_entity(neo4j_driver_instance, normalized_entity_type, filtered_merged_dict, existing_entity_dict['uuid'])
-    except neo4j.exceptions.TransactionError:
+    except TransactionError:
         msg = "Failed to update the entity with id " + id
         # Log the full stack trace, prepend a line with our message
         logger.exception(msg)
