@@ -2022,6 +2022,86 @@ def get_revisions_list(id):
     outputjson.reverse()
     return Response(json.dumps(outputjson, sort_keys=True), 200, mimetype='application/json')
 
+@app.route('/datasets/<id>/retract', methods=['PUT'])
+def retract_dataset(id):
+    # Get user token from Authorization header
+    try:
+        user_token = auth_helper_instance.getAuthorizationTokens(request.headers)
+    except Exception:
+        msg = "Failed to parse the Authorization token by calling commons.auth_helper.getAuthorizationTokens()"
+        # Log the full stack trace, prepend a line with our message
+        logger.exception(msg)
+        internal_server_error(msg)
+
+    # Checks if the item returned from getAuthorizationTokens() is a Response object.
+    # If it is, that always means that its a 401 unauthorized.
+    if isinstance(user_token, Response):
+        unauthorized_error(user_token.get_data().decode())
+
+    # gets the list of groups the user is in. If the user is not in HuBMAP-Data-Admin. Gets the group-uuid for HuBMAP
+    # Data-Admin group. If unable to find the users list of groups, throw forbidden error
+    try:
+        user_info = schema_manager.get_user_info(request)
+        hubmap_data_admin_group_uuid = auth_helper_instance.groupNameToId('HuBMAP-Data-Admin')['uuid']
+    except Exception as e:
+        # Log the full stack trace, prepend a line with our message
+        logger.exception(e)
+        forbidden_error("Access not granted")
+
+    # Checks if the HuBMAP-Data-Admin group uuid is in the list of the user's groups
+    # If the user is not in this group, unauthorized error is thrown
+    if hubmap_data_admin_group_uuid not in user_info['hmgroupids']:
+        msg = "User is not a part of HuBMAP-Data-Admin group and is unauthorized to perform this operation"
+        logger.exception(msg)
+        unauthorized_error(msg)
+
+    # Always expect a json body
+    require_json(request)
+
+    # Parse incoming json string into json data(python dict object)
+    json_data_dict = request.get_json()
+
+    # 'retraction_reason' is a required field.
+    if 'retraction_reason' not in json_data_dict:
+        bad_request_error("No retraction_reason field")
+
+    # Retrieves the neo4j data for a given entity based on the id supplied.
+    # The normalized entity-type from this entity is checked to be a dataset
+    # If the entity is not a dataset and the dataset is not published, cannot retract
+    entity_dict = query_target_entity(id, user_token)
+    normalized_entity_type = entity_dict['entity_type']
+    if normalized_entity_type != 'Dataset':
+        bad_request_error("The entity of given id is not a Dataset")
+    if entity_dict['status'].lower() != DATASET_STATUS_PUBLISHED:
+        bad_request_error("Only a published dataset can be retracted")
+
+    # Prepares a new entity dictionary and adds the new relevant fields
+    updated_entity_dict = schema_manager.normalize_entity_result_for_response(schema_manager.get_complete_entity_result(user_token, entity_dict))
+    updated_entity_dict['sub_status'] = 'Deprecated'
+    updated_entity_dict['retraction_reason'] = json_data_dict['retraction_reason']
+
+    # Validates this new entity against the schema and existing entity
+    try:
+        schema_manager.validate_json_data_against_schema(updated_entity_dict, normalized_entity_type, existing_entity_dict=entity_dict)
+    except schema_errors.SchemaValidationException as e:
+        # No need to log the validation errors
+        bad_request_error(str(e))
+    try:
+        schema_manager.execute_property_level_validators('before_property_update_validators', normalized_entity_type, request.headers, entity_dict, updated_entity_dict)
+    except (schema_errors.MissingApplicationHeaderException, schema_errors.InvalidApplicationHeaderException, KeyError, ValueError) as e:
+        bad_request_error(e)
+    has_direct_ancestor_uuids = False
+    if ('direct_ancestor_uuids' in updated_entity_dict) and (json_data_dict['direct_ancestor_uuids']):
+        has_direct_ancestor_uuids = True
+        # Check existence of those source entities
+        for direct_ancestor_uuid in json_data_dict['direct_ancestor_uuids']:
+            direct_ancestor_dict = query_target_entity(direct_ancestor_uuid, user_token)
+    merged_updated_dict = update_entity_details(request, normalized_entity_type, user_token, json_data_dict, entity_dict)
+    if has_direct_ancestor_uuids:
+        after_update(normalized_entity_type, user_token, merged_updated_dict)
+    output_json = {"status": "successfully retracted", "data": merged_updated_dict}
+    return Response(json.dumps(output_json), 200, mimetype='application/json')
+
 ####################################################################################################
 ## Internal Functions
 ####################################################################################################
