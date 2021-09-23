@@ -2025,15 +2025,25 @@ def retract_dataset(id):
     except (schema_errors.MissingApplicationHeaderException, schema_errors.InvalidApplicationHeaderException, KeyError, ValueError) as e:
         bad_request_error(e)
     has_direct_ancestor_uuids = False
-    if ('direct_ancestor_uuids' in updated_entity_dict) and (json_data_dict['direct_ancestor_uuids']):
+    if ('direct_ancestor_uuids' in updated_entity_dict) and (updated_entity_dict['direct_ancestor_uuids']):
         has_direct_ancestor_uuids = True
         # Check existence of those source entities
-        for direct_ancestor_uuid in json_data_dict['direct_ancestor_uuids']:
+        for direct_ancestor_uuid in updated_entity_dict['direct_ancestor_uuids']:
             direct_ancestor_dict = query_target_entity(direct_ancestor_uuid, user_token)
     merged_updated_dict = update_entity_details(request, normalized_entity_type, user_token, updated_entity_dict, entity_dict)
     if has_direct_ancestor_uuids:
         after_update(normalized_entity_type, user_token, merged_updated_dict)
-    output_json = {"status": "successfully retracted", "data": merged_updated_dict}
+
+
+    complete_dict = schema_manager.get_complete_entity_result(user_token, merged_updated_dict)
+
+    # Will also filter the result based on schema
+    normalized_complete_dict = schema_manager.normalize_entity_result_for_response(complete_dict)
+    output_json = {"status": "successfully retracted", "data": normalized_complete_dict}
+    # How to handle reindex collection?
+    # Also reindex the updated entity node in elasticsearch via search-api
+    reindex_entity(entity_dict['uuid'], user_token)
+
     return Response(json.dumps(output_json), 200, mimetype='application/json')
 
 ####################################################################################################
