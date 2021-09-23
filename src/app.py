@@ -1954,73 +1954,7 @@ def get_dataset_revision_number(id):
     # Response with the integer
     return jsonify(revision_number)
 
-@app.route('/datasets/<id>/revisions', methods=['GET'])
-def get_revisions_list(id):
-    # Token is not required, but if an invalid token provided,
-    # we need to tell the client with a 401 error
-    validate_token_if_auth_header_exists(request)
 
-    # Use the internal token to query the target entity
-    # since public entities don't require user token
-    token = get_internal_token()
-
-    # Query target entity against uuid-api and neo4j and return as a dict if exists
-    entity_dict = query_target_entity(id, token)
-    normalized_entity_type = entity_dict['entity_type']
-
-    # Only for Dataset
-    if normalized_entity_type != 'Dataset':
-        bad_request_error("The entity of given id is not a Dataset")
-
-    # Only published/public datasets don't require token
-    if entity_dict['status'].lower() != DATASET_STATUS_PUBLISHED:
-        # Token is required and the user must belong to HuBMAP-READ group
-        token = get_user_token(request, non_public_access_required=True)
-
-    # By now, either the entity is public accessible or
-    # the user token has the correct access level
-
-    complete_dict = schema_manager.get_complete_entity_result(token, entity_dict)
-    final_result = schema_manager.normalize_entity_result_for_response(complete_dict)
-    uuid = final_result['uuid']
-    previous_revisions = app_neo4j_queries.get_previous_revisions(neo4j_driver_instance, uuid)
-    complete_previous_list = schema_manager.get_complete_entities_list(token, previous_revisions)
-    next_revisions = app_neo4j_queries.get_next_revisions(neo4j_driver_instance, uuid)
-    complete_next_list = schema_manager.get_complete_entities_list(token, next_revisions)
-    outputjson = []
-    total_revisions = 1
-    for i in complete_previous_list:
-        revision = collections.OrderedDict()
-        i = schema_manager.normalize_entity_result_for_response(i)
-        revision['dataset'] = i
-        revision['dataset_uuid'] = i['uuid']
-        revision['revision_number'] = total_revisions
-        outputjson.append(revision)
-        total_revisions = total_revisions + 1
-    revision = collections.OrderedDict()
-    revision['dataset'] = final_result
-    revision['dataset_uuid'] = complete_dict['uuid']
-    revision['revision_number'] = total_revisions
-    outputjson.append(revision)
-    total_revisions = total_revisions + 1
-    for j in complete_next_list:
-        can_display = True
-        revision = collections.OrderedDict()
-        j = schema_manager.normalize_entity_result_for_response(j)
-        revision['dataset'] = j
-        revision['dataset_uuid'] = j['uuid']
-        revision['revision_number'] = total_revisions
-        if j['status'].lower() != DATASET_STATUS_PUBLISHED:
-            user_token = auth_helper_instance.getAuthorizationTokens(request.headers)
-            if not user_in_hubmap_read_group(request) or isinstance(user_token, Response):
-                can_display = False
-                if 'next_revision_uuid' in outputjson[-1]['dataset']:
-                    outputjson[-1]['dataset'].pop('next_revision_uuid')
-        if can_display:
-            outputjson.append(revision)
-        total_revisions = total_revisions + 1
-    outputjson.reverse()
-    return Response(json.dumps(outputjson, sort_keys=True), 200, mimetype='application/json')
 
 @app.route('/datasets/<id>/retract', methods=['PUT'])
 def retract_dataset(id):
@@ -2096,7 +2030,7 @@ def retract_dataset(id):
         # Check existence of those source entities
         for direct_ancestor_uuid in json_data_dict['direct_ancestor_uuids']:
             direct_ancestor_dict = query_target_entity(direct_ancestor_uuid, user_token)
-    merged_updated_dict = update_entity_details(request, normalized_entity_type, user_token, json_data_dict, entity_dict)
+    merged_updated_dict = update_entity_details(request, normalized_entity_type, user_token, updated_entity_dict, entity_dict)
     if has_direct_ancestor_uuids:
         after_update(normalized_entity_type, user_token, merged_updated_dict)
     output_json = {"status": "successfully retracted", "data": merged_updated_dict}
