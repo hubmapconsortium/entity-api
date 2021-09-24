@@ -663,7 +663,10 @@ def update_dataset_and_ancestors_data_access_level(property_key, normalized_type
             # No need to log
             raise
         
-
+def set_dataset_sub_status(property_key, normalized_type, user_token, existing_data_dict, new_data_dict):
+    # Always 'New' on dataset
+    # Always return retracted
+    return property_key, 'Retracted'
 """
 Trigger event method of getting a list of collections for this new Dataset
 

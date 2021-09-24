@@ -377,6 +377,7 @@ ENTITIES:
         description: 'Information recorded about why a the dataset was retracted.'
       sub_status:
         type: string
+        before_update_trigger: set_dataset_sub_status
         description: 'A sub-status provided to further define the status. The only current allowable value is "Retracted"'
       provider_info:
         type: string
