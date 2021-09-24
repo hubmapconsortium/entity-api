@@ -1956,6 +1956,13 @@ def get_dataset_revision_number(id):
     return jsonify(revision_number)
 
 
+"""
+Retrieve a list of all revisions of a dataset from the id of any dataset in the chain. 
+E.g: If there are 5 revisions, and the id for revision 4 is given, a list of revisions
+1-5 will be returned in reverse order (newest first). Non-public access is only required to 
+retrieve information on non-published datasets. Output will be a list of dictionaries. Each dictionary
+contains the dataset revision number, its uuid, and then the complete dataset (optional).   
+"""
 
 @app.route('/datasets/<id>/revisions', methods=['GET'])
 def get_revisions_list(id):
