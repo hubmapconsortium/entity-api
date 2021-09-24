@@ -1955,6 +1955,8 @@ def get_dataset_revision_number(id):
     # Response with the integer
     return jsonify(revision_number)
 
+
+
 @app.route('/datasets/<id>/revisions', methods=['GET'])
 def get_revisions_list(id):
     # Token is not required, but if an invalid token provided,
@@ -1980,48 +1982,46 @@ def get_revisions_list(id):
 
     # By now, either the entity is public accessible or
     # the user token has the correct access level
+    # Get the all the sorted (DESC based on creation timestamp) revisions
+    sorted_revisions_list = app_neo4j_queries.get_sorted_revisions(neo4j_driver_instance, entity_dict['uuid'])
 
-    complete_dict = schema_manager.get_complete_entity_result(token, entity_dict)
-    final_result = schema_manager.normalize_entity_result_for_response(complete_dict)
-    uuid = final_result['uuid']
-    previous_revisions = app_neo4j_queries.get_previous_revisions(neo4j_driver_instance, uuid)
-    complete_previous_list = schema_manager.get_complete_entities_list(token, previous_revisions)
-    next_revisions = app_neo4j_queries.get_next_revisions(neo4j_driver_instance, uuid)
-    complete_next_list = schema_manager.get_complete_entities_list(token, next_revisions)
-    outputjson = []
-    total_revisions = 1
-    for i in complete_previous_list:
-        revision = collections.OrderedDict()
-        i = schema_manager.normalize_entity_result_for_response(i)
-        revision['dataset'] = i
-        revision['dataset_uuid'] = i['uuid']
-        revision['revision_number'] = total_revisions
-        outputjson.append(revision)
-        total_revisions = total_revisions + 1
-    revision = collections.OrderedDict()
-    revision['dataset'] = final_result
-    revision['dataset_uuid'] = complete_dict['uuid']
-    revision['revision_number'] = total_revisions
-    outputjson.append(revision)
-    total_revisions = total_revisions + 1
-    for j in complete_next_list:
-        can_display = True
-        revision = collections.OrderedDict()
-        j = schema_manager.normalize_entity_result_for_response(j)
-        revision['dataset'] = j
-        revision['dataset_uuid'] = j['uuid']
-        revision['revision_number'] = total_revisions
-        if j['status'].lower() != DATASET_STATUS_PUBLISHED:
-            user_token = auth_helper_instance.getAuthorizationTokens(request.headers)
-            if not user_in_hubmap_read_group(request) or isinstance(user_token, Response):
-                can_display = False
-                if 'next_revision_uuid' in outputjson[-1]['dataset']:
-                    outputjson[-1]['dataset'].pop('next_revision_uuid')
-        if can_display:
-            outputjson.append(revision)
-        total_revisions = total_revisions + 1
-    outputjson.reverse()
-    return Response(json.dumps(outputjson, sort_keys=True), 200, mimetype='application/json')
+    # Skip some of the properties that are time-consuming to generate via triggers
+    # direct_ancestors, collections, and upload for Dataset
+    properties_to_skip = [
+        'direct_ancestors', 
+        'collections', 
+        'upload'
+    ]
+    complete_revisions_list = schema_manager.get_complete_entities_list(token, sorted_revisions_list, properties_to_skip)
+    normalized_revisions_list = schema_manager.normalize_entities_list_for_response(complete_revisions_list)
+
+    # Only check the very last revision (the first revision dict since normalized_revisions_list is already sorted DESC)
+    # to determine if send it back or not
+    if not user_in_hubmap_read_group(request):
+        latest_revision = normalized_revisions_list[0]
+        
+        if latest_revision['status'].lower() != DATASET_STATUS_PUBLISHED:
+            normalized_revisions_list.pop(0)
+
+            # Also hide the 'next_revision_uuid' of the second last revision from response
+            if 'next_revision_uuid' in normalized_revisions_list[0]:
+                normalized_revisions_list[0].pop('next_revision_uuid')
+
+    # Now all we need to do is to compose the result list
+    results = []
+    revision_number = len(normalized_revisions_list)
+    for revision in normalized_revisions_list:
+        result = {
+            'revision_number': revision_number,
+            'dataset_uuid': revision['uuid'],
+            'dataset': revision
+        }
+
+        results.append(result)
+        revision_number -= 1
+
+    return jsonify(results)
+
 
 ####################################################################################################
 ## Internal Functions
