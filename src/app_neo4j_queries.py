@@ -592,6 +592,47 @@ def get_children(neo4j_driver, uuid, property_key = None):
     return results
 
 
+
+"""
+Get all revisions for a given dataset uuid and sort them in descending order based on their creation time
+
+Parameters
+----------
+neo4j_driver : neo4j.Driver object
+    The neo4j database connection pool
+uuid : str
+    The uuid of target entity 
+
+Returns
+-------
+dict
+    A list of all the unique revision datasets in DESC order
+"""
+def get_sorted_revisions(neo4j_driver, uuid):
+    results = []
+
+    query = (f"MATCH (prev:Dataset)<-[:REVISION_OF *0..]-(e:Dataset)<-[:REVISION_OF *0..]-(next:Dataset) "
+             f"WHERE e.uuid='{uuid}' "
+             # COLLECT() returns a list
+             # apoc.coll.toSet() reruns a set containing unique nodes
+             f"WITH apoc.coll.toSet(COLLECT(next) + COLLECT(e) + COLLECT(prev)) AS collection "
+             f"UNWIND collection as node "
+             f"WITH node ORDER BY node.created_timestamp DESC "
+             f"RETURN COLLECT(node) AS {record_field_name}")
+
+    logger.debug("======get_sorted_revisions() query======")
+    logger.debug(query)
+
+    with neo4j_driver.session() as session:
+        record = session.read_transaction(_execute_readonly_tx, query)
+
+        if record and record[record_field_name]:
+            # Convert the list of nodes to a list of dicts
+            results = _nodes_to_dicts(record[record_field_name])
+
+    return results
+
+
 """
 Get all previous revisions of the target entity by uuid
 
