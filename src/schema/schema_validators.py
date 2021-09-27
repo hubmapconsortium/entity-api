@@ -123,6 +123,30 @@ existing_data_dict : dict
 new_data_dict : dict
     The json data in request body, already after the regular validations
 """
+def validate_if_retraction_permitted(property_key, normalized_entity_type, request_headers, existing_data_dict, new_data_dict):
+    if 'status' not in existing_data_dict:
+        raise KeyError("Missing 'status' key in 'existing_data_dict' during calling 'validate_if_retraction_permitted()' validator method.")
+
+    # Only published dataset can be retracted
+    if existing_data_dict['status'].lower() != DATASET_STATUS_PUBLISHED:
+        raise ValueError("This dataset is not published, retraction is not allowed")
+
+"""
+Validate the sub_status field is also provided when Dataset.retraction_reason is provided on update via PUT
+
+Parameters
+----------
+property_key : str
+    The target property key
+normalized_type : str
+    Submission
+request_headers: Flask request.headers object, behaves like a dict
+    The instance of Flask request.headers passed in from application request
+existing_data_dict : dict
+    A dictionary that contains all existing entity properties
+new_data_dict : dict
+    The json data in request body, already after the regular validations
+"""
 def validate_sub_status_provided(property_key, normalized_entity_type, request_headers, existing_data_dict, new_data_dict):
     if 'sub_status' not in new_data_dict:
         raise ValueError("Missing sub_status field when retraction_reason is provided")

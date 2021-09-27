@@ -375,11 +375,13 @@ ENTITIES:
       retraction_reason:
         type: string
         before_property_update_validators:
+          - validate_if_retraction_permitted
           - validate_sub_status_provided
         description: 'Information recorded about why a the dataset was retracted.'
       sub_status:
         type: string
         before_property_update_validators:
+          - validate_if_retraction_permitted
           - validate_retraction_reason_provided
           - validate_retracted_dataset_sub_status_value
         description: 'A sub-status provided to further define the status. The only current allowable value is "Retracted"'
