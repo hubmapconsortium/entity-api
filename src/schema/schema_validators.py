@@ -124,7 +124,7 @@ new_data_dict : dict
     The json data in request body, already after the regular validations
 """
 def validate_sub_status_provided(property_key, normalized_entity_type, request_headers, existing_data_dict, new_data_dict):
-    if 'validate_sub_status_provided' not in new_data_dict:
+    if 'sub_status' not in new_data_dict:
         raise ValueError("Missing sub_status field when retraction_reason is provided")
 
 """
@@ -168,8 +168,8 @@ def validate_retracted_dataset_sub_status_value(property_key, normalized_entity_
     accepted_sub_status_values = ['retracted']
     sub_status = new_data_dict[property_key].lower()
 
-    if sub_status not in accepted_status_values:
-        raise ValueError("The provided sub_status value of the Dataset to be retracted is not valid")
+    if sub_status not in accepted_sub_status_values:
+        raise ValueError("Invalid sub_status value of the Dataset to be retracted")
 
 """
 Validate the provided value of Upload.status on update via PUT

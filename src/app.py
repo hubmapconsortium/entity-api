@@ -2019,6 +2019,15 @@ def retract_dataset(id):
         # No need to log the validation errors
         bad_request_error(str(e))
 
+    # Execute property level validators defined in schema yaml before entity property update
+    try:
+        schema_manager.execute_property_level_validators('before_property_update_validators', normalized_entity_type, request.headers, entity_dict, json_data_dict)
+    except (schema_errors.MissingApplicationHeaderException, 
+            schema_errors.InvalidApplicationHeaderException, 
+            KeyError, 
+            ValueError) as e: 
+        bad_request_error(e)
+        
     # No need to call after_update() afterwards because retraction doesn't call any after_update_trigger methods
     merged_updated_dict = update_entity_details(request, normalized_entity_type, token, json_data_dict, entity_dict)
 
