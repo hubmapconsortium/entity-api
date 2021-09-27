@@ -374,10 +374,14 @@ ENTITIES:
         updated_peripherally: true
       retraction_reason:
         type: string
+        before_property_update_validators:
+          - validate_sub_status_provided
         description: 'Information recorded about why a the dataset was retracted.'
       sub_status:
         type: string
-        before_update_trigger: set_dataset_sub_status
+        before_property_update_validators:
+          - validate_retraction_reason_provided
+          - validate_retracted_dataset_sub_status_value
         description: 'A sub-status provided to further define the status. The only current allowable value is "Retracted"'
       provider_info:
         type: string

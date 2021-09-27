@@ -1,8 +1,6 @@
-import collections
 from flask import Flask, g, jsonify, abort, request, Response, redirect
 from neo4j.exceptions import TransactionError
 import os
-import json
 import re
 import csv
 import requests
@@ -1954,14 +1952,28 @@ def get_dataset_revision_number(id):
     # Response with the integer
     return jsonify(revision_number)
 
-"""
-Retract a published dataset. Takes as input a json body with a single required field "retracted_reason" 
-and a path paramter <id> that is the id of that dataset. 
-Authorization handled by gateway. Only hubmap-data-admin group can use this. 
-Updates the dataset on entity api and neo4j to include the retracted_reason as well as setting 
-sub_status to "Retracted". A reindex call is made to search-api. 
-"""
 
+"""
+Retract a published dataset with a retraction reason and sub status
+
+Takes as input a json body with required fields "retracted_reason" and "sub_status".
+Authorization handled by gateway. Only token of HuBMAP-Data-Admin group can use this call. 
+
+Technically, the same can be achieved by making a PUT call to the generic entity update endpoint
+with using a HuBMAP-Data-Admin group token. But doing this is strongly discouraged because we'll
+need to add more validators to ensure when "retracted_reason" is provided, there must be a 
+"sub_status" filed and vise versa. So consider this call a special use case of entity update.
+
+Parameters
+----------
+id : str
+    The HuBMAP ID (e.g. HBM123.ABCD.456) or UUID of target dataset 
+
+Returns
+-------
+dict
+    The updated dataset details
+"""
 @app.route('/datasets/<id>/retract', methods=['PUT'])
 def retract_dataset(id):
     # Always expect a json body
@@ -1970,39 +1982,56 @@ def retract_dataset(id):
     # Parse incoming json string into json data(python dict object)
     json_data_dict = request.get_json()
 
-    # 'retraction_reason' is a required field.
+    # Use beblow application-level validations to avoid complicating schema validators
+    # The 'retraction_reason' and `sub_status` are the only required/allowed fields. No other fields allowed.
+    # Must enforce this rule otherwise we'll need to run after update triggers if any other fields 
+    # get passed in (which should be done using the generic entity update call)
     if 'retraction_reason' not in json_data_dict:
-        bad_request_error("No retraction_reason field")
+        bad_request_error("Missing required field: retraction_reason")
+
+    if 'sub_status' not in json_data_dict:
+        bad_request_error("Missing required field: sub_status")
+    
+    if len(json_data_dict) > 2:
+        bad_request_error("Only retraction_reason and sub_status are allowed fields")
+    
+    # Must be a HuBMAP-Data-Admin group token
     token = get_user_token(request)
 
     # Retrieves the neo4j data for a given entity based on the id supplied.
     # The normalized entity-type from this entity is checked to be a dataset
     # If the entity is not a dataset and the dataset is not published, cannot retract
     entity_dict = query_target_entity(id, token)
-
     normalized_entity_type = entity_dict['entity_type']
+
+    # A bit more application-level validations
     if normalized_entity_type != 'Dataset':
         bad_request_error("The entity of given id is not a Dataset")
+
     if entity_dict['status'].lower() != DATASET_STATUS_PUBLISHED:
         bad_request_error("Only a published dataset can be retracted")
 
-    # Validates this new entity against the schema and existing entity
+    # Validate request json against the yaml schema
+    # The given value of `sub_status` is being validated at this step
     try:
-        schema_manager.validate_json_data_against_schema(json_data_dict, normalized_entity_type, existing_entity_dict=entity_dict)
+        schema_manager.validate_json_data_against_schema(json_data_dict, normalized_entity_type, existing_entity_dict = entity_dict)
     except schema_errors.SchemaValidationException as e:
         # No need to log the validation errors
         bad_request_error(str(e))
 
+    # No need to call after_update() afterwards because retraction doesn't call any after_update_trigger methods
     merged_updated_dict = update_entity_details(request, normalized_entity_type, token, json_data_dict, entity_dict)
 
     complete_dict = schema_manager.get_complete_entity_result(token, merged_updated_dict)
 
     # Will also filter the result based on schema
     normalized_complete_dict = schema_manager.normalize_entity_result_for_response(complete_dict)
+
     # Also reindex the updated entity node in elasticsearch via search-api
     reindex_entity(entity_dict['uuid'], token)
 
     return jsonify(normalized_complete_dict)
+
 
 ####################################################################################################
 ## Internal Functions

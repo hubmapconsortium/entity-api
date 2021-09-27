@@ -107,6 +107,69 @@ def validate_dataset_status_value(property_key, normalized_entity_type, request_
     if (new_status == DATASET_STATUS_PUBLISHED) and (app_header.lower() != INGEST_API_APP):
         raise ValueError(f"Dataset status change to 'Published' can only be made via {INGEST_API_APP}")
 
+"""
+Validate the sub_status field is also provided when Dataset.retraction_reason is provided on update via PUT
+
+Parameters
+----------
+property_key : str
+    The target property key
+normalized_type : str
+    Submission
+request_headers: Flask request.headers object, behaves like a dict
+    The instance of Flask request.headers passed in from application request
+existing_data_dict : dict
+    A dictionary that contains all existing entity properties
+new_data_dict : dict
+    The json data in request body, already after the regular validations
+"""
+def validate_sub_status_provided(property_key, normalized_entity_type, request_headers, existing_data_dict, new_data_dict):
+    if 'validate_sub_status_provided' not in new_data_dict:
+        raise ValueError("Missing sub_status field when retraction_reason is provided")
+
+"""
+Validate the reaction_reason field is also provided when Dataset.sub_status is provided on update via PUT
+
+Parameters
+----------
+property_key : str
+    The target property key
+normalized_type : str
+    Submission
+request_headers: Flask request.headers object, behaves like a dict
+    The instance of Flask request.headers passed in from application request
+existing_data_dict : dict
+    A dictionary that contains all existing entity properties
+new_data_dict : dict
+    The json data in request body, already after the regular validations
+"""
+def validate_retraction_reason_provided(property_key, normalized_entity_type, request_headers, existing_data_dict, new_data_dict):
+    if 'retraction_reason' not in new_data_dict:
+        raise ValueError("Missing retraction_reason field when sub_status is provided")
+
+"""
+Validate the provided value of Dataset.sub_status on update via PUT
+
+Parameters
+----------
+property_key : str
+    The target property key
+normalized_type : str
+    Submission
+request_headers: Flask request.headers object, behaves like a dict
+    The instance of Flask request.headers passed in from application request
+existing_data_dict : dict
+    A dictionary that contains all existing entity properties
+new_data_dict : dict
+    The json data in request body, already after the regular validations
+"""
+def validate_retracted_dataset_sub_status_value(property_key, normalized_entity_type, request_headers, existing_data_dict, new_data_dict):
+    # Use lowercase for comparison
+    accepted_sub_status_values = ['retracted']
+    sub_status = new_data_dict[property_key].lower()
+
+    if sub_status not in accepted_status_values:
+        raise ValueError("The provided sub_status value of the Dataset to be retracted is not valid")
 
 """
 Validate the provided value of Upload.status on update via PUT
