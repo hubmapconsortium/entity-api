@@ -2032,6 +2032,78 @@ def retract_dataset(id):
 
     return jsonify(normalized_complete_dict)
 
+"""
+Retrieve a list of all revisions of a dataset from the id of any dataset in the chain. 
+E.g: If there are 5 revisions, and the id for revision 4 is given, a list of revisions
+1-5 will be returned in reverse order (newest first). Non-public access is only required to 
+retrieve information on non-published datasets. Output will be a list of dictionaries. Each dictionary
+contains the dataset revision number, its uuid, and then the complete dataset (optional).   
+"""
+@app.route('/datasets/<id>/revisions', methods=['GET'])
+def get_revisions_list(id):
+    # Token is not required, but if an invalid token provided,
+    # we need to tell the client with a 401 error
+    validate_token_if_auth_header_exists(request)
+
+    # Use the internal token to query the target entity
+    # since public entities don't require user token
+    token = get_internal_token()
+
+    # Query target entity against uuid-api and neo4j and return as a dict if exists
+    entity_dict = query_target_entity(id, token)
+    normalized_entity_type = entity_dict['entity_type']
+
+    # Only for Dataset
+    if normalized_entity_type != 'Dataset':
+        bad_request_error("The entity of given id is not a Dataset")
+
+    # Only published/public datasets don't require token
+    if entity_dict['status'].lower() != DATASET_STATUS_PUBLISHED:
+        # Token is required and the user must belong to HuBMAP-READ group
+        token = get_user_token(request, non_public_access_required=True)
+
+    # By now, either the entity is public accessible or
+    # the user token has the correct access level
+    # Get the all the sorted (DESC based on creation timestamp) revisions
+    sorted_revisions_list = app_neo4j_queries.get_sorted_revisions(neo4j_driver_instance, entity_dict['uuid'])
+
+    # Skip some of the properties that are time-consuming to generate via triggers
+    # direct_ancestors, collections, and upload for Dataset
+    properties_to_skip = [
+        'direct_ancestors', 
+        'collections', 
+        'upload'
+    ]
+    complete_revisions_list = schema_manager.get_complete_entities_list(token, sorted_revisions_list, properties_to_skip)
+    normalized_revisions_list = schema_manager.normalize_entities_list_for_response(complete_revisions_list)
+
+    # Only check the very last revision (the first revision dict since normalized_revisions_list is already sorted DESC)
+    # to determine if send it back or not
+    if not user_in_hubmap_read_group(request):
+        latest_revision = normalized_revisions_list[0]
+        
+        if latest_revision['status'].lower() != DATASET_STATUS_PUBLISHED:
+            normalized_revisions_list.pop(0)
+
+            # Also hide the 'next_revision_uuid' of the second last revision from response
+            if 'next_revision_uuid' in normalized_revisions_list[0]:
+                normalized_revisions_list[0].pop('next_revision_uuid')
+
+    # Now all we need to do is to compose the result list
+    results = []
+    revision_number = len(normalized_revisions_list)
+    for revision in normalized_revisions_list:
+        result = {
+            'revision_number': revision_number,
+            'dataset_uuid': revision['uuid'],
+            'dataset': revision
+        }
+
+        results.append(result)
+        revision_number -= 1
+
+    return jsonify(results)
+
 
 ####################################################################################################
 ## Internal Functions
