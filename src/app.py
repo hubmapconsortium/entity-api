@@ -1964,6 +1964,11 @@ contains the dataset revision number, its uuid, and then the complete dataset (o
 
 @app.route('/datasets/<id>/revisions', methods=['GET'])
 def get_revisions_list(id):
+    # By default, do not return dataset. Only return dataset if return_dataset is true
+    include_dataset = False
+    args = request.args
+    if "include_dataset" in args and args['include_dataset'] and type(args['include_dataset']) is bool:
+        include_dataset = args['include_dataset']
     # Token is not required, but if an invalid token provided,
     # we need to tell the client with a 401 error
     validate_token_if_auth_header_exists(request)
@@ -2019,9 +2024,9 @@ def get_revisions_list(id):
         result = {
             'revision_number': revision_number,
             'dataset_uuid': revision['uuid'],
-            'dataset': revision
         }
-
+        if include_dataset is True:
+            result['dataset']: revision
         results.append(result)
         revision_number -= 1
 
