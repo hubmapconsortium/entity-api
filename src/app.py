@@ -102,10 +102,9 @@ except Exception:
 # This neo4j_driver_instance will be used for application-specifc neo4j queries
 # as well as being passed to the schema_manager
 try:
-    neo4j_driver_instance = neo4j_driver.instance(app.config['NEO4J_URI'], 
-                                                  app.config['NEO4J_USERNAME'], 
+    neo4j_driver_instance = neo4j_driver.instance(app.config['NEO4J_URI'],
+                                                  app.config['NEO4J_USERNAME'],
                                                   app.config['NEO4J_PASSWORD'])
-
     logger.info("Initialized neo4j_driver module successfully :)")
 except Exception:
     msg = "Failed to initialize the neo4j_driver module"
@@ -794,7 +793,7 @@ def create_entity(entity_type):
     # Execute entity level validator defined in schema yaml before entity creation
     # Currently on Dataset and Upload creation require application header
     try:
-        schema_manager.execute_entity_level_validator('before_entity_create_validator', normalized_entity_type, request.headers)
+        schema_manager.execute_entity_level_validator('before_entity_create_validator', normalized_entity_type, request)
     except schema_errors.MissingApplicationHeaderException as e: 
         bad_request_error(e)  
     except schema_errors.InvalidApplicationHeaderException as e: 
@@ -997,7 +996,7 @@ def update_entity(id):
 
     # Execute property level validators defined in schema yaml before entity property update
     try:
-        schema_manager.execute_property_level_validators('before_property_update_validators', normalized_entity_type, request.headers, entity_dict, json_data_dict)
+        schema_manager.execute_property_level_validators('before_property_update_validators', normalized_entity_type, request, entity_dict, json_data_dict)
     except (schema_errors.MissingApplicationHeaderException, 
             schema_errors.InvalidApplicationHeaderException, 
             KeyError, 
@@ -1454,7 +1453,7 @@ def get_previous_revisions(id):
     # Get user token from Authorization header
     user_token = get_user_token(request)
 
-    # Make sure the id exists in uuid-api and 
+    # Make sure the id exists in uuid-api and
     # the corresponding entity also exists in neo4j
     entity_dict = query_target_entity(id, user_token)
     uuid = entity_dict['uuid']
@@ -1955,6 +1954,91 @@ def get_dataset_revision_number(id):
 
 
 """
+Retract a published dataset with a retraction reason and sub status
+
+Takes as input a json body with required fields "retracted_reason" and "sub_status".
+Authorization handled by gateway. Only token of HuBMAP-Data-Admin group can use this call. 
+
+Technically, the same can be achieved by making a PUT call to the generic entity update endpoint
+with using a HuBMAP-Data-Admin group token. But doing this is strongly discouraged because we'll
+need to add more validators to ensure when "retracted_reason" is provided, there must be a 
+"sub_status" filed and vise versa. So consider this call a special use case of entity update.
+
+Parameters
+----------
+id : str
+    The HuBMAP ID (e.g. HBM123.ABCD.456) or UUID of target dataset 
+
+Returns
+-------
+dict
+    The updated dataset details
+"""
+@app.route('/datasets/<id>/retract', methods=['PUT'])
+def retract_dataset(id):
+    # Always expect a json body
+    require_json(request)
+
+    # Parse incoming json string into json data(python dict object)
+    json_data_dict = request.get_json()
+
+    # Use beblow application-level validations to avoid complicating schema validators
+    # The 'retraction_reason' and `sub_status` are the only required/allowed fields. No other fields allowed.
+    # Must enforce this rule otherwise we'll need to run after update triggers if any other fields 
+    # get passed in (which should be done using the generic entity update call)
+    if 'retraction_reason' not in json_data_dict:
+        bad_request_error("Missing required field: retraction_reason")
+
+    if 'sub_status' not in json_data_dict:
+        bad_request_error("Missing required field: sub_status")
+    
+    if len(json_data_dict) > 2:
+        bad_request_error("Only retraction_reason and sub_status are allowed fields")
+    
+    # Must be a HuBMAP-Data-Admin group token
+    token = get_user_token(request)
+
+    # Retrieves the neo4j data for a given entity based on the id supplied.
+    # The normalized entity-type from this entity is checked to be a dataset
+    # If the entity is not a dataset and the dataset is not published, cannot retract
+    entity_dict = query_target_entity(id, token)
+    normalized_entity_type = entity_dict['entity_type']
+
+    # A bit more application-level validation
+    if normalized_entity_type != 'Dataset':
+        bad_request_error("The entity of given id is not a Dataset")
+
+    # Validate request json against the yaml schema
+    # The given value of `sub_status` is being validated at this step
+    try:
+        schema_manager.validate_json_data_against_schema(json_data_dict, normalized_entity_type, existing_entity_dict = entity_dict)
+    except schema_errors.SchemaValidationException as e:
+        # No need to log the validation errors
+        bad_request_error(str(e))
+
+    # Execute property level validators defined in schema yaml before entity property update
+    try:
+        schema_manager.execute_property_level_validators('before_property_update_validators', normalized_entity_type, request, entity_dict, json_data_dict)
+    except (schema_errors.MissingApplicationHeaderException, 
+            schema_errors.InvalidApplicationHeaderException, 
+            KeyError, 
+            ValueError) as e: 
+        bad_request_error(e)
+
+    # No need to call after_update() afterwards because retraction doesn't call any after_update_trigger methods
+    merged_updated_dict = update_entity_details(request, normalized_entity_type, token, json_data_dict, entity_dict)
+
+    complete_dict = schema_manager.get_complete_entity_result(token, merged_updated_dict)
+
+    # Will also filter the result based on schema
+    normalized_complete_dict = schema_manager.normalize_entity_result_for_response(complete_dict)
+
+    # Also reindex the updated entity node in elasticsearch via search-api
+    reindex_entity(entity_dict['uuid'], token)
+
+    return jsonify(normalized_complete_dict)
+
+"""
 Retrieve a list of all revisions of a dataset from the id of any dataset in the chain. 
 E.g: If there are 5 revisions, and the id for revision 4 is given, a list of revisions
 1-5 will be returned in reverse order (newest first). Non-public access is only required to 
@@ -1966,7 +2050,6 @@ is set to false, the dataset will not be included. For example, to include the f
 use '/datasets/<id>/revisions?include_dataset=true'. To omit the datasets, either set include_dataset=false, or
 simply do not include this parameter. 
 """
-
 @app.route('/datasets/<id>/revisions', methods=['GET'])
 def get_revisions_list(id):
     # By default, do not return dataset. Only return dataset if return_dataset is true
