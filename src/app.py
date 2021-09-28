@@ -1959,11 +1959,21 @@ Retrieve a list of all revisions of a dataset from the id of any dataset in the 
 E.g: If there are 5 revisions, and the id for revision 4 is given, a list of revisions
 1-5 will be returned in reverse order (newest first). Non-public access is only required to 
 retrieve information on non-published datasets. Output will be a list of dictionaries. Each dictionary
-contains the dataset revision number, its uuid, and then the complete dataset (optional).   
+contains the dataset revision number and its uuid. Optionally, the full dataset can be included for each.
+By default, only the revision number and uuid is included. To include the full dataset, the query 
+parameter "include_dataset" can be given with the value of "true". If this parameter is not included or 
+is set to false, the dataset will not be included. For example, to include the full datasets for each revision,
+use '/datasets/<id>/revisions?include_dataset=true'. To omit the datasets, either set include_dataset=false, or
+simply do not include this parameter. 
 """
 
 @app.route('/datasets/<id>/revisions', methods=['GET'])
 def get_revisions_list(id):
+    # By default, do not return dataset. Only return dataset if return_dataset is true
+    include_dataset = False
+    args = request.args
+    if "include_dataset" in args and args['include_dataset'] and type(args['include_dataset']) is bool:
+        include_dataset = args['include_dataset']
     # Token is not required, but if an invalid token provided,
     # we need to tell the client with a 401 error
     validate_token_if_auth_header_exists(request)
@@ -2019,9 +2029,9 @@ def get_revisions_list(id):
         result = {
             'revision_number': revision_number,
             'dataset_uuid': revision['uuid'],
-            'dataset': revision
         }
-
+        if include_dataset is True:
+            result['dataset']: revision
         results.append(result)
         revision_number -= 1
 
