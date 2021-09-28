@@ -2004,12 +2004,9 @@ def retract_dataset(id):
     entity_dict = query_target_entity(id, token)
     normalized_entity_type = entity_dict['entity_type']
 
-    # A bit more application-level validations
+    # A bit more application-level validation
     if normalized_entity_type != 'Dataset':
         bad_request_error("The entity of given id is not a Dataset")
-
-    if entity_dict['status'].lower() != DATASET_STATUS_PUBLISHED:
-        bad_request_error("Only a published dataset can be retracted")
 
     # Validate request json against the yaml schema
     # The given value of `sub_status` is being validated at this step
