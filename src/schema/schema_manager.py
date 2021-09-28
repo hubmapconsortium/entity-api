@@ -700,10 +700,10 @@ validator_type : str
     One of the validator types: before_entity_create_validator
 normalized_entity_type : str
     One of the normalized entity types defined in the schema yaml: Donor, Sample, Dataset, Upload
-request_headers: Flask request.headers object, behaves like a dict
-    The instance of Flask request.headers passed in from application request
+request: Flask request object
+    The instance of Flask request passed in from application request
 """
-def execute_entity_level_validator(validator_type, normalized_entity_type, request_headers):
+def execute_entity_level_validator(validator_type, normalized_entity_type, request):
     global _schema
 
     # A bit validation
@@ -722,7 +722,7 @@ def execute_entity_level_validator(validator_type, normalized_entity_type, reque
                 
                 logger.debug(f"To run {validator_type}: {validator_method_name} defined for entity {normalized_entity_type}")
 
-                validator_method_to_call(normalized_entity_type, request_headers)
+                validator_method_to_call(normalized_entity_type, request)
             except schema_errors.MissingApplicationHeaderException as e: 
                 raise schema_errors.MissingApplicationHeaderException(e) 
             except schema_errors.InvalidApplicationHeaderException as e: 
@@ -743,14 +743,14 @@ validator_type : str
     For now only: before_property_update_validators (support multiple validators)
 normalized_entity_type : str
     One of the normalized entity types defined in the schema yaml: Donor, Sample, Dataset, Upload
-request_headers: Flask request.headers object, behaves like a dict
-    The instance of Flask request.headers passed in from application request
+request: Flask request object
+    The instance of Flask request passed in from application request
 existing_data_dict : dict
     A dictionary that contains all existing entity properties
 new_data_dict : dict
     The json data in request body, already after the regular validations
 """
-def execute_property_level_validators(validator_type, normalized_entity_type, request_headers, existing_data_dict, new_data_dict):
+def execute_property_level_validators(validator_type, normalized_entity_type, request, existing_data_dict, new_data_dict):
     global _schema
 
     schema_section = None
@@ -774,7 +774,7 @@ def execute_property_level_validators(validator_type, normalized_entity_type, re
                     
                     logger.debug(f"To run {validator_type}: {validator_method_name} defined for entity {normalized_entity_type} on property {key}")
 
-                    validator_method_to_call(key, normalized_entity_type, request_headers, existing_data_dict, new_data_dict)
+                    validator_method_to_call(key, normalized_entity_type, request, existing_data_dict, new_data_dict)
                 except schema_errors.MissingApplicationHeaderException as e: 
                     raise schema_errors.MissingApplicationHeaderException(e) 
                 except schema_errors.InvalidApplicationHeaderException as e: 

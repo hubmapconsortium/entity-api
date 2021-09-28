@@ -793,7 +793,7 @@ def create_entity(entity_type):
     # Execute entity level validator defined in schema yaml before entity creation
     # Currently on Dataset and Upload creation require application header
     try:
-        schema_manager.execute_entity_level_validator('before_entity_create_validator', normalized_entity_type, request.headers)
+        schema_manager.execute_entity_level_validator('before_entity_create_validator', normalized_entity_type, request)
     except schema_errors.MissingApplicationHeaderException as e: 
         bad_request_error(e)  
     except schema_errors.InvalidApplicationHeaderException as e: 
@@ -996,7 +996,7 @@ def update_entity(id):
 
     # Execute property level validators defined in schema yaml before entity property update
     try:
-        schema_manager.execute_property_level_validators('before_property_update_validators', normalized_entity_type, request.headers, entity_dict, json_data_dict)
+        schema_manager.execute_property_level_validators('before_property_update_validators', normalized_entity_type, request, entity_dict, json_data_dict)
     except (schema_errors.MissingApplicationHeaderException, 
             schema_errors.InvalidApplicationHeaderException, 
             KeyError, 
@@ -2021,13 +2021,13 @@ def retract_dataset(id):
 
     # Execute property level validators defined in schema yaml before entity property update
     try:
-        schema_manager.execute_property_level_validators('before_property_update_validators', normalized_entity_type, request.headers, entity_dict, json_data_dict)
+        schema_manager.execute_property_level_validators('before_property_update_validators', normalized_entity_type, request, entity_dict, json_data_dict)
     except (schema_errors.MissingApplicationHeaderException, 
             schema_errors.InvalidApplicationHeaderException, 
             KeyError, 
             ValueError) as e: 
         bad_request_error(e)
-        
+
     # No need to call after_update() afterwards because retraction doesn't call any after_update_trigger methods
     merged_updated_dict = update_entity_details(request, normalized_entity_type, token, json_data_dict, entity_dict)
 

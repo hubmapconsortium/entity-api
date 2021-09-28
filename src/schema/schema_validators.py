@@ -1,6 +1,7 @@
 import logging
 
 # Local modules
+from schema import schema_manager
 from schema import schema_errors
 
 logger = logging.getLogger(__name__)
@@ -23,17 +24,17 @@ Parameters
 ----------
 normalized_type : str
     One of the types defined in the schema yaml: Dataset, Upload
-request_headers: Flask request.headers object, behaves like a dict
-    The instance of Flask request.headers passed in from application request
+request: Flask request
+    The instance of Flask request passed in from application request
 """
-def validate_application_header_before_entity_create(normalized_entity_type, request_headers):
+def validate_application_header_before_entity_create(normalized_entity_type, request):
     # A list of applications allowed to create this new entity
     # Currently only ingest-api and ingest-pipeline are allowed
     # to create or update Dataset and Upload
     # Use lowercase for comparison
     applications_allowed = [INGEST_API_APP, INGEST_PIPELINE_APP]
 
-    _validate_application_header(applications_allowed, request_headers)
+    _validate_application_header(applications_allowed, request.headers)
 
 
 ##############################################################################################
@@ -49,21 +50,21 @@ property_key : str
     The target property key
 normalized_type : str
     Dataset
-request_headers: Flask request.headers object, behaves like a dict
-    The instance of Flask request.headers passed in from application request
+request: Flask request object
+    The instance of Flask request passed in from application request
 existing_data_dict : dict
     A dictionary that contains all existing entity properties
 new_data_dict : dict
     The json data in request body, already after the regular validations
 """
-def validate_application_header_before_property_update(property_key, normalized_entity_type, request_headers, existing_data_dict, new_data_dict):
+def validate_application_header_before_property_update(property_key, normalized_entity_type, request, existing_data_dict, new_data_dict):
     # A list of applications allowed to update this property
     # Currently only ingest-api and ingest-pipeline are allowed
     # to update Dataset.status or Upload.status
     # Use lowercase for comparison
     applications_allowed = [INGEST_API_APP, INGEST_PIPELINE_APP]
 
-    _validate_application_header(applications_allowed, request_headers)
+    _validate_application_header(applications_allowed, request.headers)
 
 
 """
@@ -75,14 +76,14 @@ property_key : str
     The target property key
 normalized_type : str
     Dataset
-request_headers: Flask request.headers object, behaves like a dict
-    The instance of Flask request.headers passed in from application request
+request: Flask request object
+    The instance of Flask request passed in from application request
 existing_data_dict : dict
     A dictionary that contains all existing entity properties
 new_data_dict : dict
     The json data in request body, already after the regular validations
 """
-def validate_dataset_status_value(property_key, normalized_entity_type, request_headers, existing_data_dict, new_data_dict):
+def validate_dataset_status_value(property_key, normalized_entity_type, request, existing_data_dict, new_data_dict):
     # Use lowercase for comparison
     accepted_status_values = ['new', 'processing', 'published', 'qa', 'error', 'hold', 'invalid']
     new_status = new_data_dict[property_key].lower()
@@ -99,8 +100,8 @@ def validate_dataset_status_value(property_key, normalized_entity_type, request_
         raise ValueError("This dataset is already published, status change is not allowed")
 
     # HTTP header names are case-insensitive
-    # request_headers.get('X-Hubmap-Application') returns None if the header doesn't exist
-    app_header = request_headers.get(HUBMAP_APP_HEADER)
+    # request.headers.get('X-Hubmap-Application') returns None if the header doesn't exist
+    app_header = request.headers.get(HUBMAP_APP_HEADER)
 
     # Change status to 'Published' can only happen via ingest-api 
     # because file system changes are needed
@@ -116,20 +117,39 @@ property_key : str
     The target property key
 normalized_type : str
     Submission
-request_headers: Flask request.headers object, behaves like a dict
-    The instance of Flask request.headers passed in from application request
+request: Flask request object
+    The instance of Flask request passed in from application request
 existing_data_dict : dict
     A dictionary that contains all existing entity properties
 new_data_dict : dict
     The json data in request body, already after the regular validations
 """
-def validate_if_retraction_permitted(property_key, normalized_entity_type, request_headers, existing_data_dict, new_data_dict):
+def validate_if_retraction_permitted(property_key, normalized_entity_type, request, existing_data_dict, new_data_dict):
     if 'status' not in existing_data_dict:
         raise KeyError("Missing 'status' key in 'existing_data_dict' during calling 'validate_if_retraction_permitted()' validator method.")
 
     # Only published dataset can be retracted
     if existing_data_dict['status'].lower() != DATASET_STATUS_PUBLISHED:
         raise ValueError("This dataset is not published, retraction is not allowed")
+
+    # Only token in HuBMAP-Data-Admin group can retract a published dataset
+    try:
+        # The property 'hmgroupids' is ALWASYS in the output with using schema_manager.get_user_info()
+        # when the token in request is a nexus_token
+        user_info = schema_manager.get_user_info(request)
+        hubmap_read_group_uuid = schema_manager.get_auth_helper_instance().groupNameToId('HuBMAP-READ')['uuid']
+    except Exception as e:
+        # Log the full stack trace, prepend a line with our message
+        logger.exception(e)
+
+        # If the token is not a nexus token, no group information available
+        # The commons.hm_auth.AuthCache would return a Response with 500 error message
+        # We treat such cases as the user not in the HuBMAP-READ group
+        raise ValueError("Failed to parse the permission based on token, retraction is not allowed")
+
+    if hubmap_read_group_uuid not in user_info['hmgroupids']:
+        raise ValueError("Permission denied, retraction is not allowed")
+
 
 """
 Validate the sub_status field is also provided when Dataset.retraction_reason is provided on update via PUT
@@ -140,14 +160,14 @@ property_key : str
     The target property key
 normalized_type : str
     Submission
-request_headers: Flask request.headers object, behaves like a dict
-    The instance of Flask request.headers passed in from application request
+request: Flask request object
+    The instance of Flask request passed in from application request
 existing_data_dict : dict
     A dictionary that contains all existing entity properties
 new_data_dict : dict
     The json data in request body, already after the regular validations
 """
-def validate_sub_status_provided(property_key, normalized_entity_type, request_headers, existing_data_dict, new_data_dict):
+def validate_sub_status_provided(property_key, normalized_entity_type, request, existing_data_dict, new_data_dict):
     if 'sub_status' not in new_data_dict:
         raise ValueError("Missing sub_status field when retraction_reason is provided")
 
@@ -160,14 +180,14 @@ property_key : str
     The target property key
 normalized_type : str
     Submission
-request_headers: Flask request.headers object, behaves like a dict
-    The instance of Flask request.headers passed in from application request
+request: Flask request object
+    The instance of Flask request passed in from application request
 existing_data_dict : dict
     A dictionary that contains all existing entity properties
 new_data_dict : dict
     The json data in request body, already after the regular validations
 """
-def validate_retraction_reason_provided(property_key, normalized_entity_type, request_headers, existing_data_dict, new_data_dict):
+def validate_retraction_reason_provided(property_key, normalized_entity_type, request, existing_data_dict, new_data_dict):
     if 'retraction_reason' not in new_data_dict:
         raise ValueError("Missing retraction_reason field when sub_status is provided")
 
@@ -180,14 +200,14 @@ property_key : str
     The target property key
 normalized_type : str
     Submission
-request_headers: Flask request.headers object, behaves like a dict
-    The instance of Flask request.headers passed in from application request
+request: Flask request object
+    The instance of Flask request passed in from application request
 existing_data_dict : dict
     A dictionary that contains all existing entity properties
 new_data_dict : dict
     The json data in request body, already after the regular validations
 """
-def validate_retracted_dataset_sub_status_value(property_key, normalized_entity_type, request_headers, existing_data_dict, new_data_dict):
+def validate_retracted_dataset_sub_status_value(property_key, normalized_entity_type, request, existing_data_dict, new_data_dict):
     # Use lowercase for comparison
     accepted_sub_status_values = ['retracted']
     sub_status = new_data_dict[property_key].lower()
@@ -204,14 +224,14 @@ property_key : str
     The target property key
 normalized_type : str
     Submission
-request_headers: Flask request.headers object, behaves like a dict
-    The instance of Flask request.headers passed in from application request
+request: Flask request object
+    The instance of Flask request passed in from application request
 existing_data_dict : dict
     A dictionary that contains all existing entity properties
 new_data_dict : dict
     The json data in request body, already after the regular validations
 """
-def validate_upload_status_value(property_key, normalized_entity_type, request_headers, existing_data_dict, new_data_dict):
+def validate_upload_status_value(property_key, normalized_entity_type, request, existing_data_dict, new_data_dict):
     # Use lowercase for comparison
     accepted_status_values = ['new', 'valid', 'invalid', 'error', 'reorganized', 'processing']
     new_status = new_data_dict[property_key].lower()
