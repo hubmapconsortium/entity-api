@@ -372,7 +372,22 @@ ENTITIES:
         # The updated_peripherally tag is a temporary measure to correctly handle any attributes
         # which are potentially updated by multiple triggers
         updated_peripherally: true
-        
+      retraction_reason:
+        type: string
+        before_property_update_validators:
+          - validate_if_retraction_permitted
+          - validate_sub_status_provided
+        description: 'Information recorded about why a the dataset was retracted.'
+      sub_status:
+        type: string
+        before_property_update_validators:
+          - validate_if_retraction_permitted
+          - validate_retraction_reason_provided
+          - validate_retracted_dataset_sub_status_value
+        description: 'A sub-status provided to further define the status. The only current allowable value is "Retracted"'
+      provider_info:
+        type: string
+        description: 'Information recorded about the data provider before an analysis pipeline is run on the data.'
 
   ############################################# Donor #############################################
   Donor:
