@@ -233,7 +233,7 @@ new_data_dict : dict
 """
 def validate_upload_status_value(property_key, normalized_entity_type, request, existing_data_dict, new_data_dict):
     # Use lowercase for comparison
-    accepted_status_values = ['new', 'valid', 'invalid', 'error', 'reorganized', 'processing']
+    accepted_status_values = ['new', 'valid', 'invalid', 'error', 'reorganized', 'processing', 'submitted']
     new_status = new_data_dict[property_key].lower()
 
     if new_status not in accepted_status_values:
