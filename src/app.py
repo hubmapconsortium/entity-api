@@ -2053,10 +2053,11 @@ simply do not include this parameter.
 @app.route('/datasets/<id>/revisions', methods=['GET'])
 def get_revisions_list(id):
     # By default, do not return dataset. Only return dataset if return_dataset is true
-    include_dataset = False
-    args = request.args
-    if "include_dataset" in args and args['include_dataset'] and type(args['include_dataset']) is bool:
-        include_dataset = args['include_dataset']
+    show_dataset = False
+    if bool(request.args):
+        include_dataset = request.args.get('include_dataset')
+        if (include_dataset is not None) and (include_dataset.lower() == 'true'):
+            show_dataset = True
     # Token is not required, but if an invalid token provided,
     # we need to tell the client with a 401 error
     validate_token_if_auth_header_exists(request)
@@ -2111,10 +2112,10 @@ def get_revisions_list(id):
     for revision in normalized_revisions_list:
         result = {
             'revision_number': revision_number,
-            'dataset_uuid': revision['uuid'],
+            'dataset_uuid': revision['uuid']
         }
-        if include_dataset is True:
-            result['dataset']: revision
+        if show_dataset:
+            result['dataset'] = revision
         results.append(result)
         revision_number -= 1
 
