@@ -866,6 +866,11 @@ def create_entity(entity_type):
             if next_revisions_list:
                 bad_request_error(f"The previous_revision_uuid specified for this dataset has already had a next revision")
 
+            # Only published datasets can have revisions made of them. Verify that that status of the Dataset specified
+            # by previous_revision_uuid is published. Else, bad request error.
+            if previous_version_dict['status'].lower() != DATASET_STATUS_PUBLISHED:
+                bad_request_error(f"The previous_revision_uuid specified for this dataset must be 'Published' in order to create a new revision from it")
+
         # Generate 'before_create_triiger' data and create the entity details in Neo4j
         merged_dict = create_entity_details(request, normalized_entity_type, user_token, json_data_dict)
     else:
