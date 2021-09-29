@@ -56,6 +56,44 @@ def get_dataset_direct_ancestors(neo4j_driver, uuid, property_key = None):
 
     return results
 
+
+"""
+Get all ancestors of the given dataset uuid
+
+Parameters
+----------
+neo4j_driver : neo4j.Driver object
+    The neo4j database connection pool
+uuid : str
+    The uuid of target entity 
+
+Returns
+-------
+list
+    A list of unique ancestor dictionaries returned from the Cypher query
+"""
+def get_dataset_ancestors(neo4j_driver, uuid):
+    results = []
+
+    query = (f"MATCH (e:Dataset)<-[:ACTIVITY_INPUT|ACTIVITY_OUTPUT*]-(ancestor:Entity) "
+             # Filter out the Lab entities
+             f"WHERE e.uuid='{uuid}' AND ancestor.entity_type <> 'Lab' "
+             # COLLECT() returns a list
+             # apoc.coll.toSet() reruns a set containing unique nodes
+             f"RETURN apoc.coll.toSet(COLLECT(ancestor)) AS {record_field_name}")
+
+    logger.debug("======get_dataset_ancestors() query======")
+    logger.debug(query)
+
+    with neo4j_driver.session() as session:
+        record = session.read_transaction(_execute_readonly_tx, query)
+
+        if record and record[record_field_name]:
+            # Convert the list of nodes to a list of dicts
+            results = _nodes_to_dicts(record[record_field_name])
+
+    return results
+
 """
 Create or recreate one or more linkages (via Activity nodes) 
 between the target entity node and the direct ancestor nodes in neo4j

@@ -37,6 +37,7 @@ cache = TTLCache(128, ttl=7200)
 _schema = None
 _uuid_api_url = None
 _ingest_api_url = None
+_search_api_url = None
 _auth_helper = None
 _neo4j_driver = None
 
@@ -57,19 +58,22 @@ neo4j_session_context : neo4j.Session object
 """
 def initialize(valid_yaml_file, 
                uuid_api_url,
-               ingest_api_url, 
+               ingest_api_url,
+               search_api_url,
                auth_helper_instance,
                neo4j_driver_instance):
     # Specify as module-scope variables
     global _schema
     global _uuid_api_url
     global _ingest_api_url
+    global _search_api_url
     global _auth_helper
     global _neo4j_driver
 
     _schema = load_provenance_schema(valid_yaml_file)
     _uuid_api_url = uuid_api_url
     _ingest_api_url = ingest_api_url
+    _search_api_url = search_api_url
 
     # Get the helper instances
     _auth_helper = auth_helper_instance
@@ -1437,6 +1441,20 @@ def get_ingest_api_url():
     global _ingest_api_url
     
     return _ingest_api_url
+
+
+"""
+Get the search-api URL to be used by trigger methods
+
+Returns
+-------
+str
+    The search-api URL
+"""
+def get_search_api_url():
+    global _search_api_url
+    
+    return _search_api_url
 
 
 """

@@ -134,6 +134,7 @@ try:
     schema_manager.initialize(app.config['SCHEMA_YAML_FILE'], 
                               app.config['UUID_API_URL'],
                               app.config['INGEST_API_URL'],
+                              app.config['SEARCH_API_URL'],
                               auth_helper_instance,
                               neo4j_driver_instance)
 
