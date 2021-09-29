@@ -542,23 +542,12 @@ def normalize_entity_result_for_response(entity_dict, properties_to_exclude = []
                 # Skip properties with None value and the ones that are marked as not to be exposed.
                 # By default, all properties are exposed if not marked as `exposed: false`
                 # It's still possible to see `exposed: true` marked explictly
-                if (entity_dict[key] is not None) and ('exposed' not in properties[key]) or (('exposed' in properties[key]) and properties[key]['exposed']):
-                    # Safely evaluate a string containing a Python dict or list literal
-                    # Only convert to Python list/dict when the string literal is not empty
-                    # instead of returning the json-as-string or array-as-string
-                    if isinstance(entity_dict[key], str) and entity_dict[key] and (properties[key]['type'] in ['list', 'json_string']):
-                        # ast uses compile to compile the source string (which must be an expression) into an AST
-                        # If the source string is not a valid expression (like an empty string), a SyntaxError will be raised by compile
-                        # If, on the other hand, the source string would be a valid expression (e.g. a variable name like foo), 
-                        # compile will succeed but then literal_eval() might fail with a ValueError
-                        # Also this fails with a TypeError: literal_eval("{{}: 'value'}")
-                        try:
-                            entity_dict[key] = ast.literal_eval(entity_dict[key])
-                        except (SyntaxError, ValueError, TypeError) as e:
-                            logger.debug(f"Invalid expression (string value) of key: {key} for ast.literal_eval()")
-                            logger.debug(entity_dict[key])
-                            msg = "Failed to convert the source string with ast.literal_eval()"
-                            logger.exception(msg)
+                if (entity_dict[key] is not None) and ('exposed' not in properties[key]) or (('exposed' in properties[key]) and properties[key]['exposed']): 
+                    if entity_dict[key] and (properties[key]['type'] in ['list', 'json_string']):
+                        # Safely evaluate a string containing a Python dict or list literal
+                        # Only convert to Python list/dict when the string literal is not empty
+                        # instead of returning the json-as-string or array-as-string
+                        entity_dict[key] = convert_str_to_data(entity_dict[key])
                     
                     # Add the target key with correct value of data type to the normalized_entity dict
                     normalized_entity[key] = entity_dict[key]
@@ -1501,7 +1490,18 @@ list or dict
 """
 def convert_str_to_data(data_str):
     if isinstance(data_str, str):
-        data = ast.literal_eval(data_str)
+        # ast uses compile to compile the source string (which must be an expression) into an AST
+        # If the source string is not a valid expression (like an empty string), a SyntaxError will be raised by compile
+        # If, on the other hand, the source string would be a valid expression (e.g. a variable name like foo), 
+        # compile will succeed but then literal_eval() might fail with a ValueError
+        # Also this fails with a TypeError: literal_eval("{{}: 'value'}")
+        try:
+            data = ast.literal_eval(data_str)
+        except (SyntaxError, ValueError, TypeError) as e:
+            logger.debug(f"Invalid expression (string value): {data_str} to be evaluated by ast.literal_eval()")
+            logger.debug(entity_dict[key])
+            msg = "Failed to convert the source string with ast.literal_eval()"
+            logger.exception(msg)
     else:
         data = data_str
 
