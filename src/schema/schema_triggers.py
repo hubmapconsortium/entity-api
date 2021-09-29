@@ -941,46 +941,45 @@ def get_dataset_title(property_key, normalized_type, user_token, existing_data_d
     except requests.exceptions.RequestException as e:
         raise requests.exceptions.RequestException(e)
 
-    # Get all the ancestors of this dataset
-    ancestors = schema_neo4j_queries.get_dataset_ancestors(schema_manager.get_neo4j_driver_instance(), existing_data_dict['uuid'])
+    # Get the sample organ name and donor metadata information of this dataset
+    organ_name, donor_metadata = schema_neo4j_queries.get_dataset_organ_and_donor_info(schema_manager.get_neo4j_driver_instance(), existing_data_dict['uuid'])
 
-    # Parse organ_name, age, race, and sex from ancestor Sample and Donor
-    for ancestor in ancestors:
-        if 'entity_type' in ancestor:
-            # 'specimen_type' is a key in search-api/src/search-schema/data/definitions/enums/tissue_sample_types.yaml
-            if ancestor['entity_type'] == 'Sample':
-                if 'specimen_type' in ancestor and ancestor['specimen_type'].lower() == 'organ' and 'organ' in ancestor:
-                    try:
-                        # ancestor['organ'] is the two-letter code only set if sample_type == organ.
-                        # Convert the two-letter code to a description
-                        # https://github.com/hubmapconsortium/search-api/blob/test-release/src/search-schema/data/definitions/enums/organ_types.yaml
-                        organ_desc = _get_organ_description(ancestor['organ'])
-                    except yaml.YAMLError as e:
-                        raise yaml.YAMLError(e)
+    # Can we move organ_types.yaml to commons or make it an API call to avoid parsing the raw yaml?
+    # Parse the organ description
+    if organ_name is not None:
+        try: 
+            # The organ_name is the two-letter code only set if specimen_type == 'organ'
+            # Convert the two-letter code to a description
+            # https://github.com/hubmapconsortium/search-api/blob/test-release/src/search-schema/data/definitions/enums/organ_types.yaml
+            organ_desc = _get_organ_description(organ_name)
+        except yaml.YAMLError as e:
+            raise yaml.YAMLError(e)
 
-            if ancestor['entity_type'] == 'Donor':
-                # Easier to ask for forgiveness than permission (EAFP)
-                # Rather than checking key existence at every level
-                try:
-                    # Note: The ancestor['metadata'] is stored in Neo4j as a string representation of the Python dict
-                    # It's not stored in Neo4j as a json string! And we can't store it as a json string 
-                    # due to the way that Cypher handles single/double quotes.
-                    ancestor_metadata_dict = schema_manager.convert_str_to_data(ancestor['metadata'])
-                    data_list = ancestor_metadata_dict['organ_donor_data']
+    # Parse age, race, and sex
+    if donor_metadata is not None:
+        try:
+            # Note: The donor_metadata is stored in Neo4j as a string representation of the Python dict
+            # It's not stored in Neo4j as a json string! And we can't store it as a json string 
+            # due to the way that Cypher handles single/double quotes.
+            ancestor_metadata_dict = schema_manager.convert_str_to_data(donor_metadata)
 
-                    for data in data_list:
-                        if 'grouping_concept_preferred_term' in data:
-                            if data['grouping_concept_preferred_term'].lower() == 'age':
-                                # The actual value of age stored in 'data_value' instead of 'preferred_term'
-                                age = data['data_value']
+            # Easier to ask for forgiveness than permission (EAFP)
+            # Rather than checking key existence at every level
+            data_list = ancestor_metadata_dict['organ_donor_data']
 
-                            if data['grouping_concept_preferred_term'].lower() == 'race':
-                                race = data['preferred_term'].lower()
+            for data in data_list:
+                if 'grouping_concept_preferred_term' in data:
+                    if data['grouping_concept_preferred_term'].lower() == 'age':
+                        # The actual value of age stored in 'data_value' instead of 'preferred_term'
+                        age = data['data_value']
 
-                            if data['grouping_concept_preferred_term'].lower() == 'sex':
-                                sex = data['preferred_term'].lower()
-                except KeyError:
-                    pass
+                    if data['grouping_concept_preferred_term'].lower() == 'race':
+                        race = data['preferred_term'].lower()
+
+                    if data['grouping_concept_preferred_term'].lower() == 'sex':
+                        sex = data['preferred_term'].lower()
+        except KeyError:
+            pass
 
     age_race_sex_info = None
 
@@ -1002,9 +1001,6 @@ def get_dataset_title(property_key, normalized_type, user_token, existing_data_d
         age_race_sex_info = f"{age}-year-old {race} {sex}"
 
     generated_title = f"{assay_type_desc} data from the {organ_desc} of a {age_race_sex_info}"
-
-    logger.debug("===========Auto generated Title===========")
-    logger.debug(generated_title)
 
     return property_key, generated_title
 
@@ -1869,11 +1865,18 @@ def _delete_files(target_property_key, property_key, normalized_type, user_token
 
     return generated_dict
 
+"""
+Compose the assay type description
 
+Parameters
+----------
+data_types : list
+    A list of dataset data types
 
-
-#======================================================================
-
+Returns
+-------
+str: The formatted assay type description
+"""
 def _get_assay_type_description(data_types):
     assay_types = []
     assay_type_desc = ''
@@ -1922,16 +1925,24 @@ def _get_assay_type_description(data_types):
 
     return assay_type_desc
 
-def _get_organ_types_dict():
+"""
+Get the organ description based on the given organ code
+
+Parameters
+----------
+organ_code : str
+    The two-letter organ code
+
+Returns
+-------
+str: The organ code description
+"""
+def _get_organ_description(organ_code):
     yaml_file_url = 'https://raw.githubusercontent.com/hubmapconsortium/search-api/master/src/search-schema/data/definitions/enums/organ_types.yaml'
     with urllib.request.urlopen(yaml_file_url) as response:
         yaml_file = response.read()
         try:
-            return yaml.safe_load(yaml_file)
+            organ_types_dict = yaml.safe_load(yaml_file)
+            return organ_types_dict[organ_code]['description'].lower()
         except yaml.YAMLError as e:
             raise yaml.YAMLError(e)
-
-def _get_organ_description(organ_code):
-    organ_types_dict = _get_organ_types_dict()
-    return organ_types_dict[organ_code]['description'].lower()
-

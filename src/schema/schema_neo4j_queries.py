@@ -58,7 +58,7 @@ def get_dataset_direct_ancestors(neo4j_driver, uuid, property_key = None):
 
 
 """
-Get all ancestors of the given dataset uuid
+Get the sample organ name and donor metadata information of the given dataset uuid
 
 Parameters
 ----------
@@ -69,30 +69,31 @@ uuid : str
 
 Returns
 -------
-list
-    A list of unique ancestor dictionaries returned from the Cypher query
+str: The sample organ name
+str: The donor metadata (string representation of a Python dict)
 """
-def get_dataset_ancestors(neo4j_driver, uuid):
-    results = []
+def get_dataset_organ_and_donor_info(neo4j_driver, uuid):
+    organ_name = None
+    donor_metadata = None
 
-    query = (f"MATCH (e:Dataset)<-[:ACTIVITY_INPUT|ACTIVITY_OUTPUT*]-(ancestor:Entity) "
+    query = (f"MATCH (e:Dataset)<-[:ACTIVITY_INPUT|ACTIVITY_OUTPUT*]-(s:Sample)<-[:ACTIVITY_INPUT|ACTIVITY_OUTPUT*]-(d:Donor) "
              # Filter out the Lab entities
-             f"WHERE e.uuid='{uuid}' AND ancestor.entity_type <> 'Lab' "
+             f"WHERE e.uuid='{uuid}' AND s.specimen_type='organ' AND EXISTS(s.organ) "
              # COLLECT() returns a list
              # apoc.coll.toSet() reruns a set containing unique nodes
-             f"RETURN apoc.coll.toSet(COLLECT(ancestor)) AS {record_field_name}")
+             f"RETURN s.organ AS organ_name, d.metadata AS donor_metadata")
 
-    logger.debug("======get_dataset_ancestors() query======")
+    logger.debug("======get_dataset_organ_and_donor_info() query======")
     logger.debug(query)
 
     with neo4j_driver.session() as session:
         record = session.read_transaction(_execute_readonly_tx, query)
 
-        if record and record[record_field_name]:
-            # Convert the list of nodes to a list of dicts
-            results = _nodes_to_dicts(record[record_field_name])
+        if record:
+            organ_name = record['organ_name']
+            donor_metadata = record['donor_metadata']
 
-    return results
+    return organ_name, donor_metadata
 
 """
 Create or recreate one or more linkages (via Activity nodes) 
