@@ -529,11 +529,7 @@ def update_file_descriptions(property_key, normalized_type, user_token, existing
             # Note: The property, name specified by `target_property_key`, is stored in Neo4j as a string representation of the Python list
             # It's not stored in Neo4j as a json string! And we can't store it as a json string 
             # due to the way that Cypher handles single/double quotes.
-            ext_prop = existing_data_dict[property_key]
-            if isinstance(ext_prop, str):
-                existing_files_list = ast.literal_eval(ext_prop)
-            else:
-                existing_files_list = ext_prop
+            existing_files_list = schema_manager.convert_str_to_data(existing_data_dict[property_key])
     else:
         if not property_key in generated_dict:
             raise KeyError(f"Missing '{property_key}' key in 'generated_dict' during calling 'update_file_descriptions()' trigger method.")            
@@ -937,15 +933,10 @@ def get_dataset_title(property_key, normalized_type, user_token, existing_data_d
 
     # Parse assay_type from the Dataset
     try:
-        # Note: The 'data_types' is stored in Neo4j as a string representation of the Python list
+        # Note: The existing_data_dict['data_types'] is stored in Neo4j as a string representation of the Python list
         # It's not stored in Neo4j as a json string! And we can't store it as a json string 
         # due to the way that Cypher handles single/double quotes.
-        stored_data_types = existing_data_dict['data_types']
-        if isinstance(stored_data_types, str):
-            data_types_list = ast.literal_eval(stored_data_types)
-        else:
-            data_types_list = stored_data_types
-
+        data_types_list = schema_manager.convert_str_to_data(existing_data_dict['data_types'])
         assay_type_desc = _get_assay_type_description(data_types_list)
     except requests.exceptions.RequestException as e:
         raise requests.exceptions.RequestException(e)
@@ -971,15 +962,10 @@ def get_dataset_title(property_key, normalized_type, user_token, existing_data_d
                 # Easier to ask for forgiveness than permission (EAFP)
                 # Rather than checking key existence at every level
                 try:
-                    # Note: The 'metadata' is stored in Neo4j as a string representation of the Python dict
+                    # Note: The ancestor['metadata'] is stored in Neo4j as a string representation of the Python dict
                     # It's not stored in Neo4j as a json string! And we can't store it as a json string 
                     # due to the way that Cypher handles single/double quotes.
-                    stored_ancestor_metadata = ancestor['metadata']
-                    if isinstance(stored_ancestor_metadata, str):
-                        ancestor_metadata_dict = ast.literal_eval(stored_ancestor_metadata)
-                    else:
-                        ancestor_metadata_dict = stored_ancestor_metadata
-
+                    ancestor_metadata_dict = schema_manager.convert_str_to_data(ancestor['metadata'])
                     data_list = ancestor_metadata_dict['organ_donor_data']
 
                     for data in data_list:
@@ -1226,11 +1212,7 @@ def delete_thumbnail_file(property_key, normalized_type, user_token, existing_da
             # is stored in Neo4j as a string representation of the Python dict
             # It's not stored in Neo4j as a json string! And we can't store it as a json string 
             # due to the way that Cypher handles single/double quotes.
-            ext_prop = existing_data_dict[target_property_key]
-            if isinstance(ext_prop, str):
-                file_info_dict = ast.literal_eval(ext_prop)
-            else:
-                file_info_dict = ext_prop
+            file_info_dict = schema_manager.convert_str_to_data(existing_data_dict[target_property_key])
     else:
         file_info_dict = generated_dict[target_property_key]
     
@@ -1743,11 +1725,7 @@ def _commit_files(target_property_key, property_key, normalized_type, user_token
             # Note: The property, name specified by `target_property_key`, is stored in Neo4j as a string representation of the Python list
             # It's not stored in Neo4j as a json string! And we can't store it as a json string 
             # due to the way that Cypher handles single/double quotes.
-            ext_prop = existing_data_dict[target_property_key]
-            if isinstance(ext_prop, str):
-                files_info_list = ast.literal_eval(ext_prop)
-            else:
-                files_info_list = ext_prop
+            files_info_list = schema_manager.convert_str_to_data(existing_data_dict[target_property_key])
     else:
         files_info_list = generated_dict[target_property_key]
 
@@ -1857,11 +1835,7 @@ def _delete_files(target_property_key, property_key, normalized_type, user_token
             # Note: The property, name specified by `target_property_key`, is stored in Neo4j as a string representation of the Python list
             # It's not stored in Neo4j as a json string! And we can't store it as a json string 
             # due to the way that Cypher handles single/double quotes.
-            ext_prop = existing_data_dict[target_property_key]
-            if isinstance(ext_prop, str):
-                files_info_list = ast.literal_eval(ext_prop)
-            else:
-                files_info_list = ext_prop
+            files_info_list = schema_manager.convert_str_to_data(existing_data_dict[target_property_key])
     else:
         files_info_list = generated_dict[target_property_key]
     

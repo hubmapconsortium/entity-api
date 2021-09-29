@@ -1484,6 +1484,29 @@ def get_neo4j_driver_instance():
     
     return _neo4j_driver
 
+"""
+Convert a string representation of the Python list/dict (either nested or not) to a Python list/dict
+
+Parameters
+----------
+data_str: str
+    The string representation of the Python list/dict stored in Neo4j.
+    It's not stored in Neo4j as a json string! And we can't store it as a json string 
+    due to the way that Cypher handles single/double quotes.
+
+Returns
+-------
+list or dict
+    The real Python list or dict after evaluation
+"""
+def convert_str_to_data(data_str):
+    if isinstance(data_str, str):
+        data = ast.literal_eval(data_str)
+    else:
+        data = data_str
+
+    return data
+
 
 ####################################################################################################
 ## Internal functions
@@ -1512,4 +1535,5 @@ def _create_request_headers(user_token):
     }
 
     return headers_dict
+
 
