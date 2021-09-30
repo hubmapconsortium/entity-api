@@ -211,6 +211,9 @@ ENTITIES:
       <<: *shared_properties
       <<: *shared_entity_properties
       <<: *doi_properties
+      dataset_info:
+        type: string
+        description: "Information about the dataset (concatenated with a line break between the existing title and description)"
       antibodies:
         type: list
         description: "A list of antibodies used in the assay that created the dataset"
@@ -239,7 +242,7 @@ ENTITIES:
         after_update_trigger: update_dataset_and_ancestors_data_access_level
       title:
         type: string
-        description: "The dataset title."
+        description: "The auto generated dataset title."
       lab_dataset_id:
         type: string
         description: "A name or identifier used by the lab who is uploading the data to cross reference the data locally"
