@@ -662,7 +662,6 @@ def update_dataset_and_ancestors_data_access_level(property_key, normalized_type
         except TransactionError:
             # No need to log
             raise
-        
 
 """
 Trigger event method of getting a list of collections for this new Dataset

@@ -1424,3 +1424,79 @@ paths:
           description: The target dataset could not be found
         '500':
           description: Internal error
+  '/datasets/{id}/revisions':
+    get:
+      summary: 'From a given ID of a versioned dataset, retrieve a list of every dataset in the chain ordered from most recent to oldest. The revision number, as well as the dataset uuid will be included. An optional parameter ?include_dataset=true will include the full dataset for each revision as well. Public/Consortium access rules apply, if is for a non-public dataset and no token or a token without membership in HuBMAP-Read group is sent with the request then a 403 response should be returned. If the given id is published, but later revisions are not and the user is not in HuBMAP-Read group, only published revisions will be returned. The field next_revision_uuid will not be returned if the next revision is unpublished'
+      parameters:
+        - name: id
+          in: path
+          description: The unique identifier of entity.  This identifier can be either an HuBMAP ID (e.g. HBM123.ABCD.456) or UUID
+          required: true
+          schema:
+            type: string
+        - name: include_dataset
+          in: query
+          description: A case insensitive string. Any value besides true will have no effect. If the string is 'true', the full dataset for each revision will be included in the response
+          required: false
+          schema:
+            type: string
+            enum: ['true', 'false']
+      responses:
+        '200':
+          description: The list of revised datasets that the referenced dataset is a member of including the index number of the revision, where 1 is the oldest version of any revision chain
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  dataset_uuid:
+                    type: string
+                    description: The uuid of a dataset
+                  revision_number:
+                    type: integer
+                    description: The number in the revision chain of this dataset where 1 is the oldest revision
+                  dataset:
+                    $ref: '#/components/schemas/Dataset'
+        '400':
+          description: Invalid or misformatted entity identifier, or the given entity is not a Dataset
+        '401':
+          description: The user's token has expired or the user did not supply a valid token
+        '403':
+          description: The user is not authorized to query the revision number of the given dataset.
+        '404':
+          description: The target dataset could not be found
+        '500':
+          description: Internal error
+  '/datasets/{id}/retract':
+    put:
+      summary: 'Retracts a dataset after it has been published. Requires a json body with a single field {retraction_reason: string}. The dataset for the given id is modified to include this new retraction_reason field and sets the dataset property sub_status to Retracted. The complete modified dataset is returned. Requires that the dataset being retracted has already been published (dataset.status == Published. Requires a user token with membership in the HuBMAP-Data-Admin group otherwise then a 403 will be returned.'
+      parameters:
+        - name: id
+          in: path
+          description: The unique identifier of entity. This identifier can be either a HubMAP ID (e.g. HBM123.ABCD.456) or UUID
+          required: true
+          schema:
+            type: string
+      requestBody:
+        description: A json body with a single, required retraction_reason parameter contianing the reason why the dataset is being retracted.
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                retraction_reason:
+                  type: string
+                  description: Free text describing why the dataset was retracted 
+      responses:
+        '200':
+          description: The complete dataset with modified sub_status and retraction_reason
+        '400':
+          description: Invalid or misformatted entity identifier, the given entity is not a Dataset, is not published or the required retraction_reason was not included in a json body
+        '401':
+          description: The user's token has expired or the user did not supply a valid token
+        '403':
+          description: The user is not authorized to query the retract the given dataset.  The user must be a member of the HuBMAP-Data-Admin group
+        '404':
+          description: The target dataset could not be found
+        '500':
+          description: Internal error
