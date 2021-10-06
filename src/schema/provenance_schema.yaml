@@ -217,6 +217,9 @@ ENTITIES:
       description:
         type: string
         description: "Free text description of the dataset"
+      dataset_info:
+        type: string
+        description: "Additional information about the dataset, which can be used to find this dataset, including lab specific (non-PHI) identifiers."
       # The Dataset.data_access_level is based on Dataset.status and Dataset.contains_human_genetic_sequences
       data_access_level:
         type: string
@@ -243,6 +246,7 @@ ENTITIES:
         immutable: true # Disallow update via PUT
         description: "The auto generated dataset title."
         on_read_trigger: get_dataset_title
+        description: "The auto generated dataset title."
       lab_dataset_id:
         type: string
         description: "A name or identifier used by the lab who is uploading the data to cross reference the data locally"
