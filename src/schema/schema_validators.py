@@ -58,7 +58,8 @@ new_data_dict : dict
     The json data in request body, already after the regular validations
 """
 def validate_no_duplicates_in_list(property_key, normalized_entity_type, request, existing_data_dict, new_data_dict):
-    target_list = new_data_dict[property_key]
+    # Use lowercase for comparision via list comprehensions
+    target_list = [v.lower() for v in new_data_dict[property_key]]
     if len(set(target_list)) != len(target_list):
         raise ValueError(f"The {property_key} field must only contain unique items")
 
