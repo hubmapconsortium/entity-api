@@ -733,13 +733,13 @@ before property update via PUT
 Parameters
 ----------
 validator_type : str
-    For now only: before_property_update_validators (support multiple validators)
+    before_property_create_validators|before_property_update_validators (support multiple validators)
 normalized_entity_type : str
     One of the normalized entity types defined in the schema yaml: Donor, Sample, Dataset, Upload
 request: Flask request object
     The instance of Flask request passed in from application request
 existing_data_dict : dict
-    A dictionary that contains all existing entity properties
+    A dictionary that contains all existing entity properties, {} for before_property_create_validators
 new_data_dict : dict
     The json data in request body, already after the regular validations
 """
@@ -883,10 +883,10 @@ Validate the provided property level validator type
 Parameters
 ----------
 validator_type : str
-    One of the validator types: before_property_update_validators
+    One of the validator types: before_property_create_validators|before_property_update_validators
 """
 def validate_property_level_validator_type(validator_type):
-    accepted_validator_types = ['before_property_update_validators']
+    accepted_validator_types = ['before_property_create_validators', 'before_property_update_validators']
     separator = ', '
 
     if validator_type.lower() not in accepted_validator_types:

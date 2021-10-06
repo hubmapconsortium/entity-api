@@ -42,6 +42,28 @@ def validate_application_header_before_entity_create(normalized_entity_type, req
 ####################################################################################################
 
 """
+Validate the target list has no duplicated items
+
+Parameters
+----------
+property_key : str
+    The target property key
+normalized_type : str
+    Submission
+request: Flask request object
+    The instance of Flask request passed in from application request
+existing_data_dict : dict
+    A dictionary that contains all existing entity properties
+new_data_dict : dict
+    The json data in request body, already after the regular validations
+"""
+def validate_no_duplicates_in_list(property_key, normalized_entity_type, request, existing_data_dict, new_data_dict):
+    target_list = new_data_dict[property_key]
+    if len(set(target_list)) != len(target_list):
+        raise ValueError(f"The {property_key} field must only contain unique items")
+
+
+"""
 Validate the provided value of Dataset.status on update via PUT
 
 Parameters

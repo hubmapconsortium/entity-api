@@ -813,6 +813,13 @@ def create_entity(entity_type):
         # No need to log the validation errors
         bad_request_error(str(e))
 
+    # Execute property level validators defined in schema yaml before entity property creation
+    # Use empty dict {} to indicate there's no existing_data_dict
+    try:
+        schema_manager.execute_property_level_validators('before_property_create_validators', normalized_entity_type, request, {}, json_data_dict)
+    except (KeyError, ValueError) as e: 
+        bad_request_error(e)
+
     # Sample and Dataset: additional validation, create entity, after_create_trigger
     # Collection and Donor: create entity
     if normalized_entity_type == 'Sample':
