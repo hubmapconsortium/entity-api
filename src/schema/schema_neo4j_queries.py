@@ -56,6 +56,45 @@ def get_dataset_direct_ancestors(neo4j_driver, uuid, property_key = None):
 
     return results
 
+
+"""
+Get the sample organ name and donor metadata information of the given dataset uuid
+
+Parameters
+----------
+neo4j_driver : neo4j.Driver object
+    The neo4j database connection pool
+uuid : str
+    The uuid of target entity 
+
+Returns
+-------
+str: The sample organ name
+str: The donor metadata (string representation of a Python dict)
+"""
+def get_dataset_organ_and_donor_info(neo4j_driver, uuid):
+    organ_name = None
+    donor_metadata = None
+
+    query = (f"MATCH (e:Dataset)<-[:ACTIVITY_INPUT|ACTIVITY_OUTPUT*]-(s:Sample)<-[:ACTIVITY_INPUT|ACTIVITY_OUTPUT*]-(d:Donor) "
+             # Filter out the Lab entities
+             f"WHERE e.uuid='{uuid}' AND s.specimen_type='organ' AND EXISTS(s.organ) "
+             # COLLECT() returns a list
+             # apoc.coll.toSet() reruns a set containing unique nodes
+             f"RETURN s.organ AS organ_name, d.metadata AS donor_metadata")
+
+    logger.debug("======get_dataset_organ_and_donor_info() query======")
+    logger.debug(query)
+
+    with neo4j_driver.session() as session:
+        record = session.read_transaction(_execute_readonly_tx, query)
+
+        if record:
+            organ_name = record['organ_name']
+            donor_metadata = record['donor_metadata']
+
+    return organ_name, donor_metadata
+
 """
 Create or recreate one or more linkages (via Activity nodes) 
 between the target entity node and the direct ancestor nodes in neo4j

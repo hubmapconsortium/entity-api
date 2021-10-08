@@ -37,6 +37,7 @@ cache = TTLCache(128, ttl=7200)
 _schema = None
 _uuid_api_url = None
 _ingest_api_url = None
+_search_api_url = None
 _auth_helper = None
 _neo4j_driver = None
 
@@ -57,19 +58,22 @@ neo4j_session_context : neo4j.Session object
 """
 def initialize(valid_yaml_file, 
                uuid_api_url,
-               ingest_api_url, 
+               ingest_api_url,
+               search_api_url,
                auth_helper_instance,
                neo4j_driver_instance):
     # Specify as module-scope variables
     global _schema
     global _uuid_api_url
     global _ingest_api_url
+    global _search_api_url
     global _auth_helper
     global _neo4j_driver
 
     _schema = load_provenance_schema(valid_yaml_file)
     _uuid_api_url = uuid_api_url
     _ingest_api_url = ingest_api_url
+    _search_api_url = search_api_url
 
     # Get the helper instances
     _auth_helper = auth_helper_instance
@@ -538,23 +542,12 @@ def normalize_entity_result_for_response(entity_dict, properties_to_exclude = []
                 # Skip properties with None value and the ones that are marked as not to be exposed.
                 # By default, all properties are exposed if not marked as `exposed: false`
                 # It's still possible to see `exposed: true` marked explictly
-                if (entity_dict[key] is not None) and ('exposed' not in properties[key]) or (('exposed' in properties[key]) and properties[key]['exposed']):
-                    # Safely evaluate a string containing a Python dict or list literal
-                    # Only convert to Python list/dict when the string literal is not empty
-                    # instead of returning the json-as-string or array-as-string
-                    if isinstance(entity_dict[key], str) and entity_dict[key] and (properties[key]['type'] in ['list', 'json_string']):
-                        # ast uses compile to compile the source string (which must be an expression) into an AST
-                        # If the source string is not a valid expression (like an empty string), a SyntaxError will be raised by compile
-                        # If, on the other hand, the source string would be a valid expression (e.g. a variable name like foo), 
-                        # compile will succeed but then literal_eval() might fail with a ValueError
-                        # Also this fails with a TypeError: literal_eval("{{}: 'value'}")
-                        try:
-                            entity_dict[key] = ast.literal_eval(entity_dict[key])
-                        except (SyntaxError, ValueError, TypeError) as e:
-                            logger.debug(f"Invalid expression (string value) of key: {key} for ast.literal_eval()")
-                            logger.debug(entity_dict[key])
-                            msg = "Failed to convert the source string with ast.literal_eval()"
-                            logger.exception(msg)
+                if (entity_dict[key] is not None) and ('exposed' not in properties[key]) or (('exposed' in properties[key]) and properties[key]['exposed']): 
+                    if entity_dict[key] and (properties[key]['type'] in ['list', 'json_string']):
+                        # Safely evaluate a string containing a Python dict or list literal
+                        # Only convert to Python list/dict when the string literal is not empty
+                        # instead of returning the json-as-string or array-as-string
+                        entity_dict[key] = convert_str_to_data(entity_dict[key])
                     
                     # Add the target key with correct value of data type to the normalized_entity dict
                     normalized_entity[key] = entity_dict[key]
@@ -740,13 +733,13 @@ before property update via PUT
 Parameters
 ----------
 validator_type : str
-    For now only: before_property_update_validators (support multiple validators)
+    before_property_create_validators|before_property_update_validators (support multiple validators)
 normalized_entity_type : str
     One of the normalized entity types defined in the schema yaml: Donor, Sample, Dataset, Upload
 request: Flask request object
     The instance of Flask request passed in from application request
 existing_data_dict : dict
-    A dictionary that contains all existing entity properties
+    A dictionary that contains all existing entity properties, {} for before_property_create_validators
 new_data_dict : dict
     The json data in request body, already after the regular validations
 """
@@ -890,10 +883,10 @@ Validate the provided property level validator type
 Parameters
 ----------
 validator_type : str
-    One of the validator types: before_property_update_validators
+    One of the validator types: before_property_create_validators|before_property_update_validators
 """
 def validate_property_level_validator_type(validator_type):
-    accepted_validator_types = ['before_property_update_validators']
+    accepted_validator_types = ['before_property_create_validators', 'before_property_update_validators']
     separator = ', '
 
     if validator_type.lower() not in accepted_validator_types:
@@ -1440,6 +1433,20 @@ def get_ingest_api_url():
 
 
 """
+Get the search-api URL to be used by trigger methods
+
+Returns
+-------
+str
+    The search-api URL
+"""
+def get_search_api_url():
+    global _search_api_url
+    
+    return _search_api_url
+
+
+"""
 Get the AUthHelper instance to be used by trigger methods
 
 Returns
@@ -1465,6 +1472,40 @@ def get_neo4j_driver_instance():
     global _neo4j_driver
     
     return _neo4j_driver
+
+"""
+Convert a string representation of the Python list/dict (either nested or not) to a Python list/dict
+
+Parameters
+----------
+data_str: str
+    The string representation of the Python list/dict stored in Neo4j.
+    It's not stored in Neo4j as a json string! And we can't store it as a json string 
+    due to the way that Cypher handles single/double quotes.
+
+Returns
+-------
+list or dict
+    The real Python list or dict after evaluation
+"""
+def convert_str_to_data(data_str):
+    if isinstance(data_str, str):
+        # ast uses compile to compile the source string (which must be an expression) into an AST
+        # If the source string is not a valid expression (like an empty string), a SyntaxError will be raised by compile
+        # If, on the other hand, the source string would be a valid expression (e.g. a variable name like foo), 
+        # compile will succeed but then literal_eval() might fail with a ValueError
+        # Also this fails with a TypeError: literal_eval("{{}: 'value'}")
+        try:
+            data = ast.literal_eval(data_str)
+        except (SyntaxError, ValueError, TypeError) as e:
+            logger.debug(f"Invalid expression (string value): {data_str} to be evaluated by ast.literal_eval()")
+            logger.debug(entity_dict[key])
+            msg = "Failed to convert the source string with ast.literal_eval()"
+            logger.exception(msg)
+    else:
+        data = data_str
+
+    return data
 
 
 ####################################################################################################
@@ -1494,4 +1535,5 @@ def _create_request_headers(user_token):
     }
 
     return headers_dict
+
 

@@ -1,9 +1,11 @@
 import os
 import ast
 import json
+import yaml
 import logging
 import datetime
 import requests
+import urllib.request
 from neo4j.exceptions import TransactionError
 
 # Local modules
@@ -527,11 +529,7 @@ def update_file_descriptions(property_key, normalized_type, user_token, existing
             # Note: The property, name specified by `target_property_key`, is stored in Neo4j as a string representation of the Python list
             # It's not stored in Neo4j as a json string! And we can't store it as a json string 
             # due to the way that Cypher handles single/double quotes.
-            ext_prop = existing_data_dict[property_key]
-            if isinstance(ext_prop, str):
-                existing_files_list = ast.literal_eval(ext_prop)
-            else:
-                existing_files_list = ext_prop
+            existing_files_list = schema_manager.convert_str_to_data(existing_data_dict[property_key])
     else:
         if not property_key in generated_dict:
             raise KeyError(f"Missing '{property_key}' key in 'generated_dict' during calling 'update_file_descriptions()' trigger method.")            
@@ -902,6 +900,111 @@ def link_to_previous_revision(property_key, normalized_type, user_token, existin
         raise
 
 """
+Trigger event method of auto generating the dataset title
+
+Parameters
+----------
+property_key : str
+    The target property key
+normalized_type : str
+    One of the types defined in the schema yaml: Activity, Collection, Donor, Sample, Dataset
+user_token: str
+    The user's globus nexus token
+existing_data_dict : dict
+    A dictionary that contains all existing entity properties
+new_data_dict : dict
+    A merged dictionary that contains all possible input data to be used
+
+Returns
+-------
+str: The target property key
+str: The generated dataset title 
+"""
+def get_dataset_title(property_key, normalized_type, user_token, existing_data_dict, new_data_dict):
+    if 'uuid' not in existing_data_dict:
+        raise KeyError("Missing 'uuid' key in 'existing_data_dict' during calling 'get_dataset_title()' trigger method.")
+
+    # Assume organ_desc is always available, otherwise will throw parsing error
+    organ_desc = '<organ_desc>'
+
+    age = None
+    race = None
+    sex = None
+
+    # Parse assay_type from the Dataset
+    try:
+        # Note: The existing_data_dict['data_types'] is stored in Neo4j as a string representation of the Python list
+        # It's not stored in Neo4j as a json string! And we can't store it as a json string 
+        # due to the way that Cypher handles single/double quotes.
+        data_types_list = schema_manager.convert_str_to_data(existing_data_dict['data_types'])
+        assay_type_desc = _get_assay_type_description(data_types_list)
+    except requests.exceptions.RequestException as e:
+        raise requests.exceptions.RequestException(e)
+
+    # Get the sample organ name and donor metadata information of this dataset
+    organ_name, donor_metadata = schema_neo4j_queries.get_dataset_organ_and_donor_info(schema_manager.get_neo4j_driver_instance(), existing_data_dict['uuid'])
+
+    # Can we move organ_types.yaml to commons or make it an API call to avoid parsing the raw yaml?
+    # Parse the organ description
+    if organ_name is not None:
+        try: 
+            # The organ_name is the two-letter code only set if specimen_type == 'organ'
+            # Convert the two-letter code to a description
+            # https://github.com/hubmapconsortium/search-api/blob/test-release/src/search-schema/data/definitions/enums/organ_types.yaml
+            organ_desc = _get_organ_description(organ_name)
+        except yaml.YAMLError as e:
+            raise yaml.YAMLError(e)
+
+    # Parse age, race, and sex
+    if donor_metadata is not None:
+        try:
+            # Note: The donor_metadata is stored in Neo4j as a string representation of the Python dict
+            # It's not stored in Neo4j as a json string! And we can't store it as a json string 
+            # due to the way that Cypher handles single/double quotes.
+            ancestor_metadata_dict = schema_manager.convert_str_to_data(donor_metadata)
+
+            # Easier to ask for forgiveness than permission (EAFP)
+            # Rather than checking key existence at every level
+            data_list = ancestor_metadata_dict['organ_donor_data']
+
+            for data in data_list:
+                if 'grouping_concept_preferred_term' in data:
+                    if data['grouping_concept_preferred_term'].lower() == 'age':
+                        # The actual value of age stored in 'data_value' instead of 'preferred_term'
+                        age = data['data_value']
+
+                    if data['grouping_concept_preferred_term'].lower() == 'race':
+                        race = data['preferred_term'].lower()
+
+                    if data['grouping_concept_preferred_term'].lower() == 'sex':
+                        sex = data['preferred_term'].lower()
+        except KeyError:
+            pass
+
+    age_race_sex_info = None
+
+    if (age is None) and (race is not None) and (sex is not None):
+        age_race_sex_info = f"{race} {sex} of unknown age"
+    elif (race is None) and (age is not None) and (sex is not None):
+        age_race_sex_info = f"{age}-year-old {sex} of unknown race"
+    elif (sex is None) and (age is not None) and (race is not None):
+        age_race_sex_info = f"{age}-year-old {race} donor of unknown sex"
+    elif (age is None) and (race is None) and (sex is not None):
+        age_race_sex_info = f"{sex} donor of unknown age and race"
+    elif (age is None) and (sex is None) and (race is not None):
+        age_race_sex_info = f"{race} donor of unknown age and sex"
+    elif (race is None) and (sex is None) and (age is not None):
+        age_race_sex_info = f"{age}-year-old donor of unknown race and sex"
+    elif (age is None) and (race is None) and (sex is None):
+        age_race_sex_info = "donor of unknown age, race and sex"
+    else:
+        age_race_sex_info = f"{age}-year-old {race} {sex}"
+
+    generated_title = f"{assay_type_desc} data from the {organ_desc} of a {age_race_sex_info}"
+
+    return property_key, generated_title
+
+"""
 Trigger event method of getting the uuid of the previous revision dataset if exists
 
 Parameters
@@ -1105,11 +1208,7 @@ def delete_thumbnail_file(property_key, normalized_type, user_token, existing_da
             # is stored in Neo4j as a string representation of the Python dict
             # It's not stored in Neo4j as a json string! And we can't store it as a json string 
             # due to the way that Cypher handles single/double quotes.
-            ext_prop = existing_data_dict[target_property_key]
-            if isinstance(ext_prop, str):
-                file_info_dict = ast.literal_eval(ext_prop)
-            else:
-                file_info_dict = ext_prop
+            file_info_dict = schema_manager.convert_str_to_data(existing_data_dict[target_property_key])
     else:
         file_info_dict = generated_dict[target_property_key]
     
@@ -1622,11 +1721,7 @@ def _commit_files(target_property_key, property_key, normalized_type, user_token
             # Note: The property, name specified by `target_property_key`, is stored in Neo4j as a string representation of the Python list
             # It's not stored in Neo4j as a json string! And we can't store it as a json string 
             # due to the way that Cypher handles single/double quotes.
-            ext_prop = existing_data_dict[target_property_key]
-            if isinstance(ext_prop, str):
-                files_info_list = ast.literal_eval(ext_prop)
-            else:
-                files_info_list = ext_prop
+            files_info_list = schema_manager.convert_str_to_data(existing_data_dict[target_property_key])
     else:
         files_info_list = generated_dict[target_property_key]
 
@@ -1736,11 +1831,7 @@ def _delete_files(target_property_key, property_key, normalized_type, user_token
             # Note: The property, name specified by `target_property_key`, is stored in Neo4j as a string representation of the Python list
             # It's not stored in Neo4j as a json string! And we can't store it as a json string 
             # due to the way that Cypher handles single/double quotes.
-            ext_prop = existing_data_dict[target_property_key]
-            if isinstance(ext_prop, str):
-                files_info_list = ast.literal_eval(ext_prop)
-            else:
-                files_info_list = ext_prop
+            files_info_list = schema_manager.convert_str_to_data(existing_data_dict[target_property_key])
     else:
         files_info_list = generated_dict[target_property_key]
     
@@ -1773,3 +1864,85 @@ def _delete_files(target_property_key, property_key, normalized_type, user_token
     generated_dict[target_property_key] = files_info_list
 
     return generated_dict
+
+"""
+Compose the assay type description
+
+Parameters
+----------
+data_types : list
+    A list of dataset data types
+
+Returns
+-------
+str: The formatted assay type description
+"""
+def _get_assay_type_description(data_types):
+    assay_types = []
+    assay_type_desc = ''
+
+    for data_type in data_types:
+        # The assaytype endpoint in search-api is public accessible, no token needed
+        search_api_target_url = schema_manager.get_search_api_url() + f"/assaytype/{data_type}"
+
+        # Disable ssl certificate verification
+        response = requests.get(url = search_api_target_url, verify = False)
+
+        if response.status_code == 200:
+            assay_type_info = response.json()
+            # Add to the list
+            assay_types.append(assay_type_info['description'])
+        else:
+            msg = f"Unable to query the assay type details of: {data_type} via search-api"
+
+            # Log the full stack trace, prepend a line with our message
+            logger.exception(msg)
+
+            logger.debug("======status code from search-api======")
+            logger.debug(response.status_code)
+
+            logger.debug("======response text from search-api======")
+            logger.debug(response.text)
+
+            raise requests.exceptions.RequestException(response.text)
+
+    # Formatting based on the number of items in the list
+    if assay_types:
+        if len(assay_types) == 1:
+            assay_type_desc = assay_types[0]
+        elif len(assay_types) == 2:
+            # <assay_type1> and <assay_type2>
+            assay_type_desc = ' and '.join(assay_types)
+        else:
+            # <assay_type1>, <assay_type2>, and <assay_type3>
+            assay_type_desc = f"{', '.join(assay_types[:-1])}, and {assay_types[-1]}"
+    else:
+        msg = "Empty list of assay_types"
+
+        logger.error(msg)
+
+        raise ValueError(msg)
+
+    return assay_type_desc
+
+"""
+Get the organ description based on the given organ code
+
+Parameters
+----------
+organ_code : str
+    The two-letter organ code
+
+Returns
+-------
+str: The organ code description
+"""
+def _get_organ_description(organ_code):
+    yaml_file_url = 'https://raw.githubusercontent.com/hubmapconsortium/search-api/master/src/search-schema/data/definitions/enums/organ_types.yaml'
+    with urllib.request.urlopen(yaml_file_url) as response:
+        yaml_file = response.read()
+        try:
+            organ_types_dict = yaml.safe_load(yaml_file)
+            return organ_types_dict[organ_code]['description'].lower()
+        except yaml.YAMLError as e:
+            raise yaml.YAMLError(e)
