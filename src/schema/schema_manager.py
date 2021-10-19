@@ -1497,15 +1497,13 @@ def convert_str_to_data(data_str):
         # Also this fails with a TypeError: literal_eval("{{}: 'value'}")
         try:
             data = ast.literal_eval(data_str)
+            return data
         except (SyntaxError, ValueError, TypeError) as e:
-            logger.debug(f"Invalid expression (string value): {data_str} to be evaluated by ast.literal_eval()")
-            logger.debug(entity_dict[key])
-            msg = "Failed to convert the source string with ast.literal_eval()"
+            msg = f"Invalid expression (string value): {data_str} to be evaluated by ast.literal_eval()"
             logger.exception(msg)
     else:
-        data = data_str
-
-    return data
+        # Just return the input data string
+        return data_str
 
 
 ####################################################################################################
