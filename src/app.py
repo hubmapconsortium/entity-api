@@ -134,6 +134,7 @@ try:
     schema_manager.initialize(app.config['SCHEMA_YAML_FILE'], 
                               app.config['UUID_API_URL'],
                               app.config['INGEST_API_URL'],
+                              app.config['SEARCH_API_URL'],
                               auth_helper_instance,
                               neo4j_driver_instance)
 
@@ -811,6 +812,14 @@ def create_entity(entity_type):
     except schema_errors.SchemaValidationException as e:
         # No need to log the validation errors
         bad_request_error(str(e))
+
+    # Execute property level validators defined in schema yaml before entity property creation
+    # Use empty dict {} to indicate there's no existing_data_dict
+    try:
+        schema_manager.execute_property_level_validators('before_property_create_validators', normalized_entity_type, request, {}, json_data_dict)
+    # Currently only ValueError
+    except ValueError as e: 
+        bad_request_error(e)
 
     # Sample and Dataset: additional validation, create entity, after_create_trigger
     # Collection and Donor: create entity
@@ -2049,11 +2058,22 @@ E.g: If there are 5 revisions, and the id for revision 4 is given, a list of rev
 1-5 will be returned in reverse order (newest first). Non-public access is only required to 
 retrieve information on non-published datasets. Output will be a list of dictionaries. Each dictionary
 contains the dataset revision number and its uuid. Optionally, the full dataset can be included for each.
+
 By default, only the revision number and uuid is included. To include the full dataset, the query 
 parameter "include_dataset" can be given with the value of "true". If this parameter is not included or 
 is set to false, the dataset will not be included. For example, to include the full datasets for each revision,
 use '/datasets/<id>/revisions?include_dataset=true'. To omit the datasets, either set include_dataset=false, or
 simply do not include this parameter. 
+
+Parameters
+----------
+id : str
+    The HuBMAP ID (e.g. HBM123.ABCD.456) or UUID of target dataset 
+
+Returns
+-------
+list
+    The list of revision datasets
 """
 @app.route('/datasets/<id>/revisions', methods=['GET'])
 def get_revisions_list(id):

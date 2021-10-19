@@ -386,7 +386,6 @@ def update_entity(neo4j_driver, entity_type, entity_data_dict, uuid):
         raise TransactionError(msg)
 
 
-
 """
 Get all ancestors by uuid
 
