@@ -2147,6 +2147,49 @@ def get_revisions_list(id):
     return jsonify(results)
 
 
+@app.route('/datasets/<id>/organs', methods=['GET'])
+def get_associated_organs_from_dataset(id):
+    # Token is not required, but if an invalid token provided,
+    # we need to tell the client with a 401 error
+    validate_token_if_auth_header_exists(request)
+
+    # Use the internal token to query the target entity
+    # since public entities don't require user token
+    internal_token = get_internal_token()
+
+    # Query target entity against uuid-api and neo4j and return as a dict if exists
+    entity_dict = query_target_entity(id, internal_token)
+    normalized_entity_type = entity_dict['entity_type']
+
+    # Only for Dataset
+    if normalized_entity_type != 'Dataset':
+        bad_request_error("The entity of given id is not a Dataset")
+
+    # published/public datasets don't require token
+    if entity_dict['status'].lower() != DATASET_STATUS_PUBLISHED:
+        # Token is required and the user must belong to HuBMAP-READ group
+        token = get_user_token(request, non_public_access_required=True)
+
+    # By now, either the entity is public accessible or
+    # the user token has the correct access level
+    associated_organs = app_neo4j_queries.get_associated_organs_from_dataset(neo4j_driver_instance, entity_dict['uuid'])
+    if len(associated_organs) < 1:
+        not_found_error("the dataset does not have any associated organs")
+
+    # The original dataset was either public, or the user had HuBMAP-Read access, however associated organs may not be
+    # Need to verify whether the user has read access, and if not, must filter out organs from the list that aren't
+    # public/published.
+    if not user_in_hubmap_read_group(request):
+        public_organs = []
+        for item in associated_organs:
+            organ_to_check = query_target_entity(id, internal_token)
+            if organ_to_check['status'].lower() == DATASET_STATUS_PUBLISHED:
+                public_organs.append(item)
+        if len(public_organs) < 1:
+            not_found_error("The dataset does not have any associated organs")
+        return jsonify(public_organs)
+    return jsonify(associated_organs)
+
 ####################################################################################################
 ## Internal Functions
 ####################################################################################################
