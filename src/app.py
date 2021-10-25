@@ -2176,18 +2176,8 @@ def get_associated_organs_from_dataset(id):
     if len(associated_organs) < 1:
         not_found_error("the dataset does not have any associated organs")
 
-    # The original dataset was either public, or the user had HuBMAP-Read access, however associated organs may not be
-    # Need to verify whether the user has read access, and if not, must filter out organs from the list that aren't
-    # public/published.
-    if not user_in_hubmap_read_group(request):
-        public_organs = []
-        for item in associated_organs:
-            organ_to_check = query_target_entity(id, internal_token)
-            if organ_to_check['status'].lower() == DATASET_STATUS_PUBLISHED:
-                public_organs.append(item)
-        if len(public_organs) < 1:
-            not_found_error("The dataset does not have any associated organs")
-        return jsonify(public_organs)
+    # If a dataset is published/public, then the organs associated to it will by definition also be public. So no
+    # further validation is needed on the individual organs.
     return jsonify(associated_organs)
 
 ####################################################################################################
