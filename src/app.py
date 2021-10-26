@@ -2146,7 +2146,21 @@ def get_revisions_list(id):
 
     return jsonify(results)
 
+"""
+Get all organs associated with a given dataset
 
+The gateway treats this endpoint as public accessible
+
+Parameters
+----------
+id : str
+    The HuBMAP ID (e.g. HBM123.ABCD.456) or UUID of given entity
+
+Returns
+-------
+json
+    a list of all the organs associated with the target dataset
+"""
 @app.route('/datasets/<id>/organs', methods=['GET'])
 def get_associated_organs_from_dataset(id):
     # Token is not required, but if an invalid token provided,
@@ -2155,10 +2169,10 @@ def get_associated_organs_from_dataset(id):
 
     # Use the internal token to query the target entity
     # since public entities don't require user token
-    internal_token = get_internal_token()
+    token = get_internal_token()
 
     # Query target entity against uuid-api and neo4j and return as a dict if exists
-    entity_dict = query_target_entity(id, internal_token)
+    entity_dict = query_target_entity(id, token)
     normalized_entity_type = entity_dict['entity_type']
 
     # Only for Dataset
@@ -2173,11 +2187,12 @@ def get_associated_organs_from_dataset(id):
     # By now, either the entity is public accessible or
     # the user token has the correct access level
     associated_organs = app_neo4j_queries.get_associated_organs_from_dataset(neo4j_driver_instance, entity_dict['uuid'])
+
+    # If there are zero items in the list associated organs, then there are no associated
+    # Organs and a 404 will be returned.
     if len(associated_organs) < 1:
         not_found_error("the dataset does not have any associated organs")
 
-    # If a dataset is published/public, then the organs associated to it will by definition also be public. So no
-    # further validation is needed on the individual organs.
     return jsonify(associated_organs)
 
 ####################################################################################################

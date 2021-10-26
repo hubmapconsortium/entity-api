@@ -902,14 +902,21 @@ uuid : str
     The uuid of the target entity: Dataset
 """
 def get_associated_organs_from_dataset(neo4j_driver, dataset_uuid):
-    query = (f"MATCH (ds:Dataset {{uuid:'{dataset_uuid}'}})<-[*]-(organ:Sample {{specimen_type:'organ'}}) "
-             f"RETURN distinct organ.uuid")
-
+    results = []
+    query = (f"MATCH (ds:Dataset)<-[*]-(organ:Sample {{specimen_type:'organ'}}) "
+             f"WHERE ds.uuid='{dataset_uuid}'"
+             f"RETURN apoc.coll.toSet(COLLECT(organ)) AS {record_field_name}")
     logger.debug("======get_associated_organs_from_sample() query======")
     logger.debug(query)
 
     with neo4j_driver.session() as session:
-        return session.read_transaction(_execute_readonly_tx, query)
+        record = session.read_transaction(_execute_readonly_tx, query)
+
+        if record and record[record_field_name]:
+            results = _nodes_to_dicts(record[record_field_name])
+
+    return results
+
 ####################################################################################################
 ## Internal Functions
 ####################################################################################################
