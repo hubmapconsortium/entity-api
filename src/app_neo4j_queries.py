@@ -906,7 +906,7 @@ def get_associated_organs_from_dataset(neo4j_driver, dataset_uuid):
     query = (f"MATCH (ds:Dataset)<-[*]-(organ:Sample {{specimen_type:'organ'}}) "
              f"WHERE ds.uuid='{dataset_uuid}'"
              f"RETURN apoc.coll.toSet(COLLECT(organ)) AS {record_field_name}")
-    logger.debug("======get_associated_organs_from_sample() query======")
+    logger.debug("======get_associated_organs_from_dataset() query======")
     logger.debug(query)
 
     with neo4j_driver.session() as session:

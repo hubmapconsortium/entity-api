@@ -2193,7 +2193,12 @@ def get_associated_organs_from_dataset(id):
     if len(associated_organs) < 1:
         not_found_error("the dataset does not have any associated organs")
 
-    return jsonify(associated_organs)
+    complete_entities_list = schema_manager.get_complete_entities_list(token, associated_organs)
+
+    # Final result after normalization
+    final_result = schema_manager.normalize_entities_list_for_response(complete_entities_list)
+
+    return jsonify(final_result)
 
 ####################################################################################################
 ## Internal Functions
