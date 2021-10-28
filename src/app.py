@@ -2146,6 +2146,59 @@ def get_revisions_list(id):
 
     return jsonify(results)
 
+"""
+Get all organs associated with a given dataset
+
+The gateway treats this endpoint as public accessible
+
+Parameters
+----------
+id : str
+    The HuBMAP ID (e.g. HBM123.ABCD.456) or UUID of given entity
+
+Returns
+-------
+json
+    a list of all the organs associated with the target dataset
+"""
+@app.route('/datasets/<id>/organs', methods=['GET'])
+def get_associated_organs_from_dataset(id):
+    # Token is not required, but if an invalid token provided,
+    # we need to tell the client with a 401 error
+    validate_token_if_auth_header_exists(request)
+
+    # Use the internal token to query the target entity
+    # since public entities don't require user token
+    token = get_internal_token()
+
+    # Query target entity against uuid-api and neo4j and return as a dict if exists
+    entity_dict = query_target_entity(id, token)
+    normalized_entity_type = entity_dict['entity_type']
+
+    # Only for Dataset
+    if normalized_entity_type != 'Dataset':
+        bad_request_error("The entity of given id is not a Dataset")
+
+    # published/public datasets don't require token
+    if entity_dict['status'].lower() != DATASET_STATUS_PUBLISHED:
+        # Token is required and the user must belong to HuBMAP-READ group
+        token = get_user_token(request, non_public_access_required=True)
+
+    # By now, either the entity is public accessible or
+    # the user token has the correct access level
+    associated_organs = app_neo4j_queries.get_associated_organs_from_dataset(neo4j_driver_instance, entity_dict['uuid'])
+
+    # If there are zero items in the list associated organs, then there are no associated
+    # Organs and a 404 will be returned.
+    if len(associated_organs) < 1:
+        not_found_error("the dataset does not have any associated organs")
+
+    complete_entities_list = schema_manager.get_complete_entities_list(token, associated_organs)
+
+    # Final result after normalization
+    final_result = schema_manager.normalize_entities_list_for_response(complete_entities_list)
+
+    return jsonify(final_result)
 
 ####################################################################################################
 ## Internal Functions

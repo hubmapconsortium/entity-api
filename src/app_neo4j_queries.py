@@ -891,6 +891,32 @@ def get_dataset_revision_number(neo4j_driver, uuid):
     return revision_number
 
 
+"""
+Retrieve the list of uuids for organs associated with a given dataset
+
+Parameters
+----------
+neo4j_driver : neo4j.Driver object
+    The neo4j database connection pool
+uuid : str
+    The uuid of the target entity: Dataset
+"""
+def get_associated_organs_from_dataset(neo4j_driver, dataset_uuid):
+    results = []
+    query = (f"MATCH (ds:Dataset)<-[*]-(organ:Sample {{specimen_type:'organ'}}) "
+             f"WHERE ds.uuid='{dataset_uuid}'"
+             f"RETURN apoc.coll.toSet(COLLECT(organ)) AS {record_field_name}")
+    logger.debug("======get_associated_organs_from_dataset() query======")
+    logger.debug(query)
+
+    with neo4j_driver.session() as session:
+        record = session.read_transaction(_execute_readonly_tx, query)
+
+        if record and record[record_field_name]:
+            results = _nodes_to_dicts(record[record_field_name])
+
+    return results
+
 ####################################################################################################
 ## Internal Functions
 ####################################################################################################
