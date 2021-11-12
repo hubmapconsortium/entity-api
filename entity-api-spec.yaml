@@ -1,7 +1,7 @@
 openapi: 3.0.0
 info:
   description: 'The HuBMAP Entity API is a standard RESTful web service with create, update and read operations for the standard HuBMAP provenance graph entities.<br><br>'
-  version: 2.0.19
+  version: 2.0.21
   title: HuBMAP Entity API
   contact:
     name: HuBMAP Help Desk
