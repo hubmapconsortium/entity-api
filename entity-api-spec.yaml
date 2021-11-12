@@ -1,6 +1,6 @@
 openapi: 3.0.0
 info:
-  description: 'The HuBMAP Entity API is a standard RESTful web service with create, update and read operations for the standard HuBMAP provenance graph entities.<br><br>'
+  description: 'The HuBMAP Entity API is a standard RESTful web service with create, update and read operations for the standard HuBMAP provenance graph entities.'
   version: 2.0.21
   title: HuBMAP Entity API
   contact:
@@ -440,7 +440,6 @@ components:
             - seqfish
             - sequence_library
             - serum
-            - sequence_library
             - single_cell_cryopreserved
             - snatacseq
             - snrnaseq
