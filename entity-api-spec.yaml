@@ -1306,11 +1306,11 @@ paths:
           description: The user's token has expired or the user did not supply a valid token
         '500':
           description: Internal error
-  '/collections/{collection_uuid}}/add-datasets':
+  '/collections/{id}/add-datasets':
     put:
       summary: Link the given list of datasets to the target collection
       parameters:
-        - name: collection_uuid
+        - name: id
           in: path
           description: The UUID of target collection
           required: true
