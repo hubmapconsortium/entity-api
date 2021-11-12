@@ -14,8 +14,10 @@ servers:
 components:
   securitySchemes:
     bearerAuth:
-      type: http
-      scheme: bearer
+      type: apiKey
+      name: Authorization
+      in: header
+      description: Globus bearer token to authorize requests. Have to use apiKey to pass AWS API Gateway import validation
   schemas:
     Person:
       type: object
@@ -936,15 +938,10 @@ components:
           items:
             $ref: '#/components/schemas/Dataset'
           description: "The datasets that are contained in the Collection."
-
-security:
-  - bearerAuth: []
 paths:
   '/entities/{id}':
     get:
       summary: Retrieve a provenance entity by id.  Entity types of Donor, Sample and Datasets.
-      security:
-        - bearerAuth: []
       parameters:
         - name: id
           in: path
@@ -1233,13 +1230,13 @@ paths:
           description: The target entity could not be found
         '500':
           description: Internal error
-  '/entities/{entity_type}':
+  '/entities/new/{entity_type}':
     post:
-      summary: Create an entity of the target type
+      summary: Create a new entity of the target type
       parameters:
         - name: entity_type
           in: path
-          description: 'One of the target entity types (case-insensitive since will be normalized): Dataset, Donor, Sample'
+          description: 'One of the target entity types (case-insensitive since will be normalized): Donor, Sample, Dataset, Upload'
           required: true
           schema:
             type: string
