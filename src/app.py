@@ -2614,6 +2614,20 @@ def create_multiple_samples_details(request, normalized_entity_type, user_token,
         # Log the full stack trace, prepend a line with our message
         logger.exception(e)
         bad_request_error(e)
+    except requests.exceptions.RequestException as e:
+        msg = f"Failed to create new HuBMAP ids via the uuid-api service" 
+        logger.exception(msg)
+        
+        # Due to the use of response.raise_for_status() in schema_manager.create_hubmap_ids()
+        # we can access the status codes from the exception
+        status_code = e.response.status_code
+
+        if status_code == 400:
+            bad_request_error(e.response.text)
+        if status_code == 404:
+            not_found_error(e.response.text)
+        else:
+            internal_server_error(e.response.text)
 
     # Use the same json_data_dict and user_info_dict for each sample
     # Only difference is the `uuid` and `hubmap_id` that are generated

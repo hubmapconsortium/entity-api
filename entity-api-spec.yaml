@@ -1,7 +1,7 @@
 openapi: 3.0.0
 info:
-  description: 'The HuBMAP Entity API is a standard RESTful web service with create, update and read operations for the standard HuBMAP provenance graph entities.<br><br>'
-  version: 2.0.19
+  description: 'The HuBMAP Entity API is a standard RESTful web service with create, update and read operations for the standard HuBMAP provenance graph entities.'
+  version: 2.0.21
   title: HuBMAP Entity API
   contact:
     name: HuBMAP Help Desk
@@ -440,7 +440,6 @@ components:
             - seqfish
             - sequence_library
             - serum
-            - sequence_library
             - single_cell_cryopreserved
             - snatacseq
             - snrnaseq
@@ -1306,11 +1305,11 @@ paths:
           description: The user's token has expired or the user did not supply a valid token
         '500':
           description: Internal error
-  '/collections/{collection_uuid}}/add-datasets':
+  '/collections/{id}/add-datasets':
     put:
       summary: Link the given list of datasets to the target collection
       parameters:
-        - name: collection_uuid
+        - name: id
           in: path
           description: The UUID of target collection
           required: true
