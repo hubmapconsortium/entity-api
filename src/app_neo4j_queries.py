@@ -936,8 +936,7 @@ def get_all_datasets(neo4j_driver):
     return results
 
 
-def get_auxiliary_dataset_info(neo4j_driver):
-    results = []
+def get_prov_info(neo4j_driver):
     query = (f"MATCH (ds:Dataset)<-[:ACTIVITY_OUTPUT]-(a)<-[:ACTIVITY_INPUT]-(firstSample:Sample)<-[*]-(donor:Donor)"
              f"OPTIONAL MATCH (ds)<-[*]-(ruiSample:Sample)"
              f"WHERE not ruiSample.rui_location is null and not trim(ruiSample.rui_location) = ''"
@@ -949,12 +948,31 @@ def get_auxiliary_dataset_info(neo4j_driver):
     logger.debug(query)
 
     with neo4j_driver.session() as session:
-        record = session.read_transaction(_execute_readonly_tx, query)
-
-        print(f"Here is the record: {record}")
-        print(f"Here is the record type: {type(record)}")
-
-    return record
+        # Because we're returning multiple things, we use session.run rather than session.read_transaction
+        result = session.run(query)
+        list_of_dictionaries = []
+        dictionary_of_records = {}
+        for record in result:
+            record_dict = {}
+            record_contents = []
+            # Individual items within a record are non subscriptable. By putting then in a small list, we can address
+            # Each item in a record.
+            for item in record:
+                record_contents.append(item)
+            record_dict['uuid'] = record_contents[0]
+            if len(record_contents[1]) > 0:
+                record_dict['first_sample_uuid'] = record_contents[1][0]
+            if len(record_contents[2]) > 0:
+                record_dict['distinct_donor_uuid'] = record_contents[2][0]
+            if len(record_contents[3]) > 0:
+                record_dict['distinct_uri_sample_uuid'] = record_contents[3][0]
+            if len(record_contents[4]) > 0:
+                record_dict['distinct_organ_uuid'] = record_contents[4][0]
+            if len(record_contents[5]) > 0:
+                record_dict['distinct_organ_organ'] = record_contents[5][0]
+            list_of_dictionaries.append(record_dict)
+            dictionary_of_records[record_contents[0]] = record_contents
+    return list_of_dictionaries
 
 ####################################################################################################
 ## Internal Functions

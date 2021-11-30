@@ -2205,7 +2205,6 @@ def get_associated_organs_from_dataset(id):
 
 @app.route('/datasets/prov-info', methods=['GET'])
 def get_prov_info():
-    token = get_user_token(request, non_public_access_required=True)
     return_json = False
     dataset_dict = {}
     if bool(request.args):
@@ -2242,8 +2241,8 @@ def get_prov_info():
         'rui_location_submission_id',
         'rui_location_id'
     ]
-    list_of_dataset_dicts = app_neo4j_queries.get_all_datasets(neo4j_driver)
-    for dataset in list_of_dataset_dicts:
+    prov_info = app_neo4j_queries.get_prov_info(neo4j_driver_instance)
+    for dataset in prov_info:
         internal_dict = {}
         internal_dict['dataset_uuid'] = dataset['uuid']
         internal_dict['dataset_hubmap_id'] = dataset['hubmap_id']
@@ -2273,9 +2272,8 @@ def get_prov_info():
 
 @app.route('/datasets/auxiliary-info', methods=['GET'])
 def get_auxiliary_info():
-
-    auxiliary = app_neo4j_queries.get_auxiliary_dataset_info(neo4j_driver)
-
+    prov_info = app_neo4j_queries.get_prov_info(neo4j_driver_instance)
+    return jsonify(prov_info)
 ####################################################################################################
 ## Internal Functions
 ####################################################################################################
