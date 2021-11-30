@@ -917,6 +917,45 @@ def get_associated_organs_from_dataset(neo4j_driver, dataset_uuid):
 
     return results
 
+
+def get_all_datasets(neo4j_driver):
+    results = []
+    query = (f"MATCH (ds:Dataset)"
+             f"RETURN ds AS {record_field_name}")
+    logger.debug("======get_all_datasets() query======")
+    logger.debug(query)
+
+    with neo4j_driver() as session:
+        record = session.read_transaction(_execute_readonly_tx, query)
+
+        # Only convert when record[record_field_name] is not None (namely the cypher result is not null)
+        if record and record[record_field_name]:
+            # Convert the neo4j node into Python dict
+            results = _nodes_to_dicts(record[record_field_name])
+
+    return results
+
+
+def get_auxiliary_dataset_info(neo4j_driver):
+    results = []
+    query = (f"MATCH (ds:Dataset)<-[:ACTIVITY_OUTPUT]-(a)<-[:ACTIVITY_INPUT]-(firstSample:Sample)<-[*]-(donor:Donor)"
+             f"OPTIONAL MATCH (ds)<-[*]-(ruiSample:Sample)"
+             f"WHERE not ruiSample.rui_location is null and not trim(ruiSample.rui_location) = ''"
+             f"OPTIONAL MATCH (donor)-[:ACTIVITY_INPUT]->(oa)-[:ACTIVITY_OUTPUT]->(organ:Sample "
+             f"{{specimen_type:'organ'}})-[*]->(ds)"
+             f"return ds.uuid, collect(distinct firstSample.uuid), collect(distinct donor.uuid), "
+             f"collect(distinct ruiSample.uuid), collect(distinct organ.uuid), collect(distinct organ.organ)")
+    logger.debug("======get_auxilary_dataset_info() query======")
+    logger.debug(query)
+
+    with neo4j_driver.session() as session:
+        record = session.read_transaction(_execute_readonly_tx, query)
+
+        print(f"Here is the record: {record}")
+        print(f"Here is the record type: {type(record)}")
+
+    return record
+
 ####################################################################################################
 ## Internal Functions
 ####################################################################################################

@@ -1,10 +1,12 @@
-from flask import Flask, g, jsonify, abort, request, Response, redirect
+from datetime import datetime
+from flask import Flask, g, jsonify, abort, request, Response, redirect, make_response
 from neo4j.exceptions import TransactionError
 import os
 import re
 import csv
 import requests
 import urllib
+from io import StringIO
 # Don't confuse urllib (Python native library) with urllib3 (3rd-party library, requests also uses urllib3)
 from requests.packages.urllib3.exceptions import InsecureRequestWarning
 from pathlib import Path
@@ -2199,6 +2201,80 @@ def get_associated_organs_from_dataset(id):
     final_result = schema_manager.normalize_entities_list_for_response(complete_entities_list)
 
     return jsonify(final_result)
+
+
+@app.route('/datasets/prov-info', methods=['GET'])
+def get_prov_info():
+    token = get_user_token(request, non_public_access_required=True)
+    return_json = False
+    dataset_dict = {}
+    if bool(request.args):
+        return_format = request.args.get('format')
+        if (return_format is not None) and (return_format.lower() == 'json'):
+            return_json = True
+    headers = [
+        'dataset_uuid',
+        'dataset_hubmap_id',
+        'dataset_status',
+        'dataset_group_name',
+        'dataset_group_uuid',
+        'dataset_date_time_created',
+        'dataset_created_by_email',
+        'dataset_date_time_modified',
+        'dataset_modified_by_email',
+        'dataset_lab_id',
+        'dataset_data_types',
+        'dataset_portal_url',
+        'first_sample_hubmap_id',
+        'first_sample_submission_id',
+        'first_sample_uuid',
+        'first_sample_type',
+        'first_sample_portal_url',
+        'organ_hubmap_id',
+        'organ_submission_id',
+        'organ_uuid',
+        'organ_type',
+        'donor_hubmap_id',
+        'donor_submission_id',
+        'donor_uuid',
+        'donor_group_name',
+        'rui_location_hubmap_id',
+        'rui_location_submission_id',
+        'rui_location_id'
+    ]
+    list_of_dataset_dicts = app_neo4j_queries.get_all_datasets(neo4j_driver)
+    for dataset in list_of_dataset_dicts:
+        internal_dict = {}
+        internal_dict['dataset_uuid'] = dataset['uuid']
+        internal_dict['dataset_hubmap_id'] = dataset['hubmap_id']
+        internal_dict['dataset_status'] = dataset['status']
+        internal_dict['dataset_group_uuid'] = dataset['group_uuid']
+        internal_dict['dataset_group_name'] = dataset['group_name']
+        internal_dict['dataset_date_time_created'] = datetime.fromtimestamp(dataset['created_timestamp'])
+        internal_dict['dataset_created_by_email'] = dataset['created_by_user_emai']
+        internal_dict['dataset_date_time_modified'] = datetime.fromtimestamp(dataset['last_modified_timestamp'])
+        internal_dict['dataset_modified_by_email'] = dataset['last_modified_user_email']
+        internal_dict['dataset_data_types'] = dataset['data_types']
+        portal_url = app.config['DOI_REDIRECT_URL'].replace('<entity_type>', 'dataset').replace('<identifier>', {dataset['uuid']})
+        internal_dict['dataset_portal_url'] = portal_url
+        dataset_dict[dataset] = internal_dict
+    if return_json:
+        return jsonify(dataset_dict)
+    else:
+        new_tsv_file = StringIO()
+        writer = csv.writer(new_tsv_file, delimiter='\t')
+        writer.writerow(headers)
+        for key, value in dataset_dict:
+            writer.writerow(value)
+        output = make_response(new_tsv_file)
+        output.headers["Content-Disposition"] = "attachment; filename=prov-info.tsv"
+        output.headers["Content-type"] = "text/tsv"
+        return output
+
+@app.route('/datasets/auxiliary-info', methods=['GET'])
+def get_auxiliary_info():
+
+    auxiliary = app_neo4j_queries.get_auxiliary_dataset_info(neo4j_driver)
 
 ####################################################################################################
 ## Internal Functions
