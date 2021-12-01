@@ -2250,12 +2250,36 @@ def get_prov_info():
         internal_dict['dataset_group_uuid'] = dataset['group_uuid']
         internal_dict['dataset_group_name'] = dataset['group_name']
         internal_dict['dataset_date_time_created'] = datetime.fromtimestamp(dataset['created_timestamp'])
-        internal_dict['dataset_created_by_email'] = dataset['created_by_user_emai']
+        internal_dict['dataset_created_by_email'] = dataset['created_by_user_email']
         internal_dict['dataset_date_time_modified'] = datetime.fromtimestamp(dataset['last_modified_timestamp'])
         internal_dict['dataset_modified_by_email'] = dataset['last_modified_user_email']
-        internal_dict['dataset_data_types'] = dataset['data_types']
-        portal_url = app.config['DOI_REDIRECT_URL'].replace('<entity_type>', 'dataset').replace('<identifier>', {dataset['uuid']})
-        internal_dict['dataset_portal_url'] = portal_url
+        if return_json:
+            internal_dict['dataset_data_types'] = dataset['data_types']
+        else:
+            internal_dict['dataset_data_types'] = ",".join(dataset['data_types'])
+        internal_dict['dataset_portal_url'] = app.config['DOI_REDIRECT_URL'].replace('<entity_type>', 'dataset').replace('<identifier>', {dataset['uuid']})
+        if dataset['first_sample'] is not None:
+            internal_dict['first_sample_hubmap_id'] = dataset['first_sample']['hubmap_id']
+            internal_dict['first_sample_submission_id'] = dataset['first_sample']['submission_id']
+            internal_dict['first_sample_uuid'] = dataset['first_sample']['uuid']
+            internal_dict['first_sample_type'] = dataset['first_sample']['specimen_type']
+            internal_dict['first_sample_portal_url'] = app.config['DOI_REDIRECT_URL'].replace('<entity_type>', 'sample').replace('<identifier>', {dataset['first_sample']['uuid']})
+        if dataset['distinct_organ'] is not None:
+            internal_dict['organ_hubmap_id'] = dataset['distinct_organ']['hubmap_id']
+            internal_dict['organ_submission_id'] = dataset['distinct_organ']['submission_id']
+            internal_dict['organ_uuid'] = dataset['distinct_organ']['uuid']
+            internal_dict['organ_type'] = dataset['distinct_organ']['organ']
+        if dataset['distinct_donor'] is not None:
+            internal_dict['donor_hubmap_id'] = dataset['distinct_donor']['hubmap_id']
+            internal_dict['donor_submission_id'] = dataset['distinct_donor']['submission_id']
+            internal_dict['donor_uuid'] = dataset['distinct_donor']['uuid']
+            internal_dict['donor_group_name'] = dataset['distinct_donor']['group_name']
+        if dataset['distinct_rui_sample'] is not None:
+            internal_dict['rui_location_hubmap_id'] = dataset['distinct_rui_sample']['hubmap_id']
+            internal_dict['rui_location_submission_id'] = dataset['distinct_rui_sample']['submission_id']
+            internal_dict['rui_location_uuid'] = dataset['distinct_rui_sample']['uuid']
+
+
         dataset_dict[dataset] = internal_dict
     if return_json:
         return jsonify(dataset_dict)
@@ -2272,6 +2296,7 @@ def get_prov_info():
 
 @app.route('/datasets/auxiliary-info', methods=['GET'])
 def get_auxiliary_info():
+    #prov_info = app_neo4j_queries.get_prov_info(neo4j_driver_instance)
     prov_info = app_neo4j_queries.get_prov_info(neo4j_driver_instance)
     return jsonify(prov_info)
 ####################################################################################################

@@ -1,5 +1,6 @@
 from neo4j.exceptions import TransactionError
 import logging
+import json
 
 logger = logging.getLogger(__name__)
 
@@ -935,23 +936,43 @@ def get_all_datasets(neo4j_driver):
 
     return results
 
+def get_more_info(neo4j_driver):
+    query = (f"Match (ds:Dataset) return ds.lab_dataset_id, ds.uuid limit 20")
+    with neo4j_driver.session() as session:
+        result = session.run(query)
+        for record in result:
+            print("\n \n \n")
+            for item in record:
+                print(item)
+
+        # for record in result:
+        #     for item in record:
+        #         item = item.replace("'", '"')
+        #         myitem = json.loads(item)
+        #         print(f"Item type is: {type(myitem)}")
+        #         print(f"Item is: {myitem}")
 
 def get_prov_info(neo4j_driver):
     query = (f"MATCH (ds:Dataset)<-[:ACTIVITY_OUTPUT]-(a)<-[:ACTIVITY_INPUT]-(firstSample:Sample)<-[*]-(donor:Donor)"
+             f"OPTIONAL MATCH (ds)<-[*]-(metaSample:Sample)"
+             f"WHERE not metaSample.metadata is null and not trim(metaSample.metadata) = ''"
              f"OPTIONAL MATCH (ds)<-[*]-(ruiSample:Sample)"
              f"WHERE not ruiSample.rui_location is null and not trim(ruiSample.rui_location) = ''"
              f"OPTIONAL MATCH (donor)-[:ACTIVITY_INPUT]->(oa)-[:ACTIVITY_OUTPUT]->(organ:Sample "
              f"{{specimen_type:'organ'}})-[*]->(ds)"
-             f"return ds.uuid, collect(distinct firstSample.uuid), collect(distinct donor.uuid), "
-             f"collect(distinct ruiSample.uuid), collect(distinct organ.uuid), collect(distinct organ.organ)")
-    logger.debug("======get_auxilary_dataset_info() query======")
+             f"return ds.uuid, collect(distinct firstSample), collect(distinct donor), "
+             f"collect(distinct ruiSample), collect(distinct organ), "
+             f"collect(distinct metaSample), "
+             f"ds.hubmap_id, ds.status, ds.group_name, ds.group_uuid, "
+             f"ds.created_timestamp, ds.created_by_user_email, ds.last_modified_timestamp, ds.last_modified_user_email,"
+             f"ds.lab_dataset_id, ds.data_types ")
+    logger.debug("======get_prov_info() query======")
     logger.debug(query)
 
     with neo4j_driver.session() as session:
         # Because we're returning multiple things, we use session.run rather than session.read_transaction
         result = session.run(query)
         list_of_dictionaries = []
-        dictionary_of_records = {}
         for record in result:
             record_dict = {}
             record_contents = []
@@ -960,18 +981,40 @@ def get_prov_info(neo4j_driver):
             for item in record:
                 record_contents.append(item)
             record_dict['uuid'] = record_contents[0]
-            if len(record_contents[1]) > 0:
-                record_dict['first_sample_uuid'] = record_contents[1][0]
-            if len(record_contents[2]) > 0:
-                record_dict['distinct_donor_uuid'] = record_contents[2][0]
-            if len(record_contents[3]) > 0:
-                record_dict['distinct_uri_sample_uuid'] = record_contents[3][0]
-            if len(record_contents[4]) > 0:
-                record_dict['distinct_organ_uuid'] = record_contents[4][0]
-            if len(record_contents[5]) > 0:
-                record_dict['distinct_organ_organ'] = record_contents[5][0]
+            content_one = []
+            for entry in record_contents[1]:
+                node_dict = _node_to_dict(entry)
+                content_one.append(node_dict)
+            record_dict['first_sample'] = content_one
+            content_two = []
+            for entry in record_contents[2]:
+                node_dict = _node_to_dict(entry)
+                content_two.append(node_dict)
+            record_dict['distinct_donor'] = content_two
+            content_three = []
+            for entry in record_contents[3]:
+                node_dict = _node_to_dict(entry)
+                content_three.append(node_dict)
+            record_dict['distinct_rui_sample'] = content_three
+            content_four = []
+            for entry in record_contents[4]:
+                node_dict = _node_to_dict(entry)
+                content_four.append(node_dict)
+            record_dict['distinct_organ'] = content_four
+            record_dict['hubmap_id'] = record_contents[5]
+            record_dict['status'] = record_contents[6]
+            record_dict['group_name'] = record_contents[7]
+            record_dict['group_uuid'] = record_contents[8]
+            record_dict['created_timestamp'] = record_contents[9]
+            record_dict['created_by_user_email'] = record_contents[10]
+            record_dict['last_modified_timestamp'] = record_contents[11]
+            record_dict['last_modified_user_email'] = record_contents[12]
+            record_dict['lab_dataset_id'] = record_contents[13]
+            data_types = record_contents[14]
+            data_types = data_types.replace("'", '"')
+            data_types = json.loads(data_types)
+            record_dict['data_types'] = data_types
             list_of_dictionaries.append(record_dict)
-            dictionary_of_records[record_contents[0]] = record_contents
     return list_of_dictionaries
 
 ####################################################################################################
