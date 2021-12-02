@@ -2247,39 +2247,92 @@ def get_prov_info():
         internal_dict['dataset_uuid'] = dataset['uuid']
         internal_dict['dataset_hubmap_id'] = dataset['hubmap_id']
         internal_dict['dataset_status'] = dataset['status']
-        internal_dict['dataset_group_uuid'] = dataset['group_uuid']
         internal_dict['dataset_group_name'] = dataset['group_name']
+        internal_dict['dataset_group_uuid'] = dataset['group_uuid']
         internal_dict['dataset_date_time_created'] = datetime.fromtimestamp(dataset['created_timestamp'])
         internal_dict['dataset_created_by_email'] = dataset['created_by_user_email']
         internal_dict['dataset_date_time_modified'] = datetime.fromtimestamp(dataset['last_modified_timestamp'])
         internal_dict['dataset_modified_by_email'] = dataset['last_modified_user_email']
-        if return_json:
-            internal_dict['dataset_data_types'] = dataset['data_types']
-        else:
+        internal_dict['dataset_data_types'] = dataset['data_types']
+        if return_json is False:
             internal_dict['dataset_data_types'] = ",".join(dataset['data_types'])
         internal_dict['dataset_portal_url'] = app.config['DOI_REDIRECT_URL'].replace('<entity_type>', 'dataset').replace('<identifier>', {dataset['uuid']})
         if dataset['first_sample'] is not None:
-            internal_dict['first_sample_hubmap_id'] = dataset['first_sample']['hubmap_id']
-            internal_dict['first_sample_submission_id'] = dataset['first_sample']['submission_id']
-            internal_dict['first_sample_uuid'] = dataset['first_sample']['uuid']
-            internal_dict['first_sample_type'] = dataset['first_sample']['specimen_type']
-            internal_dict['first_sample_portal_url'] = app.config['DOI_REDIRECT_URL'].replace('<entity_type>', 'sample').replace('<identifier>', {dataset['first_sample']['uuid']})
+            first_sample_hubmap_id_list = []
+            first_sample_submission_id_list = []
+            first_sample_uuid_list = []
+            first_sample_type_list = []
+            first_sample_portal_url_list = []
+            for item in dataset['first_sample']:
+                first_sample_hubmap_id_list.append(item['first_sample']['hubmap_id'])
+                first_sample_submission_id_list.append(item['first_sample']['submission_id'])
+                first_sample_uuid_list.append(item['first_sample']['uuid'])
+                first_sample_type_list.append(item['first_sample']['specimen_type'])
+                first_sample_portal_url_list.append(app.config['DOI_REDIRECT_URL'].replace('<entity_type>', 'sample').replace('<identifier>', {item['first_sample']['uuid']}))
+            internal_dict['first_sample_hubmap_id'] = first_sample_hubmap_id_list
+            internal_dict['first_sample_submission_id'] = first_sample_submission_id_list
+            internal_dict['first_sample_uuid'] = first_sample_uuid_list
+            internal_dict['first_sample_type'] = first_sample_type_list
+            internal_dict['first_sample_portal_url'] = first_sample_portal_url_list
+            if return_json is False:
+                internal_dict['first_sample_hubmap_id'] = ",".join(first_sample_hubmap_id_list)
+                internal_dict['first_sample_submission_id'] = ",".join(first_sample_submission_id_list)
+                internal_dict['first_sample_uuid'] = ",".join(first_sample_uuid_list)
+                internal_dict['first_sample_type'] = ",".join(first_sample_type_list)
+                internal_dict['first_sample_portal_url'] = ",".join(first_sample_portal_url_list)
         if dataset['distinct_organ'] is not None:
-            internal_dict['organ_hubmap_id'] = dataset['distinct_organ']['hubmap_id']
-            internal_dict['organ_submission_id'] = dataset['distinct_organ']['submission_id']
-            internal_dict['organ_uuid'] = dataset['distinct_organ']['uuid']
-            internal_dict['organ_type'] = dataset['distinct_organ']['organ']
+            distinct_organ_hubmap_id_list = []
+            distinct_organ_submission_id_list = []
+            distinct_organ_uuid_list = []
+            distinct_organ_type_list = []
+            for item in dataset['distinct_organ']:
+                distinct_organ_hubmap_id_list.append(item['distinct_organ']['hubmap_id'])
+                distinct_organ_submission_id_list.append(item['distinct_organ']['submission_id'])
+                distinct_organ_uuid_list.append(item['distinct_organ']['uuid'])
+                distinct_organ_type_list.append(item['distinct_organ']['organ'])
+            internal_dict['organ_hubmap_id'] = distinct_organ_hubmap_id_list
+            internal_dict['organ_hubmap_id'] = distinct_organ_submission_id_list
+            internal_dict['organ_uuid'] = distinct_organ_uuid_list
+            internal_dict['organ_organ'] = distinct_organ_type_list
+            if return_json is False:
+                internal_dict['organ_hubmap_id'] = ",".join(distinct_organ_hubmap_id_list)
+                internal_dict['organ_hubmap_id'] = ",".join(distinct_organ_submission_id_list)
+                internal_dict['organ_uuid'] = ",".join(distinct_organ_uuid_list)
+                internal_dict['organ_organ']= ",".join(distinct_organ_type_list)
         if dataset['distinct_donor'] is not None:
-            internal_dict['donor_hubmap_id'] = dataset['distinct_donor']['hubmap_id']
-            internal_dict['donor_submission_id'] = dataset['distinct_donor']['submission_id']
-            internal_dict['donor_uuid'] = dataset['distinct_donor']['uuid']
-            internal_dict['donor_group_name'] = dataset['distinct_donor']['group_name']
+            distinct_donor_hubmap_id_list = []
+            distinct_donor_submission_id_list = []
+            distinct_donor_uuid_list = []
+            distinct_donor_group_name_list = []
+            for item in dataset['distinct_donor']:
+                distinct_donor_hubmap_id_list.append(item['distinct_donor']['hubmap_id'])
+                distinct_donor_submission_id_list.append(item['distinct_donor']['submission_id'])
+                distinct_donor_uuid_list.append(item['distinct_donor']['uuid'])
+                distinct_donor_group_name_list.append(item['distinct_donor']['group_name'])
+            internal_dict['donor_hubmap_id'] = distinct_donor_hubmap_id_list
+            internal_dict['donor_submission_id'] = distinct_donor_submission_id_list
+            internal_dict['donor_uuid'] = distinct_donor_uuid_list
+            internal_dict['donor_group_name'] = distinct_donor_group_name_list
+            if return_json is False:
+                internal_dict['donor_hubmap_id'] = ",".join(distinct_donor_hubmap_id_list)
+                internal_dict['donor_submission_id'] = ",".join(distinct_donor_submission_id_list)
+                internal_dict['donor_uuid'] = ",".join(distinct_donor_uuid_list)
+                internal_dict['donor_group_name']= ",".join(distinct_donor_group_name_list)
         if dataset['distinct_rui_sample'] is not None:
-            internal_dict['rui_location_hubmap_id'] = dataset['distinct_rui_sample']['hubmap_id']
-            internal_dict['rui_location_submission_id'] = dataset['distinct_rui_sample']['submission_id']
-            internal_dict['rui_location_uuid'] = dataset['distinct_rui_sample']['uuid']
-
-
+            rui_location_hubmap_id_list = []
+            rui_location_submission_id_list = []
+            rui_location_uuid_list = []
+            for item in dataset['distinct_rui_sample']:
+                rui_location_hubmap_id_list.append(item['distinct_rui_sample']['hubmap_id'])
+                rui_location_submission_id_list.append(item['distinct_rui_sample']['submission_id'])
+                rui_location_uuid_list.append(item['distinct_rui_sample']['uuid'])
+            internal_dict['rui_location_hubmap_id'] = rui_location_hubmap_id_list
+            internal_dict['rui_location_submission_id'] = rui_location_submission_id_list
+            internal_dict['rui_location_uuid'] = rui_location_uuid_list
+            if return_json is False:
+                internal_dict['rui_location_hubmap_id'] = ",".join(rui_location_hubmap_id_list)
+                internal_dict['rui_location_submission_id'] = ",".join(rui_location_submission_id_list)
+                internal_dict['rui_location_uuid'] = ",".join(rui_location_uuid_list)
         dataset_dict[dataset] = internal_dict
     if return_json:
         return jsonify(dataset_dict)

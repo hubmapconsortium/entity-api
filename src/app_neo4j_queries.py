@@ -953,19 +953,25 @@ def get_more_info(neo4j_driver):
         #         print(f"Item is: {myitem}")
 
 def get_prov_info(neo4j_driver):
-    query = (f"MATCH (ds:Dataset)<-[:ACTIVITY_OUTPUT]-(a)<-[:ACTIVITY_INPUT]-(firstSample:Sample)<-[*]-(donor:Donor)"
-             f"OPTIONAL MATCH (ds)<-[*]-(metaSample:Sample)"
-             f"WHERE not metaSample.metadata is null and not trim(metaSample.metadata) = ''"
-             f"OPTIONAL MATCH (ds)<-[*]-(ruiSample:Sample)"
-             f"WHERE not ruiSample.rui_location is null and not trim(ruiSample.rui_location) = ''"
-             f"OPTIONAL MATCH (donor)-[:ACTIVITY_INPUT]->(oa)-[:ACTIVITY_OUTPUT]->(organ:Sample "
-             f"{{specimen_type:'organ'}})-[*]->(ds)"
-             f"return ds.uuid, collect(distinct firstSample), collect(distinct donor), "
-             f"collect(distinct ruiSample), collect(distinct organ), "
-             f"collect(distinct metaSample), "
-             f"ds.hubmap_id, ds.status, ds.group_name, ds.group_uuid, "
-             f"ds.created_timestamp, ds.created_by_user_email, ds.last_modified_timestamp, ds.last_modified_user_email,"
-             f"ds.lab_dataset_id, ds.data_types ")
+    query = (f"match (ds:Dataset)<-[:ACTIVITY_OUTPUT]-(a)<-[:ACTIVITY_INPUT]-(firstSample:Sample)<-[*]-(donor:Donor) "
+             f" with ds, firstSample"
+             f" optional match (ds)<-[*]-(metaSample:Sample)"
+             f" with ds, firstSample, metaSample"
+             f" where not metaSample.metadata is null and not trim(metaSample.metadata) = ''"
+             f" optional match (ds)<-[*]-(ruiSample:Sample)"
+             f" with ds, ruiSample, firstSample, metaSample"
+             f" where not ruiSample.rui_location is null and not trim(ruiSample.rui_location) = ''"
+             f" optional match (donor)-[:ACTIVITY_INPUT]->(oa)-[:ACTIVITY_OUTPUT]->(organ:Sample "
+             f" {{specimen_type:'organ'}})-[*]->(ds)"
+             f" with ds, ruiSample, firstSample, donor, organ, metaSample" 
+             f" optional match (ds)<-[*]-(metaSample:Sample)"
+             f" with ds, ruiSample, firstSample, donor, organ, metaSample"
+             f" where not metaSample.metadata is null and not trim(metaSample.metadata) = ''"
+             
+             f" return ds.uuid, collect(distinct firstSample), collect(distinct donor), collect(distinct ruiSample), "
+             f" collect(distinct organ), ds.hubmap_id, ds.status, ds.group_name, ds.group_uuid," 
+             f" ds.created_timestamp, ds.created_by_user_email, ds.last_modified_timestamp, ds.last_modified_user_email,"
+             f" ds.lab_dataset_id, ds.data_types, collect(distinct metaSample)")
     logger.debug("======get_prov_info() query======")
     logger.debug(query)
 
@@ -1014,6 +1020,11 @@ def get_prov_info(neo4j_driver):
             data_types = data_types.replace("'", '"')
             data_types = json.loads(data_types)
             record_dict['data_types'] = data_types
+            content_fifteen = []
+            for entry in record_contents[15]:
+                node_dict = _node_to_dict(entry)
+                content_fifteen.append(node_dict)
+            record_dict['distinct_metasample'] = content_fifteen
             list_of_dictionaries.append(record_dict)
     return list_of_dictionaries
 
