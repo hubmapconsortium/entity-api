@@ -1,0 +1,51 @@
+# File path of schema yaml file, DO NOT MODIFY
+SCHEMA_YAML_FILE = '/usr/src/app/src/schema/provenance_schema.yaml'
+
+# Globus App ID and secret
+APP_CLIENT_ID = ''
+APP_CLIENT_SECRET = ''
+
+# Neo4j connection (default value used for docker localhost deployment)
+# Point to remote neo4j for dev/test/stage/prod deployment
+NEO4J_URI = 'bolt://hubmap-neo4j-localhost:7687'
+NEO4J_USERNAME = 'neo4j'
+NEO4J_PASSWORD = '123'
+
+# URL for talking to UUID API (default value used for docker deployment, no token needed)
+# Don't use localhost since uuid-api is running on a different container
+# Point to remote URL for non-docker development
+# Works regardless of the trailing slash
+UUID_API_URL = 'http://hubmap-auth:9999/hmuuid'
+
+# URL for talking to Ingest API (default value used for PSC DEV)
+# Use INGEST_API_URL = 'http://hubmap-auth:4444' for localhost docker
+# Works regardless of the trailing slash
+INGEST_API_URL = 'https://ingest-api.dev.hubmapconsortium.org'
+
+# URL for talking to Search API (default value used for docker deployment, no token needed)
+# Don't use localhost since search-api is running on a different container
+# Point to remote URL for non-docker development
+# Works regardless of the trailing slash
+SEARCH_API_URL = 'http://hubmap-auth:6666'
+
+#The Base URL to the Globus transfer application site
+GLOBUS_APP_BASE_URL = 'https://app.globus.org'
+
+# Below configurations are for DOI redirection
+# UUIDs of the Globus endpoints
+GLOBUS_PUBLIC_ENDPOINT_UUID = ''
+GLOBUS_CONSORTIUM_ENDPOINT_UUID = ''
+GLOBUS_PROTECTED_ENDPOINT_UUID = ''
+
+# Sub directories under the base data/globus directory where different access levels of data sits
+PROTECTED_DATA_SUBDIR = 'private'
+CONSORTIUM_DATA_SUBDIR = 'consortium'
+PUBLIC_DATA_SUBDIR = 'public'
+
+# The url where dataset/collection DOIs are redirected to
+# The <entity_type> tag is required in the url and will be replaced by the incoming type
+# The <identifier> tag is required in the url and will be replaced by the incoming identifier
+DOI_REDIRECT_URL = 'https://portal.hubmapconsortium.org/browse/<entity_type>/<identifier>'
+
+#URL to tsv file that holds the redirect url information for DOI redirects
+REDIRECTION_INFO_URL = 'https://raw.githubusercontent.com/hubmapconsortium/ccf-releases/main/v1.0/reference-entity-ids.tsv'
