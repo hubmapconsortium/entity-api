@@ -2203,7 +2203,18 @@ def get_associated_organs_from_dataset(id):
 
     return jsonify(final_result)
 
+"""
+Get the complete provenance info for all datasets
 
+Authorization handled by gateway. HuBMAP-Read group is required for this call. 
+
+Returns
+-------
+json
+    an array of each datatset's provenance info
+tsv
+    a text file of tab separated values where each row is a dataset and the columns include all its prov info
+"""
 @app.route('/datasets/prov-info', methods=['GET'])
 def get_prov_info():
     return_json = False
@@ -2253,9 +2264,9 @@ def get_prov_info():
         internal_dict['dataset_status'] = dataset['status']
         internal_dict['dataset_group_name'] = dataset['group_name']
         internal_dict['dataset_group_uuid'] = dataset['group_uuid']
-        internal_dict['dataset_date_time_created'] = datetime.fromtimestamp(dataset['created_timestamp']/1000.0)
+        internal_dict['dataset_date_time_created'] = datetime.fromtimestamp(int(dataset['created_timestamp']/1000.0))
         internal_dict['dataset_created_by_email'] = dataset['created_by_user_email']
-        internal_dict['dataset_date_time_modified'] = datetime.fromtimestamp(dataset['last_modified_timestamp']/1000.0)
+        internal_dict['dataset_date_time_modified'] = datetime.fromtimestamp(int(dataset['last_modified_timestamp']/1000.0))
         internal_dict['dataset_modified_by_email'] = dataset['last_modified_user_email']
         internal_dict['dataset_data_types'] = dataset['data_types']
         if return_json is False:
@@ -2365,11 +2376,6 @@ def get_prov_info():
         output.headers['Content-Disposition'] = 'attachment; filename=prov-info.tsv'
         return output
 
-@app.route('/datasets/auxiliary-info', methods=['GET'])
-def get_auxiliary_info():
-    #prov_info = app_neo4j_queries.get_prov_info(neo4j_driver_instance)
-    prov_info = app_neo4j_queries.get_prov_info(neo4j_driver_instance)
-    return jsonify(prov_info)
 ####################################################################################################
 ## Internal Functions
 ####################################################################################################

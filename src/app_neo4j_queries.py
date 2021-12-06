@@ -919,39 +919,16 @@ def get_associated_organs_from_dataset(neo4j_driver, dataset_uuid):
     return results
 
 
-def get_all_datasets(neo4j_driver):
-    results = []
-    query = (f"MATCH (ds:Dataset)"
-             f"RETURN ds AS {record_field_name}")
-    logger.debug("======get_all_datasets() query======")
-    logger.debug(query)
+"""
+Retrieve all the provenance information about each dataset. Each dataset's prov-info is given by a dictionary. 
+Certain fields such as first sample where there can be multiple nearest datasets in the provenance above a given
+dataset, that field is a list inside of its given dictionary.
 
-    with neo4j_driver() as session:
-        record = session.read_transaction(_execute_readonly_tx, query)
-
-        # Only convert when record[record_field_name] is not None (namely the cypher result is not null)
-        if record and record[record_field_name]:
-            # Convert the neo4j node into Python dict
-            results = _nodes_to_dicts(record[record_field_name])
-
-    return results
-
-def get_more_info(neo4j_driver):
-    query = (f"Match (ds:Dataset) return ds.lab_dataset_id, ds.uuid limit 20")
-    with neo4j_driver.session() as session:
-        result = session.run(query)
-        for record in result:
-            print("\n \n \n")
-            for item in record:
-                print(item)
-
-        # for record in result:
-        #     for item in record:
-        #         item = item.replace("'", '"')
-        #         myitem = json.loads(item)
-        #         print(f"Item type is: {type(myitem)}")
-        #         print(f"Item is: {myitem}")
-
+Parameters
+----------
+neo4j_driver : neo4j.Driver object
+    The neo4j database connection pool
+"""
 def get_prov_info(neo4j_driver):
     query = (f"match (ds:Dataset)<-[:ACTIVITY_OUTPUT]-(a)<-[:ACTIVITY_INPUT]-(firstSample:Sample)<-[*]-(donor:Donor) "
              f" with ds, firstSample"
