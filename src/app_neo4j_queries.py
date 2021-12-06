@@ -941,9 +941,9 @@ def get_prov_info(neo4j_driver):
              f" optional match (donor)-[:ACTIVITY_INPUT]->(oa)-[:ACTIVITY_OUTPUT]->(organ:Sample "
              f" {{specimen_type:'organ'}})-[*]->(ds)"
              f" with ds, ruiSample, firstSample, donor, organ, metaSample" 
-             f" optional match (ds)<-[*]-(metaSample:Sample)"
-             f" with ds, ruiSample, firstSample, donor, organ, metaSample"
-             f" where not metaSample.metadata is null and not trim(metaSample.metadata) = ''"
+             # f" optional match (ds)<-[*]-(metaSample:Sample)"
+             # f" with ds, ruiSample, firstSample, donor, organ, metaSample"
+             # f" where not metaSample.metadata is null and not trim(metaSample.metadata) = ''"
              
              f" return ds.uuid, collect(distinct firstSample), collect(distinct donor), collect(distinct ruiSample), "
              f" collect(distinct organ), ds.hubmap_id, ds.status, ds.group_name, ds.group_uuid," 
