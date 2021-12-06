@@ -682,6 +682,9 @@ ENTITIES:
     properties:
       <<: *shared_properties
       <<: *shared_entity_properties
+      thumbnail:
+        type: boolean
+        description: "Whether the upload has a thumbanil file"
       description:
         type: string
         description: "Free text description of the data being submitted."
