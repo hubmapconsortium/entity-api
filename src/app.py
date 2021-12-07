@@ -2200,6 +2200,48 @@ def get_associated_organs_from_dataset(id):
 
     return jsonify(final_result)
 
+@app.route('/datasets/<id>/prov-info', methods=['GET'])
+def get_prov_info_for_dataset(id):
+    return_json = False
+    dataset_prov_list = []
+    if bool(request.args):
+        return_format = request.args.get('format')
+        if (return_format is not None) and (return_format.lower() == 'json'):
+            return_json = True
+    headers = [
+        'dataset_uuid',
+        'dataset_hubmap_id',
+        'dataset_status',
+        'dataset_group_name',
+        'dataset_group_uuid',
+        'dataset_date_time_created',
+        'dataset_created_by_email',
+        'dataset_date_time_modified',
+        'dataset_modified_by_email',
+        'dataset_lab_id',
+        'dataset_data_types',
+        'dataset_portal_url',
+        'first_sample_hubmap_id',
+        'first_sample_submission_id',
+        'first_sample_uuid',
+        'first_sample_type',
+        'first_sample_portal_url',
+        'organ_hubmap_id',
+        'organ_submission_id',
+        'organ_uuid',
+        'organ_type',
+        'donor_hubmap_id',
+        'donor_submission_id',
+        'donor_uuid',
+        'donor_group_name',
+        'rui_location_hubmap_id',
+        'rui_location_submission_id',
+        'rui_location_uuid',
+        'sample_metadata_hubmap_id',
+        'sample_metadata_submission_id',
+        'sample_metadata_uuid'
+    ]
+    individual_prov_info = app_neo4j_queries.get_prov_info(neo4j_driver_instance)
 ####################################################################################################
 ## Internal Functions
 ####################################################################################################
