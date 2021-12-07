@@ -1,10 +1,13 @@
-from flask import Flask, g, jsonify, abort, request, Response, redirect
+import collections
+from datetime import datetime
+from flask import Flask, g, jsonify, abort, request, Response, redirect, make_response
 from neo4j.exceptions import TransactionError
 import os
 import re
 import csv
 import requests
 import urllib
+from io import StringIO
 # Don't confuse urllib (Python native library) with urllib3 (3rd-party library, requests also uses urllib3)
 from requests.packages.urllib3.exceptions import InsecureRequestWarning
 from pathlib import Path
@@ -2199,6 +2202,179 @@ def get_associated_organs_from_dataset(id):
     final_result = schema_manager.normalize_entities_list_for_response(complete_entities_list)
 
     return jsonify(final_result)
+
+"""
+Get the complete provenance info for all datasets
+
+Authorization handled by gateway. HuBMAP-Read group is required for this call. 
+
+Returns
+-------
+json
+    an array of each datatset's provenance info
+tsv
+    a text file of tab separated values where each row is a dataset and the columns include all its prov info
+"""
+@app.route('/datasets/prov-info', methods=['GET'])
+def get_prov_info():
+    return_json = False
+    dataset_prov_list = []
+    if bool(request.args):
+        return_format = request.args.get('format')
+        if (return_format is not None) and (return_format.lower() == 'json'):
+            return_json = True
+    headers = [
+        'dataset_uuid',
+        'dataset_hubmap_id',
+        'dataset_status',
+        'dataset_group_name',
+        'dataset_group_uuid',
+        'dataset_date_time_created',
+        'dataset_created_by_email',
+        'dataset_date_time_modified',
+        'dataset_modified_by_email',
+        'dataset_lab_id',
+        'dataset_data_types',
+        'dataset_portal_url',
+        'first_sample_hubmap_id',
+        'first_sample_submission_id',
+        'first_sample_uuid',
+        'first_sample_type',
+        'first_sample_portal_url',
+        'organ_hubmap_id',
+        'organ_submission_id',
+        'organ_uuid',
+        'organ_type',
+        'donor_hubmap_id',
+        'donor_submission_id',
+        'donor_uuid',
+        'donor_group_name',
+        'rui_location_hubmap_id',
+        'rui_location_submission_id',
+        'rui_location_uuid',
+        'sample_metadata_hubmap_id',
+        'sample_metadata_submission_id',
+        'sample_metadata_uuid'
+    ]
+    prov_info = app_neo4j_queries.get_prov_info(neo4j_driver_instance)
+    for dataset in prov_info:
+        internal_dict = collections.OrderedDict()
+        internal_dict['dataset_uuid'] = dataset['uuid']
+        internal_dict['dataset_hubmap_id'] = dataset['hubmap_id']
+        internal_dict['dataset_status'] = dataset['status']
+        internal_dict['dataset_group_name'] = dataset['group_name']
+        internal_dict['dataset_group_uuid'] = dataset['group_uuid']
+        internal_dict['dataset_date_time_created'] = datetime.fromtimestamp(int(dataset['created_timestamp']/1000.0))
+        internal_dict['dataset_created_by_email'] = dataset['created_by_user_email']
+        internal_dict['dataset_date_time_modified'] = datetime.fromtimestamp(int(dataset['last_modified_timestamp']/1000.0))
+        internal_dict['dataset_modified_by_email'] = dataset['last_modified_user_email']
+        internal_dict['dataset_data_types'] = dataset['data_types']
+        if return_json is False:
+            internal_dict['dataset_data_types'] = ",".join(dataset['data_types'])
+        internal_dict['dataset_portal_url'] = app.config['DOI_REDIRECT_URL'].replace('<entity_type>', 'dataset').replace('<identifier>', dataset['uuid'])
+        if dataset['first_sample'] is not None:
+            first_sample_hubmap_id_list = []
+            first_sample_submission_id_list = []
+            first_sample_uuid_list = []
+            first_sample_type_list = []
+            first_sample_portal_url_list = []
+            for item in dataset['first_sample']:
+                first_sample_hubmap_id_list.append(item['hubmap_id'])
+                first_sample_submission_id_list.append(item['submission_id'])
+                first_sample_uuid_list.append(item['uuid'])
+                first_sample_type_list.append(item['specimen_type'])
+                first_sample_portal_url_list.append(app.config['DOI_REDIRECT_URL'].replace('<entity_type>', 'sample').replace('<identifier>', item['uuid']))
+            internal_dict['first_sample_hubmap_id'] = first_sample_hubmap_id_list
+            internal_dict['first_sample_submission_id'] = first_sample_submission_id_list
+            internal_dict['first_sample_uuid'] = first_sample_uuid_list
+            internal_dict['first_sample_type'] = first_sample_type_list
+            internal_dict['first_sample_portal_url'] = first_sample_portal_url_list
+            if return_json is False:
+                internal_dict['first_sample_hubmap_id'] = ",".join(first_sample_hubmap_id_list)
+                internal_dict['first_sample_submission_id'] = ",".join(first_sample_submission_id_list)
+                internal_dict['first_sample_uuid'] = ",".join(first_sample_uuid_list)
+                internal_dict['first_sample_type'] = ",".join(first_sample_type_list)
+                internal_dict['first_sample_portal_url'] = ",".join(first_sample_portal_url_list)
+        if dataset['distinct_organ'] is not None:
+            distinct_organ_hubmap_id_list = []
+            distinct_organ_submission_id_list = []
+            distinct_organ_uuid_list = []
+            distinct_organ_type_list = []
+            for item in dataset['distinct_organ']:
+                distinct_organ_hubmap_id_list.append(item['hubmap_id'])
+                distinct_organ_submission_id_list.append(item['submission_id'])
+                distinct_organ_uuid_list.append(item['uuid'])
+                distinct_organ_type_list.append(item['organ'])
+            internal_dict['organ_hubmap_id'] = distinct_organ_hubmap_id_list
+            internal_dict['organ_submission_id'] = distinct_organ_submission_id_list
+            internal_dict['organ_uuid'] = distinct_organ_uuid_list
+            internal_dict['organ_type'] = distinct_organ_type_list
+            if return_json is False:
+                internal_dict['organ_hubmap_id'] = ",".join(distinct_organ_hubmap_id_list)
+                internal_dict['organ_submission_id'] = ",".join(distinct_organ_submission_id_list)
+                internal_dict['organ_uuid'] = ",".join(distinct_organ_uuid_list)
+                internal_dict['organ_type'] = ",".join(distinct_organ_type_list)
+        if dataset['distinct_donor'] is not None:
+            distinct_donor_hubmap_id_list = []
+            distinct_donor_submission_id_list = []
+            distinct_donor_uuid_list = []
+            distinct_donor_group_name_list = []
+            for item in dataset['distinct_donor']:
+                distinct_donor_hubmap_id_list.append(item['hubmap_id'])
+                distinct_donor_submission_id_list.append(item['submission_id'])
+                distinct_donor_uuid_list.append(item['uuid'])
+                distinct_donor_group_name_list.append(item['group_name'])
+            internal_dict['donor_hubmap_id'] = distinct_donor_hubmap_id_list
+            internal_dict['donor_submission_id'] = distinct_donor_submission_id_list
+            internal_dict['donor_uuid'] = distinct_donor_uuid_list
+            internal_dict['donor_group_name'] = distinct_donor_group_name_list
+            if return_json is False:
+                internal_dict['donor_hubmap_id'] = ",".join(distinct_donor_hubmap_id_list)
+                internal_dict['donor_submission_id'] = ",".join(distinct_donor_submission_id_list)
+                internal_dict['donor_uuid'] = ",".join(distinct_donor_uuid_list)
+                internal_dict['donor_group_name']= ",".join(distinct_donor_group_name_list)
+        if dataset['distinct_rui_sample'] is not None:
+            rui_location_hubmap_id_list = []
+            rui_location_submission_id_list = []
+            rui_location_uuid_list = []
+            for item in dataset['distinct_rui_sample']:
+                rui_location_hubmap_id_list.append(item['hubmap_id'])
+                rui_location_submission_id_list.append(item['submission_id'])
+                rui_location_uuid_list.append(item['uuid'])
+            internal_dict['rui_location_hubmap_id'] = rui_location_hubmap_id_list
+            internal_dict['rui_location_submission_id'] = rui_location_submission_id_list
+            internal_dict['rui_location_uuid'] = rui_location_uuid_list
+            if return_json is False:
+                internal_dict['rui_location_hubmap_id'] = ",".join(rui_location_hubmap_id_list)
+                internal_dict['rui_location_submission_id'] = ",".join(rui_location_submission_id_list)
+                internal_dict['rui_location_uuid'] = ",".join(rui_location_uuid_list)
+        if dataset['distinct_metasample'] is not None:
+            metasample_hubmap_id_list = []
+            metasample_submission_id_list = []
+            metasample_uuid_list = []
+            for item in dataset['distinct_metasample']:
+                metasample_hubmap_id_list.append(item['hubmap_id'])
+                metasample_submission_id_list.append(item['submission_id'])
+                metasample_uuid_list.append(item['uuid'])
+            internal_dict['sample_metadata_hubmap_id'] = metasample_hubmap_id_list
+            internal_dict['sample_metadata_submission_id'] = metasample_submission_id_list
+            internal_dict['sample_metadata_uuid'] = metasample_uuid_list
+            if return_json is False:
+                internal_dict['sample_metadata_hubmap_id'] = ",".join(metasample_hubmap_id_list)
+                internal_dict['sample_metadata_submission_id'] = ",".join(metasample_submission_id_list)
+                internal_dict['sample_metadata_uuid'] = ",".join(metasample_uuid_list)
+        dataset_prov_list.append(internal_dict)
+    if return_json:
+        return jsonify(dataset_prov_list)
+    else:
+        new_tsv_file = StringIO()
+        writer = csv.DictWriter(new_tsv_file, fieldnames=headers, delimiter='\t')
+        writer.writeheader()
+        writer.writerows(dataset_prov_list)
+        new_tsv_file.seek(0)
+        output = Response(new_tsv_file, mimetype='text/tsv')
+        output.headers['Content-Disposition'] = 'attachment; filename=prov-info.tsv'
+        return output
 
 ####################################################################################################
 ## Internal Functions
