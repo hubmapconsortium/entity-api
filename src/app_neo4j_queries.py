@@ -1020,6 +1020,73 @@ def get_prov_info(neo4j_driver):
             list_of_dictionaries.append(record_dict)
     return list_of_dictionaries
 
+def get_individual_prov_info(neo4j_driver, dataset_uuid):
+    query = (f"match (ds:Dataset {{uuid: '{dataset_uuid}'}})<-[:ACTIVITY_OUTPUT]-(a)<-[:ACTIVITY_INPUT]-(firstSample:Sample)<-[*]-(donor:Donor)"
+             f" with ds, collect(distinct donor) as DONOR, collect(distinct firstSample) as FIRSTSAMPLE"
+             f" optional match (ds)<-[*]-(metaSample:Sample)"
+             f" where not metaSample.metadata is null and not trim(metaSample.metadata) = ''"
+             f" with ds, FIRSTSAMPLE, DONOR, collect(distinct metaSample) as METASAMPLE"
+             f" optional match (ds)<-[*]-(ruiSample:Sample)"
+             f" where not ruiSample.rui_location is null and not trim(ruiSample.rui_location) = ''"
+             f" with ds, FIRSTSAMPLE, DONOR, METASAMPLE, collect(distinct ruiSample) as RUISAMPLE"
+             f" optional match (donor)-[:ACTIVITY_INPUT]->(oa)-[:ACTIVITY_OUTPUT]->(organ:Sample {{specimen_type:'organ'}})-[*]->(ds)"
+             f" with ds, FIRSTSAMPLE, DONOR, METASAMPLE, RUISAMPLE, collect(distinct organ) as ORGAN "
+             f" return ds.uuid, FIRSTSAMPLE, DONOR, RUISAMPLE, ORGAN, ds.hubmap_id, ds.status, ds.group_name,"
+             f" ds.group_uuid, ds.created_timestamp, ds.created_by_user_email, ds.last_modified_timestamp, "
+             f" ds.last_modified_user_email, ds.lab_dataset_id, ds.data_types, METASAMPLE")
+
+    logger.debug("======get_prov_info() query======")
+    logger.debug(query)
+    record_contents = []
+    record_dict = {}
+    with neo4j_driver.session() as session:
+        result = session.run(query)
+        if result.peek() is None:
+            return
+        for record in result:
+            for item in record:
+                record_contents.append(item)
+            record_dict['uuid'] = record_contents[0]
+            content_one = []
+            for entry in record_contents[1]:
+                node_dict = _node_to_dict(entry)
+                content_one.append(node_dict)
+            record_dict['first_sample'] = content_one
+            content_two = []
+            for entry in record_contents[2]:
+                node_dict = _node_to_dict(entry)
+                content_two.append(node_dict)
+            record_dict['distinct_donor'] = content_two
+            content_three = []
+            for entry in record_contents[3]:
+                node_dict = _node_to_dict(entry)
+                content_three.append(node_dict)
+            record_dict['distinct_rui_sample'] = content_three
+            content_four = []
+            for entry in record_contents[4]:
+                node_dict = _node_to_dict(entry)
+                content_four.append(node_dict)
+            record_dict['distinct_organ'] = content_four
+            record_dict['hubmap_id'] = record_contents[5]
+            record_dict['status'] = record_contents[6]
+            record_dict['group_name'] = record_contents[7]
+            record_dict['group_uuid'] = record_contents[8]
+            record_dict['created_timestamp'] = record_contents[9]
+            record_dict['created_by_user_email'] = record_contents[10]
+            record_dict['last_modified_timestamp'] = record_contents[11]
+            record_dict['last_modified_user_email'] = record_contents[12]
+            record_dict['lab_dataset_id'] = record_contents[13]
+            data_types = record_contents[14]
+            data_types = data_types.replace("'", '"')
+            data_types = json.loads(data_types)
+            record_dict['data_types'] = data_types
+            content_fifteen = []
+            for entry in record_contents[15]:
+                node_dict = _node_to_dict(entry)
+                content_fifteen.append(node_dict)
+            record_dict['distinct_metasample'] = content_fifteen
+    return record_dict
+
 ####################################################################################################
 ## Internal Functions
 ####################################################################################################
