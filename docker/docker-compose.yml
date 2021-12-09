@@ -15,7 +15,7 @@ services:
     hostname: entity-api
     container_name: entity-api
     healthcheck:
-      test: ["CMD", "curl", "--fail", "http://hubmap-auth:3333"]
+      test: ["CMD", "curl", "--fail", "http://localhost:3333"]
       interval: 1m30s
       timeout: 10s
       retries: 3
@@ -27,9 +27,6 @@ services:
       - "../log:/usr/src/app/log"
       # Mount the schema yaml file
       - "../src/schema/provenance_schema.yaml:/usr/src/app/src/schema/provenance_schema.yaml"
-      # Mount the file uploads tmp directory and destination directory
-      - "/hubmap-data/hm_uploads_tmp:/hubmap-data/hm_uploads_tmp"
-      - "/hubmap-data/hm_uploads:/hubmap-data/hm_uploads"
     networks:
       - gateway_hubmap
 
