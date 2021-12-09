@@ -929,40 +929,39 @@ Parameters
 neo4j_driver : neo4j.Driver object
     The neo4j database connection pool
 """
-def get_prov_info(neo4j_driver):
-    # old_query = (f"match (ds:Dataset)<-[:ACTIVITY_OUTPUT]-(a)<-[:ACTIVITY_INPUT]-(firstSample:Sample)<-[*]-(donor:Donor) "
-    #          f" with ds, firstSample"
-    #          f" optional match (ds)<-[*]-(metaSample:Sample)"
-    #          f" with ds, firstSample, metaSample"
-    #          f" where not metaSample.metadata is null and not trim(metaSample.metadata) = ''"
-    #          f" optional match (ds)<-[*]-(ruiSample:Sample)"
-    #          f" with ds, ruiSample, firstSample, metaSample"
-    #          f" where not ruiSample.rui_location is null and not trim(ruiSample.rui_location) = ''"
-    #          f" optional match (donor)-[:ACTIVITY_INPUT]->(oa)-[:ACTIVITY_OUTPUT]->(organ:Sample "
-    #          f" {{specimen_type:'organ'}})-[*]->(ds)"
-    #          f" with ds, ruiSample, firstSample, donor, organ, metaSample"
-    #          # f" optional match (ds)<-[*]-(metaSample:Sample)"
-    #          # f" with ds, ruiSample, firstSample, donor, organ, metaSample"
-    #          # f" where not metaSample.metadata is null and not trim(metaSample.metadata) = ''"
-    #
-    #          f" return ds.uuid, collect(distinct firstSample), collect(distinct donor), collect(distinct ruiSample), "
-    #          f" collect(distinct organ), ds.hubmap_id, ds.status, ds.group_name, ds.group_uuid,"
-    #          f" ds.created_timestamp, ds.created_by_user_email, ds.last_modified_timestamp, ds.last_modified_user_email,"
-    #          f" ds.lab_dataset_id, ds.data_types, collect(distinct metaSample)")
-
-    query = ("match (ds:Dataset)<-[:ACTIVITY_OUTPUT]-(a)<-[:ACTIVITY_INPUT]-(firstSample:Sample)<-[*]-(donor:Donor)" 
-             " with ds, collect(distinct donor) as DONOR, collect(distinct firstSample) as FIRSTSAMPLE"
-             " optional match (ds)<-[*]-(metaSample:Sample)"
-             " where not metaSample.metadata is null and not trim(metaSample.metadata) = ''"
-             " with ds, FIRSTSAMPLE, DONOR, collect(distinct metaSample) as METASAMPLE"
-             " optional match (ds)<-[*]-(ruiSample:Sample)"
-             " where not ruiSample.rui_location is null and not trim(ruiSample.rui_location) = ''"
-             " with ds, FIRSTSAMPLE, DONOR, METASAMPLE, collect(distinct ruiSample) as RUISAMPLE"
-             " optional match (donor)-[:ACTIVITY_INPUT]->(oa)-[:ACTIVITY_OUTPUT]->(organ:Sample {specimen_type:'organ'})-[*]->(ds)"
-             " with ds, FIRSTSAMPLE, DONOR, METASAMPLE, RUISAMPLE, collect(distinct organ) as ORGAN "
-             " return ds.uuid, FIRSTSAMPLE, DONOR, RUISAMPLE, ORGAN, ds.hubmap_id, ds.status, ds.group_name,"
-             " ds.group_uuid, ds.created_timestamp, ds.created_by_user_email, ds.last_modified_timestamp, "
-             " ds.last_modified_user_email, ds.lab_dataset_id, ds.data_types, METASAMPLE")
+def get_prov_info(neo4j_driver, param_dict):
+    group_uuid_query_string = ''
+    organ_query_string = 'optional match'
+    organ_where_clause = ""
+    rui_info_query_string = 'optional match'
+    rui_info_where_clause = "where not ruiSample.rui_location is null and not trim(ruiSample.rui_location) = '' "
+    dataset_status_query_string = ''
+    if 'group_uuid' in param_dict:
+        group_uuid_query_string = f" where ds.group_uuid = '{param_dict['group_uuid']}'"
+    if 'organ' in param_dict:
+        organ_query_string = 'match'
+        organ_where_clause = f", organ: '{param_dict['organ']}'"
+    if 'has_rui_info' in param_dict:
+        rui_info_query_string = 'match'
+        if param_dict['has_rui_info'].lower() == 'false':
+            rui_info_where_clause = "where ruiSample.rui_location is null or trim(ruiSample.rui_location) = '' "
+    if 'dataset_status' in param_dict:
+        dataset_status_query_string = f" where ds.status = '{param_dict['dataset_status']}'"
+    query = (f"match (ds:Dataset)<-[:ACTIVITY_OUTPUT]-(a)<-[:ACTIVITY_INPUT]-(firstSample:Sample)<-[*]-(donor:Donor)"
+             f"{group_uuid_query_string}"
+             f"{dataset_status_query_string}"
+             f" with ds, collect(distinct donor) as DONOR, collect(distinct firstSample) as FIRSTSAMPLE"
+             f" optional match (ds)<-[*]-(metaSample:Sample)"
+             f" where not metaSample.metadata is null and not trim(metaSample.metadata) = ''"
+             f" with ds, FIRSTSAMPLE, DONOR, collect(distinct metaSample) as METASAMPLE"
+             f" {rui_info_query_string} (ds)<-[*]-(ruiSample:Sample)"
+             f" {rui_info_where_clause}"
+             f" with ds, FIRSTSAMPLE, DONOR, METASAMPLE, collect(distinct ruiSample) as RUISAMPLE"
+             f" {organ_query_string} (donor)-[:ACTIVITY_INPUT]->(oa)-[:ACTIVITY_OUTPUT]->(organ:Sample {{specimen_type:'organ'{organ_where_clause}}})-[*]->(ds)"
+             f" with ds, FIRSTSAMPLE, DONOR, METASAMPLE, RUISAMPLE, collect(distinct organ) as ORGAN "
+             f" return ds.uuid, FIRSTSAMPLE, DONOR, RUISAMPLE, ORGAN, ds.hubmap_id, ds.status, ds.group_name,"
+             f" ds.group_uuid, ds.created_timestamp, ds.created_by_user_email, ds.last_modified_timestamp, "
+             f" ds.last_modified_user_email, ds.lab_dataset_id, ds.data_types, METASAMPLE")
 
     logger.debug("======get_prov_info() query======")
     logger.debug(query)

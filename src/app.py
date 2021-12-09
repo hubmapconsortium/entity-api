@@ -1,4 +1,5 @@
 import collections
+import yaml
 from datetime import datetime
 from flask import Flask, g, jsonify, abort, request, Response, redirect, make_response
 from neo4j.exceptions import TransactionError
@@ -6,7 +7,7 @@ import os
 import re
 import csv
 import requests
-import urllib
+import urllib.request
 from io import StringIO
 # Don't confuse urllib (Python native library) with urllib3 (3rd-party library, requests also uses urllib3)
 from requests.packages.urllib3.exceptions import InsecureRequestWarning
@@ -2217,61 +2218,61 @@ tsv
 """
 @app.route('/datasets/prov-info', methods=['GET'])
 def get_prov_info():
+    # String constants from app.cfg
+    globus_groups_url = app.config['GLOBUS_GROUPS_JSON_URL']
+    organs_list_url = app.config['ORGANS_LIST']
+    headers = app.config['PROV_INFO_FIELDS']
+
+    # Processing and validating query parameters
+    accepted_arguments = ['format', 'organ', 'has_rui_info', 'dataset_status', 'group_uuid']
     return_json = False
-    filter_group_uuid = False
-    filter_organ = False
-    filter_has_rui_info = False
-    filter_dataset_status = False
-    dataset_prov_list = []
+    param_dict = {}
     if bool(request.args):
+        for argument in request.args:
+            if argument not in accepted_arguments:
+                bad_request_error(f"{argument} is an unrecognized argument.")
         return_format = request.args.get('format')
-        if (return_format is not None) and (return_format.lower() == 'json'):
-            return_json = True
+        if return_format is not None:
+            if return_format.lower() not in ['json', 'tsv']:
+                bad_request_error("Invalid Format. Acceptable formats are json and tsv. If no format is given, TSV will be the default")
+            if return_format.lower() == 'json':
+                return_json = True
         group_uuid = request.args.get('group_uuid')
-        if (group_uuid is not None):
-            filter_group_uuid = True
-            with urllib.request.urlopen('https://raw.githubusercontent.com/hubmapconsortium/commons/test-release/hubmap_commons/hubmap-globus-groups.json') as group_file:
-                group_json = json.loads(group_file)
+        if group_uuid is not None:
+            with urllib.request.urlopen(globus_groups_url) as group_file:
+                group_json = json.loads(group_file.read())
             valid_group = False
             for each in group_json:
-                if each['uuid'] == group_uuid and each['data_providers'] == True:
+                if each['uuid'] == group_uuid and each['data_provider'] == True:
                     valid_group = True
             if not valid_group:
-                bad_request_error("Invalid Group UUID. Group must be located at github.com/hubmapconsortium/commons/test-release/hubmap_globus-groups.json and be a data provider")
-    headers = [
-        'dataset_uuid',
-        'dataset_hubmap_id',
-        'dataset_status',
-        'dataset_group_name',
-        'dataset_group_uuid',
-        'dataset_date_time_created',
-        'dataset_created_by_email',
-        'dataset_date_time_modified',
-        'dataset_modified_by_email',
-        'dataset_lab_id',
-        'dataset_data_types',
-        'dataset_portal_url',
-        'first_sample_hubmap_id',
-        'first_sample_submission_id',
-        'first_sample_uuid',
-        'first_sample_type',
-        'first_sample_portal_url',
-        'organ_hubmap_id',
-        'organ_submission_id',
-        'organ_uuid',
-        'organ_type',
-        'donor_hubmap_id',
-        'donor_submission_id',
-        'donor_uuid',
-        'donor_group_name',
-        'rui_location_hubmap_id',
-        'rui_location_submission_id',
-        'rui_location_uuid',
-        'sample_metadata_hubmap_id',
-        'sample_metadata_submission_id',
-        'sample_metadata_uuid'
-    ]
-    prov_info = app_neo4j_queries.get_prov_info(neo4j_driver_instance)
+                bad_request_error(f"Invalid Group UUID. Group must be located at {globus_groups_url} and be a data provider")
+            param_dict['group_uuid'] = group_uuid
+        organ = request.args.get('organ')
+        if organ is not None:
+            with urllib.request.urlopen(organs_list_url) as organ_file:
+                organ_yaml = yaml.load(organ_file, Loader=yaml.FullLoader)
+            if organ.upper() not in organ_yaml:
+                bad_request_error(f"Invalid Organ. Organ must be 2 digit code, case-insensitive located at {organs_list_url}")
+            param_dict['organ'] = organ
+        has_rui_info = request.args.get('has_rui_info')
+        if has_rui_info is not None:
+            if has_rui_info.lower() not in ['true', 'false']:
+                bad_request_error("Invalid value for 'has_rui_info'. Only values of true or false are acceptable")
+            param_dict['has_rui_info'] = has_rui_info
+        dataset_status = request.args.get('dataset_status')
+        if dataset_status is not None:
+            if dataset_status.lower() not in ['new', 'qa', 'published']:
+                bad_request_error("Invalid Dataset Status. Must be 'new', 'qa', or 'published' Case-Insensitive")
+            param_dict['dataset_status'] = dataset_status
+
+    # Instantiation of the list dataset_prov_list
+    dataset_prov_list = []
+
+    # Call to app_neo4j_queries to prepare and execute the database query
+    prov_info = app_neo4j_queries.get_prov_info(neo4j_driver_instance, param_dict)
+
+    # Each dataset's provinence info is placed into a dictionary
     for dataset in prov_info:
         internal_dict = collections.OrderedDict()
         internal_dict['dataset_uuid'] = dataset['uuid']
@@ -2284,9 +2285,14 @@ def get_prov_info():
         internal_dict['dataset_date_time_modified'] = datetime.fromtimestamp(int(dataset['last_modified_timestamp']/1000.0))
         internal_dict['dataset_modified_by_email'] = dataset['last_modified_user_email']
         internal_dict['dataset_data_types'] = dataset['data_types']
+
+        # If return_format was not equal to json, json arrays must be converted into comma separated lists for the tsv
         if return_json is False:
             internal_dict['dataset_data_types'] = ",".join(dataset['data_types'])
+
         internal_dict['dataset_portal_url'] = app.config['DOI_REDIRECT_URL'].replace('<entity_type>', 'dataset').replace('<identifier>', dataset['uuid'])
+
+        # first_sample properties are retrieved from its own dictionary
         if dataset['first_sample'] is not None:
             first_sample_hubmap_id_list = []
             first_sample_submission_id_list = []
@@ -2310,6 +2316,8 @@ def get_prov_info():
                 internal_dict['first_sample_uuid'] = ",".join(first_sample_uuid_list)
                 internal_dict['first_sample_type'] = ",".join(first_sample_type_list)
                 internal_dict['first_sample_portal_url'] = ",".join(first_sample_portal_url_list)
+
+        # distinct_organ properties are retrieved from its own dictionary
         if dataset['distinct_organ'] is not None:
             distinct_organ_hubmap_id_list = []
             distinct_organ_submission_id_list = []
@@ -2329,6 +2337,8 @@ def get_prov_info():
                 internal_dict['organ_submission_id'] = ",".join(distinct_organ_submission_id_list)
                 internal_dict['organ_uuid'] = ",".join(distinct_organ_uuid_list)
                 internal_dict['organ_type'] = ",".join(distinct_organ_type_list)
+
+        # distinct_donor properties are retrieved from its own dictionary
         if dataset['distinct_donor'] is not None:
             distinct_donor_hubmap_id_list = []
             distinct_donor_submission_id_list = []
@@ -2348,6 +2358,8 @@ def get_prov_info():
                 internal_dict['donor_submission_id'] = ",".join(distinct_donor_submission_id_list)
                 internal_dict['donor_uuid'] = ",".join(distinct_donor_uuid_list)
                 internal_dict['donor_group_name']= ",".join(distinct_donor_group_name_list)
+
+        # distinct_rui_sample properties are retrieved from its own dictionary
         if dataset['distinct_rui_sample'] is not None:
             rui_location_hubmap_id_list = []
             rui_location_submission_id_list = []
@@ -2363,6 +2375,8 @@ def get_prov_info():
                 internal_dict['rui_location_hubmap_id'] = ",".join(rui_location_hubmap_id_list)
                 internal_dict['rui_location_submission_id'] = ",".join(rui_location_submission_id_list)
                 internal_dict['rui_location_uuid'] = ",".join(rui_location_uuid_list)
+
+        # distinct_metasample properties are retrieved from its own dictionary
         if dataset['distinct_metasample'] is not None:
             metasample_hubmap_id_list = []
             metasample_submission_id_list = []
@@ -2378,9 +2392,15 @@ def get_prov_info():
                 internal_dict['sample_metadata_hubmap_id'] = ",".join(metasample_hubmap_id_list)
                 internal_dict['sample_metadata_submission_id'] = ",".join(metasample_submission_id_list)
                 internal_dict['sample_metadata_uuid'] = ",".join(metasample_uuid_list)
+
+        # Each dataset's dictionary is added to the list to be returned
         dataset_prov_list.append(internal_dict)
+
+    # if return_json is true, this dictionary is ready to be returned already
     if return_json:
         return jsonify(dataset_prov_list)
+
+    # if return_json is false, the data must be converted to be returned as a tsv
     else:
         new_tsv_file = StringIO()
         writer = csv.DictWriter(new_tsv_file, fieldnames=headers, delimiter='\t')

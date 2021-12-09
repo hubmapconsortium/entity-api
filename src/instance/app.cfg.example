@@ -49,3 +49,44 @@ DOI_REDIRECT_URL = 'https://portal.hubmapconsortium.org/browse/<entity_type>/<id
 
 #URL to tsv file that holds the redirect url information for DOI redirects
 REDIRECTION_INFO_URL = 'https://raw.githubusercontent.com/hubmapconsortium/ccf-releases/main/v1.0/reference-entity-ids.tsv'
+
+# URL to json file that contains the list of accepted globus groups.
+GLOBUS_GROUPS_JSON_URL = 'https://raw.githubusercontent.com/hubmapconsortium/commons/test-release/hubmap_commons/hubmap-globus-groups.json'
+
+# URL to list of organ codes yaml file
+ORGANS_LIST = 'https://raw.githubusercontent.com/hubmapconsortium/search-api/test-release/src/search-schema/data/definitions/enums/organ_types.yaml'
+
+# Prov-info base fields list
+PROV_INFO_FIELDS = [
+        'dataset_uuid',
+        'dataset_hubmap_id',
+        'dataset_status',
+        'dataset_group_name',
+        'dataset_group_uuid',
+        'dataset_date_time_created',
+        'dataset_created_by_email',
+        'dataset_date_time_modified',
+        'dataset_modified_by_email',
+        'dataset_lab_id',
+        'dataset_data_types',
+        'dataset_portal_url',
+        'first_sample_hubmap_id',
+        'first_sample_submission_id',
+        'first_sample_uuid',
+        'first_sample_type',
+        'first_sample_portal_url',
+        'organ_hubmap_id',
+        'organ_submission_id',
+        'organ_uuid',
+        'organ_type',
+        'donor_hubmap_id',
+        'donor_submission_id',
+        'donor_uuid',
+        'donor_group_name',
+        'rui_location_hubmap_id',
+        'rui_location_submission_id',
+        'rui_location_uuid',
+        'sample_metadata_hubmap_id',
+        'sample_metadata_submission_id',
+        'sample_metadata_uuid'
+    ]
