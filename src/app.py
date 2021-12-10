@@ -2137,7 +2137,7 @@ def get_revisions_list(id):
     for revision in normalized_revisions_list:
         result = {
             'revision_number': revision_number,
-            'dataset_uuid': revision['uuid']
+            'uuid': revision['uuid']
         }
         if show_dataset:
             result['dataset'] = revision
