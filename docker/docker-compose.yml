@@ -15,7 +15,7 @@ services:
     hostname: entity-api
     container_name: entity-api
     healthcheck:
-      test: ["CMD", "curl", "--fail", "http://localhost:3333"]
+      test: ["CMD", "curl", "--fail", "http://localhost:8080"]
       interval: 1m30s
       timeout: 10s
       retries: 3
