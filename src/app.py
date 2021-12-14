@@ -2473,7 +2473,11 @@ def get_prov_info_for_dataset(id):
         'sample_metadata_submission_id',
         'sample_metadata_uuid'
     ]
-    dataset = app_neo4j_queries.get_individual_prov_info(neo4j_driver_instance, id)
+    hubmap_ids = schema_manager.get_hubmap_ids(id, token)
+
+    # Get the target uuid if all good
+    uuid = hubmap_ids['hm_uuid']
+    dataset = app_neo4j_queries.get_individual_prov_info(neo4j_driver_instance, uuid)
     if dataset is None:
         bad_request_error("Query For this Dataset Returned no Records. Make sure this is a Primary Dataset")
     internal_dict = collections.OrderedDict()
