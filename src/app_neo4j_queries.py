@@ -922,12 +922,16 @@ def get_associated_organs_from_dataset(neo4j_driver, dataset_uuid):
 """
 Retrieve all the provenance information about each dataset. Each dataset's prov-info is given by a dictionary. 
 Certain fields such as first sample where there can be multiple nearest datasets in the provenance above a given
-dataset, that field is a list inside of its given dictionary.
+dataset, that field is a list inside of its given dictionary. Results can be filtered with certain parameters:
+has_rui_info (true or false), organ (organ type), group_uuid, and dataset_status. These are passed in as a dictionary if
+they are present.
 
 Parameters
 ----------
 neo4j_driver : neo4j.Driver object
     The neo4j database connection pool
+param_dict : dictionary
+    Dictionary containing any parameters desired to filter for certain results
 """
 def get_prov_info(neo4j_driver, param_dict):
     group_uuid_query_string = ''
@@ -1020,6 +1024,18 @@ def get_prov_info(neo4j_driver, param_dict):
             list_of_dictionaries.append(record_dict)
     return list_of_dictionaries
 
+"""
+Returns all of the same information as get_prov_info however only for a single dataset at a time. Returns a dictionary
+containing all of the provenance info for a given dataset. For fields such as first sample where there can be multiples,
+they are presented in their own dictionary converted from their nodes in neo4j and placed into a list. 
+
+Parameters
+----------
+neo4j_driver : neo4j.Driver object
+    The neo4j database connection pool
+dataset_uuid : string
+    the uuid of the desired dataset
+"""
 def get_individual_prov_info(neo4j_driver, dataset_uuid):
     query = (f"match (ds:Dataset {{uuid: '{dataset_uuid}'}})<-[:ACTIVITY_OUTPUT]-(a)<-[:ACTIVITY_INPUT]-(firstSample:Sample)<-[*]-(donor:Donor)"
              f" with ds, collect(distinct donor) as DONOR, collect(distinct firstSample) as FIRSTSAMPLE"
