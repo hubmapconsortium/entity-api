@@ -1037,17 +1037,17 @@ dataset_uuid : string
     the uuid of the desired dataset
 """
 def get_individual_prov_info(neo4j_driver, dataset_uuid):
-    query = (f"match (ds:Dataset {{uuid: '{dataset_uuid}'}})<-[:ACTIVITY_OUTPUT]-(a)<-[:ACTIVITY_INPUT]-(firstSample:Sample)<-[*]-(donor:Donor)"
-             f" with ds, collect(distinct donor) as DONOR, collect(distinct firstSample) as FIRSTSAMPLE"
-             f" optional match (ds)<-[*]-(metaSample:Sample)"
-             f" where not metaSample.metadata is null and not trim(metaSample.metadata) = ''"
-             f" with ds, FIRSTSAMPLE, DONOR, collect(distinct metaSample) as METASAMPLE"
-             f" optional match (ds)<-[*]-(ruiSample:Sample)"
-             f" where not ruiSample.rui_location is null and not trim(ruiSample.rui_location) = ''"
-             f" with ds, FIRSTSAMPLE, DONOR, METASAMPLE, collect(distinct ruiSample) as RUISAMPLE"
-             f" optional match (donor)-[:ACTIVITY_INPUT]->(oa)-[:ACTIVITY_OUTPUT]->(organ:Sample {{specimen_type:'organ'}})-[*]->(ds)"
-             f" with ds, FIRSTSAMPLE, DONOR, METASAMPLE, RUISAMPLE, collect(distinct organ) as ORGAN "
-             f" return ds.uuid, FIRSTSAMPLE, DONOR, RUISAMPLE, ORGAN, ds.hubmap_id, ds.status, ds.group_name,"
+    query = (f"MATCH (ds:Dataset {{uuid: '{dataset_uuid}'}})<-[:ACTIVITY_OUTPUT]-(a)<-[:ACTIVITY_INPUT]-(firstSample:Sample)<-[*]-(donor:Donor)"
+             f" WITH ds, COLLECT(distinct donor) AS DONOR, COLLECT(distinct firstSample) AS FIRSTSAMPLE"
+             f" OPTINAL MATCH (ds)<-[*]-(metaSample:Sample)"
+             f" WHERE NOT metaSample.metadata IS NULL AND NOT TRIM(metaSample.metadata) = ''"
+             f" WITH ds, FIRSTSAMPLE, DONOR, COLLECT(distinct metaSample) AS METASAMPLE"
+             f" OPTIONAL MATCH (ds)<-[*]-(ruiSample:Sample)"
+             f" WHERE NOT ruiSample.rui_location IS NULL AND NOT TRIM(ruiSample.rui_location) = ''"
+             f" WITH ds, FIRSTSAMPLE, DONOR, METASAMPLE, COLLECT(distinct ruiSample) AS RUISAMPLE"
+             f" OPTIONAL match (donor)-[:ACTIVITY_INPUT]->(oa)-[:ACTIVITY_OUTPUT]->(organ:Sample {{specimen_type:'organ'}})-[*]->(ds)"
+             f" WITH ds, FIRSTSAMPLE, DONOR, METASAMPLE, RUISAMPLE, COLLECT(distinct organ) AS ORGAN "
+             f" RETURN ds.uuid, FIRSTSAMPLE, DONOR, RUISAMPLE, ORGAN, ds.hubmap_id, ds.status, ds.group_name,"
              f" ds.group_uuid, ds.created_timestamp, ds.created_by_user_email, ds.last_modified_timestamp, "
              f" ds.last_modified_user_email, ds.lab_dataset_id, ds.data_types, METASAMPLE")
 
