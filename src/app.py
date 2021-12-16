@@ -2270,7 +2270,7 @@ def get_prov_info():
     param_dict = {}
     if bool(request.args):
         for argument in request.args:
-            if argument.lower() not in accepted_arguments:
+            if argument not in accepted_arguments:
                 bad_request_error(f"{argument} is an unrecognized argument.")
         return_format = request.args.get('format')
         if return_format is not None:
@@ -3437,7 +3437,13 @@ def access_level_prefix_dir(dir_name):
         return ''
     
     return hm_file_helper.ensureTrailingSlashURL(hm_file_helper.ensureBeginningSlashURL(dir_name))
+"""
+Ensures that a given organ code matches what is found on the organ_types yaml document
 
+organ_code : str
+
+Returns nothing. Raises bad_request_error is organ code not found on organ_types.yaml 
+"""
 def validate_organ_code(organ_code):
     ORGAN_YAML_URL = 'https://raw.githubusercontent.com/hubmapconsortium/search-api/test-release/src/search-schema/data/definitions/enums/organ_types.yaml'
     with urllib.request.urlopen(ORGAN_YAML_URL) as organ_file:
