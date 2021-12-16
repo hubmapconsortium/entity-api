@@ -935,36 +935,36 @@ param_dict : dictionary
 """
 def get_prov_info(neo4j_driver, param_dict):
     group_uuid_query_string = ''
-    organ_query_string = 'optional match'
+    organ_query_string = 'OPTIONAL MATCH'
     organ_where_clause = ""
-    rui_info_query_string = 'optional match (ds)<-[*]-(ruiSample:Sample)'
-    rui_info_where_clause = "where not ruiSample.rui_location is null and not trim(ruiSample.rui_location) = '' "
+    rui_info_query_string = 'OPTIONAL MATCH (ds)<-[*]-(ruiSample:Sample)'
+    rui_info_where_clause = "WHERE NOT ruiSample.rui_location IS NULL AND NOT trim(ruiSample.rui_location) = '' "
     dataset_status_query_string = ''
     if 'group_uuid' in param_dict:
-        group_uuid_query_string = f" where ds.group_uuid = '{param_dict['group_uuid']}'"
+        group_uuid_query_string = f" WHERE ds.group_uuid = '{param_dict['group_uuid']}'"
     if 'organ' in param_dict:
-        organ_query_string = 'match'
+        organ_query_string = 'MATCH'
         organ_where_clause = f", organ: '{param_dict['organ'].upper()}'"
     if 'has_rui_info' in param_dict:
-        rui_info_query_string = 'match (ds)<-[*]-(ruiSample:Sample)'
+        rui_info_query_string = 'MATCH (ds)<-[*]-(ruiSample:Sample)'
         if param_dict['has_rui_info'].lower() == 'false':
-            rui_info_query_string = 'match (ds:Dataset)'
-            rui_info_where_clause = "where not exists {match (ds)<-[*]-(ruiSample:Sample) where not ruiSample.rui_location is null and not trim(ruiSample.rui_location) = ''} match (ds)<-[*]-(ruiSample:Sample)"
+            rui_info_query_string = 'MATCH (ds:Dataset)'
+            rui_info_where_clause = "WHERE NOT EXISTS {MATCH (ds)<-[*]-(ruiSample:Sample) WHERE NOT ruiSample.rui_location IS NULL AND NOT TRIM(ruiSample.rui_location) = ''} MATCH (ds)<-[*]-(ruiSample:Sample)"
     if 'dataset_status' in param_dict:
-        dataset_status_query_string = f" where ds.status = '{param_dict['dataset_status'].lower().capitalize()}'"
-    query = (f"match (ds:Dataset)<-[:ACTIVITY_OUTPUT]-(a)<-[:ACTIVITY_INPUT]-(firstSample:Sample)<-[*]-(donor:Donor)"
+        dataset_status_query_string = f" WHERE ds.status = '{param_dict['dataset_status'].lower().capitalize()}'"
+    query = (f"MATCH (ds:Dataset)<-[:ACTIVITY_OUTPUT]-(a)<-[:ACTIVITY_INPUT]-(firstSample:Sample)<-[*]-(donor:Donor)"
              f"{group_uuid_query_string}"
              f"{dataset_status_query_string}"
-             f" with ds, collect(distinct donor) as DONOR, collect(distinct firstSample) as FIRSTSAMPLE"
-             f" optional match (ds)<-[*]-(metaSample:Sample)"
-             f" where not metaSample.metadata is null and not trim(metaSample.metadata) = ''"
-             f" with ds, FIRSTSAMPLE, DONOR, collect(distinct metaSample) as METASAMPLE"
+             f" WITH ds, COLLECT(distinct donor) AS DONOR, COLLECT(distinct firstSample) AS FIRSTSAMPLE"
+             f" OPTIONAL MATCH (ds)<-[*]-(metaSample:Sample)"
+             f" WHERE NOT metaSample.metadata IS NULL AND NOT TRIM(metaSample.metadata) = ''"
+             f" WITH ds, FIRSTSAMPLE, DONOR, collect(distinct metaSample) as METASAMPLE"
              f" {rui_info_query_string}"
              f" {rui_info_where_clause}"
-             f" with ds, FIRSTSAMPLE, DONOR, METASAMPLE, collect(distinct ruiSample) as RUISAMPLE"
+             f" WITH ds, FIRSTSAMPLE, DONOR, METASAMPLE, collect(distinct ruiSample) as RUISAMPLE"
              f" {organ_query_string} (donor)-[:ACTIVITY_INPUT]->(oa)-[:ACTIVITY_OUTPUT]->(organ:Sample {{specimen_type:'organ'{organ_where_clause}}})-[*]->(ds)"
-             f" with ds, FIRSTSAMPLE, DONOR, METASAMPLE, RUISAMPLE, collect(distinct organ) as ORGAN "
-             f" return ds.uuid, FIRSTSAMPLE, DONOR, RUISAMPLE, ORGAN, ds.hubmap_id, ds.status, ds.group_name,"
+             f" WITH ds, FIRSTSAMPLE, DONOR, METASAMPLE, RUISAMPLE, collect(distinct organ) AS ORGAN "
+             f" RETURN ds.uuid, FIRSTSAMPLE, DONOR, RUISAMPLE, ORGAN, ds.hubmap_id, ds.status, ds.group_name,"
              f" ds.group_uuid, ds.created_timestamp, ds.created_by_user_email, ds.last_modified_timestamp, "
              f" ds.last_modified_user_email, ds.lab_dataset_id, ds.data_types, METASAMPLE")
     print(query)
