@@ -922,48 +922,52 @@ def get_associated_organs_from_dataset(neo4j_driver, dataset_uuid):
 """
 Retrieve all the provenance information about each dataset. Each dataset's prov-info is given by a dictionary. 
 Certain fields such as first sample where there can be multiple nearest datasets in the provenance above a given
-dataset, that field is a list inside of its given dictionary.
+dataset, that field is a list inside of its given dictionary. Results can be filtered with certain parameters:
+has_rui_info (true or false), organ (organ type), group_uuid, and dataset_status. These are passed in as a dictionary if
+they are present.
 
 Parameters
 ----------
 neo4j_driver : neo4j.Driver object
     The neo4j database connection pool
+param_dict : dictionary
+    Dictionary containing any parameters desired to filter for certain results
 """
-def get_prov_info(neo4j_driver):
-    # old_query = (f"match (ds:Dataset)<-[:ACTIVITY_OUTPUT]-(a)<-[:ACTIVITY_INPUT]-(firstSample:Sample)<-[*]-(donor:Donor) "
-    #          f" with ds, firstSample"
-    #          f" optional match (ds)<-[*]-(metaSample:Sample)"
-    #          f" with ds, firstSample, metaSample"
-    #          f" where not metaSample.metadata is null and not trim(metaSample.metadata) = ''"
-    #          f" optional match (ds)<-[*]-(ruiSample:Sample)"
-    #          f" with ds, ruiSample, firstSample, metaSample"
-    #          f" where not ruiSample.rui_location is null and not trim(ruiSample.rui_location) = ''"
-    #          f" optional match (donor)-[:ACTIVITY_INPUT]->(oa)-[:ACTIVITY_OUTPUT]->(organ:Sample "
-    #          f" {{specimen_type:'organ'}})-[*]->(ds)"
-    #          f" with ds, ruiSample, firstSample, donor, organ, metaSample"
-    #          # f" optional match (ds)<-[*]-(metaSample:Sample)"
-    #          # f" with ds, ruiSample, firstSample, donor, organ, metaSample"
-    #          # f" where not metaSample.metadata is null and not trim(metaSample.metadata) = ''"
-    #
-    #          f" return ds.uuid, collect(distinct firstSample), collect(distinct donor), collect(distinct ruiSample), "
-    #          f" collect(distinct organ), ds.hubmap_id, ds.status, ds.group_name, ds.group_uuid,"
-    #          f" ds.created_timestamp, ds.created_by_user_email, ds.last_modified_timestamp, ds.last_modified_user_email,"
-    #          f" ds.lab_dataset_id, ds.data_types, collect(distinct metaSample)")
-
-    query = ("match (ds:Dataset)<-[:ACTIVITY_OUTPUT]-(a)<-[:ACTIVITY_INPUT]-(firstSample:Sample)<-[*]-(donor:Donor)" 
-             " with ds, collect(distinct donor) as DONOR, collect(distinct firstSample) as FIRSTSAMPLE"
-             " optional match (ds)<-[*]-(metaSample:Sample)"
-             " where not metaSample.metadata is null and not trim(metaSample.metadata) = ''"
-             " with ds, FIRSTSAMPLE, DONOR, collect(distinct metaSample) as METASAMPLE"
-             " optional match (ds)<-[*]-(ruiSample:Sample)"
-             " where not ruiSample.rui_location is null and not trim(ruiSample.rui_location) = ''"
-             " with ds, FIRSTSAMPLE, DONOR, METASAMPLE, collect(distinct ruiSample) as RUISAMPLE"
-             " optional match (donor)-[:ACTIVITY_INPUT]->(oa)-[:ACTIVITY_OUTPUT]->(organ:Sample {specimen_type:'organ'})-[*]->(ds)"
-             " with ds, FIRSTSAMPLE, DONOR, METASAMPLE, RUISAMPLE, collect(distinct organ) as ORGAN "
-             " return ds.uuid, FIRSTSAMPLE, DONOR, RUISAMPLE, ORGAN, ds.hubmap_id, ds.status, ds.group_name,"
-             " ds.group_uuid, ds.created_timestamp, ds.created_by_user_email, ds.last_modified_timestamp, "
-             " ds.last_modified_user_email, ds.lab_dataset_id, ds.data_types, METASAMPLE")
-
+def get_prov_info(neo4j_driver, param_dict):
+    group_uuid_query_string = ''
+    organ_query_string = 'OPTIONAL MATCH'
+    organ_where_clause = ""
+    rui_info_query_string = 'OPTIONAL MATCH (ds)<-[*]-(ruiSample:Sample)'
+    rui_info_where_clause = "WHERE NOT ruiSample.rui_location IS NULL AND NOT trim(ruiSample.rui_location) = '' "
+    dataset_status_query_string = ''
+    if 'group_uuid' in param_dict:
+        group_uuid_query_string = f" WHERE ds.group_uuid = '{param_dict['group_uuid']}'"
+    if 'organ' in param_dict:
+        organ_query_string = 'MATCH'
+        organ_where_clause = f", organ: '{param_dict['organ'].upper()}'"
+    if 'has_rui_info' in param_dict:
+        rui_info_query_string = 'MATCH (ds)<-[*]-(ruiSample:Sample)'
+        if param_dict['has_rui_info'].lower() == 'false':
+            rui_info_query_string = 'MATCH (ds:Dataset)'
+            rui_info_where_clause = "WHERE NOT EXISTS {MATCH (ds)<-[*]-(ruiSample:Sample) WHERE NOT ruiSample.rui_location IS NULL AND NOT TRIM(ruiSample.rui_location) = ''} MATCH (ds)<-[*]-(ruiSample:Sample)"
+    if 'dataset_status' in param_dict:
+        dataset_status_query_string = f" WHERE ds.status = '{param_dict['dataset_status'].lower().capitalize()}'"
+    query = (f"MATCH (ds:Dataset)<-[:ACTIVITY_OUTPUT]-(a)<-[:ACTIVITY_INPUT]-(firstSample:Sample)<-[*]-(donor:Donor)"
+             f"{group_uuid_query_string}"
+             f"{dataset_status_query_string}"
+             f" WITH ds, COLLECT(distinct donor) AS DONOR, COLLECT(distinct firstSample) AS FIRSTSAMPLE"
+             f" OPTIONAL MATCH (ds)<-[*]-(metaSample:Sample)"
+             f" WHERE NOT metaSample.metadata IS NULL AND NOT TRIM(metaSample.metadata) = ''"
+             f" WITH ds, FIRSTSAMPLE, DONOR, collect(distinct metaSample) as METASAMPLE"
+             f" {rui_info_query_string}"
+             f" {rui_info_where_clause}"
+             f" WITH ds, FIRSTSAMPLE, DONOR, METASAMPLE, collect(distinct ruiSample) as RUISAMPLE"
+             f" {organ_query_string} (donor)-[:ACTIVITY_INPUT]->(oa)-[:ACTIVITY_OUTPUT]->(organ:Sample {{specimen_type:'organ'{organ_where_clause}}})-[*]->(ds)"
+             f" WITH ds, FIRSTSAMPLE, DONOR, METASAMPLE, RUISAMPLE, collect(distinct organ) AS ORGAN "
+             f" RETURN ds.uuid, FIRSTSAMPLE, DONOR, RUISAMPLE, ORGAN, ds.hubmap_id, ds.status, ds.group_name,"
+             f" ds.group_uuid, ds.created_timestamp, ds.created_by_user_email, ds.last_modified_timestamp, "
+             f" ds.last_modified_user_email, ds.lab_dataset_id, ds.data_types, METASAMPLE")
+    print(query)
     logger.debug("======get_prov_info() query======")
     logger.debug(query)
 
@@ -1019,6 +1023,85 @@ def get_prov_info(neo4j_driver):
             record_dict['distinct_metasample'] = content_fifteen
             list_of_dictionaries.append(record_dict)
     return list_of_dictionaries
+
+"""
+Returns all of the same information as get_prov_info however only for a single dataset at a time. Returns a dictionary
+containing all of the provenance info for a given dataset. For fields such as first sample where there can be multiples,
+they are presented in their own dictionary converted from their nodes in neo4j and placed into a list. 
+
+Parameters
+----------
+neo4j_driver : neo4j.Driver object
+    The neo4j database connection pool
+dataset_uuid : string
+    the uuid of the desired dataset
+"""
+def get_individual_prov_info(neo4j_driver, dataset_uuid):
+    query = (f"match (ds:Dataset {{uuid: '{dataset_uuid}'}})<-[:ACTIVITY_OUTPUT]-(a)<-[:ACTIVITY_INPUT]-(firstSample:Sample)<-[*]-(donor:Donor)"
+             f" with ds, collect(distinct donor) as DONOR, collect(distinct firstSample) as FIRSTSAMPLE"
+             f" optional match (ds)<-[*]-(metaSample:Sample)"
+             f" where not metaSample.metadata is null and not trim(metaSample.metadata) = ''"
+             f" with ds, FIRSTSAMPLE, DONOR, collect(distinct metaSample) as METASAMPLE"
+             f" optional match (ds)<-[*]-(ruiSample:Sample)"
+             f" where not ruiSample.rui_location is null and not trim(ruiSample.rui_location) = ''"
+             f" with ds, FIRSTSAMPLE, DONOR, METASAMPLE, collect(distinct ruiSample) as RUISAMPLE"
+             f" optional match (donor)-[:ACTIVITY_INPUT]->(oa)-[:ACTIVITY_OUTPUT]->(organ:Sample {{specimen_type:'organ'}})-[*]->(ds)"
+             f" with ds, FIRSTSAMPLE, DONOR, METASAMPLE, RUISAMPLE, collect(distinct organ) as ORGAN "
+             f" return ds.uuid, FIRSTSAMPLE, DONOR, RUISAMPLE, ORGAN, ds.hubmap_id, ds.status, ds.group_name,"
+             f" ds.group_uuid, ds.created_timestamp, ds.created_by_user_email, ds.last_modified_timestamp, "
+             f" ds.last_modified_user_email, ds.lab_dataset_id, ds.data_types, METASAMPLE")
+
+    logger.debug("======get_prov_info() query======")
+    logger.debug(query)
+    record_contents = []
+    record_dict = {}
+    with neo4j_driver.session() as session:
+        result = session.run(query)
+        if result.peek() is None:
+            return
+        for record in result:
+            for item in record:
+                record_contents.append(item)
+            record_dict['uuid'] = record_contents[0]
+            content_one = []
+            for entry in record_contents[1]:
+                node_dict = _node_to_dict(entry)
+                content_one.append(node_dict)
+            record_dict['first_sample'] = content_one
+            content_two = []
+            for entry in record_contents[2]:
+                node_dict = _node_to_dict(entry)
+                content_two.append(node_dict)
+            record_dict['distinct_donor'] = content_two
+            content_three = []
+            for entry in record_contents[3]:
+                node_dict = _node_to_dict(entry)
+                content_three.append(node_dict)
+            record_dict['distinct_rui_sample'] = content_three
+            content_four = []
+            for entry in record_contents[4]:
+                node_dict = _node_to_dict(entry)
+                content_four.append(node_dict)
+            record_dict['distinct_organ'] = content_four
+            record_dict['hubmap_id'] = record_contents[5]
+            record_dict['status'] = record_contents[6]
+            record_dict['group_name'] = record_contents[7]
+            record_dict['group_uuid'] = record_contents[8]
+            record_dict['created_timestamp'] = record_contents[9]
+            record_dict['created_by_user_email'] = record_contents[10]
+            record_dict['last_modified_timestamp'] = record_contents[11]
+            record_dict['last_modified_user_email'] = record_contents[12]
+            record_dict['lab_dataset_id'] = record_contents[13]
+            data_types = record_contents[14]
+            data_types = data_types.replace("'", '"')
+            data_types = json.loads(data_types)
+            record_dict['data_types'] = data_types
+            content_fifteen = []
+            for entry in record_contents[15]:
+                node_dict = _node_to_dict(entry)
+                content_fifteen.append(node_dict)
+            record_dict['distinct_metasample'] = content_fifteen
+    return record_dict
 
 ####################################################################################################
 ## Internal Functions
