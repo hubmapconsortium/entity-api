@@ -1499,3 +1499,357 @@ paths:
           description: The target dataset could not be found
         '500':
           description: Internal error
+  /datasets/prov-info:
+     get:
+       summary: 'returns ALL provenance information for ALL datasets in a default table/tsv format or optionally a json format when an optional ?format=json parameter is provided'
+       parameters:
+         - name: format
+           in: query
+           description: "A case insensitive string. Any value besides 'json' will have no effect. If the string is 'json', provenance info will be returned as a json. Otherwise, it will be returned as a tsv file"
+           required: false
+           schema:
+             type: string
+             enum: ['json', 'tsv']
+         - name: group_uuid
+           in: query
+           description: The uuid of the group
+           required: false
+           schema:
+             type: string
+         - name: has_rui_info
+           in: query
+           description: A case insensitive string. Any value besides true or false will cause a 400 exception.
+           required: false
+           schema:
+             type: string
+             enum:  ['true', 'false']
+         - name: organ
+           in: query
+           description: Case insensitive string for 2 character organ code. Values must be present on organ yaml or a 400 exception is raised
+           required: false
+           schema:
+             type: string
+         - name: dataset_status
+           in: query
+           description: Case insensitive string indicating the current status of a dataset
+           required: false
+           schema:
+             type: string
+             enum: ['qa', 'new', 'published', ]
+       responses:
+         '200':
+           description: all provenance information for every dataset in the database either as a json list or as a tsv file to be downloaded
+           content:
+             text/tsv:
+               schema:
+                 type: file
+                 format: text
+             application/json:
+               schema:
+                 type: object
+                 properties:
+                   dataset_uuid:
+                     type: string
+                     description: The uuid of the dataset
+                   dataset_hubmap_id:
+                     type: string
+                     description: The HuBMAP ID of the dataset like HBM123.ABCD.456
+                   dataset_status:
+                     type: string
+                       description: status of the dataset New, QA, Published, etc ...
+                   dataset_group_name:
+                     type: string
+                       description: name of the data provider group who created the dataset
+                   dataset_group_uuid:
+                     type: string
+                       description: internal id for the data provider group
+                   dataset_date_time_created:
+                     type: string
+                       description: the date/time that the dataset was created
+                   dataset_created_by_email:
+                     type: string
+                       description: the email address of the person who created the dataset
+                   dataset_date_time_modified:
+                     type: string
+                       description: the date/time that the dataset was last modified
+                   dataset_modified_by_email:
+                     type: string
+                       description: the email address of the person who last modified the dataset
+                   dataset_lab_id:
+                     type: string
+                       description: identifier used by the data provider
+                   dataset_data_types:
+                     type: string
+                       description:the data/assay types (can be multiple types for pipeline derived data, so a comma separated list for tsv output or a json array for json output)
+                   dataset_portl_url:
+                     type: string
+                       description: the url to open the dataset in the data portal
+                   first_sample_hubmap_id:
+                     type: array
+                     items:
+                       type: string
+                       description: HuBMAP ID of the tissue sample nearest to this dataset in the provenance chain
+                   first_sample_submission_id:
+                     type: array
+                       items:
+                         type: string
+                         description: Submission ID of the tissue sample nearest to this dataset in the provenance chain
+                   first_sample_uuid:
+                     type: array
+                       items:
+                         type: string
+                         description: UUID of the tissue sample nearest to this dataset in the provenance chain
+                   first_sample_type:
+                     type: array
+                       items:
+                         type: string
+                         description: The tissue type of the sample nearest to this dataset in the provenance chain
+                   first_sample_portal_url:
+                     type: array
+                       items:
+                         type: string
+                         description: The URL to the data portal for this sample nearest to this dataset in the provenance chain
+                   organ_hubmap_id:
+                     type: array
+                       items:
+                         type: string
+                         description: HuBMAP ID of the organ associated to this dataset in the provenance chain
+                   organ_submission_id:
+                     type: array
+                       items:
+                         type: string
+                         description: Submission ID of the organ associated to this dataset in the provenance chain
+                   organ_uuid:
+                     type: array
+                       items:
+                         type: string
+                         description: UUID of the organ associated to this dataset in the provenance chain
+                   organ_type:
+                     type: array
+                       items:
+                         type: string
+                         description: The organ type of the organ associated to this dataset in the provenance chain (return the organ code resolved to the organ name via the organ.yaml file)
+                   donor_hubmap_id:
+                     type: array
+                       items:
+                         type: string
+                         description: The HuBMAP ID of the donor associated to this dataset in the provenance chain
+                   donor:submission_id:
+                     type: array
+                       items:
+                         type: string
+                         description: The Submission ID of the donor associated to this dataset in the provenance chain
+                   donor_uuid:
+                     type: array
+                       items:
+                         type: string
+                         description: The UUID of the donor associated to this dataset in the provenance chain
+                   donor_group_name:
+                     type: array
+                       items:
+                         type: string
+                         description: The name of the HuBMAP group where this donor originated (resolved to the group name from the group_uuid property resolved to displayname via the groups mapping file
+                   rui_location_hubmap_id:
+                     type: array
+                       items:
+                         type: string
+                         description: The HuBMAP ID of the tissue sample that contains RUI location json for this dataset
+                   rui_location_submission_id:
+                     type: array
+                       items:
+                         type: string
+                         description: The Submission ID of the tissue sample that contains RUI location json for this dataset
+                   rui_location_uuid:
+                     type: array
+                       items:
+                         type: string
+                         description: The uuid of the tissue sample that contains RUI location json for this dataset
+                   sample_metadata_hubmap_id:
+                     type: array
+                       items:
+                         type: string
+                         description: The HuBMAP ID of tissue sample(s) containing sample metadata
+                   sample_metadata_submission_id:
+                     type: array
+                       items:
+                         type: string
+                         description: The Submission ID of the tissue sample(s) containing sample metadata
+                   sample_metadata_uuid:
+                     type: array
+                       items:
+                         type: string
+                         description: The uuid of the tissue sample(s) containing sample metadata
+         '401':
+           description: The user's token has expired or the user did not supply a valid token
+           '403':
+             description: THe user is not authorized to use this method
+           '500':
+             description: Internal error
+  /datasets/{id}/prov-info:
+    get:
+      summary: 'returns aLL provenance information for a single dataset in a default table/tsv format or optionally a json format when an optional ?format=json parameter is provided'.
+      parameters:
+        - name: id
+          in: path
+          description: he unique identifier of entity.  This identifier can be either an HuBMAP ID (e.g. HBM123.ABCD.456) or UUID (32 digit hexadecimal number)
+          required: true
+          schema:
+            type: string
+        - name: format
+          in: query
+          description: "A case insensitive string. Any value besides 'json' will have no effect. If the string is 'json', provenance info will be returned as a json. Otherwise, it will be returned as a tsv file"
+          required: false
+          schema:
+            type: string
+            enum: [ 'json', 'tsv']
+      responses:
+        '200':
+          description: all provenance information for the given dataset either as a json list or as a tsv file to be downloaded
+          content:
+            text/tsv:
+              schema:
+                type: file
+                format: text
+            application/json:
+              schema:
+                type: object
+                properties:
+                  dataset_uuid:
+                    type: string
+                    description: The uuid of the dataset
+                  dataset_hubmap_id:
+                    type: string
+                    description: The HuBMAP ID of the dataset like HBM123.ABCD.456
+                  dataset_status:
+                    type: string
+                      description: status of the dataset New, QA, Published, etc ...
+                  dataset_group_name:
+                    type: string
+                      description: name of the data provider group who created the dataset
+                  dataset_group_uuid:
+                    type: string
+                      description: internal id for the data provider group
+                  dataset_date_time_created:
+                    type: string
+                      description: the date/time that the dataset was created
+                  dataset_created_by_email:
+                    type: string
+                      description: the email address of the person who created the dataset
+                  dataset_date_time_modified:
+                    type: string
+                      description: the date/time that the dataset was last modified
+                  dataset_modified_by_email:
+                    type: string
+                      description: the email address of the person who last modified the dataset
+                  dataset_lab_id:
+                    type: string
+                      description: identifier used by the data provider
+                  dataset_data_types:
+                    type: string
+                      description:the data/assay types (can be multiple types for pipeline derived data, so a comma separated list for tsv output or a json array for json output)
+                  dataset_portl_url:
+                    type: string
+                      description: the url to open the dataset in the data portal
+                  first_sample_hubmap_id:
+                    type: array
+                    items:
+                      type: string
+                      description: HuBMAP ID of the tissue sample nearest to this dataset in the provenance chain
+                  first_sample_submission_id:
+                    type: array
+                      items:
+                        type: string
+                        description: Submission ID of the tissue sample nearest to this dataset in the provenance chain
+                  first_sample_uuid:
+                    type: array
+                      items:
+                        type: string
+                        description: UUID of the tissue sample nearest to this dataset in the provenance chain
+                  first_sample_type:
+                    type: array
+                      items:
+                        type: string
+                        description: The tissue type of the sample nearest to this dataset in the provenance chain
+                  first_sample_portal_url:
+                    type: array
+                      items:
+                        type: string
+                        description: The URL to the data portal for this sample nearest to this dataset in the provenance chain
+                  organ_hubmap_id:
+                    type: array
+                      items:
+                        type: string
+                        description: HuBMAP ID of the organ associated to this dataset in the provenance chain
+                  organ_submission_id:
+                    type: array
+                      items:
+                        type: string
+                        description: Submission ID of the organ associated to this dataset in the provenance chain
+                  organ_uuid:
+                    type: array
+                      items:
+                        type: string
+                        description: UUID of the organ associated to this dataset in the provenance chain
+                  organ_type:
+                    type: array
+                      items:
+                        type: string
+                        description: The organ type of the organ associated to this dataset in the provenance chain (return the organ code resolved to the organ name via the organ.yaml file)
+                  donor_hubmap_id:
+                    type: array
+                      items:
+                        type: string
+                        description: The HuBMAP ID of the donor associated to this dataset in the provenance chain
+                  donor:submission_id:
+                    type: array
+                      items:
+                        type: string
+                        description: The Submission ID of the donor associated to this dataset in the provenance chain
+                  donor_uuid:
+                    type: array
+                      items:
+                        type: string
+                        description: The UUID of the donor associated to this dataset in the provenance chain
+                  donor_group_name:
+                    type: array
+                      items:
+                        type: string
+                        description: The name of the HuBMAP group where this donor originated (resolved to the group name from the group_uuid property resolved to displayname via the groups mapping file
+                  rui_location_hubmap_id:
+                    type: array
+                      items:
+                        type: string
+                        description: The HuBMAP ID of the tissue sample that contains RUI location json for this dataset
+                  rui_location_submission_id:
+                    type: array
+                      items:
+                        type: string
+                        description: The Submission ID of the tissue sample that contains RUI location json for this dataset
+                  rui_location_uuid:
+                    type: array
+                      items:
+                        type: string
+                        description: The uuid of the tissue sample that contains RUI location json for this dataset
+                  sample_metadata_hubmap_id:
+                    type: array
+                      items:
+                        type: string
+                        description: The HuBMAP ID of tissue sample(s) containing sample metadata
+                  sample_metadata_submission_id:
+                    type: array
+                      items:
+                        type: string
+                        description: The Submission ID of the tissue sample(s) containing sample metadata
+                  sample_metadata_uuid:
+                    type: array
+                      items:
+                        type: string
+                        description: The uuid of the tissue sample(s) containing sample metadata
+        '401':
+          description: The user's token has expired or the user did not supply a valid token
+          '403':
+            description: THe user is not authorized to use this method
+          '500':
+            description: Internal error
+
+
