@@ -19,6 +19,7 @@ import app_neo4j_queries
 import provenance
 from schema import schema_manager
 from schema import schema_errors
+from schema import schema_triggers
 
 # HuBMAP commons
 from hubmap_commons import string_helper
@@ -2218,7 +2219,7 @@ tsv
 """
 @app.route('/datasets/prov-info', methods=['GET'])
 def get_prov_info():
-    # String constants from app.cfg
+    # String constants
     GLOBUS_GROUPS_URL = 'https://raw.githubusercontent.com/hubmapconsortium/commons/test-release/hubmap_commons/hubmap-globus-groups.json'
     HEADER_DATASET_UUID = 'dataset_uuid'
     HEADER_DATASET_HUBMAP_ID = 'dataset_hubmap_id'
@@ -2251,6 +2252,8 @@ def get_prov_info():
     HEADER_SAMPLE_METADATA_HUBMAP_ID = 'sample_metadata_hubmap_id'
     HEADER_SAMPLE_METADATA_SUBMISSION_ID = 'sample_metadata_submission_id'
     HEADER_SAMPLE_METADATA_UUID = 'sample_metadata_uuid'
+    ASSAY_TYPES_URL = 'https://raw.githubusercontent.com/hubmapconsortium/search-api/master/src/search-schema/data/definitions/enums/assay_types.yaml'
+    ORGAN_TYPES_URL = 'https://raw.githubusercontent.com/hubmapconsortium/search-api/master/src/search-schema/data/definitions/enums/organ_types.yaml'
 
     headers = [
         HEADER_DATASET_UUID, HEADER_DATASET_HUBMAP_ID, HEADER_DATASET_STATUS, HEADER_DATASET_GROUP_NAME,
@@ -2264,6 +2267,25 @@ def get_prov_info():
         HEADER_RUI_LOCATION_UUID, HEADER_SAMPLE_METADATA_HUBMAP_ID, HEADER_SAMPLE_METADATA_SUBMISSION_ID,
         HEADER_SAMPLE_METADATA_UUID
     ]
+
+    # Parsing the organ types yaml has to be done here rather than calling schema.schema_triggers.get_organ_description
+    # because that would require using a urllib request for each dataset
+    with urllib.request.urlopen(ORGAN_TYPES_URL) as response:
+        yaml_file = response.read()
+        try:
+            organ_types_dict = yaml.safe_load(yaml_file)
+        except yaml.YAMLError as e:
+            raise yaml.YAMLError(e)
+
+    # As above, we parse te assay type yaml here rather than calling the special method for it because this avoids
+    # having to access the resource for every dataset.
+    with urllib.request.urlopen(ASSAY_TYPES_URL) as response:
+        yaml_file = response.read()
+        try:
+            assay_types_dict = yaml.safe_load(yaml_file)
+        except yaml.YAMLError as e:
+            raise yaml.YAMLError(e)
+
     # Processing and validating query parameters
     accepted_arguments = ['format', 'organ', 'has_rui_info', 'dataset_status', 'group_uuid']
     return_json = False
@@ -2321,6 +2343,24 @@ def get_prov_info():
         internal_dict[HEADER_DATASET_CREATED_BY_EMAIL] = dataset['created_by_user_email']
         internal_dict[HEADER_DATASET_DATE_TIME_MODIFIED] = datetime.fromtimestamp(int(dataset['last_modified_timestamp']/1000.0))
         internal_dict[HEADER_DATASET_MODIFIED_BY_EMAIL] = dataset['last_modified_user_email']
+
+        # Data type codes are replaced with data type descriptions
+        assay_description_list = []
+        for item in dataset['data_types']:
+            try:
+                assay_description_list.append(assay_types_dict[item]['description'])
+            # Some data types aren't given by their code in the assay types yaml and are instead given as an alt name.
+            # In these cases, we have to search each assay type and see if the given code matches any alternate names.
+            except KeyError as e:
+                valid_key = False
+                for each in assay_types_dict:
+                    if item in assay_types_dict[each]['alt-names']:
+                        valid_key = True
+                        assay_description_list.append(assay_types_dict[each]['description'])
+                        break
+                if valid_key is False:
+                    raise KeyError(e)
+        dataset['data_types'] = assay_description_list
         internal_dict[HEADER_DATASET_DATA_TYPES] = dataset['data_types']
 
         # If return_format was not equal to json, json arrays must be converted into comma separated lists for the tsv
@@ -2364,7 +2404,7 @@ def get_prov_info():
                 distinct_organ_hubmap_id_list.append(item['hubmap_id'])
                 distinct_organ_submission_id_list.append(item['submission_id'])
                 distinct_organ_uuid_list.append(item['uuid'])
-                distinct_organ_type_list.append(item['organ'])
+                distinct_organ_type_list.append(organ_types_dict[item['organ']]['description'].lower())
             internal_dict[HEADER_ORGAN_HUBMAP_ID] = distinct_organ_hubmap_id_list
             internal_dict[HEADER_ORGAN_SUBMISSION_ID] = distinct_organ_submission_id_list
             internal_dict[HEADER_ORGAN_UUID] = distinct_organ_uuid_list
