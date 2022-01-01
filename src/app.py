@@ -2343,6 +2343,7 @@ def get_prov_info():
         internal_dict[HEADER_DATASET_CREATED_BY_EMAIL] = dataset['created_by_user_email']
         internal_dict[HEADER_DATASET_DATE_TIME_MODIFIED] = datetime.fromtimestamp(int(dataset['last_modified_timestamp']/1000.0))
         internal_dict[HEADER_DATASET_MODIFIED_BY_EMAIL] = dataset['last_modified_user_email']
+        internal_dict[HEADER_DATASET_LAB_ID] = dataset['lab_dataset_id']
 
         # Data type codes are replaced with data type descriptions
         assay_description_list = []
@@ -2600,6 +2601,8 @@ def get_prov_info_for_dataset(id):
     internal_dict[HEADER_DATASET_DATE_TIME_MODIFIED] = datetime.fromtimestamp(
         int(dataset['last_modified_timestamp'] / 1000.0))
     internal_dict[HEADER_DATASET_MODIFIED_BY_EMAIL] = dataset['last_modified_user_email']
+    internal_dict[HEADER_DATASET_LAB_ID] = dataset['lab_dataset_id']
+
     # Data type codes are replaced with data type descriptions
     assay_description_list = []
     for item in dataset['data_types']:
