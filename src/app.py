@@ -2252,6 +2252,10 @@ def get_prov_info():
     HEADER_SAMPLE_METADATA_HUBMAP_ID = 'sample_metadata_hubmap_id'
     HEADER_SAMPLE_METADATA_SUBMISSION_ID = 'sample_metadata_submission_id'
     HEADER_SAMPLE_METADATA_UUID = 'sample_metadata_uuid'
+    HEADER_PROCESSED_DATASET_UUID = 'processed_dataset_uuid'
+    HEADER_PROCESSED_DATASET_HUBMAP_ID = 'processed_dataset_hubmap_id'
+    HEADER_PROCESSED_DATASET_STATUS = 'processed_dataset_status'
+    HEADER_PROCESSED_DATASET_PORTAL_URL = 'processed_dataset_portal_url'
     ASSAY_TYPES_URL = 'https://raw.githubusercontent.com/hubmapconsortium/search-api/master/src/search-schema/data/definitions/enums/assay_types.yaml'
     ORGAN_TYPES_URL = 'https://raw.githubusercontent.com/hubmapconsortium/search-api/master/src/search-schema/data/definitions/enums/organ_types.yaml'
 
@@ -2265,7 +2269,8 @@ def get_prov_info():
         HEADER_ORGAN_TYPE, HEADER_DONOR_HUBMAP_ID, HEADER_DONOR_SUBMISSION_ID, HEADER_DONOR_UUID,
         HEADER_DONOR_GROUP_NAME, HEADER_RUI_LOCATION_HUBMAP_ID, HEADER_RUI_LOCATION_SUBMISSION_ID,
         HEADER_RUI_LOCATION_UUID, HEADER_SAMPLE_METADATA_HUBMAP_ID, HEADER_SAMPLE_METADATA_SUBMISSION_ID,
-        HEADER_SAMPLE_METADATA_UUID
+        HEADER_SAMPLE_METADATA_UUID, HEADER_PROCESSED_DATASET_UUID, HEADER_PROCESSED_DATASET_HUBMAP_ID,
+        HEADER_PROCESSED_DATASET_STATUS, HEADER_PROCESSED_DATASET_PORTAL_URL
     ]
 
     # Parsing the organ types yaml has to be done here rather than calling schema.schema_triggers.get_organ_description
@@ -2470,6 +2475,11 @@ def get_prov_info():
                 internal_dict[HEADER_SAMPLE_METADATA_SUBMISSION_ID] = ",".join(metasample_submission_id_list)
                 internal_dict[HEADER_SAMPLE_METADATA_UUID] = ",".join(metasample_uuid_list)
 
+        if dataset['processed_dataset'] is not None:
+            internal_dict[HEADER_PROCESSED_DATASET_UUID] = dataset['processed_dataset']['uuid']
+            internal_dict[HEADER_PROCESSED_DATASET_HUBMAP_ID] = dataset['processed_dataset']['hubmap_id']
+            internal_dict[HEADER_PROCESSED_DATASET_STATUS] = dataset['processed_dataset']['status']
+            internal_dict[HEADER_PROCESSED_DATASET_PORTAL_URL] = app.config['DOI_REDIRECT_URL'].replace('<entity_type>', 'dataset').replace('<identifier>', dataset['processed_dataset']['uuid'])
         # Each dataset's dictionary is added to the list to be returned
         dataset_prov_list.append(internal_dict)
 
@@ -2549,6 +2559,10 @@ def get_prov_info_for_dataset(id):
     HEADER_SAMPLE_METADATA_HUBMAP_ID = 'sample_metadata_hubmap_id'
     HEADER_SAMPLE_METADATA_SUBMISSION_ID = 'sample_metadata_submission_id'
     HEADER_SAMPLE_METADATA_UUID = 'sample_metadata_uuid'
+    HEADER_PROCESSED_DATASET_UUID = 'processed_dataset_uuid'
+    HEADER_PROCESSED_DATASET_HUBMAP_ID = 'processed_dataset_hubmap_id'
+    HEADER_PROCESSED_DATASET_STATUS = 'processed_dataset_status'
+    HEADER_PROCESSED_DATASET_PORTAL_URL = 'processed_dataset_portal_url'
     ASSAY_TYPES_URL = 'https://raw.githubusercontent.com/hubmapconsortium/search-api/master/src/search-schema/data/definitions/enums/assay_types.yaml'
     ORGAN_TYPES_URL = 'https://raw.githubusercontent.com/hubmapconsortium/search-api/master/src/search-schema/data/definitions/enums/organ_types.yaml'
 
@@ -2562,7 +2576,8 @@ def get_prov_info_for_dataset(id):
         HEADER_ORGAN_TYPE, HEADER_DONOR_HUBMAP_ID, HEADER_DONOR_SUBMISSION_ID, HEADER_DONOR_UUID,
         HEADER_DONOR_GROUP_NAME, HEADER_RUI_LOCATION_HUBMAP_ID, HEADER_RUI_LOCATION_SUBMISSION_ID,
         HEADER_RUI_LOCATION_UUID, HEADER_SAMPLE_METADATA_HUBMAP_ID, HEADER_SAMPLE_METADATA_SUBMISSION_ID,
-        HEADER_SAMPLE_METADATA_UUID
+        HEADER_SAMPLE_METADATA_UUID, HEADER_PROCESSED_DATASET_UUID, HEADER_PROCESSED_DATASET_HUBMAP_ID,
+        HEADER_PROCESSED_DATASET_STATUS, HEADER_PROCESSED_DATASET_PORTAL_URL
     ]
 
     # Parsing the organ types yaml has to be done here rather than calling schema.schema_triggers.get_organ_description
@@ -2717,6 +2732,13 @@ def get_prov_info_for_dataset(id):
             internal_dict[HEADER_SAMPLE_METADATA_HUBMAP_ID] = ",".join(metasample_hubmap_id_list)
             internal_dict[HEADER_SAMPLE_METADATA_SUBMISSION_ID] = ",".join(metasample_submission_id_list)
             internal_dict[HEADER_SAMPLE_METADATA_UUID] = ",".join(metasample_uuid_list)
+
+    if dataset['processed_dataset'] is not None:
+        internal_dict[HEADER_PROCESSED_DATASET_UUID] = dataset['processed_dataset']['uuid']
+        internal_dict[HEADER_PROCESSED_DATASET_HUBMAP_ID] = dataset['processed_dataset']['hubmap_id']
+        internal_dict[HEADER_PROCESSED_DATASET_STATUS] = dataset['processed_dataset']['status']
+        internal_dict[HEADER_PROCESSED_DATASET_PORTAL_URL] = app.config['DOI_REDIRECT_URL'].replace('<entity_type>', 'dataset').replace('<identifier>', dataset['processed_dataset']['uuid'])
+
     dataset_prov_list.append(internal_dict)
 
 
