@@ -965,10 +965,10 @@ def get_prov_info(neo4j_driver, param_dict):
              f" {organ_query_string} (donor)-[:ACTIVITY_INPUT]->(oa)-[:ACTIVITY_OUTPUT]->(organ:Sample {{specimen_type:'organ'{organ_where_clause}}})-[*]->(ds)"
              f" WITH ds, FIRSTSAMPLE, DONOR, METASAMPLE, RUISAMPLE, COLLECT(DISTINCT organ) AS ORGAN "
              f" OPTIONAL MATCH (ds)-[:ACTIVITY_INPUT]->(a3)-[:ACTIVITY_OUTPUT]->(processed_dataset:Dataset)"
-             f" WITH ds, FIRSTSAMPLE, DONOR, METASAMPLE, RUISAMPLE, processed_dataset, ORGAN"
+             f" WITH ds, FIRSTSAMPLE, DONOR, METASAMPLE, RUISAMPLE, ORGAN, COLLECT(distinct processed_dataset) AS PROCESSED_DATASET"
              f" RETURN ds.uuid, FIRSTSAMPLE, DONOR, RUISAMPLE, ORGAN, ds.hubmap_id, ds.status, ds.group_name,"
              f" ds.group_uuid, ds.created_timestamp, ds.created_by_user_email, ds.last_modified_timestamp, "
-             f" ds.last_modified_user_email, ds.lab_dataset_id, ds.data_types, METASAMPLE, processed_dataset")
+             f" ds.last_modified_user_email, ds.lab_dataset_id, ds.data_types, METASAMPLE, PROCESSED_DATASET")
     logger.debug("======get_prov_info() query======")
     logger.debug(query)
 
@@ -1022,11 +1022,11 @@ def get_prov_info(neo4j_driver, param_dict):
                 node_dict = _node_to_dict(entry)
                 content_fifteen.append(node_dict)
             record_dict['distinct_metasample'] = content_fifteen
-            if record_contents[16] is not None:
-                print(f" \n \n {type(record_contents[16])} \n \n ")
-                record_dict['processed_dataset'] = _node_to_dict(record_contents[16])
-            else:
-                record_dict['processed_dataset'] = None
+            content_sixteen = []
+            for entry in record_contents[16]:
+                node_dict = _node_to_dict(entry)
+                content_sixteen.append(node_dict)
+            record_dict['processed_dataset'] = content_sixteen
             list_of_dictionaries.append(record_dict)
     return list_of_dictionaries
 
@@ -1054,10 +1054,10 @@ def get_individual_prov_info(neo4j_driver, dataset_uuid):
              f" OPTIONAL match (donor)-[:ACTIVITY_INPUT]->(oa)-[:ACTIVITY_OUTPUT]->(organ:Sample {{specimen_type:'organ'}})-[*]->(ds)"
              f" WITH ds, FIRSTSAMPLE, DONOR, METASAMPLE, RUISAMPLE, COLLECT(distinct organ) AS ORGAN "
              f" OPTIONAL MATCH (ds)-[:ACTIVITY_INPUT]->(a3)-[:ACTIVITY_OUTPUT]->(processed_dataset:Dataset)"
-             f" WITH ds, FIRSTSAMPLE, DONOR, METASAMPLE, RUISAMPLE, processed_dataset, ORGAN"
+             f" WITH ds, FIRSTSAMPLE, DONOR, METASAMPLE, RUISAMPLE, ORGAN, COLLECT(distinct processed_dataset) AS PROCESSED_DATASET"
              f" RETURN ds.uuid, FIRSTSAMPLE, DONOR, RUISAMPLE, ORGAN, ds.hubmap_id, ds.status, ds.group_name,"
              f" ds.group_uuid, ds.created_timestamp, ds.created_by_user_email, ds.last_modified_timestamp, "
-             f" ds.last_modified_user_email, ds.lab_dataset_id, ds.data_types, METASAMPLE, processed_dataset")
+             f" ds.last_modified_user_email, ds.lab_dataset_id, ds.data_types, METASAMPLE, PROCESSED_DATASET")
 
     logger.debug("======get_prov_info() query======")
     logger.debug(query)
@@ -1109,10 +1109,11 @@ def get_individual_prov_info(neo4j_driver, dataset_uuid):
                 node_dict = _node_to_dict(entry)
                 content_fifteen.append(node_dict)
             record_dict['distinct_metasample'] = content_fifteen
-            if record_contents[16] is not None:
-                record_dict['processed_dataset'] = _node_to_dict(record_contents[16])
-            else:
-                record_dict['processed_dataset'] = None
+            content_sixteen = []
+            for entry in record_contents[16]:
+                node_dict = _node_to_dict(entry)
+                content_sixteen.append(node_dict)
+            record_dict['processed_dataset'] = content_sixteen
     return record_dict
 
 ####################################################################################################

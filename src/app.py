@@ -2230,7 +2230,7 @@ def get_prov_info():
     HEADER_DATASET_CREATED_BY_EMAIL = 'dataset_created_by_email'
     HEADER_DATASET_DATE_TIME_MODIFIED = 'dataset_date_time_modified'
     HEADER_DATASET_MODIFIED_BY_EMAIL = 'dataset_modified_by_email'
-    HEADER_DATASET_LAB_ID = 'dataset_lab_id'
+    HEADER_DATASET_LAB_ID = 'lab_id_or_name'
     HEADER_DATASET_DATA_TYPES = 'dataset_data_types'
     HEADER_DATASET_PORTAL_URL = 'dataset_portal_url'
     HEADER_FIRST_SAMPLE_HUBMAP_ID = 'first_sample_hubmap_id'
@@ -2475,11 +2475,27 @@ def get_prov_info():
                 internal_dict[HEADER_SAMPLE_METADATA_SUBMISSION_ID] = ",".join(metasample_submission_id_list)
                 internal_dict[HEADER_SAMPLE_METADATA_UUID] = ",".join(metasample_uuid_list)
 
+        # processed_dataset properties are retrived from its own dictionary
         if dataset['processed_dataset'] is not None:
-            internal_dict[HEADER_PROCESSED_DATASET_UUID] = dataset['processed_dataset']['uuid']
-            internal_dict[HEADER_PROCESSED_DATASET_HUBMAP_ID] = dataset['processed_dataset']['hubmap_id']
-            internal_dict[HEADER_PROCESSED_DATASET_STATUS] = dataset['processed_dataset']['status']
-            internal_dict[HEADER_PROCESSED_DATASET_PORTAL_URL] = app.config['DOI_REDIRECT_URL'].replace('<entity_type>', 'dataset').replace('<identifier>', dataset['processed_dataset']['uuid'])
+            processed_dataset_uuid_list = []
+            processed_dataset_hubmap_id_list = []
+            processed_dataset_status_list = []
+            processed_dataset_portal_url_list = []
+            for item in dataset['processed_dataset']:
+                processed_dataset_uuid_list.append(item['uuid'])
+                processed_dataset_hubmap_id_list.append(item['hubmap_id'])
+                processed_dataset_status_list.append(item['status'])
+                processed_dataset_portal_url_list.append(app.config['DOI_REDIRECT_URL'].replace('<entity_type>', 'dataset').replace('<identifier>', item['uuid']))
+            internal_dict[HEADER_PROCESSED_DATASET_UUID] = processed_dataset_uuid_list
+            internal_dict[HEADER_PROCESSED_DATASET_HUBMAP_ID] = processed_dataset_hubmap_id_list
+            internal_dict[HEADER_PROCESSED_DATASET_STATUS] = processed_dataset_status_list
+            internal_dict[HEADER_PROCESSED_DATASET_PORTAL_URL] = processed_dataset_portal_url_list
+            if return_json is False:
+                internal_dict[HEADER_PROCESSED_DATASET_UUID] = ",".join(processed_dataset_uuid_list)
+                internal_dict[HEADER_PROCESSED_DATASET_UUID] = ",".join(processed_dataset_hubmap_id_list)
+                internal_dict[HEADER_PROCESSED_DATASET_UUID] = ",".join(processed_dataset_status_list)
+                internal_dict[HEADER_PROCESSED_DATASET_UUID] = ",".join(processed_dataset_portal_url_list)
+
         # Each dataset's dictionary is added to the list to be returned
         dataset_prov_list.append(internal_dict)
 
@@ -2537,7 +2553,7 @@ def get_prov_info_for_dataset(id):
     HEADER_DATASET_CREATED_BY_EMAIL = 'dataset_created_by_email'
     HEADER_DATASET_DATE_TIME_MODIFIED = 'dataset_date_time_modified'
     HEADER_DATASET_MODIFIED_BY_EMAIL = 'dataset_modified_by_email'
-    HEADER_DATASET_LAB_ID = 'dataset_lab_id'
+    HEADER_DATASET_LAB_ID = 'lab_id_or_name'
     HEADER_DATASET_DATA_TYPES = 'dataset_data_types'
     HEADER_DATASET_PORTAL_URL = 'dataset_portal_url'
     HEADER_FIRST_SAMPLE_HUBMAP_ID = 'first_sample_hubmap_id'
@@ -2733,11 +2749,28 @@ def get_prov_info_for_dataset(id):
             internal_dict[HEADER_SAMPLE_METADATA_SUBMISSION_ID] = ",".join(metasample_submission_id_list)
             internal_dict[HEADER_SAMPLE_METADATA_UUID] = ",".join(metasample_uuid_list)
 
+    # processed_dataset properties are retrived from its own dictionary
     if dataset['processed_dataset'] is not None:
-        internal_dict[HEADER_PROCESSED_DATASET_UUID] = dataset['processed_dataset']['uuid']
-        internal_dict[HEADER_PROCESSED_DATASET_HUBMAP_ID] = dataset['processed_dataset']['hubmap_id']
-        internal_dict[HEADER_PROCESSED_DATASET_STATUS] = dataset['processed_dataset']['status']
-        internal_dict[HEADER_PROCESSED_DATASET_PORTAL_URL] = app.config['DOI_REDIRECT_URL'].replace('<entity_type>', 'dataset').replace('<identifier>', dataset['processed_dataset']['uuid'])
+        processed_dataset_uuid_list = []
+        processed_dataset_hubmap_id_list = []
+        processed_dataset_status_list = []
+        processed_dataset_portal_url_list = []
+        for item in dataset['processed_dataset']:
+            processed_dataset_uuid_list.append(item['uuid'])
+            processed_dataset_hubmap_id_list.append(item['hubmap_id'])
+            processed_dataset_status_list.append(item['status'])
+            processed_dataset_portal_url_list.append(
+                app.config['DOI_REDIRECT_URL'].replace('<entity_type>', 'dataset').replace('<identifier>',
+                                                                                           item['uuid']))
+        internal_dict[HEADER_PROCESSED_DATASET_UUID] = processed_dataset_uuid_list
+        internal_dict[HEADER_PROCESSED_DATASET_HUBMAP_ID] = processed_dataset_hubmap_id_list
+        internal_dict[HEADER_PROCESSED_DATASET_STATUS] = processed_dataset_status_list
+        internal_dict[HEADER_PROCESSED_DATASET_PORTAL_URL] = processed_dataset_portal_url_list
+        if return_json is False:
+            internal_dict[HEADER_PROCESSED_DATASET_UUID] = ",".join(processed_dataset_uuid_list)
+            internal_dict[HEADER_PROCESSED_DATASET_UUID] = ",".join(processed_dataset_hubmap_id_list)
+            internal_dict[HEADER_PROCESSED_DATASET_UUID] = ",".join(processed_dataset_status_list)
+            internal_dict[HEADER_PROCESSED_DATASET_UUID] = ",".join(processed_dataset_portal_url_list)
 
     dataset_prov_list.append(internal_dict)
 
