@@ -2357,14 +2357,15 @@ def get_prov_info():
                 assay_description_list.append(assay_types_dict[item]['description'])
             # Some data types aren't given by their code in the assay types yaml and are instead given as an alt name.
             # In these cases, we have to search each assay type and see if the given code matches any alternate names.
-            except KeyError as e:
+            except KeyError:
                 valid_key = False
                 for each in assay_types_dict:
-                    if item in assay_types_dict[each]['alt-names']:
-                        valid_key = True
-                        assay_description_list.append(assay_types_dict[each]['description'])
-                        break
-                assay_description_list.append(item)
+                    if valid_key is False:
+                        if item in assay_types_dict[each]['alt-names']:
+                            assay_description_list.append(assay_types_dict[each]['description'])
+                            valid_key = True
+                if valid_key is False:
+                    assay_description_list.append(item)
         dataset['data_types'] = assay_description_list
         internal_dict[HEADER_DATASET_DATA_TYPES] = dataset['data_types']
 
@@ -2641,15 +2642,15 @@ def get_prov_info_for_dataset(id):
             assay_description_list.append(assay_types_dict[item]['description'])
         # Some data types aren't given by their code in the assay types yaml and are instead given as an alt name.
         # In these cases, we have to search each assay type and see if the given code matches any alternate names.
-        except KeyError as e:
+        except KeyError:
             valid_key = False
             for each in assay_types_dict:
-                if item in assay_types_dict[each]['alt-names']:
-                    valid_key = True
-                    assay_description_list.append(assay_types_dict[each]['description'])
-                    break
+                if valid_key is False:
+                    if item in assay_types_dict[each]['alt-names']:
+                        assay_description_list.append(assay_types_dict[each]['description'])
+                        valid_key = True
             if valid_key is False:
-                raise KeyError(e)
+                assay_description_list.append(item)
     dataset['data_types'] = assay_description_list
     internal_dict[HEADER_DATASET_DATA_TYPES] = dataset['data_types']
     if return_json is False:
