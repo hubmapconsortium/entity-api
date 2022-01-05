@@ -2079,6 +2079,7 @@ Returns
 list
     The list of revision datasets
 """
+@app.route('/entities/<id>/revisions', methods=['GET'])
 @app.route('/datasets/<id>/revisions', methods=['GET'])
 def get_revisions_list(id):
     # By default, do not return dataset. Only return dataset if return_dataset is true
@@ -2101,7 +2102,7 @@ def get_revisions_list(id):
 
     # Only for Dataset
     if normalized_entity_type != 'Dataset':
-        bad_request_error("The entity of given id is not a Dataset")
+        bad_request_error("The entity is not a Dataset. Found entity type:" + normalized_entity_type)
 
     # Only published/public datasets don't require token
     if entity_dict['status'].lower() != DATASET_STATUS_PUBLISHED:
@@ -2141,7 +2142,7 @@ def get_revisions_list(id):
     for revision in normalized_revisions_list:
         result = {
             'revision_number': revision_number,
-            'dataset_uuid': revision['uuid']
+            'uuid': revision['uuid']
         }
         if show_dataset:
             result['dataset'] = revision
@@ -3460,4 +3461,3 @@ if __name__ == "__main__":
         print(str(e))
         logger.error(e, exc_info=True)
         print("Error during startup check the log file for further information")
-

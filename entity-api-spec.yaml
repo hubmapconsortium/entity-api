@@ -1448,7 +1448,7 @@ paths:
               schema:
                 type: object
                 properties:
-                  dataset_uuid:
+                  uuid:
                     type: string
                     description: The uuid of a dataset
                   revision_number:
