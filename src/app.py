@@ -2220,7 +2220,6 @@ tsv
 @app.route('/datasets/prov-info', methods=['GET'])
 def get_prov_info():
     # String constants
-    GLOBUS_GROUPS_URL = 'https://raw.githubusercontent.com/hubmapconsortium/commons/test-release/hubmap_commons/hubmap-globus-groups.json'
     HEADER_DATASET_UUID = 'dataset_uuid'
     HEADER_DATASET_HUBMAP_ID = 'dataset_hubmap_id'
     HEADER_DATASET_STATUS = 'dataset_status'
@@ -2311,7 +2310,7 @@ def get_prov_info():
             groups_by_id_dict = globus_groups.get_globus_groups_info()['by_id']
             if group_uuid not in groups_by_id_dict:
                 bad_request_error(
-                    f"Invalid Group UUID. Group must be located at {GLOBUS_GROUPS_URL}")
+                    f"Invalid Group UUID.")
             if not groups_by_id_dict[group_uuid]['data_provider']:
                 bad_request_error(f"Invalid Group UUID. Group must be a data provider")
             param_dict['group_uuid'] = group_uuid
