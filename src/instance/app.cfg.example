@@ -50,4 +50,4 @@ PUBLIC_DATA_SUBDIR = 'public'
 DOI_REDIRECT_URL = 'https://portal.hubmapconsortium.org/browse/<entity_type>/<identifier>'
 
 #URL to tsv file that holds the redirect url information for DOI redirects
-REDIRECTION_INFO_URL = 'https://raw.githubusercontent.com/hubmapconsortium/ccf-releases/main/v1.0/reference-entity-ids.tsv'
+REDIRECTION_INFO_URL = 'https://raw.githubusercontent.com/hubmapconsortium/ccf-releases/main/reference-entity-ids.tsv'
