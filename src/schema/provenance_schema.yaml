@@ -669,6 +669,34 @@ ENTITIES:
         # The updated_peripherally tag is a temporary measure to correctly handle any attributes
         # which are potentially updated by multiple triggers
         updated_peripherally: true
+      thumbnail_file:
+        generated: true
+        type: json_string
+        description: "The dataset thumbnail file detail. Stored in db as a stringfied json, e.g., {'filename': 'thumbnail.jpg', 'file_uuid': 'dadasdasdadda'}"
+        # The updated_peripherally tag is a temporary measure to correctly handle any attributes
+        # which are potentially updated by multiple triggers
+        updated_peripherally: true
+      thumbnail_file_to_add:
+        type: json_string 
+        transient: true
+        exposed: false
+        description: 'Just a temporary file id. Provide as a json object with an temp_file_id like {"temp_file_id":"dzevgd6xjs4d5grmcp4n"}'
+        before_create_trigger: commit_thumbnail_file
+        # This before_update_trigger with the same commit process can be used by ingest-api to update the dataset via PUT call
+        before_update_trigger: commit_thumbnail_file
+        # The updated_peripherally tag is a temporary measure to correctly handle any attributes
+        # which are potentially updated by multiple triggers
+        updated_peripherally: true
+      thumbnail_file_to_remove:
+        # This is only valid on update via a PUT request
+        type: string 
+        transient: true
+        exposed: false
+        description: 'The thumbnail image file previously uploaded to delete. Provide as a string of the file_uuid like: "232934234234234234234270c0ea6c51d604a850558ef2247d0b4"'
+        before_update_trigger: delete_thumbnail_file
+        # The updated_peripherally tag is a temporary measure to correctly handle any attributes
+        # which are potentially updated by multiple triggers
+        updated_peripherally: true
 
   ############################################# Upload #############################################
   # Eventually we might allow folks to bulk register Samples or Donors through the same mechanism.
