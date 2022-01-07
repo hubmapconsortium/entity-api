@@ -477,6 +477,7 @@ components:
             - LI
             - LK
             - LL
+            - LN
             - LV
             - LY
             - LO
@@ -488,6 +489,7 @@ components:
             - RE
             - RK
             - RL
+            - RN
             - SI
             - SK
             - SP
