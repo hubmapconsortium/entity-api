@@ -13,7 +13,7 @@ PyYAML==5.4.1
 
 # The branch name of commons to be used during image build
 # Default is master branch specified in docker-compose.yml if not set
-git+git://github.com/hubmapconsortium/commons.git@${COMMONS_BRANCH}#egg=hubmap-commons
+git+https://github.com/hubmapconsortium/commons.git@${COMMONS_BRANCH}#egg=hubmap-commons
 
 # For unit test
 nose2==0.10.0
