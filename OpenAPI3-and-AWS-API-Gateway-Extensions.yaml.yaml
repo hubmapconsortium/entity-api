@@ -11,7 +11,7 @@ info:
     url: "https://github.com/hubmapconsortium/entity-api/blob/master/license.txt"
   version: "2.0.22"
 servers:
-- url: "https://entity-api.dev.hubmapconsortium.org"
+- url: "https://entity.api.hubmapconsortium.org"
 paths:
   /collections/{id}:
     get:
@@ -4651,5 +4651,4 @@ x-amazon-apigateway-gateway-responses:
   RESOURCE_NOT_FOUND:
     statusCode: 404
     responseTemplates:
-      application/json: "{\"message\":$context.error.messageString,\n\"http_method\"\
-        : \"$context.httpMethod\"}"
+      application/json: "{\"message\":$context.error.messageString}"
