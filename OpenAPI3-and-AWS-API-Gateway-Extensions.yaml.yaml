@@ -1,0 +1,4655 @@
+openapi: "3.0.1"
+info:
+  title: "HuBMAP Entity API"
+  description: "The HuBMAP Entity API is a standard RESTful web service with create,\
+    \ update and read operations for the standard HuBMAP provenance graph entities."
+  contact:
+    name: "HuBMAP Help Desk"
+    email: "help@hubmapconsortium.org"
+  license:
+    name: "MIT License"
+    url: "https://github.com/hubmapconsortium/entity-api/blob/master/license.txt"
+  version: "2.0.22"
+servers:
+- url: "https://entity-api.dev.hubmapconsortium.org"
+paths:
+  /collections/{id}:
+    get:
+      summary: "Returns the information of the Collection specified by the uuid with\
+        \ all connected datasets. If a valid token is provided with group membership\
+        \ in the HuBMAP-Read group any collection matching the id will be returned.\
+        \  Otherwise if no token is provided or a valid token with no HuBMAP-Read\
+        \ group membership then only a public collection will be returned.  Public\
+        \ collections are defined as being published via a DOI (collection.doi_registered\
+        \ == true) and at least one of the connected datasets is public (dataset.metadata.data_access_level\
+        \ == 'public'). For public collections only connected datasets that are public\
+        \ are returned with it."
+      parameters:
+      - name: "id"
+        in: "path"
+        description: "The unique identifier of entity.  This identifier can be either\
+          \ an HuBMAP ID (e.g. HBM123.ABCD.456) or UUID"
+        required: true
+        schema:
+          type: "string"
+      responses:
+        "404":
+          description: "The target entity could not be found"
+          content: {}
+        "200":
+          description: "The collection is returned"
+          headers:
+            Access-Control-Allow-Origin:
+              schema:
+                type: "string"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ArrayOfCollection"
+        "400":
+          description: "Invalid or misformatted entity identifier"
+          content: {}
+        "401":
+          description: "The user's token has expired or the user did not supply a\
+            \ valid token"
+          content: {}
+        "500":
+          description: "Internal error"
+          content: {}
+      security:
+      - HuBMAP-API-Gateway-Read-Group-Authorizer: []
+      x-amazon-apigateway-integration:
+        type: "http_proxy"
+        connectionId: "${stageVariables.VPCLINK}"
+        httpMethod: "GET"
+        uri: "http://${stageVariables.VPCNLB}/collections/{id}"
+        responses:
+          default:
+            statusCode: "200"
+            responseParameters:
+              method.response.header.Access-Control-Allow-Origin: "'*'"
+        requestParameters:
+          integration.request.path.id: "method.request.path.id"
+        passthroughBehavior: "when_no_match"
+        connectionType: "VPC_LINK"
+    options:
+      parameters:
+      - name: "id"
+        in: "path"
+        required: true
+        schema:
+          type: "string"
+      x-amazon-apigateway-integration:
+        type: "http_proxy"
+        connectionId: "${stageVariables.VPCLINK}"
+        httpMethod: "OPTIONS"
+        uri: "http://${stageVariables.VPCNLB}/collections/{id}"
+        responses:
+          default:
+            statusCode: "200"
+        requestParameters:
+          integration.request.path.id: "method.request.path.id"
+        passthroughBehavior: "when_no_match"
+        connectionType: "VPC_LINK"
+  /doi/redirect/{id}:
+    get:
+      summary: "Redirect a request from a doi service"
+      parameters:
+      - name: "id"
+        in: "path"
+        description: "The HuBMAP ID (e.g. HBM123.ABCD.456) or UUID of the target collection"
+        required: true
+        schema:
+          type: "string"
+      responses:
+        "400":
+          description: "Invalid or misformatted collection identifier"
+          content: {}
+        "500":
+          description: "Internal error"
+          content: {}
+        "307":
+          description: "Redirect to the entities landing page"
+          content: {}
+      x-amazon-apigateway-integration:
+        type: "http_proxy"
+        connectionId: "${stageVariables.VPCLINK}"
+        httpMethod: "GET"
+        uri: "http://${stageVariables.VPCNLB}/doi/redirect/{id}"
+        responses:
+          default:
+            statusCode: "200"
+        requestParameters:
+          integration.request.path.id: "method.request.path.id"
+        passthroughBehavior: "when_no_match"
+        connectionType: "VPC_LINK"
+    options:
+      parameters:
+      - name: "id"
+        in: "path"
+        required: true
+        schema:
+          type: "string"
+      x-amazon-apigateway-integration:
+        type: "http_proxy"
+        connectionId: "${stageVariables.VPCLINK}"
+        httpMethod: "OPTIONS"
+        uri: "http://${stageVariables.VPCNLB}/doi/redirect/{id}"
+        responses:
+          default:
+            statusCode: "200"
+        requestParameters:
+          integration.request.path.id: "method.request.path.id"
+        passthroughBehavior: "when_no_match"
+        connectionType: "VPC_LINK"
+  /entities/{param}/revisions:
+    get:
+      parameters:
+      - name: "param"
+        in: "path"
+        required: true
+        schema:
+          type: "string"
+      x-amazon-apigateway-integration:
+        type: "http_proxy"
+        connectionId: "${stageVariables.VPCLINK}"
+        httpMethod: "GET"
+        uri: "http://${stageVariables.VPCNLB}/entities/{param}/revisions"
+        responses:
+          default:
+            statusCode: "200"
+        requestParameters:
+          integration.request.path.param: "method.request.path.param"
+        passthroughBehavior: "when_no_match"
+        connectionType: "VPC_LINK"
+    options:
+      parameters:
+      - name: "param"
+        in: "path"
+        required: true
+        schema:
+          type: "string"
+      x-amazon-apigateway-integration:
+        type: "http_proxy"
+        connectionId: "${stageVariables.VPCLINK}"
+        httpMethod: "OPTIONS"
+        uri: "http://${stageVariables.VPCNLB}/entities/{param}/revisions"
+        responses:
+          default:
+            statusCode: "200"
+        requestParameters:
+          integration.request.path.param: "method.request.path.param"
+        passthroughBehavior: "when_no_match"
+        connectionType: "VPC_LINK"
+  /datasets/{id}/revisions:
+    get:
+      summary: "From a given ID of a versioned dataset, retrieve a list of every dataset\
+        \ in the chain ordered from most recent to oldest. The revision number, as\
+        \ well as the dataset uuid will be included. An optional parameter ?include_dataset=true\
+        \ will include the full dataset for each revision as well. Public/Consortium\
+        \ access rules apply, if is for a non-public dataset and no token or a token\
+        \ without membership in HuBMAP-Read group is sent with the request then a\
+        \ 403 response should be returned. If the given id is published, but later\
+        \ revisions are not and the user is not in HuBMAP-Read group, only published\
+        \ revisions will be returned. The field next_revision_uuid will not be returned\
+        \ if the next revision is unpublished"
+      parameters:
+      - name: "include_dataset"
+        in: "query"
+        description: "A case insensitive string. Any value besides true will have\
+          \ no effect. If the string is 'true', the full dataset for each revision\
+          \ will be included in the response"
+        schema:
+          type: "string"
+      - name: "id"
+        in: "path"
+        description: "The unique identifier of entity.  This identifier can be either\
+          \ an HuBMAP ID (e.g. HBM123.ABCD.456) or UUID"
+        required: true
+        schema:
+          type: "string"
+      responses:
+        "404":
+          description: "The target dataset could not be found"
+          content: {}
+        "200":
+          description: "The list of revised datasets that the referenced dataset is\
+            \ a member of including the index number of the revision, where 1 is the\
+            \ oldest version of any revision chain"
+          headers:
+            Access-Control-Allow-Origin:
+              schema:
+                type: "string"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MODELe5f447"
+        "400":
+          description: "Invalid or misformatted entity identifier, or the given entity\
+            \ is not a Dataset"
+          content: {}
+        "401":
+          description: "The user's token has expired or the user did not supply a\
+            \ valid token"
+          content: {}
+        "500":
+          description: "Internal error"
+          content: {}
+        "403":
+          description: "The user is not authorized to query the revision number of\
+            \ the given dataset."
+          content: {}
+      x-amazon-apigateway-integration:
+        type: "http_proxy"
+        connectionId: "${stageVariables.VPCLINK}"
+        httpMethod: "GET"
+        uri: "http://${stageVariables.VPCNLB}/datasets/{id}/revisions"
+        responses:
+          default:
+            statusCode: "200"
+            responseParameters:
+              method.response.header.Access-Control-Allow-Origin: "'*'"
+        requestParameters:
+          integration.request.path.id: "method.request.path.id"
+        passthroughBehavior: "when_no_match"
+        connectionType: "VPC_LINK"
+    options:
+      parameters:
+      - name: "id"
+        in: "path"
+        required: true
+        schema:
+          type: "string"
+      x-amazon-apigateway-integration:
+        type: "http_proxy"
+        connectionId: "${stageVariables.VPCLINK}"
+        httpMethod: "OPTIONS"
+        uri: "http://${stageVariables.VPCNLB}/datasets/{id}/revisions"
+        responses:
+          default:
+            statusCode: "200"
+        requestParameters:
+          integration.request.path.id: "method.request.path.id"
+        passthroughBehavior: "when_no_match"
+        connectionType: "VPC_LINK"
+  /ancestors/{id}:
+    get:
+      summary: "Get the ancestor list for an Entity.  The ancestors are the nodes\
+        \ connected \"upstream\" from the current node.  This list traverses all the\
+        \ levels in the graph."
+      parameters:
+      - name: "id"
+        in: "path"
+        description: "The unique identifier of entity.  This identifier can be either\
+          \ an HuBMAP ID (e.g. HBM123.ABCD.456) or UUID"
+        required: true
+        schema:
+          type: "string"
+      responses:
+        "404":
+          description: "The target entity could not be found"
+          content: {}
+        "200":
+          description: "An array of ancestors is returned"
+          headers:
+            Access-Control-Allow-Origin:
+              schema:
+                type: "string"
+          content: {}
+        "400":
+          description: "Invalid or misformatted entity identifier"
+          content: {}
+        "401":
+          description: "The user's token has expired or the user did not supply a\
+            \ valid token"
+          content: {}
+        "500":
+          description: "Internal error"
+          content: {}
+        "403":
+          description: "The user is not authorized to access the entity"
+          content: {}
+      x-amazon-apigateway-integration:
+        type: "http_proxy"
+        connectionId: "${stageVariables.VPCLINK}"
+        httpMethod: "GET"
+        uri: "http://${stageVariables.VPCNLB}/ancestors/{id}"
+        responses:
+          default:
+            statusCode: "200"
+            responseParameters:
+              method.response.header.Access-Control-Allow-Origin: "'*'"
+        requestParameters:
+          integration.request.path.id: "method.request.path.id"
+        passthroughBehavior: "when_no_match"
+        connectionType: "VPC_LINK"
+    options:
+      parameters:
+      - name: "id"
+        in: "path"
+        required: true
+        schema:
+          type: "string"
+      x-amazon-apigateway-integration:
+        type: "http_proxy"
+        connectionId: "${stageVariables.VPCLINK}"
+        httpMethod: "OPTIONS"
+        uri: "http://${stageVariables.VPCNLB}/ancestors/{id}"
+        responses:
+          default:
+            statusCode: "200"
+        requestParameters:
+          integration.request.path.id: "method.request.path.id"
+        passthroughBehavior: "when_no_match"
+        connectionType: "VPC_LINK"
+  /entities/{param}:
+    get:
+      parameters:
+      - name: "param"
+        in: "path"
+        required: true
+        schema:
+          type: "string"
+      x-amazon-apigateway-integration:
+        type: "http_proxy"
+        connectionId: "${stageVariables.VPCLINK}"
+        httpMethod: "GET"
+        uri: "http://${stageVariables.VPCNLB}/entities/{param}"
+        responses:
+          default:
+            statusCode: "200"
+        requestParameters:
+          integration.request.path.param: "method.request.path.param"
+        passthroughBehavior: "when_no_match"
+        connectionType: "VPC_LINK"
+    put:
+      parameters:
+      - name: "param"
+        in: "path"
+        required: true
+        schema:
+          type: "string"
+      security:
+      - HuBMAP-API-Gateway-Read-Group-Authorizer: []
+      x-amazon-apigateway-integration:
+        type: "http_proxy"
+        connectionId: "${stageVariables.VPCLINK}"
+        httpMethod: "PUT"
+        uri: "http://${stageVariables.VPCNLB}/entities/{param}"
+        responses:
+          default:
+            statusCode: "200"
+        requestParameters:
+          integration.request.path.param: "method.request.path.param"
+        passthroughBehavior: "when_no_match"
+        connectionType: "VPC_LINK"
+    post:
+      parameters:
+      - name: "param"
+        in: "path"
+        required: true
+        schema:
+          type: "string"
+      security:
+      - HuBMAP-API-Gateway-Create-Group-Authorizer: []
+      x-amazon-apigateway-integration:
+        type: "http_proxy"
+        connectionId: "${stageVariables.VPCLINK}"
+        httpMethod: "POST"
+        uri: "http://${stageVariables.VPCNLB}/entities/{param}"
+        responses:
+          default:
+            statusCode: "200"
+        requestParameters:
+          integration.request.path.param: "method.request.path.param"
+        passthroughBehavior: "when_no_match"
+        connectionType: "VPC_LINK"
+    options:
+      parameters:
+      - name: "param"
+        in: "path"
+        required: true
+        schema:
+          type: "string"
+      x-amazon-apigateway-integration:
+        type: "http_proxy"
+        connectionId: "${stageVariables.VPCLINK}"
+        httpMethod: "OPTIONS"
+        uri: "http://${stageVariables.VPCNLB}/entities/{param}"
+        responses:
+          default:
+            statusCode: "200"
+        requestParameters:
+          integration.request.path.param: "method.request.path.param"
+        passthroughBehavior: "when_no_match"
+        connectionType: "VPC_LINK"
+  /entities/dataset/globus-url/{id}:
+    get:
+      parameters:
+      - name: "id"
+        in: "path"
+        required: true
+        schema:
+          type: "string"
+      x-amazon-apigateway-integration:
+        type: "http_proxy"
+        connectionId: "${stageVariables.VPCLINK}"
+        httpMethod: "GET"
+        uri: "http://${stageVariables.VPCNLB}/entities/{id}/globus-url"
+        responses:
+          default:
+            statusCode: "200"
+        requestParameters:
+          integration.request.path.id: "method.request.path.id"
+        passthroughBehavior: "when_no_match"
+        connectionType: "VPC_LINK"
+    options:
+      parameters:
+      - name: "id"
+        in: "path"
+        required: true
+        schema:
+          type: "string"
+      x-amazon-apigateway-integration:
+        type: "http_proxy"
+        connectionId: "${stageVariables.VPCLINK}"
+        httpMethod: "OPTIONS"
+        uri: "http://${stageVariables.VPCNLB}/entities/dataset/globus-url/{id}"
+        responses:
+          default:
+            statusCode: "200"
+        requestParameters:
+          integration.request.path.id: "method.request.path.id"
+        passthroughBehavior: "when_no_match"
+        connectionType: "VPC_LINK"
+  /descendants/{id}:
+    get:
+      summary: "Get the descendant list for an Entity.  The descendants are the nodes\
+        \ \"downstream\" from the current node.  This list traverses all the levels\
+        \ in the graph. Returns all descendants as an array of Entities."
+      parameters:
+      - name: "id"
+        in: "path"
+        description: "The unique identifier of entity.  This identifier can be either\
+          \ an HuBMAP ID (e.g. HBM123.ABCD.456) or UUID"
+        required: true
+        schema:
+          type: "string"
+      responses:
+        "404":
+          description: "The target entity could not be found"
+          content: {}
+        "200":
+          description: "An array of descendants is returned"
+          headers:
+            Access-Control-Allow-Origin:
+              schema:
+                type: "string"
+          content: {}
+        "400":
+          description: "Invalid or misformatted entity identifier"
+          content: {}
+        "401":
+          description: "The user's token has expired or the user did not supply a\
+            \ valid token"
+          content: {}
+        "500":
+          description: "Internal error"
+          content: {}
+        "403":
+          description: "The user is not authorized to access the entity."
+          content: {}
+      security:
+      - HuBMAP-API-Gateway-Read-Group-Authorizer: []
+      x-amazon-apigateway-integration:
+        type: "http_proxy"
+        connectionId: "${stageVariables.VPCLINK}"
+        httpMethod: "GET"
+        uri: "http://${stageVariables.VPCNLB}/descendants/{id}"
+        responses:
+          default:
+            statusCode: "200"
+            responseParameters:
+              method.response.header.Access-Control-Allow-Origin: "'*'"
+        requestParameters:
+          integration.request.path.id: "method.request.path.id"
+        passthroughBehavior: "when_no_match"
+        connectionType: "VPC_LINK"
+    options:
+      parameters:
+      - name: "id"
+        in: "path"
+        required: true
+        schema:
+          type: "string"
+      x-amazon-apigateway-integration:
+        type: "http_proxy"
+        connectionId: "${stageVariables.VPCLINK}"
+        httpMethod: "OPTIONS"
+        uri: "http://${stageVariables.VPCNLB}/descendants/{id}"
+        responses:
+          default:
+            statusCode: "200"
+        requestParameters:
+          integration.request.path.id: "method.request.path.id"
+        passthroughBehavior: "when_no_match"
+        connectionType: "VPC_LINK"
+  /collections/{id}/add-datasets:
+    put:
+      summary: "Link the given list of datasets to the target collection"
+      parameters:
+      - name: "id"
+        in: "path"
+        description: "The UUID of target collection"
+        required: true
+        schema:
+          type: "string"
+      responses:
+        "404":
+          description: "The target entity could not be found"
+          content: {}
+        "200":
+          description: "successful operation"
+          headers:
+            Access-Control-Allow-Origin:
+              schema:
+                type: "string"
+          content: {}
+        "400":
+          description: "Invalid or misformatted collection uuid"
+          content: {}
+        "401":
+          description: "The user's token has expired or the user did not supply a\
+            \ valid token"
+          content: {}
+        "500":
+          description: "Internal error"
+          content: {}
+        "403":
+          description: "The user is not authorized to add datasets to the collection"
+          content: {}
+      security:
+      - HuBMAP-API-Gateway-Data-Admin-Group-Authorizer: []
+      x-amazon-apigateway-integration:
+        type: "http_proxy"
+        connectionId: "${stageVariables.VPCLINK}"
+        httpMethod: "PUT"
+        uri: "http://${stageVariables.VPCNLB}/collections/{id}/add-datasets"
+        responses:
+          default:
+            statusCode: "200"
+            responseParameters:
+              method.response.header.Access-Control-Allow-Origin: "'*'"
+        requestParameters:
+          integration.request.path.id: "method.request.path.id"
+        passthroughBehavior: "when_no_match"
+        connectionType: "VPC_LINK"
+    options:
+      parameters:
+      - name: "id"
+        in: "path"
+        required: true
+        schema:
+          type: "string"
+      x-amazon-apigateway-integration:
+        type: "http_proxy"
+        connectionId: "${stageVariables.VPCLINK}"
+        httpMethod: "OPTIONS"
+        uri: "http://${stageVariables.url}/collections/{id}/add-datasets"
+        responses:
+          default:
+            statusCode: "200"
+        requestParameters:
+          integration.request.path.id: "method.request.path.id"
+        passthroughBehavior: "when_no_match"
+        connectionType: "VPC_LINK"
+  /previous_revisions/{id}:
+    get:
+      parameters:
+      - name: "id"
+        in: "path"
+        required: true
+        schema:
+          type: "string"
+      security:
+      - HuBMAP-API-Gateway-Read-Group-Authorizer: []
+      x-amazon-apigateway-integration:
+        type: "http_proxy"
+        connectionId: "${stageVariables.VPCLINK}"
+        httpMethod: "GET"
+        uri: "http://${stageVariables.VPCNLB}/previous_revisions/{id}"
+        responses:
+          default:
+            statusCode: "200"
+        requestParameters:
+          integration.request.path.id: "method.request.path.id"
+        passthroughBehavior: "when_no_match"
+        connectionType: "VPC_LINK"
+    options:
+      parameters:
+      - name: "id"
+        in: "path"
+        required: true
+        schema:
+          type: "string"
+      x-amazon-apigateway-integration:
+        type: "http_proxy"
+        connectionId: "${stageVariables.VPCLINK}"
+        httpMethod: "OPTIONS"
+        uri: "http://${stageVariables.VPCNLB}/previous_revisions/{id}"
+        responses:
+          default:
+            statusCode: "200"
+        requestParameters:
+          integration.request.path.id: "method.request.path.id"
+        passthroughBehavior: "when_no_match"
+        connectionType: "VPC_LINK"
+  /datasets/prov-info:
+    get:
+      x-amazon-apigateway-integration:
+        type: "http_proxy"
+        connectionId: "${stageVariables.VPCLINK}"
+        httpMethod: "GET"
+        uri: "http://${stageVariables.VPCNLB}/datasets/prov-info"
+        responses:
+          default:
+            statusCode: "200"
+        passthroughBehavior: "when_no_match"
+        connectionType: "VPC_LINK"
+    options:
+      x-amazon-apigateway-integration:
+        type: "http"
+        connectionId: "${stageVariables.VPCLINK}"
+        httpMethod: "OPTIONS"
+        uri: "http://${stageVariables.VPCNLB}/datasets/prov-info"
+        responses:
+          default:
+            statusCode: "200"
+        passthroughBehavior: "when_no_match"
+        connectionType: "VPC_LINK"
+  /collection/redirect/{id}:
+    get:
+      parameters:
+      - name: "id"
+        in: "path"
+        required: true
+        schema:
+          type: "string"
+      x-amazon-apigateway-integration:
+        type: "http_proxy"
+        connectionId: "${stageVariables.VPCLINK}"
+        httpMethod: "GET"
+        uri: "http://${stageVariables.VPCNLB}/doi/redirect/{id}"
+        responses:
+          default:
+            statusCode: "200"
+        requestParameters:
+          integration.request.path.id: "method.request.path.id"
+        passthroughBehavior: "when_no_match"
+        connectionType: "VPC_LINK"
+    options:
+      parameters:
+      - name: "id"
+        in: "path"
+        required: true
+        schema:
+          type: "string"
+      x-amazon-apigateway-integration:
+        type: "http_proxy"
+        connectionId: "${stageVariables.VPCLINK}"
+        httpMethod: "OPTIONS"
+        uri: "http://${stageVariables.VPCNLB}/collection/redirect/{id}"
+        responses:
+          default:
+            statusCode: "200"
+        requestParameters:
+          integration.request.path.id: "method.request.path.id"
+        passthroughBehavior: "when_no_match"
+        connectionType: "VPC_LINK"
+  /collections:
+    get:
+      x-amazon-apigateway-integration:
+        type: "http_proxy"
+        connectionId: "${stageVariables.VPCLINK}"
+        httpMethod: "GET"
+        uri: "http://${stageVariables.VPCNLB}/collections"
+        responses:
+          default:
+            statusCode: "200"
+        passthroughBehavior: "when_no_match"
+        connectionType: "VPC_LINK"
+  /children/{id}:
+    get:
+      summary: "Get the list of children directly connected to an Entity.  The children\
+        \ are the nodes one level below the current node.  This list only returns\
+        \ the items one level below in the graph."
+      parameters:
+      - name: "id"
+        in: "path"
+        description: "The unique identifier of entity.  This identifier can be either\
+          \ an HuBMAP ID (e.g. HBM123.ABCD.456) or UUID"
+        required: true
+        schema:
+          type: "string"
+      security:
+      - HuBMAP-API-Gateway-Read-Group-Authorizer: []
+      x-amazon-apigateway-integration:
+        type: "http_proxy"
+        connectionId: "${stageVariables.VPCLINK}"
+        httpMethod: "GET"
+        uri: "http://${stageVariables.VPCNLB}/children/{id}"
+        responses:
+          default:
+            statusCode: "200"
+        requestParameters:
+          integration.request.path.id: "method.request.path.id"
+        passthroughBehavior: "when_no_match"
+        connectionType: "VPC_LINK"
+    options:
+      parameters:
+      - name: "id"
+        in: "path"
+        required: true
+        schema:
+          type: "string"
+      x-amazon-apigateway-integration:
+        type: "http_proxy"
+        connectionId: "${stageVariables.VPCLINK}"
+        httpMethod: "OPTIONS"
+        uri: "http://${stageVariables.VPCNLB}/children/{id}"
+        responses:
+          default:
+            statusCode: "200"
+        requestParameters:
+          integration.request.path.id: "method.request.path.id"
+        passthroughBehavior: "when_no_match"
+        connectionType: "VPC_LINK"
+  /parents/{id}:
+    get:
+      summary: "Get the immediate parent list for an Entity.  The parents are the\
+        \ nodes connected one level \"upstream\" from the current node.  This list\
+        \ only goes to the next higher level in the graph."
+      parameters:
+      - name: "id"
+        in: "path"
+        description: "The unique identifier of entity.  This identifier can be either\
+          \ an HuBMAP ID (e.g. HBM123.ABCD.456) or UUID"
+        required: true
+        schema:
+          type: "string"
+      responses:
+        "404":
+          description: "The target entity could not be found"
+          content: {}
+        "200":
+          description: "An array of parent entities is returned"
+          headers:
+            Access-Control-Allow-Origin:
+              schema:
+                type: "string"
+          content: {}
+        "400":
+          description: "Invalid or misformatted entity identifier"
+          content: {}
+        "401":
+          description: "The user's token has expired or the user did not supply a\
+            \ valid token"
+          content: {}
+        "500":
+          description: "Internal error"
+          content: {}
+        "403":
+          description: "The user is not authorized to access the entity."
+          content: {}
+      x-amazon-apigateway-integration:
+        type: "http_proxy"
+        connectionId: "${stageVariables.VPCLINK}"
+        httpMethod: "GET"
+        uri: "http://${stageVariables.VPCNLB}/parents/{id}"
+        responses:
+          default:
+            statusCode: "200"
+            responseParameters:
+              method.response.header.Access-Control-Allow-Origin: "'*'"
+        requestParameters:
+          integration.request.path.id: "method.request.path.id"
+        passthroughBehavior: "when_no_match"
+        connectionType: "VPC_LINK"
+    options:
+      parameters:
+      - name: "id"
+        in: "path"
+        required: true
+        schema:
+          type: "string"
+      x-amazon-apigateway-integration:
+        type: "http_proxy"
+        connectionId: "${stageVariables.VPCLINK}"
+        httpMethod: "OPTIONS"
+        uri: "http://${stageVariables.VPCNLB}/parents/{id}"
+        responses:
+          default:
+            statusCode: "200"
+        requestParameters:
+          integration.request.path.id: "method.request.path.id"
+        passthroughBehavior: "when_no_match"
+        connectionType: "VPC_LINK"
+  /entities/multiple-samples/{count}:
+    post:
+      summary: "Create multiple samples from the same source entity. 'count' samples\
+        \ will be generated each with individual uuids, hubmap_ids and submission_ids."
+      parameters:
+      - name: "count"
+        in: "path"
+        description: "The number of samples to be created"
+        required: true
+        schema:
+          type: "string"
+      responses:
+        "200":
+          description: "The samples were successfully created.  An array of objects\
+            \ each containing a uuid, hubmap_id and submission_id associated with\
+            \ each newly created sample."
+          headers:
+            Access-Control-Allow-Origin:
+              schema:
+                type: "string"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ArrayOfMODEL72cebd"
+        "400":
+          description: "Invalid json input"
+          content: {}
+        "401":
+          description: "The user's token has expired or the user did not supply a\
+            \ valid token"
+          content: {}
+        "500":
+          description: "Internal error"
+          content: {}
+      security:
+      - HuBMAP-API-Gateway-Create-Group-Authorizer: []
+      x-amazon-apigateway-integration:
+        type: "http_proxy"
+        connectionId: "${stageVariables.VPCLINK}"
+        httpMethod: "POST"
+        uri: "http://${stageVariables.VPCNLB}/entities/multiple-samples/{count}"
+        responses:
+          default:
+            statusCode: "200"
+            responseParameters:
+              method.response.header.Access-Control-Allow-Origin: "'*'"
+        requestParameters:
+          integration.request.path.count: "method.request.path.count"
+        passthroughBehavior: "when_no_match"
+        connectionType: "VPC_LINK"
+    options:
+      parameters:
+      - name: "count"
+        in: "path"
+        required: true
+        schema:
+          type: "string"
+      x-amazon-apigateway-integration:
+        type: "http_proxy"
+        connectionId: "${stageVariables.VPCLINK}"
+        httpMethod: "OPTIONS"
+        uri: "http://${stageVariables.VPCNLB}/multiple-samples/{count}"
+        responses:
+          default:
+            statusCode: "200"
+        requestParameters:
+          integration.request.path.count: "method.request.path.count"
+        passthroughBehavior: "when_no_match"
+        connectionType: "VPC_LINK"
+  /{proxy+}:
+    x-amazon-apigateway-any-method:
+      parameters:
+      - name: "proxy"
+        in: "path"
+        required: true
+        schema:
+          type: "string"
+      x-amazon-apigateway-integration:
+        type: "aws_proxy"
+        httpMethod: "POST"
+        uri: "arn:aws:apigateway:us-east-1:lambda:path/2015-03-31/functions/arn:aws:lambda:us-east-1:450834107946:function:HuBMAP-API-Gateway-404/invocations"
+        responses:
+          default:
+            statusCode: "200"
+        passthroughBehavior: "when_no_match"
+        cacheNamespace: "210fkp"
+        cacheKeyParameters:
+        - "method.request.path.proxy"
+        contentHandling: "CONVERT_TO_TEXT"
+  /entities/{param}/provenance:
+    get:
+      parameters:
+      - name: "param"
+        in: "path"
+        required: true
+        schema:
+          type: "string"
+      x-amazon-apigateway-integration:
+        type: "http_proxy"
+        connectionId: "${stageVariables.VPCLINK}"
+        httpMethod: "GET"
+        uri: "http://${stageVariables.VPCNLB}/entities/{param}/provenance"
+        responses:
+          default:
+            statusCode: "200"
+        requestParameters:
+          integration.request.path.param: "method.request.path.param"
+        passthroughBehavior: "when_no_match"
+        connectionType: "VPC_LINK"
+    options:
+      parameters:
+      - name: "param"
+        in: "path"
+        required: true
+        schema:
+          type: "string"
+      x-amazon-apigateway-integration:
+        type: "http_proxy"
+        connectionId: "${stageVariables.VPCLINK}"
+        httpMethod: "OPTIONS"
+        uri: "http://${stageVariables.VPCNLB}/entities/{param}/provenance"
+        responses:
+          default:
+            statusCode: "200"
+        requestParameters:
+          integration.request.path.param: "method.request.path.param"
+        passthroughBehavior: "when_no_match"
+        connectionType: "VPC_LINK"
+  /next_revisions/{id}:
+    get:
+      parameters:
+      - name: "id"
+        in: "path"
+        required: true
+        schema:
+          type: "string"
+      security:
+      - HuBMAP-API-Gateway-Read-Group-Authorizer: []
+      x-amazon-apigateway-integration:
+        type: "http_proxy"
+        connectionId: "${stageVariables.VPCLINK}"
+        httpMethod: "GET"
+        uri: "http://${stageVariables.VPCNLB}/next_revisions/{id}"
+        responses:
+          default:
+            statusCode: "200"
+        requestParameters:
+          integration.request.path.id: "method.request.path.id"
+        passthroughBehavior: "when_no_match"
+        connectionType: "VPC_LINK"
+    options:
+      parameters:
+      - name: "id"
+        in: "path"
+        required: true
+        schema:
+          type: "string"
+      x-amazon-apigateway-integration:
+        type: "http_proxy"
+        connectionId: "${stageVariables.VPCLINK}"
+        httpMethod: "OPTIONS"
+        uri: "http://${stageVariables.VPCNLB}/next_revisions/{id}"
+        responses:
+          default:
+            statusCode: "200"
+        requestParameters:
+          integration.request.path.id: "method.request.path.id"
+        passthroughBehavior: "when_no_match"
+        connectionType: "VPC_LINK"
+  /datasets/{id}/prov-info:
+    get:
+      parameters:
+      - name: "id"
+        in: "path"
+        required: true
+        schema:
+          type: "string"
+      x-amazon-apigateway-integration:
+        type: "http_proxy"
+        connectionId: "${stageVariables.VPCLINK}"
+        httpMethod: "GET"
+        uri: "http://${stageVariables.VPCNLB}/datasets/{id}/prov-info"
+        responses:
+          default:
+            statusCode: "200"
+        requestParameters:
+          integration.request.path.id: "method.request.path.id"
+        passthroughBehavior: "when_no_match"
+        connectionType: "VPC_LINK"
+    options:
+      parameters:
+      - name: "id"
+        in: "path"
+        required: true
+        schema:
+          type: "string"
+      x-amazon-apigateway-integration:
+        type: "http_proxy"
+        connectionId: "${stageVariables.VPCLINK}"
+        httpMethod: "OPTIONS"
+        uri: "http://${stageVariables.VPCNLB}/datasets/{id}/prov-info"
+        responses:
+          default:
+            statusCode: "200"
+        requestParameters:
+          integration.request.path.id: "method.request.path.id"
+        passthroughBehavior: "when_no_match"
+        connectionType: "VPC_LINK"
+  /:
+    get:
+      x-amazon-apigateway-integration:
+        type: "http_proxy"
+        connectionId: "${stageVariables.VPCLINK}"
+        httpMethod: "GET"
+        uri: "http://${stageVariables.VPCNLB}/"
+        responses:
+          default:
+            statusCode: "200"
+        passthroughBehavior: "when_no_match"
+        connectionType: "VPC_LINK"
+    options:
+      x-amazon-apigateway-integration:
+        type: "http_proxy"
+        connectionId: "${stageVariables.VPCLINK}"
+        httpMethod: "OPTIONS"
+        uri: "http://${stageVariables.VPCNLB}/"
+        responses:
+          default:
+            statusCode: "200"
+        passthroughBehavior: "when_no_match"
+        connectionType: "VPC_LINK"
+    x-amazon-apigateway-any-method:
+      x-amazon-apigateway-integration:
+        type: "aws_proxy"
+        httpMethod: "POST"
+        uri: "arn:aws:apigateway:us-east-1:lambda:path/2015-03-31/functions/arn:aws:lambda:us-east-1:450834107946:function:HuBMAP-API-Gateway-404/invocations"
+        responses:
+          default:
+            statusCode: "200"
+        passthroughBehavior: "when_no_match"
+        contentHandling: "CONVERT_TO_TEXT"
+  /status:
+    get:
+      x-amazon-apigateway-integration:
+        type: "http_proxy"
+        connectionId: "${stageVariables.VPCLINK}"
+        httpMethod: "GET"
+        uri: "http://${stageVariables.VPCNLB}/status"
+        responses:
+          default:
+            statusCode: "200"
+        passthroughBehavior: "when_no_match"
+        connectionType: "VPC_LINK"
+    options:
+      x-amazon-apigateway-integration:
+        type: "http_proxy"
+        connectionId: "${stageVariables.VPCLINK}"
+        httpMethod: "OPTIONS"
+        uri: "http://${stageVariables.VPCNLB}/status"
+        responses:
+          default:
+            statusCode: "200"
+        passthroughBehavior: "when_no_match"
+        connectionType: "VPC_LINK"
+  /datasets/{id}/latest-revision:
+    get:
+      summary: "Retrive the latest (newest) revision of a given Dataset. Public/Consortium\
+        \ access rules apply - if no token/consortium access then must be for a public\
+        \ dataset and the returned Dataset must be the latest public version. If the\
+        \ given dataset itself is the latest revision, meaning it has no next revisions,\
+        \ this dataset gets returned."
+      parameters:
+      - name: "id"
+        in: "path"
+        description: "The unique identifier of entity.  This identifier can be either\
+          \ an HuBMAP ID (e.g. HBM123.ABCD.456) or UUID"
+        required: true
+        schema:
+          type: "string"
+      responses:
+        "404":
+          description: "The target dataset could not be found"
+          content: {}
+        "200":
+          description: "successful operation"
+          headers:
+            Access-Control-Allow-Origin:
+              schema:
+                type: "string"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Dataset"
+        "400":
+          description: "Invalid or misformatted entity identifier, or the given entity\
+            \ is not a Dataset"
+          content: {}
+        "401":
+          description: "The user's token has expired or the user did not supply a\
+            \ valid token"
+          content: {}
+        "500":
+          description: "Internal error"
+          content: {}
+        "403":
+          description: "The user is not authorized to query the latest revision of\
+            \ the given dataset."
+          content: {}
+      x-amazon-apigateway-integration:
+        type: "http_proxy"
+        connectionId: "${stageVariables.VPCLINK}"
+        httpMethod: "GET"
+        uri: "http://${stageVariables.VPCNLB}/datasets/{id}/latest-revision"
+        responses:
+          default:
+            statusCode: "200"
+            responseParameters:
+              method.response.header.Access-Control-Allow-Origin: "'*'"
+        requestParameters:
+          integration.request.path.id: "method.request.path.id"
+        passthroughBehavior: "when_no_match"
+        connectionType: "VPC_LINK"
+    options:
+      parameters:
+      - name: "id"
+        in: "path"
+        required: true
+        schema:
+          type: "string"
+      x-amazon-apigateway-integration:
+        type: "http_proxy"
+        connectionId: "${stageVariables.VPCLINK}"
+        httpMethod: "OPTIONS"
+        uri: "http://${stageVariables.VPCNLB}/datasets/{id}/latest-revision"
+        responses:
+          default:
+            statusCode: "200"
+        requestParameters:
+          integration.request.path.id: "method.request.path.id"
+        passthroughBehavior: "when_no_match"
+        connectionType: "VPC_LINK"
+  /dataset/globus-url/{id}:
+    get:
+      parameters:
+      - name: "id"
+        in: "path"
+        required: true
+        schema:
+          type: "string"
+      x-amazon-apigateway-integration:
+        type: "http_proxy"
+        connectionId: "${stageVariables.VPCLINK}"
+        httpMethod: "GET"
+        uri: "http://${stageVariables.VPCNLB}/entities/{id}/globus-url"
+        responses:
+          default:
+            statusCode: "200"
+        requestParameters:
+          integration.request.path.id: "method.request.path.id"
+        passthroughBehavior: "when_no_match"
+        connectionType: "VPC_LINK"
+    options:
+      parameters:
+      - name: "id"
+        in: "path"
+        required: true
+        schema:
+          type: "string"
+      x-amazon-apigateway-integration:
+        type: "http_proxy"
+        connectionId: "${stageVariables.VPCLINK}"
+        httpMethod: "OPTIONS"
+        uri: "http://${stageVariables.VPCNLB}/dataset/globus-url/{id}"
+        responses:
+          default:
+            statusCode: "200"
+        requestParameters:
+          integration.request.path.id: "method.request.path.id"
+        passthroughBehavior: "when_no_match"
+        connectionType: "VPC_LINK"
+  /datasets/{id}/revision:
+    get:
+      summary: "Retrive the calculated revision number of a Dataset. The calculated\
+        \ revision is number is based on the [:REVISION_OF] relationships to the oldest\
+        \ dataset in a revision chain. Where the oldest dataset = 1 and each newer\
+        \ version is incremented by one (1, 2, 3 ...). Public/Consortium access rules\
+        \ apply, if is for a non-public dataset and no token or a token without membership\
+        \ in HuBMAP-Read group is sent with the request then a 403 response should\
+        \ be returned."
+      parameters:
+      - name: "id"
+        in: "path"
+        description: "The unique identifier of entity.  This identifier can be either\
+          \ an HuBMAP ID (e.g. HBM123.ABCD.456) or UUID"
+        required: true
+        schema:
+          type: "string"
+      responses:
+        "404":
+          description: "The target dataset could not be found"
+          content: {}
+        "200":
+          description: "The revision number (integer) on successful operation"
+          headers:
+            Access-Control-Allow-Origin:
+              schema:
+                type: "string"
+          content: {}
+        "400":
+          description: "Invalid or misformatted entity identifier, or the given entity\
+            \ is not a Dataset"
+          content: {}
+        "401":
+          description: "The user's token has expired or the user did not supply a\
+            \ valid token"
+          content: {}
+        "500":
+          description: "Internal error"
+          content: {}
+        "403":
+          description: "The user is not authorized to query the revision number of\
+            \ the given dataset."
+          content: {}
+      x-amazon-apigateway-integration:
+        type: "http_proxy"
+        connectionId: "${stageVariables.VPCLINK}"
+        httpMethod: "GET"
+        uri: "http://${stageVariables.VPCNLB}/datasets/{id}/revision"
+        responses:
+          default:
+            statusCode: "200"
+            responseParameters:
+              method.response.header.Access-Control-Allow-Origin: "'*'"
+        requestParameters:
+          integration.request.path.id: "method.request.path.id"
+        passthroughBehavior: "when_no_match"
+        connectionType: "VPC_LINK"
+    options:
+      parameters:
+      - name: "id"
+        in: "path"
+        required: true
+        schema:
+          type: "string"
+      x-amazon-apigateway-integration:
+        type: "http_proxy"
+        connectionId: "${stageVariables.VPCLINK}"
+        httpMethod: "OPTIONS"
+        uri: "http://${stageVariables.VPCNLB}/datasets/{id}/revision"
+        responses:
+          default:
+            statusCode: "200"
+        requestParameters:
+          integration.request.path.id: "method.request.path.id"
+        passthroughBehavior: "when_no_match"
+        connectionType: "VPC_LINK"
+  /entities/{param}/ancestor-organs:
+    get:
+      parameters:
+      - name: "param"
+        in: "path"
+        required: true
+        schema:
+          type: "string"
+      x-amazon-apigateway-integration:
+        type: "http_proxy"
+        connectionId: "${stageVariables.VPCLINK}"
+        httpMethod: "GET"
+        uri: "http://${stageVariables.VPCNLB}/entities/{param}/ancestor-organs"
+        responses:
+          default:
+            statusCode: "200"
+        requestParameters:
+          integration.request.path.param: "method.request.path.param"
+        passthroughBehavior: "when_no_match"
+        connectionType: "VPC_LINK"
+    options:
+      parameters:
+      - name: "param"
+        in: "path"
+        required: true
+        schema:
+          type: "string"
+      x-amazon-apigateway-integration:
+        type: "http_proxy"
+        connectionId: "${stageVariables.VPCLINK}"
+        httpMethod: "OPTIONS"
+        uri: "http://${stageVariables.VPCNLB}/entities/{param}/ancestor-organs"
+        responses:
+          default:
+            statusCode: "200"
+        requestParameters:
+          integration.request.path.param: "method.request.path.param"
+        passthroughBehavior: "when_no_match"
+        connectionType: "VPC_LINK"
+  /datasets/{id}/retract:
+    put:
+      summary: "Retracts a dataset after it has been published. Requires a json body\
+        \ with a single field {retraction_reason: string}. The dataset for the given\
+        \ id is modified to include this new retraction_reason field and sets the\
+        \ dataset property sub_status to Retracted. The complete modified dataset\
+        \ is returned. Requires that the dataset being retracted has already been\
+        \ published (dataset.status == Published. Requires a user token with membership\
+        \ in the HuBMAP-Data-Admin group otherwise then a 403 will be returned."
+      parameters:
+      - name: "id"
+        in: "path"
+        description: "The unique identifier of entity. This identifier can be either\
+          \ a HubMAP ID (e.g. HBM123.ABCD.456) or UUID"
+        required: true
+        schema:
+          type: "string"
+      requestBody:
+        description: "A json body with a single, required retraction_reason parameter\
+          \ contianing the reason why the dataset is being retracted."
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MODEL3ebf60"
+        required: true
+      responses:
+        "404":
+          description: "The target dataset could not be found"
+          content: {}
+        "200":
+          description: "The complete dataset with modified sub_status and retraction_reason"
+          headers:
+            Access-Control-Allow-Origin:
+              schema:
+                type: "string"
+          content: {}
+        "400":
+          description: "Invalid or misformatted entity identifier, the given entity\
+            \ is not a Dataset, is not published or the required retraction_reason\
+            \ was not included in a json body"
+          content: {}
+        "401":
+          description: "The user's token has expired or the user did not supply a\
+            \ valid token"
+          content: {}
+        "500":
+          description: "Internal error"
+          content: {}
+        "403":
+          description: "The user is not authorized to query the retract the given\
+            \ dataset.  The user must be a member of the HuBMAP-Data-Admin group"
+          content: {}
+      security:
+      - HuBMAP-API-Gateway-Data-Admin-Group-Authorizer: []
+      x-amazon-apigateway-integration:
+        type: "http_proxy"
+        connectionId: "${stageVariables.VPCLINK}"
+        httpMethod: "PUT"
+        uri: "http://${stageVariables.VPCNLB}/datasets/{id}/retract"
+        responses:
+          default:
+            statusCode: "200"
+            responseParameters:
+              method.response.header.Access-Control-Allow-Origin: "'*'"
+        requestParameters:
+          integration.request.path.id: "method.request.path.id"
+        passthroughBehavior: "when_no_match"
+        connectionType: "VPC_LINK"
+    options:
+      parameters:
+      - name: "id"
+        in: "path"
+        required: true
+        schema:
+          type: "string"
+      x-amazon-apigateway-integration:
+        type: "http_proxy"
+        connectionId: "${stageVariables.VPCLINK}"
+        httpMethod: "OPTIONS"
+        uri: "http://${stageVariables.VPCNLB}/datasets/{id}/retract"
+        responses:
+          default:
+            statusCode: "200"
+        requestParameters:
+          integration.request.path.id: "method.request.path.id"
+        passthroughBehavior: "when_no_match"
+        connectionType: "VPC_LINK"
+  /datasets/{id}/organs:
+    get:
+      parameters:
+      - name: "id"
+        in: "path"
+        required: true
+        schema:
+          type: "string"
+      x-amazon-apigateway-integration:
+        type: "http_proxy"
+        connectionId: "${stageVariables.VPCLINK}"
+        httpMethod: "GET"
+        uri: "http://${stageVariables.VPCNLB}/datasets/{id}/organs"
+        responses:
+          default:
+            statusCode: "200"
+        requestParameters:
+          integration.request.path.id: "method.request.path.id"
+        passthroughBehavior: "when_no_match"
+        connectionType: "VPC_LINK"
+    options:
+      parameters:
+      - name: "id"
+        in: "path"
+        required: true
+        schema:
+          type: "string"
+      x-amazon-apigateway-integration:
+        type: "http_proxy"
+        connectionId: "${stageVariables.VPCLINK}"
+        httpMethod: "OPTIONS"
+        uri: "http://${stageVariables.VPCNLB}/datasets/{id}/organs"
+        responses:
+          default:
+            statusCode: "200"
+        requestParameters:
+          integration.request.path.id: "method.request.path.id"
+        passthroughBehavior: "when_no_match"
+        connectionType: "VPC_LINK"
+  /entity-types:
+    get:
+      summary: "Get a list of all the available entity types defined in the schema\
+        \ yaml"
+      responses:
+        "200":
+          description: "An array of entity types is returned"
+          headers:
+            Access-Control-Allow-Origin:
+              schema:
+                type: "string"
+          content: {}
+        "401":
+          description: "The user's token has expired or the user did not supply a\
+            \ valid token"
+          content: {}
+        "500":
+          description: "Internal error"
+          content: {}
+        "403":
+          description: "THe user is not authorized to use this method"
+          content: {}
+      x-amazon-apigateway-integration:
+        type: "http_proxy"
+        connectionId: "${stageVariables.VPCLINK}"
+        httpMethod: "GET"
+        uri: "http://${stageVariables.VPCNLB}/entity-types"
+        responses:
+          default:
+            statusCode: "200"
+            responseParameters:
+              method.response.header.Access-Control-Allow-Origin: "'*'"
+        passthroughBehavior: "when_no_match"
+        connectionType: "VPC_LINK"
+    options:
+      x-amazon-apigateway-integration:
+        type: "http_proxy"
+        connectionId: "${stageVariables.VPCLINK}"
+        httpMethod: "OPTIONS"
+        uri: "http://${stageVariables.VPCNLB}/entity-types"
+        responses:
+          default:
+            statusCode: "200"
+        passthroughBehavior: "when_no_match"
+        connectionType: "VPC_LINK"
+components:
+  schemas:
+    ArrayOfMODEL72cebd:
+      type: "array"
+      items:
+        type: "object"
+        properties:
+          hubmap_id:
+            type: "string"
+          submission_id:
+            type: "string"
+          uuid:
+            type: "string"
+    ArrayOfCollection:
+      type: "array"
+      items:
+        $ref: "#/components/schemas/Collection"
+    Antibody:
+      type: "object"
+      properties:
+        antibody_name:
+          type: "string"
+          description: "The name of the antibody."
+        channel_id:
+          type: "string"
+          description: "The assay specific identifier for the channel corresponding\
+            \ to the antibody."
+        conjugated_cat_number:
+          type: "string"
+          description: "An antibody may be conjugated to a fluorescent tag or a metal\
+            \ tag for detection. Conjugated antibodies may be purchased from commercial\
+            \ providers. Blank if not applicable."
+        conjugated_tag:
+          type: "string"
+          description: "An antibody may be conjugated to a fluorescent tag or a metal\
+            \ tag for detection. Conjugated antibodies may be purchased from commercial\
+            \ providers. Blank if not applicable."
+        dilution:
+          type: "string"
+          description: "The dilition ratio, e.g. 1/200 for the antibody.  Blank if\
+            \ not applicable."
+        lot_number:
+          type: "string"
+          description: "The antibody lot number from the vendor."
+        rr_id:
+          type: "string"
+          description: "The unique antibody identifier from the Antibody Registry\
+            \ (https://antibodyregistry.org). "
+        uniprot_accession_number:
+          type: "string"
+          description: "The unique identifier for the target protein in the UniProt\
+            \ database (https://www.uniprot.org)."
+    MODELe5f447:
+      type: "object"
+      properties:
+        dataset_uuid:
+          type: "string"
+          description: "The uuid of a dataset"
+        revision_number:
+          type: "integer"
+          description: "The number in the revision chain of this dataset where 1 is\
+            \ the oldest revision"
+          format: "int32"
+        dataset:
+          $ref: "#/components/schemas/Dataset"
+    Dataset:
+      type: "object"
+      properties:
+        created_timestamp:
+          type: "integer"
+          description: "The timestamp of when the node was created.  The format is\
+            \ an integer representing milliseconds since midnight Jan 1, 1970"
+          format: "int32"
+        created_by_user_displayname:
+          type: "string"
+          description: "The name of the person or process authenticated when creating\
+            \ the object"
+        created_by_user_email:
+          type: "string"
+          description: "The email address of the person or process authenticated when\
+            \ creating the object."
+        created_by_user_sub:
+          type: "string"
+          description: "The subject id as provided by the authorization mechanism\
+            \ for the person or process authenticated when creating the object."
+        uuid:
+          type: "string"
+          description: "The HuBMAP unique identifier, intended for internal software\
+            \ use only.  This is a 32 digit hexadecimal uuid e.g. 461bbfdc353a2673e381f632510b0f17"
+        hubmap_id:
+          type: "string"
+          description: "A HuBMAP Consortium wide unique identifier randomly generated\
+            \ in the format HBM###.ABCD.### for every entity."
+        last_modified_timestamp:
+          type: "integer"
+          description: "The timestamp of when the object was last modified.  The format\
+            \ is an integer representing milliseconds since midnight, Jan 1, 1970"
+          format: "int32"
+        last_modified_user_sub:
+          type: "string"
+          description: "The subject id of the user who last modified the entity as\
+            \ provided by the authorization mechanism for the person or process authenticated\
+            \ when the object was modified."
+        last_modified_user_email:
+          type: "string"
+          description: "The email address of the person or process which authenticated\
+            \ when the object was last modified."
+        last_modified_user_displayname:
+          type: "string"
+          description: "The name of the person or process which authenticated when\
+            \ the object was last modified."
+        entity_type:
+          type: "string"
+          description: "One of the normalized entity types: Dataset, Collection, Sample,\
+            \ Donor"
+        registered_doi:
+          type: "string"
+          description: "The doi of a the registered entity. e.g. 10.35079/hbm289.pcbm.487.\
+            \  This is set during the publication process and currently available\
+            \ for certain Collections and Datasets."
+        doi_url:
+          type: "string"
+          description: "The url from the doi registry for this entity. e.g. https://doi.org/10.35079/hbm289.pcbm.487"
+        creators:
+          type: "array"
+          description: "A list of the people who created the entity with full name,\
+            \ email, ORCID iD, institution, etc.. This is analogus to the author list\
+            \ on a publication."
+          items:
+            $ref: "#/components/schemas/Person"
+        contacts:
+          type: "array"
+          description: "A list of the people who are the main contacts to get information\
+            \ about the entity."
+          items:
+            $ref: "#/components/schemas/Person"
+        antibodies:
+          type: "array"
+          description: "A list of antibodies used in the assay that created the dataset"
+          items:
+            $ref: "#/components/schemas/Antibody"
+        description:
+          type: "string"
+          description: "Free text description of the dataset"
+        data_access_level:
+          type: "string"
+          description: "One of the values: public, consortium."
+          enum:
+          - "public"
+          - "consortium"
+        contains_human_genetic_sequences:
+          type: "boolean"
+          description: "True if the data contains any human genetic sequence information.\
+            \ Can only be set at CREATE/POST time"
+        status:
+          type: "string"
+          description: "One of: New|Processing|QA|Published|Error|Hold|Invalid"
+          enum:
+          - "New"
+          - "Processing"
+          - "QA"
+          - "Published"
+          - "Error"
+          - "Hold"
+          - "Invalid"
+        title:
+          type: "string"
+          description: "The dataset title."
+        data_types:
+          type: "array"
+          description: "The data or assay types contained in this dataset as a json\
+            \ array of strings.  Each is an assay code from [assay types](https://github.com/hubmapconsortium/search-api/blob/master/src/search-schema/data/definitions/enums/assay_types.yaml)."
+          items:
+            type: "string"
+            enum:
+            - "AF"
+            - "ATACseq-bulk"
+            - "bulk_atacseq"
+            - "cell-dive"
+            - "CODEX"
+            - "codex_cytokit"
+            - "DART-FISH"
+            - "image_pyramid"
+            - "IMC"
+            - "3D-IMC"
+            - "lc-ms_label-free"
+            - "lc-ms_labeled"
+            - "lc-ms-ms_label-free"
+            - "lc-ms-ms_labeled"
+            - "LC-MS-untargeted"
+            - "Lightsheet"
+            - "MALDI-IMS-neg"
+            - "MALDI-IMS-pos"
+            - "MxIF"
+            - "PAS"
+            - "bulk-RNA"
+            - "salmon_rnaseq_bulk"
+            - "SNAREseq"
+            - "sc_atac_seq_snare_lab"
+            - "sc_atac_seq_snare"
+            - "scRNA-Seq-10x"
+            - "salmon_rnaseq_10x"
+            - "sc_rna_seq_snare_lab"
+            - "salmon_rnaseq_snareseq"
+            - "sciATACseq"
+            - "sc_atac_seq_sci"
+            - "sciRNAseq"
+            - "salmon_rnaseq_sciseq"
+            - "seqFish"
+            - "seqFish_lab_processed"
+            - "snATACseq"
+            - "sn_atac_seq"
+            - "snRNAseq"
+            - "salmon_sn_rnaseq_10x"
+            - "Slide-seq"
+            - "Targeted-Shotgun-LC-MS"
+            - "TMT-LC-MS"
+            - "WGS"
+        collections:
+          type: "array"
+          description: "A list of collections that this dataset belongs to."
+          items:
+            $ref: "#/components/schemas/Collection"
+        upload:
+          type: "array"
+          description: "The Data Upload that this dataset is associated with."
+          items:
+            $ref: "#/components/schemas/Upload"
+        contributors:
+          type: "array"
+          description: "A list of people who contributed to the creation of this dataset.\
+            \  Returned as an array of contributor where the structure of a contributor\
+            \ is"
+          items:
+            $ref: "#/components/schemas/Person"
+        direct_ancestors:
+          type: "array"
+          description: "A list of direct parent ancensters (one level above) that\
+            \ the Dataset was derived from."
+          items:
+            anyOf:
+            - $ref: "#/components/schemas/Sample"
+            - $ref: "#/components/schemas/Dataset"
+        published_timestamp:
+          type: "integer"
+          description: "The timestamp of when the dataset was published.  The format\
+            \ is an integer representing milliseconds since midnight, Jan 1, 1970."
+          format: "int32"
+        published_user_displayname:
+          type: "string"
+          description: "The name of the authenticated user or process that published\
+            \ the data."
+        published_user_sub:
+          type: "string"
+          description: "The subject id for the user who published the data as provided\
+            \ by the authorization mechanism for the person or process authenticated\
+            \ when the dataset was publised."
+        published_user_email:
+          type: "string"
+          description: "The email address of the user who published the provided by\
+            \ the authorization mechanism for the person or process authenticated\
+            \ when published."
+        ingest_metadata:
+          type: "object"
+          description: "The metadata returned from the ingest pipeline processing\
+            \ at data submission time.  Provided as json."
+        local_directory_rel_path:
+          type: "string"
+          description: "The path on the local HIVE file system, relative to the base\
+            \ data directory, where the data is stored."
+        group_uuid:
+          type: "string"
+          description: "The uuid of globus group which the user who created this entity\
+            \ is a member of.  This is required on Create/POST if the user creating\
+            \ the Donor is a member of more than one write group.  This property cannot\
+            \ be set via PUT (only on Create/POST)."
+        group_name:
+          type: "string"
+          description: "The displayname of globus group which the user who created\
+            \ this entity is a member of"
+        previous_revision_uuid:
+          type: "string"
+          description: "The uuid of previous revision dataset. Can only be set at\
+            \ Create/POST time."
+        next_revision_uuid:
+          type: "string"
+          description: "The uuid of next revision dataset"
+        thumbnail_file:
+          type: "object"
+          description: "The dataset thumbnail file detail. Stored in db as a stringfied\
+            \ json, e.g., {\"filename\": \"thumbnail.jpg\", \"file_uuid\": \"c35002f9c3d49f8b77e1e2cd4a01803d\"\
+            }"
+        thumbnail_file_to_add:
+          type: "string"
+          description: "Just a temporary file id. Provide as a json object with an\
+            \ temp_file_id like {\"temp_file_id\":\"dzevgd6xjs4d5grmcp4n\"}"
+          format: "temp_file_id"
+        thumbnail_file_to_remove:
+          type: "string"
+          description: "The thumbnail image file previously uploaded to delete. Provide\
+            \ as a string of the file_uuid like: \"c35002f9c3d49f8b77e1e2cd4a01803d\""
+          format: "file_uuid"
+    Sample:
+      type: "object"
+      properties:
+        created_timestamp:
+          type: "integer"
+          description: "The timestamp of when the node was created.  The format is\
+            \ an integer representing milliseconds since midnight Jan 1, 1970"
+          format: "int32"
+        created_by_user_displayname:
+          type: "string"
+          description: "The name of the person or process authenticated when creating\
+            \ the object"
+        created_by_user_email:
+          type: "string"
+          description: "The email address of the person or process authenticated when\
+            \ creating the object."
+        created_by_user_sub:
+          type: "string"
+          description: "The subject id as provided by the authorization mechanism\
+            \ for the person or process authenticated when creating the object."
+        uuid:
+          type: "string"
+          description: "The HuBMAP unique identifier, intended for internal software\
+            \ use only.  This is a 32 digit hexadecimal uuid e.g. 461bbfdc353a2673e381f632510b0f17"
+        hubmap_id:
+          type: "string"
+          description: "A HuBMAP Consortium wide unique identifier randomly generated\
+            \ in the format HBM###.ABCD.### for every entity."
+        last_modified_timestamp:
+          type: "integer"
+          description: "The timestamp of when the object was last modified.  The format\
+            \ is an integer representing milliseconds since midnight, Jan 1, 1970"
+          format: "int32"
+        last_modified_user_sub:
+          type: "string"
+          description: "The subject id of the user who last modified the entity as\
+            \ provided by the authorization mechanism for the person or process authenticated\
+            \ when the object was modified."
+        last_modified_user_email:
+          type: "string"
+          description: "The email address of the person or process which authenticated\
+            \ when the object was last modified."
+        last_modified_user_displayname:
+          type: "string"
+          description: "The name of the person or process which authenticated when\
+            \ the object was last modified."
+        entity_type:
+          type: "string"
+          description: "One of the normalized entity types: Dataset, Collection, Sample,\
+            \ Donor"
+        registered_doi:
+          type: "string"
+          description: "The doi of a the registered entity. e.g. 10.35079/hbm289.pcbm.487.\
+            \  This is set during the publication process and currently available\
+            \ for certain Collections and Datasets."
+        doi_url:
+          type: "string"
+          description: "The url from the doi registry for this entity. e.g. https://doi.org/10.35079/hbm289.pcbm.487"
+        creators:
+          type: "array"
+          description: "A list of the people who created the entity with full name,\
+            \ email, ORCID iD, institution, etc.. This is analogus to the author list\
+            \ on a publication."
+          items:
+            $ref: "#/components/schemas/Person"
+        contacts:
+          type: "array"
+          description: "A list of the people who are the main contacts to get information\
+            \ about the entity."
+          items:
+            $ref: "#/components/schemas/Person"
+        description:
+          type: "string"
+          description: "Free text description of the sample"
+        data_access_level:
+          type: "string"
+          description: "One of the values: public, consortium."
+          enum:
+          - "consortium"
+          - "public"
+        specimen_type:
+          type: "string"
+          description: "A code representing the type of specimen.  Must be one of\
+            \ the codes specified in: [tissue sample types](https://github.com/hubmapconsortium/search-api/blob/master/src/search-schema/data/definitions/enums/tissue_sample_types.yaml)"
+          enum:
+          - "atacseq"
+          - "biopsy"
+          - "blood"
+          - "cell_lysate"
+          - "clarity_hydrogel"
+          - "codex"
+          - "cryosections_curls_from_fresh_frozen_oct"
+          - "cryosections_curls_rnalater"
+          - "ffpe_block"
+          - "ffpe_slide"
+          - "fixed_frozen_section_slide"
+          - "fixed_tissue_piece"
+          - "flash_frozen_liquid_nitrogen"
+          - "formalin_fixed_oct_block"
+          - "fresh_frozen_oct_block"
+          - "fresh_frozen_section_slide"
+          - "fresh_frozen_tissue"
+          - "fresh_frozen_tissue_section"
+          - "fresh_tissue"
+          - "frozen_cell_pellet_buffy_coat"
+          - "gdna"
+          - "module"
+          - "nuclei"
+          - "nuclei_rnalater"
+          - "organ"
+          - "organ_piece"
+          - "other"
+          - "pbmc"
+          - "pfa_fixed_frozen_oct_block"
+          - "plasma"
+          - "protein"
+          - "ran_poly_a_enriched"
+          - "rna_total"
+          - "rnalater_treated_and_stored"
+          - "rnaseq"
+          - "scatacseq"
+          - "scrnaseq"
+          - "segment"
+          - "seqfish"
+          - "sequence_library"
+          - "serum"
+          - "single_cell_cryopreserved"
+          - "snatacseq"
+          - "snrnaseq"
+          - "tissue_lysate"
+          - "wgs"
+        specimen_type_other:
+          type: "string"
+          description: "The user provided sample type if the 'other' sample_type is\
+            \ chosen."
+        protocol_url:
+          type: "string"
+          description: "The protocols.io doi url pointing the protocol under wich\
+            \ the sample was obtained and/or prepared."
+        group_uuid:
+          type: "string"
+          description: "The uuid of globus group which the user who created this entity\
+            \ is a member of.  This is required on Create/POST if the user creating\
+            \ the Donor is a member of more than one write group.  This property cannot\
+            \ be set via PUT (only on Create/POST)."
+        group_name:
+          type: "string"
+          description: "The displayname of globus group which the user who created\
+            \ this entity is a member of"
+        organ:
+          type: "string"
+          description: "Organ code specifier, only set if sample_type == organ.  Valid\
+            \ values found in: [organ types](https://github.com/hubmapconsortium/search-api/blob/master/src/search-schema/data/definitions/enums/organ_types.yaml)"
+          enum:
+          - "AO"
+          - "BL"
+          - "BD"
+          - "BM"
+          - "BR"
+          - "LF"
+          - "RF"
+          - "HT"
+          - "LB"
+          - "LE"
+          - "LI"
+          - "LK"
+          - "LL"
+          - "LV"
+          - "LY"
+          - "LO"
+          - "RO"
+          - "OT"
+          - "PA"
+          - "PL"
+          - "RB"
+          - "RE"
+          - "RK"
+          - "RL"
+          - "SI"
+          - "SK"
+          - "SP"
+          - "ST"
+          - "TH"
+          - "TR"
+          - "UR"
+          - "UT"
+        organ_other:
+          type: "string"
+          description: "The organ type provided by the user if \"other\" organ type\
+            \ is selected"
+        direct_ancestor_uuid:
+          type: "string"
+          description: "The uuid of source entity from which this new entity is derived\
+            \ from. Used on creation or edit to create an action and relationship\
+            \ to the ancestor.  The direct ancestor must be a Donor or Sample.  If\
+            \ the direct ancestor is a Donor, the sample must be of type organ."
+        direct_ancestor:
+          type: "object"
+          description: "The entitiy directly above this sample in the provenance graph\
+            \ (direct parent)."
+        submission_id:
+          type: "string"
+          description: "The hubmap internal id with embedded semantic information\
+            \ e.g.: VAN0003-LK-1-10.  This id is generated at creation time which\
+            \ tracks the lab, donor, organ and sample hierarchy per the following:\
+            \ https://docs.google.com/document/d/1DjHgmqWF1VA5-3mfzLFNfabbzmc8KLSG9xWx1DDLlzo/edit?usp=sharing"
+        lab_tissue_sample_id:
+          type: "string"
+          description: "Lab specific id for the sample."
+        metadata:
+          $ref: "#/components/schemas/SampleMetadata"
+        rui_location:
+          type: "object"
+          description: "The sample location and orientation in the ancestor organ\
+            \ as specified in the RUI tool. Returned as a json object."
+        visit:
+          type: "string"
+          description: "The visit id for the donor/patient when the sample was obtained."
+        image_files:
+          type: "array"
+          description: "List of uploaded image files and descriptions of the files.\
+            \ Stored in db as a stringfied json array."
+          items:
+            $ref: "#/components/schemas/File"
+        image_files_to_add:
+          type: "array"
+          description: "List of temporary file ids with an optional description. Provide\
+            \ as a json array with an temp_file_id and description attribute for each\
+            \ element like {\"files\": [{\"temp_file_id\":\"dzevgd6xjs4d5grmcp4n\"\
+            ,\"description\":\"This is image file one\"},{\"temp_file_id\":\"yrahjadfhadf\"\
+            ,\"description\":\"This is image file two\"}]}"
+          items:
+            type: "string"
+            format: "temp_file_id"
+        image_files_to_remove:
+          type: "array"
+          description: "List of image files previously uploaded to delete. Provide\
+            \ as a json array of the file_uuids of the file like: [\"232934234234234234234270c0ea6c51d604a850558ef2247d0b4\"\
+            , \"230948203482234234234a57bfe9c056d08a0f8e6cd612baa3bfa\"]"
+          items:
+            type: "string"
+            format: "file_uuid"
+        metadata_files:
+          type: "array"
+          description: "List of uploaded image files and descriptions of the files.\
+            \ Stored in db as a stringfied json array."
+          items:
+            $ref: "#/components/schemas/File"
+        metadata_files_to_add:
+          type: "array"
+          description: "List of temporary file ids with an optional description. Provide\
+            \ as a json array with an temp_file_id and description attribute for each\
+            \ element like {\"files\": [{\"temp_file_id\":\"dzevgd6xjs4d5grmcp4n\"\
+            ,\"description\":\"This is image file one\"},{\"temp_file_id\":\"yrahjadfhadf\"\
+            ,\"description\":\"This is image file two\"}]}"
+          items:
+            type: "string"
+            format: "temp_file_id"
+        metadata_files_to_remove:
+          type: "array"
+          description: "List of image files previously uploaded to delete. Provide\
+            \ as a json array of the file_uuids of the file like: [\"232934234234234234234270c0ea6c51d604a850558ef2247d0b4\"\
+            , \"230948203482234234234a57bfe9c056d08a0f8e6cd612baa3bfa\"]"
+          items:
+            type: "string"
+            format: "file_uuid"
+    Collection:
+      type: "object"
+      properties:
+        created_timestamp:
+          type: "integer"
+          description: "The timestamp of when the node was created.  The format is\
+            \ an integer representing milliseconds since midnight Jan 1, 1970"
+          format: "int32"
+        created_by_user_displayname:
+          type: "string"
+          description: "The name of the person or process authenticated when creating\
+            \ the object"
+        created_by_user_email:
+          type: "string"
+          description: "The email address of the person or process authenticated when\
+            \ creating the object."
+        created_by_user_sub:
+          type: "string"
+          description: "The subject id as provided by the authorization mechanism\
+            \ for the person or process authenticated when creating the object."
+        uuid:
+          type: "string"
+          description: "The HuBMAP unique identifier, intended for internal software\
+            \ use only.  This is a 32 digit hexadecimal uuid e.g. 461bbfdc353a2673e381f632510b0f17"
+        hubmap_id:
+          type: "string"
+          description: "A HuBMAP Consortium wide unique identifier randomly generated\
+            \ in the format HBM###.ABCD.### for every entity."
+        last_modified_timestamp:
+          type: "integer"
+          description: "The timestamp of when the object was last modified.  The format\
+            \ is an integer representing milliseconds since midnight, Jan 1, 1970"
+          format: "int32"
+        last_modified_user_sub:
+          type: "string"
+          description: "The subject id of the user who last modified the entity as\
+            \ provided by the authorization mechanism for the person or process authenticated\
+            \ when the object was modified."
+        last_modified_user_email:
+          type: "string"
+          description: "The email address of the person or process which authenticated\
+            \ when the object was last modified."
+        last_modified_user_displayname:
+          type: "string"
+          description: "The name of the person or process which authenticated when\
+            \ the object was last modified."
+        entity_type:
+          type: "string"
+          description: "One of the normalized entity types: Dataset, Collection, Sample,\
+            \ Donor"
+        registered_doi:
+          type: "string"
+          description: "The doi of a the registered entity. e.g. 10.35079/hbm289.pcbm.487.\
+            \  This is set during the publication process and currently available\
+            \ for certain Collections and Datasets."
+        doi_url:
+          type: "string"
+          description: "The url from the doi registry for this entity. e.g. https://doi.org/10.35079/hbm289.pcbm.487"
+        creators:
+          type: "array"
+          description: "A list of the people who created the entity with full name,\
+            \ email, ORCID iD, institution, etc.. This is analogus to the author list\
+            \ on a publication."
+          items:
+            $ref: "#/components/schemas/Person"
+        contacts:
+          type: "array"
+          description: "A list of the people who are the main contacts to get information\
+            \ about the entity."
+          items:
+            $ref: "#/components/schemas/Person"
+        title:
+          type: "string"
+          description: "The title of the Collection"
+        datasets:
+          type: "array"
+          description: "The datasets that are contained in the Collection."
+          items:
+            $ref: "#/components/schemas/Dataset"
+    MODEL3ebf60:
+      type: "object"
+      properties:
+        retraction_reason:
+          type: "string"
+          description: "Free text describing why the dataset was retracted"
+    Upload:
+      type: "object"
+      properties:
+        created_timestamp:
+          type: "integer"
+          description: "The timestamp of when the node was created.  The format is\
+            \ an integer representing milliseconds since midnight Jan 1, 1970"
+          format: "int32"
+        created_by_user_displayname:
+          type: "string"
+          description: "The name of the person or process authenticated when creating\
+            \ the object"
+        created_by_user_email:
+          type: "string"
+          description: "The email address of the person or process authenticated when\
+            \ creating the object."
+        created_by_user_sub:
+          type: "string"
+          description: "The subject id as provided by the authorization mechanism\
+            \ for the person or process authenticated when creating the object."
+        uuid:
+          type: "string"
+          description: "The HuBMAP unique identifier, intended for internal software\
+            \ use only.  This is a 32 digit hexadecimal uuid e.g. 461bbfdc353a2673e381f632510b0f17"
+        hubmap_id:
+          type: "string"
+          description: "A HuBMAP Consortium wide unique identifier randomly generated\
+            \ in the format HBM###.ABCD.### for every entity."
+        last_modified_timestamp:
+          type: "integer"
+          description: "The timestamp of when the object was last modified.  The format\
+            \ is an integer representing milliseconds since midnight, Jan 1, 1970"
+          format: "int32"
+        last_modified_user_sub:
+          type: "string"
+          description: "The subject id of the user who last modified the entity as\
+            \ provided by the authorization mechanism for the person or process authenticated\
+            \ when the object was modified."
+        last_modified_user_email:
+          type: "string"
+          description: "The email address of the person or process which authenticated\
+            \ when the object was last modified."
+        last_modified_user_displayname:
+          type: "string"
+          description: "The name of the person or process which authenticated when\
+            \ the object was last modified."
+        entity_type:
+          type: "string"
+          description: "One of the normalized entity types: Dataset, Collection, Sample,\
+            \ Donor, Upload"
+        description:
+          type: "string"
+          description: "Free text description of the data being submitted."
+        title:
+          type: "string"
+          description: "Title of the datasets, a sentance or less"
+        status:
+          type: "string"
+          description: "One of: New|Valid|Invalid|Error|Submitted"
+        validation_message:
+          type: "string"
+          description: "A message from the validataion tools describing what is invalid\
+            \ with the upload."
+        group_uuid:
+          type: "string"
+          description: "The uuid of globus group which the user who created this entity\
+            \ is a member of.  This is required on Create/POST if the user creating\
+            \ the Donor is a member of more than one write group.  This property cannot\
+            \ be set via PUT (only on Create/POST)."
+        group_name:
+          type: "string"
+          description: "The displayname of globus group which the user who created\
+            \ this entity is a member of"
+        dataset_uuids_to_link:
+          type: "array"
+          description: "List of datasets to add to the Upload. Provide as a json array\
+            \ of the dataset uuids like: [\"232934234234234234234270c0ea6c51d604a850558ef2247d0b4\"\
+            , \"230948203482234234234a57bfe9c056d08a0f8e6cd612baa3bfa\"]"
+          items:
+            type: "string"
+        dataset_uuids_to_unlink:
+          type: "array"
+          description: "List of datasets to remove from a Upload. Provide as a json\
+            \ array of the dataset uuids like: [\"232934234234234234234270c0ea6c51d604a850558ef2247d0b4\"\
+            , \"230948203482234234234a57bfe9c056d08a0f8e6cd612baa3bfa\"]"
+          items:
+            type: "string"
+        datasets:
+          type: "array"
+          description: "The datasets that are contained in this Upload."
+          items:
+            $ref: "#/components/schemas/Dataset"
+    SampleMetadata:
+      type: "object"
+      properties:
+        sample_id:
+          type: "string"
+          description: "The HuBMAP Identifier for the sample."
+        vital_state:
+          type: "string"
+          description: "The vital state of the donor who the tissue sample came from."
+          enum:
+          - "living"
+          - "deceased"
+        health_status:
+          type: "string"
+          description: "Donor from which the tissue sample came from's baseline physical\
+            \ condition prior to immediate event leading to organ/tissue acquisition.\
+            \ For example, if a relatively healthy patient suffers trauma, and as\
+            \ a result of reparative surgery, a tissue sample is collected, the subject\
+            \ will be deemed 'relatively healthy'. Likewise, a relatively healthy\
+            \ subject may have experienced trauma leading to brain death. As a result\
+            \ of organ donation, a sample is collected. In this scenario, the subject\
+            \ is deemed 'relatively healthy'."
+          enum:
+          - "cancer"
+          - "relatively healthy"
+          - "chronic illness"
+        organ_condition:
+          type: "string"
+          description: "Health status of the organ at the time of tissue sample recovery."
+          enum:
+          - "healthy"
+          - "diseased"
+        procedure_date:
+          type: "string"
+          description: "The date at which the organ from which the tissue sample came\
+            \ from was procurred, in the format YYYY-MM-DD"
+        perfusion_solution:
+          type: "string"
+          description: "Health status of the organ at the time of sample recovery."
+          enum:
+          - "UWS"
+          - "HTK"
+          - "Belzer MPS/KPS"
+          - "Formalin"
+          - "Unknown"
+          - "None"
+        pathologist_report:
+          type: "string"
+          description: "Further details on organ level QC checks."
+        warm_ischemia_time_value:
+          type: "integer"
+          description: "Time interval between cessation of blood flow and cooling\
+            \ to 4C. Blank if not applicable."
+          format: "int32"
+        warm_ischemia_time_unit:
+          type: "string"
+          description: "Time units that the warm_ischemia_time_value is reported in.\
+            \ Blank if not applicable"
+        cold_ischemia_time_value:
+          type: "integer"
+          description: "Time interval on ice to the start of preservation protocol.\
+            \ Blank if not applicable."
+          format: "int32"
+        cold_ischemia_time_unit:
+          type: "string"
+          description: "Time units that the cold_ischemia_time_value is reported in.\
+            \ Blank if not applicable."
+        specimen_preservation_temperature:
+          type: "string"
+          description: "The temperature of the medium during the preservation process.\
+            \ Reported as preservation method, temperature and units, e.g. Freezer\
+            \ (-80 Celsius)"
+        specimen_quality_criteria:
+          type: "string"
+          description: "RIN score. e.g. RIN: 8.7"
+        specimen_tumor_distance_value:
+          type: "string"
+          description: "If surgical sample from a tumor biopsy, how far from the tumor\
+            \ was the sample obtained from. Typically a number of centimeters. Blank\
+            \ if not applicable or unknown."
+        specimen_tumor_distance_unit:
+          type: "string"
+      description: "The sample specific metadata derived from the uploaded sample_metadata.tsv\
+        \ file. Returned as a json object."
+    Person:
+      type: "object"
+      properties:
+        first_name:
+          type: "string"
+          description: "The full name of the person."
+        last_name:
+          type: "string"
+          description: "The last name of the person."
+        middle_name_or_initial:
+          type: "string"
+          description: "The middle name or initial of the person."
+        orcid_id:
+          type: "string"
+          description: "The ORCID iD of the person."
+        affiliation:
+          type: "string"
+          description: "The institution that the person is affiliated with."
+    File:
+      type: "object"
+      properties:
+        filename:
+          type: "string"
+          description: "The name of the file."
+        description:
+          type: "string"
+          description: "A description of the file. The Dataset.thumbnail_file does\
+            \ not have this file description."
+        file_uuid:
+          type: "string"
+          description: "The HuBMAP unique identifier for the file."
+  securitySchemes:
+    HuBMAP-API-Gateway-Read-Group-Authorizer:
+      type: "apiKey"
+      name: "Authorization"
+      in: "header"
+      x-amazon-apigateway-authtype: "custom"
+      x-amazon-apigateway-authorizer:
+        type: "token"
+        authorizerUri: "arn:aws:apigateway:us-east-1:lambda:path/2015-03-31/functions/arn:aws:lambda:us-east-1:450834107946:function:HuBMAP-API-Gateway-Read-Group-Authorizer/invocations"
+        authorizerResultTtlInSeconds: 0
+    HuBMAP-API-Gateway-Data-Admin-Group-Authorizer:
+      type: "apiKey"
+      name: "Authorization"
+      in: "header"
+      x-amazon-apigateway-authtype: "custom"
+      x-amazon-apigateway-authorizer:
+        type: "token"
+        authorizerUri: "arn:aws:apigateway:us-east-1:lambda:path/2015-03-31/functions/arn:aws:lambda:us-east-1:450834107946:function:HuBMAP-API-Gateway-Data-Admin-Group-Authorizer/invocations"
+        authorizerResultTtlInSeconds: 0
+    HuBMAP-API-Gateway-Create-Group-Authorizer:
+      type: "apiKey"
+      name: "Authorization"
+      in: "header"
+      x-amazon-apigateway-authtype: "custom"
+      x-amazon-apigateway-authorizer:
+        type: "token"
+        authorizerUri: "arn:aws:apigateway:us-east-1:lambda:path/2015-03-31/functions/arn:aws:lambda:us-east-1:450834107946:function:HuBMAP-API-Gateway-Create-Group-Authorizer/invocations"
+        authorizerResultTtlInSeconds: 0
+x-amazon-apigateway-documentation:
+  version: "2.0.22"
+  createdDate: "2022-01-10T17:46:24Z"
+  documentationParts:
+  - location:
+      type: "API"
+    properties:
+      info:
+        description: "The HuBMAP Entity API is a standard RESTful web service with\
+          \ create, update and read operations for the standard HuBMAP provenance\
+          \ graph entities."
+        contact:
+          name: "HuBMAP Help Desk"
+          email: "help@hubmapconsortium.org"
+        license:
+          name: "MIT License"
+          url: "https://github.com/hubmapconsortium/entity-api/blob/master/license.txt"
+  - location:
+      type: "METHOD"
+      path: "/ancestors/{id}"
+      method: "GET"
+    properties:
+      summary: "Get the ancestor list for an Entity.  The ancestors are the nodes\
+        \ connected \"upstream\" from the current node.  This list traverses all the\
+        \ levels in the graph."
+  - location:
+      type: "METHOD"
+      path: "/children/{id}"
+      method: "GET"
+    properties:
+      summary: "Get the list of children directly connected to an Entity.  The children\
+        \ are the nodes one level below the current node.  This list only returns\
+        \ the items one level below in the graph."
+  - location:
+      type: "METHOD"
+      path: "/collections/{id}/add-datasets"
+      method: "PUT"
+    properties:
+      summary: "Link the given list of datasets to the target collection"
+  - location:
+      type: "METHOD"
+      path: "/collections/{id}"
+      method: "GET"
+    properties:
+      summary: "Returns the information of the Collection specified by the uuid with\
+        \ all connected datasets. If a valid token is provided with group membership\
+        \ in the HuBMAP-Read group any collection matching the id will be returned.\
+        \  Otherwise if no token is provided or a valid token with no HuBMAP-Read\
+        \ group membership then only a public collection will be returned.  Public\
+        \ collections are defined as being published via a DOI (collection.doi_registered\
+        \ == true) and at least one of the connected datasets is public (dataset.metadata.data_access_level\
+        \ == 'public'). For public collections only connected datasets that are public\
+        \ are returned with it."
+  - location:
+      type: "METHOD"
+      path: "/datasets/{id}/latest-revision"
+      method: "GET"
+    properties:
+      summary: "Retrive the latest (newest) revision of a given Dataset. Public/Consortium\
+        \ access rules apply - if no token/consortium access then must be for a public\
+        \ dataset and the returned Dataset must be the latest public version. If the\
+        \ given dataset itself is the latest revision, meaning it has no next revisions,\
+        \ this dataset gets returned."
+  - location:
+      type: "METHOD"
+      path: "/datasets/{id}/retract"
+      method: "PUT"
+    properties:
+      summary: "Retracts a dataset after it has been published. Requires a json body\
+        \ with a single field {retraction_reason: string}. The dataset for the given\
+        \ id is modified to include this new retraction_reason field and sets the\
+        \ dataset property sub_status to Retracted. The complete modified dataset\
+        \ is returned. Requires that the dataset being retracted has already been\
+        \ published (dataset.status == Published. Requires a user token with membership\
+        \ in the HuBMAP-Data-Admin group otherwise then a 403 will be returned."
+  - location:
+      type: "METHOD"
+      path: "/datasets/{id}/revision"
+      method: "GET"
+    properties:
+      summary: "Retrive the calculated revision number of a Dataset. The calculated\
+        \ revision is number is based on the [:REVISION_OF] relationships to the oldest\
+        \ dataset in a revision chain. Where the oldest dataset = 1 and each newer\
+        \ version is incremented by one (1, 2, 3 ...). Public/Consortium access rules\
+        \ apply, if is for a non-public dataset and no token or a token without membership\
+        \ in HuBMAP-Read group is sent with the request then a 403 response should\
+        \ be returned."
+  - location:
+      type: "METHOD"
+      path: "/datasets/{id}/revisions"
+      method: "GET"
+    properties:
+      summary: "From a given ID of a versioned dataset, retrieve a list of every dataset\
+        \ in the chain ordered from most recent to oldest. The revision number, as\
+        \ well as the dataset uuid will be included. An optional parameter ?include_dataset=true\
+        \ will include the full dataset for each revision as well. Public/Consortium\
+        \ access rules apply, if is for a non-public dataset and no token or a token\
+        \ without membership in HuBMAP-Read group is sent with the request then a\
+        \ 403 response should be returned. If the given id is published, but later\
+        \ revisions are not and the user is not in HuBMAP-Read group, only published\
+        \ revisions will be returned. The field next_revision_uuid will not be returned\
+        \ if the next revision is unpublished"
+  - location:
+      type: "METHOD"
+      path: "/descendants/{id}"
+      method: "GET"
+    properties:
+      summary: "Get the descendant list for an Entity.  The descendants are the nodes\
+        \ \"downstream\" from the current node.  This list traverses all the levels\
+        \ in the graph. Returns all descendants as an array of Entities."
+  - location:
+      type: "METHOD"
+      path: "/doi/redirect/{id}"
+      method: "GET"
+    properties:
+      summary: "Redirect a request from a doi service"
+  - location:
+      type: "METHOD"
+      path: "/entities/multiple-samples/{count}"
+      method: "POST"
+    properties:
+      summary: "Create multiple samples from the same source entity. 'count' samples\
+        \ will be generated each with individual uuids, hubmap_ids and submission_ids."
+  - location:
+      type: "METHOD"
+      path: "/entities/new/{entity_type}"
+      method: "POST"
+    properties:
+      summary: "Create a new entity of the target type"
+  - location:
+      type: "METHOD"
+      path: "/entities/{id}/ancestor-organs"
+      method: "GET"
+    properties:
+      summary: "Retrievea list of ancestor organ(s) of a given uuid"
+  - location:
+      type: "METHOD"
+      path: "/entities/{id}/globus-url"
+      method: "GET"
+    properties:
+      summary: "Get the Globus URL to the given Dataset or Upload entity"
+  - location:
+      type: "METHOD"
+      path: "/entities/{id}/provenance"
+      method: "GET"
+    properties:
+      summary: "Get Provenance Data for Entity.  This returns a PROV JSON compliant\
+        \ representation of the entity's provenance. Refer to this document for more\
+        \ information regarding [PROV JSON format](https://www.w3.org/Submission/2013/SUBM-prov-json-20130424/)"
+  - location:
+      type: "METHOD"
+      path: "/entities/{id}"
+      method: "GET"
+    properties:
+      summary: "Retrieve a provenance entity by id.  Entity types of Donor, Sample\
+        \ and Datasets."
+  - location:
+      type: "METHOD"
+      path: "/entities/{id}"
+      method: "PUT"
+    properties:
+      summary: "Update the properties of a given Donor, Sample, Dataset or Upload"
+  - location:
+      type: "METHOD"
+      path: "/entity-types"
+      method: "GET"
+    properties:
+      summary: "Get a list of all the available entity types defined in the schema\
+        \ yaml"
+  - location:
+      type: "METHOD"
+      path: "/parents/{id}"
+      method: "GET"
+    properties:
+      summary: "Get the immediate parent list for an Entity.  The parents are the\
+        \ nodes connected one level \"upstream\" from the current node.  This list\
+        \ only goes to the next higher level in the graph."
+  - location:
+      type: "MODEL"
+      name: "Antibody.antibody_name"
+    properties:
+      description: "The name of the antibody."
+  - location:
+      type: "MODEL"
+      name: "Antibody.channel_id"
+    properties:
+      description: "The assay specific identifier for the channel corresponding to\
+        \ the antibody."
+  - location:
+      type: "MODEL"
+      name: "Antibody.conjugated_cat_number"
+    properties:
+      description: "An antibody may be conjugated to a fluorescent tag or a metal\
+        \ tag for detection. Conjugated antibodies may be purchased from commercial\
+        \ providers. Blank if not applicable."
+  - location:
+      type: "MODEL"
+      name: "Antibody.conjugated_tag"
+    properties:
+      description: "An antibody may be conjugated to a fluorescent tag or a metal\
+        \ tag for detection. Conjugated antibodies may be purchased from commercial\
+        \ providers. Blank if not applicable."
+  - location:
+      type: "MODEL"
+      name: "Antibody.dilution"
+    properties:
+      description: "The dilition ratio, e.g. 1/200 for the antibody.  Blank if not\
+        \ applicable."
+  - location:
+      type: "MODEL"
+      name: "Antibody.lot_number"
+    properties:
+      description: "The antibody lot number from the vendor."
+  - location:
+      type: "MODEL"
+      name: "Antibody.rr_id"
+    properties:
+      description: "The unique antibody identifier from the Antibody Registry (https://antibodyregistry.org). "
+  - location:
+      type: "MODEL"
+      name: "Antibody.uniprot_accession_number"
+    properties:
+      description: "The unique identifier for the target protein in the UniProt database\
+        \ (https://www.uniprot.org)."
+  - location:
+      type: "MODEL"
+      name: "Collection.contacts"
+    properties:
+      description: "A list of the people who are the main contacts to get information\
+        \ about the entity."
+  - location:
+      type: "MODEL"
+      name: "Collection.created_by_user_displayname"
+    properties:
+      description: "The name of the person or process authenticated when creating\
+        \ the object"
+  - location:
+      type: "MODEL"
+      name: "Collection.created_by_user_email"
+    properties:
+      description: "The email address of the person or process authenticated when\
+        \ creating the object."
+  - location:
+      type: "MODEL"
+      name: "Collection.created_by_user_sub"
+    properties:
+      description: "The subject id as provided by the authorization mechanism for\
+        \ the person or process authenticated when creating the object."
+  - location:
+      type: "MODEL"
+      name: "Collection.created_timestamp"
+    properties:
+      description: "The timestamp of when the node was created.  The format is an\
+        \ integer representing milliseconds since midnight Jan 1, 1970"
+  - location:
+      type: "MODEL"
+      name: "Collection.creators"
+    properties:
+      description: "A list of the people who created the entity with full name, email,\
+        \ ORCID iD, institution, etc.. This is analogus to the author list on a publication."
+  - location:
+      type: "MODEL"
+      name: "Collection.datasets"
+    properties:
+      description: "The datasets that are contained in the Collection."
+  - location:
+      type: "MODEL"
+      name: "Collection.doi_url"
+    properties:
+      description: "The url from the doi registry for this entity. e.g. https://doi.org/10.35079/hbm289.pcbm.487"
+  - location:
+      type: "MODEL"
+      name: "Collection.entity_type"
+    properties:
+      description: "One of the normalized entity types: Dataset, Collection, Sample,\
+        \ Donor"
+  - location:
+      type: "MODEL"
+      name: "Collection.hubmap_id"
+    properties:
+      description: "A HuBMAP Consortium wide unique identifier randomly generated\
+        \ in the format HBM###.ABCD.### for every entity."
+  - location:
+      type: "MODEL"
+      name: "Collection.last_modified_timestamp"
+    properties:
+      description: "The timestamp of when the object was last modified.  The format\
+        \ is an integer representing milliseconds since midnight, Jan 1, 1970"
+  - location:
+      type: "MODEL"
+      name: "Collection.last_modified_user_displayname"
+    properties:
+      description: "The name of the person or process which authenticated when the\
+        \ object was last modified."
+  - location:
+      type: "MODEL"
+      name: "Collection.last_modified_user_email"
+    properties:
+      description: "The email address of the person or process which authenticated\
+        \ when the object was last modified."
+  - location:
+      type: "MODEL"
+      name: "Collection.last_modified_user_sub"
+    properties:
+      description: "The subject id of the user who last modified the entity as provided\
+        \ by the authorization mechanism for the person or process authenticated when\
+        \ the object was modified."
+  - location:
+      type: "MODEL"
+      name: "Collection.registered_doi"
+    properties:
+      description: "The doi of a the registered entity. e.g. 10.35079/hbm289.pcbm.487.\
+        \  This is set during the publication process and currently available for\
+        \ certain Collections and Datasets."
+  - location:
+      type: "MODEL"
+      name: "Collection.title"
+    properties:
+      description: "The title of the Collection"
+  - location:
+      type: "MODEL"
+      name: "Collection.uuid"
+    properties:
+      description: "The HuBMAP unique identifier, intended for internal software use\
+        \ only.  This is a 32 digit hexadecimal uuid e.g. 461bbfdc353a2673e381f632510b0f17"
+  - location:
+      type: "MODEL"
+      name: "Dataset.antibodies"
+    properties:
+      description: "A list of antibodies used in the assay that created the dataset"
+  - location:
+      type: "MODEL"
+      name: "Dataset.collections"
+    properties:
+      description: "A list of collections that this dataset belongs to."
+  - location:
+      type: "MODEL"
+      name: "Dataset.contacts"
+    properties:
+      description: "A list of the people who are the main contacts to get information\
+        \ about the entity."
+  - location:
+      type: "MODEL"
+      name: "Dataset.contains_human_genetic_sequences"
+    properties:
+      description: "True if the data contains any human genetic sequence information.\
+        \ Can only be set at CREATE/POST time"
+  - location:
+      type: "MODEL"
+      name: "Dataset.contributors"
+    properties:
+      description: "A list of people who contributed to the creation of this dataset.\
+        \  Returned as an array of contributor where the structure of a contributor\
+        \ is"
+  - location:
+      type: "MODEL"
+      name: "Dataset.created_by_user_displayname"
+    properties:
+      description: "The name of the person or process authenticated when creating\
+        \ the object"
+  - location:
+      type: "MODEL"
+      name: "Dataset.created_by_user_email"
+    properties:
+      description: "The email address of the person or process authenticated when\
+        \ creating the object."
+  - location:
+      type: "MODEL"
+      name: "Dataset.created_by_user_sub"
+    properties:
+      description: "The subject id as provided by the authorization mechanism for\
+        \ the person or process authenticated when creating the object."
+  - location:
+      type: "MODEL"
+      name: "Dataset.created_timestamp"
+    properties:
+      description: "The timestamp of when the node was created.  The format is an\
+        \ integer representing milliseconds since midnight Jan 1, 1970"
+  - location:
+      type: "MODEL"
+      name: "Dataset.creators"
+    properties:
+      description: "A list of the people who created the entity with full name, email,\
+        \ ORCID iD, institution, etc.. This is analogus to the author list on a publication."
+  - location:
+      type: "MODEL"
+      name: "Dataset.data_access_level"
+    properties:
+      description: "One of the values: public, consortium."
+  - location:
+      type: "MODEL"
+      name: "Dataset.data_types"
+    properties:
+      description: "The data or assay types contained in this dataset as a json array\
+        \ of strings.  Each is an assay code from [assay types](https://github.com/hubmapconsortium/search-api/blob/master/src/search-schema/data/definitions/enums/assay_types.yaml)."
+  - location:
+      type: "MODEL"
+      name: "Dataset.description"
+    properties:
+      description: "Free text description of the dataset"
+  - location:
+      type: "MODEL"
+      name: "Dataset.direct_ancestors"
+    properties:
+      description: "A list of direct parent ancensters (one level above) that the\
+        \ Dataset was derived from."
+  - location:
+      type: "MODEL"
+      name: "Dataset.doi_url"
+    properties:
+      description: "The url from the doi registry for this entity. e.g. https://doi.org/10.35079/hbm289.pcbm.487"
+  - location:
+      type: "MODEL"
+      name: "Dataset.entity_type"
+    properties:
+      description: "One of the normalized entity types: Dataset, Collection, Sample,\
+        \ Donor"
+  - location:
+      type: "MODEL"
+      name: "Dataset.group_name"
+    properties:
+      description: "The displayname of globus group which the user who created this\
+        \ entity is a member of"
+  - location:
+      type: "MODEL"
+      name: "Dataset.group_uuid"
+    properties:
+      description: "The uuid of globus group which the user who created this entity\
+        \ is a member of.  This is required on Create/POST if the user creating the\
+        \ Donor is a member of more than one write group.  This property cannot be\
+        \ set via PUT (only on Create/POST)."
+  - location:
+      type: "MODEL"
+      name: "Dataset.hubmap_id"
+    properties:
+      description: "A HuBMAP Consortium wide unique identifier randomly generated\
+        \ in the format HBM###.ABCD.### for every entity."
+  - location:
+      type: "MODEL"
+      name: "Dataset.ingest_metadata"
+    properties:
+      description: "The metadata returned from the ingest pipeline processing at data\
+        \ submission time.  Provided as json."
+  - location:
+      type: "MODEL"
+      name: "Dataset.last_modified_timestamp"
+    properties:
+      description: "The timestamp of when the object was last modified.  The format\
+        \ is an integer representing milliseconds since midnight, Jan 1, 1970"
+  - location:
+      type: "MODEL"
+      name: "Dataset.last_modified_user_displayname"
+    properties:
+      description: "The name of the person or process which authenticated when the\
+        \ object was last modified."
+  - location:
+      type: "MODEL"
+      name: "Dataset.last_modified_user_email"
+    properties:
+      description: "The email address of the person or process which authenticated\
+        \ when the object was last modified."
+  - location:
+      type: "MODEL"
+      name: "Dataset.last_modified_user_sub"
+    properties:
+      description: "The subject id of the user who last modified the entity as provided\
+        \ by the authorization mechanism for the person or process authenticated when\
+        \ the object was modified."
+  - location:
+      type: "MODEL"
+      name: "Dataset.local_directory_rel_path"
+    properties:
+      description: "The path on the local HIVE file system, relative to the base data\
+        \ directory, where the data is stored."
+  - location:
+      type: "MODEL"
+      name: "Dataset.next_revision_uuid"
+    properties:
+      description: "The uuid of next revision dataset"
+  - location:
+      type: "MODEL"
+      name: "Dataset.previous_revision_uuid"
+    properties:
+      description: "The uuid of previous revision dataset. Can only be set at Create/POST\
+        \ time."
+  - location:
+      type: "MODEL"
+      name: "Dataset.published_timestamp"
+    properties:
+      description: "The timestamp of when the dataset was published.  The format is\
+        \ an integer representing milliseconds since midnight, Jan 1, 1970."
+  - location:
+      type: "MODEL"
+      name: "Dataset.published_user_displayname"
+    properties:
+      description: "The name of the authenticated user or process that published the\
+        \ data."
+  - location:
+      type: "MODEL"
+      name: "Dataset.published_user_email"
+    properties:
+      description: "The email address of the user who published the provided by the\
+        \ authorization mechanism for the person or process authenticated when published."
+  - location:
+      type: "MODEL"
+      name: "Dataset.published_user_sub"
+    properties:
+      description: "The subject id for the user who published the data as provided\
+        \ by the authorization mechanism for the person or process authenticated when\
+        \ the dataset was publised."
+  - location:
+      type: "MODEL"
+      name: "Dataset.registered_doi"
+    properties:
+      description: "The doi of a the registered entity. e.g. 10.35079/hbm289.pcbm.487.\
+        \  This is set during the publication process and currently available for\
+        \ certain Collections and Datasets."
+  - location:
+      type: "MODEL"
+      name: "Dataset.status"
+    properties:
+      description: "One of: New|Processing|QA|Published|Error|Hold|Invalid"
+  - location:
+      type: "MODEL"
+      name: "Dataset.thumbnail_file"
+    properties:
+      description: "The dataset thumbnail file detail. Stored in db as a stringfied\
+        \ json, e.g., {\"filename\": \"thumbnail.jpg\", \"file_uuid\": \"c35002f9c3d49f8b77e1e2cd4a01803d\"\
+        }"
+  - location:
+      type: "MODEL"
+      name: "Dataset.thumbnail_file_to_add"
+    properties:
+      description: "Just a temporary file id. Provide as a json object with an temp_file_id\
+        \ like {\"temp_file_id\":\"dzevgd6xjs4d5grmcp4n\"}"
+  - location:
+      type: "MODEL"
+      name: "Dataset.thumbnail_file_to_remove"
+    properties:
+      description: "The thumbnail image file previously uploaded to delete. Provide\
+        \ as a string of the file_uuid like: \"c35002f9c3d49f8b77e1e2cd4a01803d\""
+  - location:
+      type: "MODEL"
+      name: "Dataset.title"
+    properties:
+      description: "The dataset title."
+  - location:
+      type: "MODEL"
+      name: "Dataset.upload"
+    properties:
+      description: "The Data Upload that this dataset is associated with."
+  - location:
+      type: "MODEL"
+      name: "Dataset.uuid"
+    properties:
+      description: "The HuBMAP unique identifier, intended for internal software use\
+        \ only.  This is a 32 digit hexadecimal uuid e.g. 461bbfdc353a2673e381f632510b0f17"
+  - location:
+      type: "MODEL"
+      name: "Donor.contacts"
+    properties:
+      description: "A list of the people who are the main contacts to get information\
+        \ about the entity."
+  - location:
+      type: "MODEL"
+      name: "Donor.created_by_user_displayname"
+    properties:
+      description: "The name of the person or process authenticated when creating\
+        \ the object"
+  - location:
+      type: "MODEL"
+      name: "Donor.created_by_user_email"
+    properties:
+      description: "The email address of the person or process authenticated when\
+        \ creating the object."
+  - location:
+      type: "MODEL"
+      name: "Donor.created_by_user_sub"
+    properties:
+      description: "The subject id as provided by the authorization mechanism for\
+        \ the person or process authenticated when creating the object."
+  - location:
+      type: "MODEL"
+      name: "Donor.created_timestamp"
+    properties:
+      description: "The timestamp of when the node was created.  The format is an\
+        \ integer representing milliseconds since midnight Jan 1, 1970"
+  - location:
+      type: "MODEL"
+      name: "Donor.creators"
+    properties:
+      description: "A list of the people who created the entity with full name, email,\
+        \ ORCID iD, institution, etc.. This is analogus to the author list on a publication."
+  - location:
+      type: "MODEL"
+      name: "Donor.data_access_level"
+    properties:
+      description: "One of the values: public, consortium"
+  - location:
+      type: "MODEL"
+      name: "Donor.description"
+    properties:
+      description: "Free text description of the donor"
+  - location:
+      type: "MODEL"
+      name: "Donor.doi_url"
+    properties:
+      description: "The url from the doi registry for this entity. e.g. https://doi.org/10.35079/hbm289.pcbm.487"
+  - location:
+      type: "MODEL"
+      name: "Donor.entity_type"
+    properties:
+      description: "One of the normalized entity types: Dataset, Collection, Sample,\
+        \ Donor, Upload"
+  - location:
+      type: "MODEL"
+      name: "Donor.group_name"
+    properties:
+      description: "The displayname of globus group which the user who created this\
+        \ entity is a member of"
+  - location:
+      type: "MODEL"
+      name: "Donor.group_uuid"
+    properties:
+      description: "The uuid of globus group which the user who created this entity\
+        \ is a member of.  This is required on Create/POST if the user creating the\
+        \ Donor is a member of more than one write group.  This property cannot be\
+        \ set via PUT (only on Create/POST)."
+  - location:
+      type: "MODEL"
+      name: "Donor.hubmap_id"
+    properties:
+      description: "A HuBMAP Consortium wide unique identifier randomly generated\
+        \ in the format HBM###.ABCD.### for every entity."
+  - location:
+      type: "MODEL"
+      name: "Donor.image_files"
+    properties:
+      description: "List of uploaded image files and descriptions of the files. Stored\
+        \ in db as a stringfied json array."
+  - location:
+      type: "MODEL"
+      name: "Donor.image_files_to_add"
+    properties:
+      description: "List of temporary file ids with an optional description. Provide\
+        \ as a json array with an temp_file_id and description attribute for each\
+        \ element like {\"files\": [{\"temp_file_id\":\"dzevgd6xjs4d5grmcp4n\",\"\
+        description\":\"This is image file one\"},{\"temp_file_id\":\"yrahjadfhadf\"\
+        ,\"description\":\"This is image file two\"}]}"
+  - location:
+      type: "MODEL"
+      name: "Donor.image_files_to_remove"
+    properties:
+      description: "List of image files previously uploaded to delete. Provide as\
+        \ a json array of the file_uuids of the file like: [\"232934234234234234234270c0ea6c51d604a850558ef2247d0b4\"\
+        , \"230948203482234234234a57bfe9c056d08a0f8e6cd612baa3bfa\"]"
+  - location:
+      type: "MODEL"
+      name: "Donor.lab_donor_id"
+    properties:
+      description: "A lab specific identifier for the donor."
+  - location:
+      type: "MODEL"
+      name: "Donor.label"
+    properties:
+      description: "Lab provided, de-identified name for the donor"
+  - location:
+      type: "MODEL"
+      name: "Donor.last_modified_timestamp"
+    properties:
+      description: "The timestamp of when the object was last modified.  The format\
+        \ is an integer representing milliseconds since midnight, Jan 1, 1970"
+  - location:
+      type: "MODEL"
+      name: "Donor.last_modified_user_displayname"
+    properties:
+      description: "The name of the person or process which authenticated when the\
+        \ object was last modified."
+  - location:
+      type: "MODEL"
+      name: "Donor.last_modified_user_email"
+    properties:
+      description: "The email address of the person or process which authenticated\
+        \ when the object was last modified."
+  - location:
+      type: "MODEL"
+      name: "Donor.last_modified_user_sub"
+    properties:
+      description: "The subject id of the user who last modified the entity as provided\
+        \ by the authorization mechanism for the person or process authenticated when\
+        \ the object was modified."
+  - location:
+      type: "MODEL"
+      name: "Donor.metadata.living_donor_data"
+    properties:
+      description: "Information about the donor who's tissue was used.  The tissue\
+        \ was obtained during a procedure. Only living_donor_data or organ_donor_data,\
+        \ not both can be defined for a single donor."
+  - location:
+      type: "MODEL"
+      name: "Donor.metadata.organ_donor_data"
+    properties:
+      description: "Information about the donor who's organ(s) was/were used.  The\
+        \ organ was obtained via an organ donation program from a deceaced donor.\
+        \ Only living_donor_data or organ_donor_data, not both can be defined for\
+        \ a single donor."
+  - location:
+      type: "MODEL"
+      name: "Donor.metadata"
+    properties:
+      description: "Donor metadata as an array of UMLS codes and descriptions"
+  - location:
+      type: "MODEL"
+      name: "Donor.protocol_url"
+    properties:
+      description: "The protocols.io doi url pointing the protocol describing the\
+        \ donor selection, inclusion/exclusion criteria"
+  - location:
+      type: "MODEL"
+      name: "Donor.registered_doi"
+    properties:
+      description: "The doi of a the registered entity. e.g. 10.35079/hbm289.pcbm.487.\
+        \  This is set during the publication process and currently available for\
+        \ certain Collections and Datasets."
+  - location:
+      type: "MODEL"
+      name: "Donor.submission_id"
+    properties:
+      description: "The hubmap internal id with embedded semantic information e.g.:\
+        \ VAN0003. This id is generated at creation time which tracks the lab, donor,\
+        \ organ and sample hierarchy per the following: https://docs.google.com/document/d/1DjHgmqWF1VA5-3mfzLFNfabbzmc8KLSG9xWx1DDLlzo/edit?usp=sharing"
+  - location:
+      type: "MODEL"
+      name: "Donor.uuid"
+    properties:
+      description: "The HuBMAP unique identifier, intended for internal software use\
+        \ only.  This is a 32 digit hexadecimal uuid e.g. 461bbfdc353a2673e381f632510b0f17"
+  - location:
+      type: "MODEL"
+      name: "DonorMetadata.code"
+    properties:
+      description: "This is a Code from a source vocabulary in the HuBMAP Knowledge\
+        \ Graph, currently limited to UMLS source vocabulary terms."
+  - location:
+      type: "MODEL"
+      name: "DonorMetadata.concept_id"
+    properties:
+      description: "This is the Concept ID from the HuBMAP Knowledge Graph.  Currently\
+        \ limited to UMLS concepts."
+  - location:
+      type: "MODEL"
+      name: "DonorMetadata.data_type"
+    properties:
+      description: "This is the data type of thw record. Numeric types will generally\
+        \ have non-null data_value. Nominal types will generally have null data_value."
+  - location:
+      type: "MODEL"
+      name: "DonorMetadata.data_value"
+    properties:
+      description: "The data value of the record."
+  - location:
+      type: "MODEL"
+      name: "DonorMetadata.end_datetime"
+    properties:
+      description: "This is the approximate time difference in seconds between the\
+        \ procurement and the end of this event (this is to construct time series\
+        \ records of clinical data for event-level data not donor-level data). An\
+        \ epty of zero value designates missing data or that this field is not applicable\
+        \ for the concept"
+  - location:
+      type: "MODEL"
+      name: "DonorMetadata.graph_version"
+    properties:
+      description: "This is the version of the HuBMAP Knowledge Graph that the Concept\
+        \ appears in, currently the version of UMLS that is used."
+  - location:
+      type: "MODEL"
+      name: "DonorMetadata.grouping_code"
+    properties:
+      description: "This is a Code from a source vocabulary in the HuBMAP Knowledge\
+        \ Graph, currently limited to UMLS vocabulary codes. This code corresponds\
+        \ to the grouping_concept."
+  - location:
+      type: "MODEL"
+      name: "DonorMetadata.grouping_concept"
+    properties:
+      description: "This is the Concept ID from the HuBMAP Knowledge Graph, currently\
+        \ limited to UMLS concetps, that is to be used for grouping the record."
+  - location:
+      type: "MODEL"
+      name: "DonorMetadata.grouping_concept_preferred_term"
+    properties:
+      description: "This is the preferred display term for the facet in which this\
+        \ record should be counted for faceted search in the portal. It may or may\
+        \ not correspond to a term in UMLS for the grouping concept."
+  - location:
+      type: "MODEL"
+      name: "DonorMetadata.grouping_sab"
+    properties:
+      description: "This is a grouping for the source vocabulary in the HuBMAP Knowledge\
+        \ Graph, currently limited to UMLS source vocabularies.. This sab corresponds\
+        \ to the grouping_code."
+  - location:
+      type: "MODEL"
+      name: "DonorMetadata.numeric_operator"
+    properties:
+      description: "This is the numeric operator for the data value .This enables\
+        \ inputing thresholds and ranges for data values by using greater than or\
+        \ less than."
+  - location:
+      type: "MODEL"
+      name: "DonorMetadata.preferred_term"
+    properties:
+      description: "This is the preferred display term for the item. It may or may\
+        \ not correspond to a term in UMLS for this concept."
+  - location:
+      type: "MODEL"
+      name: "DonorMetadata.sab"
+    properties:
+      description: "This is the source vocabulary in the HuBMAP Knowledge Graph. \
+        \ Currently limited to UMLS source vocabularies."
+  - location:
+      type: "MODEL"
+      name: "DonorMetadata.start_datetime"
+    properties:
+      description: "This is the approximate time difference in seconds between the\
+        \ procurement and the start of this event (this is to construct time series\
+        \ records of clinical data for event-level data not donor-level data). An\
+        \ empty or zero value designates missing data or that this field is not applicable\
+        \ for the concept."
+  - location:
+      type: "MODEL"
+      name: "DonorMetadata.units"
+    properties:
+      description: "This are the units for the data value."
+  - location:
+      type: "MODEL"
+      name: "File.description"
+    properties:
+      description: "A description of the file. The Dataset.thumbnail_file does not\
+        \ have this file description."
+  - location:
+      type: "MODEL"
+      name: "File.file_uuid"
+    properties:
+      description: "The HuBMAP unique identifier for the file."
+  - location:
+      type: "MODEL"
+      name: "File.filename"
+    properties:
+      description: "The name of the file."
+  - location:
+      type: "MODEL"
+      name: "MODEL3ebf60.retraction_reason"
+    properties:
+      description: "Free text describing why the dataset was retracted"
+  - location:
+      type: "MODEL"
+      name: "MODELe5f447.dataset_uuid"
+    properties:
+      description: "The uuid of a dataset"
+  - location:
+      type: "MODEL"
+      name: "MODELe5f447.revision_number"
+    properties:
+      description: "The number in the revision chain of this dataset where 1 is the\
+        \ oldest revision"
+  - location:
+      type: "MODEL"
+      name: "Person.affiliation"
+    properties:
+      description: "The institution that the person is affiliated with."
+  - location:
+      type: "MODEL"
+      name: "Person.first_name"
+    properties:
+      description: "The full name of the person."
+  - location:
+      type: "MODEL"
+      name: "Person.last_name"
+    properties:
+      description: "The last name of the person."
+  - location:
+      type: "MODEL"
+      name: "Person.middle_name_or_initial"
+    properties:
+      description: "The middle name or initial of the person."
+  - location:
+      type: "MODEL"
+      name: "Person.orcid_id"
+    properties:
+      description: "The ORCID iD of the person."
+  - location:
+      type: "MODEL"
+      name: "Sample.contacts"
+    properties:
+      description: "A list of the people who are the main contacts to get information\
+        \ about the entity."
+  - location:
+      type: "MODEL"
+      name: "Sample.created_by_user_displayname"
+    properties:
+      description: "The name of the person or process authenticated when creating\
+        \ the object"
+  - location:
+      type: "MODEL"
+      name: "Sample.created_by_user_email"
+    properties:
+      description: "The email address of the person or process authenticated when\
+        \ creating the object."
+  - location:
+      type: "MODEL"
+      name: "Sample.created_by_user_sub"
+    properties:
+      description: "The subject id as provided by the authorization mechanism for\
+        \ the person or process authenticated when creating the object."
+  - location:
+      type: "MODEL"
+      name: "Sample.created_timestamp"
+    properties:
+      description: "The timestamp of when the node was created.  The format is an\
+        \ integer representing milliseconds since midnight Jan 1, 1970"
+  - location:
+      type: "MODEL"
+      name: "Sample.creators"
+    properties:
+      description: "A list of the people who created the entity with full name, email,\
+        \ ORCID iD, institution, etc.. This is analogus to the author list on a publication."
+  - location:
+      type: "MODEL"
+      name: "Sample.data_access_level"
+    properties:
+      description: "One of the values: public, consortium."
+  - location:
+      type: "MODEL"
+      name: "Sample.description"
+    properties:
+      description: "Free text description of the sample"
+  - location:
+      type: "MODEL"
+      name: "Sample.direct_ancestor"
+    properties:
+      description: "The entitiy directly above this sample in the provenance graph\
+        \ (direct parent)."
+  - location:
+      type: "MODEL"
+      name: "Sample.direct_ancestor_uuid"
+    properties:
+      description: "The uuid of source entity from which this new entity is derived\
+        \ from. Used on creation or edit to create an action and relationship to the\
+        \ ancestor.  The direct ancestor must be a Donor or Sample.  If the direct\
+        \ ancestor is a Donor, the sample must be of type organ."
+  - location:
+      type: "MODEL"
+      name: "Sample.doi_url"
+    properties:
+      description: "The url from the doi registry for this entity. e.g. https://doi.org/10.35079/hbm289.pcbm.487"
+  - location:
+      type: "MODEL"
+      name: "Sample.entity_type"
+    properties:
+      description: "One of the normalized entity types: Dataset, Collection, Sample,\
+        \ Donor"
+  - location:
+      type: "MODEL"
+      name: "Sample.group_name"
+    properties:
+      description: "The displayname of globus group which the user who created this\
+        \ entity is a member of"
+  - location:
+      type: "MODEL"
+      name: "Sample.group_uuid"
+    properties:
+      description: "The uuid of globus group which the user who created this entity\
+        \ is a member of.  This is required on Create/POST if the user creating the\
+        \ Donor is a member of more than one write group.  This property cannot be\
+        \ set via PUT (only on Create/POST)."
+  - location:
+      type: "MODEL"
+      name: "Sample.hubmap_id"
+    properties:
+      description: "A HuBMAP Consortium wide unique identifier randomly generated\
+        \ in the format HBM###.ABCD.### for every entity."
+  - location:
+      type: "MODEL"
+      name: "Sample.image_files"
+    properties:
+      description: "List of uploaded image files and descriptions of the files. Stored\
+        \ in db as a stringfied json array."
+  - location:
+      type: "MODEL"
+      name: "Sample.image_files_to_add"
+    properties:
+      description: "List of temporary file ids with an optional description. Provide\
+        \ as a json array with an temp_file_id and description attribute for each\
+        \ element like {\"files\": [{\"temp_file_id\":\"dzevgd6xjs4d5grmcp4n\",\"\
+        description\":\"This is image file one\"},{\"temp_file_id\":\"yrahjadfhadf\"\
+        ,\"description\":\"This is image file two\"}]}"
+  - location:
+      type: "MODEL"
+      name: "Sample.image_files_to_remove"
+    properties:
+      description: "List of image files previously uploaded to delete. Provide as\
+        \ a json array of the file_uuids of the file like: [\"232934234234234234234270c0ea6c51d604a850558ef2247d0b4\"\
+        , \"230948203482234234234a57bfe9c056d08a0f8e6cd612baa3bfa\"]"
+  - location:
+      type: "MODEL"
+      name: "Sample.lab_tissue_sample_id"
+    properties:
+      description: "Lab specific id for the sample."
+  - location:
+      type: "MODEL"
+      name: "Sample.last_modified_timestamp"
+    properties:
+      description: "The timestamp of when the object was last modified.  The format\
+        \ is an integer representing milliseconds since midnight, Jan 1, 1970"
+  - location:
+      type: "MODEL"
+      name: "Sample.last_modified_user_displayname"
+    properties:
+      description: "The name of the person or process which authenticated when the\
+        \ object was last modified."
+  - location:
+      type: "MODEL"
+      name: "Sample.last_modified_user_email"
+    properties:
+      description: "The email address of the person or process which authenticated\
+        \ when the object was last modified."
+  - location:
+      type: "MODEL"
+      name: "Sample.last_modified_user_sub"
+    properties:
+      description: "The subject id of the user who last modified the entity as provided\
+        \ by the authorization mechanism for the person or process authenticated when\
+        \ the object was modified."
+  - location:
+      type: "MODEL"
+      name: "Sample.metadata_files"
+    properties:
+      description: "List of uploaded image files and descriptions of the files. Stored\
+        \ in db as a stringfied json array."
+  - location:
+      type: "MODEL"
+      name: "Sample.metadata_files_to_add"
+    properties:
+      description: "List of temporary file ids with an optional description. Provide\
+        \ as a json array with an temp_file_id and description attribute for each\
+        \ element like {\"files\": [{\"temp_file_id\":\"dzevgd6xjs4d5grmcp4n\",\"\
+        description\":\"This is image file one\"},{\"temp_file_id\":\"yrahjadfhadf\"\
+        ,\"description\":\"This is image file two\"}]}"
+  - location:
+      type: "MODEL"
+      name: "Sample.metadata_files_to_remove"
+    properties:
+      description: "List of image files previously uploaded to delete. Provide as\
+        \ a json array of the file_uuids of the file like: [\"232934234234234234234270c0ea6c51d604a850558ef2247d0b4\"\
+        , \"230948203482234234234a57bfe9c056d08a0f8e6cd612baa3bfa\"]"
+  - location:
+      type: "MODEL"
+      name: "Sample.organ"
+    properties:
+      description: "Organ code specifier, only set if sample_type == organ.  Valid\
+        \ values found in: [organ types](https://github.com/hubmapconsortium/search-api/blob/master/src/search-schema/data/definitions/enums/organ_types.yaml)"
+  - location:
+      type: "MODEL"
+      name: "Sample.organ_other"
+    properties:
+      description: "The organ type provided by the user if \"other\" organ type is\
+        \ selected"
+  - location:
+      type: "MODEL"
+      name: "Sample.protocol_url"
+    properties:
+      description: "The protocols.io doi url pointing the protocol under wich the\
+        \ sample was obtained and/or prepared."
+  - location:
+      type: "MODEL"
+      name: "Sample.registered_doi"
+    properties:
+      description: "The doi of a the registered entity. e.g. 10.35079/hbm289.pcbm.487.\
+        \  This is set during the publication process and currently available for\
+        \ certain Collections and Datasets."
+  - location:
+      type: "MODEL"
+      name: "Sample.rui_location"
+    properties:
+      description: "The sample location and orientation in the ancestor organ as specified\
+        \ in the RUI tool. Returned as a json object."
+  - location:
+      type: "MODEL"
+      name: "Sample.specimen_type"
+    properties:
+      description: "A code representing the type of specimen.  Must be one of the\
+        \ codes specified in: [tissue sample types](https://github.com/hubmapconsortium/search-api/blob/master/src/search-schema/data/definitions/enums/tissue_sample_types.yaml)"
+  - location:
+      type: "MODEL"
+      name: "Sample.specimen_type_other"
+    properties:
+      description: "The user provided sample type if the 'other' sample_type is chosen."
+  - location:
+      type: "MODEL"
+      name: "Sample.submission_id"
+    properties:
+      description: "The hubmap internal id with embedded semantic information e.g.:\
+        \ VAN0003-LK-1-10.  This id is generated at creation time which tracks the\
+        \ lab, donor, organ and sample hierarchy per the following: https://docs.google.com/document/d/1DjHgmqWF1VA5-3mfzLFNfabbzmc8KLSG9xWx1DDLlzo/edit?usp=sharing"
+  - location:
+      type: "MODEL"
+      name: "Sample.uuid"
+    properties:
+      description: "The HuBMAP unique identifier, intended for internal software use\
+        \ only.  This is a 32 digit hexadecimal uuid e.g. 461bbfdc353a2673e381f632510b0f17"
+  - location:
+      type: "MODEL"
+      name: "Sample.visit"
+    properties:
+      description: "The visit id for the donor/patient when the sample was obtained."
+  - location:
+      type: "MODEL"
+      name: "SampleMetadata.cold_ischemia_time_unit"
+    properties:
+      description: "Time units that the cold_ischemia_time_value is reported in. Blank\
+        \ if not applicable."
+  - location:
+      type: "MODEL"
+      name: "SampleMetadata.cold_ischemia_time_value"
+    properties:
+      description: "Time interval on ice to the start of preservation protocol. Blank\
+        \ if not applicable."
+  - location:
+      type: "MODEL"
+      name: "SampleMetadata.health_status"
+    properties:
+      description: "Donor from which the tissue sample came from's baseline physical\
+        \ condition prior to immediate event leading to organ/tissue acquisition.\
+        \ For example, if a relatively healthy patient suffers trauma, and as a result\
+        \ of reparative surgery, a tissue sample is collected, the subject will be\
+        \ deemed 'relatively healthy'. Likewise, a relatively healthy subject may\
+        \ have experienced trauma leading to brain death. As a result of organ donation,\
+        \ a sample is collected. In this scenario, the subject is deemed 'relatively\
+        \ healthy'."
+  - location:
+      type: "MODEL"
+      name: "SampleMetadata.organ_condition"
+    properties:
+      description: "Health status of the organ at the time of tissue sample recovery."
+  - location:
+      type: "MODEL"
+      name: "SampleMetadata.pathologist_report"
+    properties:
+      description: "Further details on organ level QC checks."
+  - location:
+      type: "MODEL"
+      name: "SampleMetadata.perfusion_solution"
+    properties:
+      description: "Health status of the organ at the time of sample recovery."
+  - location:
+      type: "MODEL"
+      name: "SampleMetadata.procedure_date"
+    properties:
+      description: "The date at which the organ from which the tissue sample came\
+        \ from was procurred, in the format YYYY-MM-DD"
+  - location:
+      type: "MODEL"
+      name: "SampleMetadata.sample_id"
+    properties:
+      description: "The HuBMAP Identifier for the sample."
+  - location:
+      type: "MODEL"
+      name: "SampleMetadata.specimen_preservation_temperature"
+    properties:
+      description: "The temperature of the medium during the preservation process.\
+        \ Reported as preservation method, temperature and units, e.g. Freezer (-80\
+        \ Celsius)"
+  - location:
+      type: "MODEL"
+      name: "SampleMetadata.specimen_quality_criteria"
+    properties:
+      description: "RIN score. e.g. RIN: 8.7"
+  - location:
+      type: "MODEL"
+      name: "SampleMetadata.specimen_tumor_distance_value"
+    properties:
+      description: "If surgical sample from a tumor biopsy, how far from the tumor\
+        \ was the sample obtained from. Typically a number of centimeters. Blank if\
+        \ not applicable or unknown."
+  - location:
+      type: "MODEL"
+      name: "SampleMetadata.vital_state"
+    properties:
+      description: "The vital state of the donor who the tissue sample came from."
+  - location:
+      type: "MODEL"
+      name: "SampleMetadata.warm_ischemia_time_unit"
+    properties:
+      description: "Time units that the warm_ischemia_time_value is reported in. Blank\
+        \ if not applicable"
+  - location:
+      type: "MODEL"
+      name: "SampleMetadata.warm_ischemia_time_value"
+    properties:
+      description: "Time interval between cessation of blood flow and cooling to 4C.\
+        \ Blank if not applicable."
+  - location:
+      type: "MODEL"
+      name: "SampleMetadata"
+    properties:
+      description: "The sample specific metadata derived from the uploaded sample_metadata.tsv\
+        \ file. Returned as a json object."
+  - location:
+      type: "MODEL"
+      name: "Upload.created_by_user_displayname"
+    properties:
+      description: "The name of the person or process authenticated when creating\
+        \ the object"
+  - location:
+      type: "MODEL"
+      name: "Upload.created_by_user_email"
+    properties:
+      description: "The email address of the person or process authenticated when\
+        \ creating the object."
+  - location:
+      type: "MODEL"
+      name: "Upload.created_by_user_sub"
+    properties:
+      description: "The subject id as provided by the authorization mechanism for\
+        \ the person or process authenticated when creating the object."
+  - location:
+      type: "MODEL"
+      name: "Upload.created_timestamp"
+    properties:
+      description: "The timestamp of when the node was created.  The format is an\
+        \ integer representing milliseconds since midnight Jan 1, 1970"
+  - location:
+      type: "MODEL"
+      name: "Upload.dataset_uuids_to_link"
+    properties:
+      description: "List of datasets to add to the Upload. Provide as a json array\
+        \ of the dataset uuids like: [\"232934234234234234234270c0ea6c51d604a850558ef2247d0b4\"\
+        , \"230948203482234234234a57bfe9c056d08a0f8e6cd612baa3bfa\"]"
+  - location:
+      type: "MODEL"
+      name: "Upload.dataset_uuids_to_unlink"
+    properties:
+      description: "List of datasets to remove from a Upload. Provide as a json array\
+        \ of the dataset uuids like: [\"232934234234234234234270c0ea6c51d604a850558ef2247d0b4\"\
+        , \"230948203482234234234a57bfe9c056d08a0f8e6cd612baa3bfa\"]"
+  - location:
+      type: "MODEL"
+      name: "Upload.datasets"
+    properties:
+      description: "The datasets that are contained in this Upload."
+  - location:
+      type: "MODEL"
+      name: "Upload.description"
+    properties:
+      description: "Free text description of the data being submitted."
+  - location:
+      type: "MODEL"
+      name: "Upload.entity_type"
+    properties:
+      description: "One of the normalized entity types: Dataset, Collection, Sample,\
+        \ Donor, Upload"
+  - location:
+      type: "MODEL"
+      name: "Upload.group_name"
+    properties:
+      description: "The displayname of globus group which the user who created this\
+        \ entity is a member of"
+  - location:
+      type: "MODEL"
+      name: "Upload.group_uuid"
+    properties:
+      description: "The uuid of globus group which the user who created this entity\
+        \ is a member of.  This is required on Create/POST if the user creating the\
+        \ Donor is a member of more than one write group.  This property cannot be\
+        \ set via PUT (only on Create/POST)."
+  - location:
+      type: "MODEL"
+      name: "Upload.hubmap_id"
+    properties:
+      description: "A HuBMAP Consortium wide unique identifier randomly generated\
+        \ in the format HBM###.ABCD.### for every entity."
+  - location:
+      type: "MODEL"
+      name: "Upload.last_modified_timestamp"
+    properties:
+      description: "The timestamp of when the object was last modified.  The format\
+        \ is an integer representing milliseconds since midnight, Jan 1, 1970"
+  - location:
+      type: "MODEL"
+      name: "Upload.last_modified_user_displayname"
+    properties:
+      description: "The name of the person or process which authenticated when the\
+        \ object was last modified."
+  - location:
+      type: "MODEL"
+      name: "Upload.last_modified_user_email"
+    properties:
+      description: "The email address of the person or process which authenticated\
+        \ when the object was last modified."
+  - location:
+      type: "MODEL"
+      name: "Upload.last_modified_user_sub"
+    properties:
+      description: "The subject id of the user who last modified the entity as provided\
+        \ by the authorization mechanism for the person or process authenticated when\
+        \ the object was modified."
+  - location:
+      type: "MODEL"
+      name: "Upload.status"
+    properties:
+      description: "One of: New|Valid|Invalid|Error|Submitted"
+  - location:
+      type: "MODEL"
+      name: "Upload.title"
+    properties:
+      description: "Title of the datasets, a sentance or less"
+  - location:
+      type: "MODEL"
+      name: "Upload.uuid"
+    properties:
+      description: "The HuBMAP unique identifier, intended for internal software use\
+        \ only.  This is a 32 digit hexadecimal uuid e.g. 461bbfdc353a2673e381f632510b0f17"
+  - location:
+      type: "MODEL"
+      name: "Upload.validation_message"
+    properties:
+      description: "A message from the validataion tools describing what is invalid\
+        \ with the upload."
+  - location:
+      type: "PATH_PARAMETER"
+      path: "/entities/multiple-samples/{count}"
+      method: "POST"
+      name: "count"
+    properties:
+      description: "The number of samples to be created"
+  - location:
+      type: "PATH_PARAMETER"
+      path: "/entities/new/{entity_type}"
+      method: "POST"
+      name: "entity_type"
+    properties:
+      description: "One of the target entity types (case-insensitive since will be\
+        \ normalized): Donor, Sample, Dataset, Upload"
+  - location:
+      type: "PATH_PARAMETER"
+      path: "/ancestors/{id}"
+      method: "GET"
+      name: "id"
+    properties:
+      description: "The unique identifier of entity.  This identifier can be either\
+        \ an HuBMAP ID (e.g. HBM123.ABCD.456) or UUID"
+  - location:
+      type: "PATH_PARAMETER"
+      path: "/children/{id}"
+      method: "GET"
+      name: "id"
+    properties:
+      description: "The unique identifier of entity.  This identifier can be either\
+        \ an HuBMAP ID (e.g. HBM123.ABCD.456) or UUID"
+  - location:
+      type: "PATH_PARAMETER"
+      path: "/collections/{id}/add-datasets"
+      method: "PUT"
+      name: "id"
+    properties:
+      description: "The UUID of target collection"
+  - location:
+      type: "PATH_PARAMETER"
+      path: "/collections/{id}"
+      method: "GET"
+      name: "id"
+    properties:
+      description: "The unique identifier of entity.  This identifier can be either\
+        \ an HuBMAP ID (e.g. HBM123.ABCD.456) or UUID"
+  - location:
+      type: "PATH_PARAMETER"
+      path: "/datasets/{id}/latest-revision"
+      method: "GET"
+      name: "id"
+    properties:
+      description: "The unique identifier of entity.  This identifier can be either\
+        \ an HuBMAP ID (e.g. HBM123.ABCD.456) or UUID"
+  - location:
+      type: "PATH_PARAMETER"
+      path: "/datasets/{id}/retract"
+      method: "PUT"
+      name: "id"
+    properties:
+      description: "The unique identifier of entity. This identifier can be either\
+        \ a HubMAP ID (e.g. HBM123.ABCD.456) or UUID"
+  - location:
+      type: "PATH_PARAMETER"
+      path: "/datasets/{id}/revision"
+      method: "GET"
+      name: "id"
+    properties:
+      description: "The unique identifier of entity.  This identifier can be either\
+        \ an HuBMAP ID (e.g. HBM123.ABCD.456) or UUID"
+  - location:
+      type: "PATH_PARAMETER"
+      path: "/datasets/{id}/revisions"
+      method: "GET"
+      name: "id"
+    properties:
+      description: "The unique identifier of entity.  This identifier can be either\
+        \ an HuBMAP ID (e.g. HBM123.ABCD.456) or UUID"
+  - location:
+      type: "PATH_PARAMETER"
+      path: "/descendants/{id}"
+      method: "GET"
+      name: "id"
+    properties:
+      description: "The unique identifier of entity.  This identifier can be either\
+        \ an HuBMAP ID (e.g. HBM123.ABCD.456) or UUID"
+  - location:
+      type: "PATH_PARAMETER"
+      path: "/doi/redirect/{id}"
+      method: "GET"
+      name: "id"
+    properties:
+      description: "The HuBMAP ID (e.g. HBM123.ABCD.456) or UUID of the target collection"
+  - location:
+      type: "PATH_PARAMETER"
+      path: "/entities/{id}/ancestor-organs"
+      method: "GET"
+      name: "id"
+    properties:
+      description: "The unique identifier of entity.  This identifier can be either\
+        \ an HuBMAP ID (e.g. HBM123.ABCD.456) or UUID"
+  - location:
+      type: "PATH_PARAMETER"
+      path: "/entities/{id}/globus-url"
+      method: "GET"
+      name: "id"
+    properties:
+      description: "The HuBMA`P ID (e.g. HBM123.ABCD.456) or UUID of the given ntity"
+  - location:
+      type: "PATH_PARAMETER"
+      path: "/entities/{id}/provenance"
+      method: "GET"
+      name: "id"
+    properties:
+      description: "The unique identifier of entity.  This identifier can be either\
+        \ an HuBMAP ID (e.g. HBM123.ABCD.456) or UUID"
+  - location:
+      type: "PATH_PARAMETER"
+      path: "/entities/{id}"
+      method: "GET"
+      name: "id"
+    properties:
+      description: "The unique identifier of entity.  This identifier can be either\
+        \ an HuBMAP ID (e.g. HBM123.ABCD.456) or UUID (32 digit hexadecimal number)"
+  - location:
+      type: "PATH_PARAMETER"
+      path: "/entities/{id}"
+      method: "PUT"
+      name: "id"
+    properties:
+      description: "The HuBMAP ID (e.g. HBM123.ABCD.456) or UUID of target entity"
+  - location:
+      type: "PATH_PARAMETER"
+      path: "/parents/{id}"
+      method: "GET"
+      name: "id"
+    properties:
+      description: "The unique identifier of entity.  This identifier can be either\
+        \ an HuBMAP ID (e.g. HBM123.ABCD.456) or UUID"
+  - location:
+      type: "QUERY_PARAMETER"
+      path: "/datasets/{id}/revisions"
+      method: "GET"
+      name: "include_dataset"
+    properties:
+      description: "A case insensitive string. Any value besides true will have no\
+        \ effect. If the string is 'true', the full dataset for each revision will\
+        \ be included in the response"
+  - location:
+      type: "REQUEST_BODY"
+      path: "/datasets/{id}/retract"
+      method: "PUT"
+    properties:
+      description: "A json body with a single, required retraction_reason parameter\
+        \ contianing the reason why the dataset is being retracted."
+  - location:
+      type: "RESPONSE"
+      path: "/ancestors/{id}"
+      method: "GET"
+      statusCode: "200"
+    properties:
+      description: "An array of ancestors is returned"
+  - location:
+      type: "RESPONSE"
+      path: "/ancestors/{id}"
+      method: "GET"
+      statusCode: "400"
+    properties:
+      description: "Invalid or misformatted entity identifier"
+  - location:
+      type: "RESPONSE"
+      path: "/ancestors/{id}"
+      method: "GET"
+      statusCode: "401"
+    properties:
+      description: "The user's token has expired or the user did not supply a valid\
+        \ token"
+  - location:
+      type: "RESPONSE"
+      path: "/ancestors/{id}"
+      method: "GET"
+      statusCode: "403"
+    properties:
+      description: "The user is not authorized to access the entity"
+  - location:
+      type: "RESPONSE"
+      path: "/ancestors/{id}"
+      method: "GET"
+      statusCode: "404"
+    properties:
+      description: "The target entity could not be found"
+  - location:
+      type: "RESPONSE"
+      path: "/ancestors/{id}"
+      method: "GET"
+      statusCode: "500"
+    properties:
+      description: "Internal error"
+  - location:
+      type: "RESPONSE"
+      path: "/children/{id}"
+      method: "GET"
+      statusCode: "200"
+    properties:
+      description: "An array of children entities is returned"
+  - location:
+      type: "RESPONSE"
+      path: "/children/{id}"
+      method: "GET"
+      statusCode: "400"
+    properties:
+      description: "Invalid or misformatted entity identifier"
+  - location:
+      type: "RESPONSE"
+      path: "/children/{id}"
+      method: "GET"
+      statusCode: "401"
+    properties:
+      description: "The user's token has expired or the user did not supply a valid\
+        \ token"
+  - location:
+      type: "RESPONSE"
+      path: "/children/{id}"
+      method: "GET"
+      statusCode: "403"
+    properties:
+      description: "The user is not authorized to access the entity"
+  - location:
+      type: "RESPONSE"
+      path: "/children/{id}"
+      method: "GET"
+      statusCode: "404"
+    properties:
+      description: "The target entity could not be found"
+  - location:
+      type: "RESPONSE"
+      path: "/children/{id}"
+      method: "GET"
+      statusCode: "500"
+    properties:
+      description: "Internal error"
+  - location:
+      type: "RESPONSE"
+      path: "/collections/{id}/add-datasets"
+      method: "PUT"
+      statusCode: "200"
+    properties:
+      description: "successful operation"
+  - location:
+      type: "RESPONSE"
+      path: "/collections/{id}/add-datasets"
+      method: "PUT"
+      statusCode: "400"
+    properties:
+      description: "Invalid or misformatted collection uuid"
+  - location:
+      type: "RESPONSE"
+      path: "/collections/{id}/add-datasets"
+      method: "PUT"
+      statusCode: "401"
+    properties:
+      description: "The user's token has expired or the user did not supply a valid\
+        \ token"
+  - location:
+      type: "RESPONSE"
+      path: "/collections/{id}/add-datasets"
+      method: "PUT"
+      statusCode: "403"
+    properties:
+      description: "The user is not authorized to add datasets to the collection"
+  - location:
+      type: "RESPONSE"
+      path: "/collections/{id}/add-datasets"
+      method: "PUT"
+      statusCode: "404"
+    properties:
+      description: "The target entity could not be found"
+  - location:
+      type: "RESPONSE"
+      path: "/collections/{id}/add-datasets"
+      method: "PUT"
+      statusCode: "500"
+    properties:
+      description: "Internal error"
+  - location:
+      type: "RESPONSE"
+      path: "/collections/{id}"
+      method: "GET"
+      statusCode: "200"
+    properties:
+      description: "The collection is returned"
+  - location:
+      type: "RESPONSE"
+      path: "/collections/{id}"
+      method: "GET"
+      statusCode: "400"
+    properties:
+      description: "Invalid or misformatted entity identifier"
+  - location:
+      type: "RESPONSE"
+      path: "/collections/{id}"
+      method: "GET"
+      statusCode: "401"
+    properties:
+      description: "The user's token has expired or the user did not supply a valid\
+        \ token"
+  - location:
+      type: "RESPONSE"
+      path: "/collections/{id}"
+      method: "GET"
+      statusCode: "404"
+    properties:
+      description: "The target entity could not be found"
+  - location:
+      type: "RESPONSE"
+      path: "/collections/{id}"
+      method: "GET"
+      statusCode: "500"
+    properties:
+      description: "Internal error"
+  - location:
+      type: "RESPONSE"
+      path: "/datasets/{id}/latest-revision"
+      method: "GET"
+      statusCode: "200"
+    properties:
+      description: "successful operation"
+  - location:
+      type: "RESPONSE"
+      path: "/datasets/{id}/latest-revision"
+      method: "GET"
+      statusCode: "400"
+    properties:
+      description: "Invalid or misformatted entity identifier, or the given entity\
+        \ is not a Dataset"
+  - location:
+      type: "RESPONSE"
+      path: "/datasets/{id}/latest-revision"
+      method: "GET"
+      statusCode: "401"
+    properties:
+      description: "The user's token has expired or the user did not supply a valid\
+        \ token"
+  - location:
+      type: "RESPONSE"
+      path: "/datasets/{id}/latest-revision"
+      method: "GET"
+      statusCode: "403"
+    properties:
+      description: "The user is not authorized to query the latest revision of the\
+        \ given dataset."
+  - location:
+      type: "RESPONSE"
+      path: "/datasets/{id}/latest-revision"
+      method: "GET"
+      statusCode: "404"
+    properties:
+      description: "The target dataset could not be found"
+  - location:
+      type: "RESPONSE"
+      path: "/datasets/{id}/latest-revision"
+      method: "GET"
+      statusCode: "500"
+    properties:
+      description: "Internal error"
+  - location:
+      type: "RESPONSE"
+      path: "/datasets/{id}/retract"
+      method: "PUT"
+      statusCode: "200"
+    properties:
+      description: "The complete dataset with modified sub_status and retraction_reason"
+  - location:
+      type: "RESPONSE"
+      path: "/datasets/{id}/retract"
+      method: "PUT"
+      statusCode: "400"
+    properties:
+      description: "Invalid or misformatted entity identifier, the given entity is\
+        \ not a Dataset, is not published or the required retraction_reason was not\
+        \ included in a json body"
+  - location:
+      type: "RESPONSE"
+      path: "/datasets/{id}/retract"
+      method: "PUT"
+      statusCode: "401"
+    properties:
+      description: "The user's token has expired or the user did not supply a valid\
+        \ token"
+  - location:
+      type: "RESPONSE"
+      path: "/datasets/{id}/retract"
+      method: "PUT"
+      statusCode: "403"
+    properties:
+      description: "The user is not authorized to query the retract the given dataset.\
+        \  The user must be a member of the HuBMAP-Data-Admin group"
+  - location:
+      type: "RESPONSE"
+      path: "/datasets/{id}/retract"
+      method: "PUT"
+      statusCode: "404"
+    properties:
+      description: "The target dataset could not be found"
+  - location:
+      type: "RESPONSE"
+      path: "/datasets/{id}/retract"
+      method: "PUT"
+      statusCode: "500"
+    properties:
+      description: "Internal error"
+  - location:
+      type: "RESPONSE"
+      path: "/datasets/{id}/revision"
+      method: "GET"
+      statusCode: "200"
+    properties:
+      description: "The revision number (integer) on successful operation"
+  - location:
+      type: "RESPONSE"
+      path: "/datasets/{id}/revision"
+      method: "GET"
+      statusCode: "400"
+    properties:
+      description: "Invalid or misformatted entity identifier, or the given entity\
+        \ is not a Dataset"
+  - location:
+      type: "RESPONSE"
+      path: "/datasets/{id}/revision"
+      method: "GET"
+      statusCode: "401"
+    properties:
+      description: "The user's token has expired or the user did not supply a valid\
+        \ token"
+  - location:
+      type: "RESPONSE"
+      path: "/datasets/{id}/revision"
+      method: "GET"
+      statusCode: "403"
+    properties:
+      description: "The user is not authorized to query the revision number of the\
+        \ given dataset."
+  - location:
+      type: "RESPONSE"
+      path: "/datasets/{id}/revision"
+      method: "GET"
+      statusCode: "404"
+    properties:
+      description: "The target dataset could not be found"
+  - location:
+      type: "RESPONSE"
+      path: "/datasets/{id}/revision"
+      method: "GET"
+      statusCode: "500"
+    properties:
+      description: "Internal error"
+  - location:
+      type: "RESPONSE"
+      path: "/datasets/{id}/revisions"
+      method: "GET"
+      statusCode: "200"
+    properties:
+      description: "The list of revised datasets that the referenced dataset is a\
+        \ member of including the index number of the revision, where 1 is the oldest\
+        \ version of any revision chain"
+  - location:
+      type: "RESPONSE"
+      path: "/datasets/{id}/revisions"
+      method: "GET"
+      statusCode: "400"
+    properties:
+      description: "Invalid or misformatted entity identifier, or the given entity\
+        \ is not a Dataset"
+  - location:
+      type: "RESPONSE"
+      path: "/datasets/{id}/revisions"
+      method: "GET"
+      statusCode: "401"
+    properties:
+      description: "The user's token has expired or the user did not supply a valid\
+        \ token"
+  - location:
+      type: "RESPONSE"
+      path: "/datasets/{id}/revisions"
+      method: "GET"
+      statusCode: "403"
+    properties:
+      description: "The user is not authorized to query the revision number of the\
+        \ given dataset."
+  - location:
+      type: "RESPONSE"
+      path: "/datasets/{id}/revisions"
+      method: "GET"
+      statusCode: "404"
+    properties:
+      description: "The target dataset could not be found"
+  - location:
+      type: "RESPONSE"
+      path: "/datasets/{id}/revisions"
+      method: "GET"
+      statusCode: "500"
+    properties:
+      description: "Internal error"
+  - location:
+      type: "RESPONSE"
+      path: "/descendants/{id}"
+      method: "GET"
+      statusCode: "200"
+    properties:
+      description: "An array of descendants is returned"
+  - location:
+      type: "RESPONSE"
+      path: "/descendants/{id}"
+      method: "GET"
+      statusCode: "400"
+    properties:
+      description: "Invalid or misformatted entity identifier"
+  - location:
+      type: "RESPONSE"
+      path: "/descendants/{id}"
+      method: "GET"
+      statusCode: "401"
+    properties:
+      description: "The user's token has expired or the user did not supply a valid\
+        \ token"
+  - location:
+      type: "RESPONSE"
+      path: "/descendants/{id}"
+      method: "GET"
+      statusCode: "403"
+    properties:
+      description: "The user is not authorized to access the entity."
+  - location:
+      type: "RESPONSE"
+      path: "/descendants/{id}"
+      method: "GET"
+      statusCode: "404"
+    properties:
+      description: "The target entity could not be found"
+  - location:
+      type: "RESPONSE"
+      path: "/descendants/{id}"
+      method: "GET"
+      statusCode: "500"
+    properties:
+      description: "Internal error"
+  - location:
+      type: "RESPONSE"
+      path: "/doi/redirect/{id}"
+      method: "GET"
+      statusCode: "307"
+    properties:
+      description: "Redirect to the entities landing page"
+  - location:
+      type: "RESPONSE"
+      path: "/doi/redirect/{id}"
+      method: "GET"
+      statusCode: "400"
+    properties:
+      description: "Invalid or misformatted collection identifier"
+  - location:
+      type: "RESPONSE"
+      path: "/doi/redirect/{id}"
+      method: "GET"
+      statusCode: "500"
+    properties:
+      description: "Internal error"
+  - location:
+      type: "RESPONSE"
+      path: "/entities/multiple-samples/{count}"
+      method: "POST"
+      statusCode: "200"
+    properties:
+      description: "The samples were successfully created.  An array of objects each\
+        \ containing a uuid, hubmap_id and submission_id associated with each newly\
+        \ created sample."
+  - location:
+      type: "RESPONSE"
+      path: "/entities/multiple-samples/{count}"
+      method: "POST"
+      statusCode: "400"
+    properties:
+      description: "Invalid json input"
+  - location:
+      type: "RESPONSE"
+      path: "/entities/multiple-samples/{count}"
+      method: "POST"
+      statusCode: "401"
+    properties:
+      description: "The user's token has expired or the user did not supply a valid\
+        \ token"
+  - location:
+      type: "RESPONSE"
+      path: "/entities/multiple-samples/{count}"
+      method: "POST"
+      statusCode: "500"
+    properties:
+      description: "Internal error"
+  - location:
+      type: "RESPONSE"
+      path: "/entities/new/{entity_type}"
+      method: "POST"
+      statusCode: "200"
+    properties:
+      description: "The entity was successfully created and is returned"
+  - location:
+      type: "RESPONSE"
+      path: "/entities/new/{entity_type}"
+      method: "POST"
+      statusCode: "400"
+    properties:
+      description: "Invalid entity type provided"
+  - location:
+      type: "RESPONSE"
+      path: "/entities/new/{entity_type}"
+      method: "POST"
+      statusCode: "401"
+    properties:
+      description: "The user's token has expired or the user did not supply a valid\
+        \ token"
+  - location:
+      type: "RESPONSE"
+      path: "/entities/new/{entity_type}"
+      method: "POST"
+      statusCode: "403"
+    properties:
+      description: "The user is not authorized to create the entity"
+  - location:
+      type: "RESPONSE"
+      path: "/entities/new/{entity_type}"
+      method: "POST"
+      statusCode: "500"
+    properties:
+      description: "Internal error"
+  - location:
+      type: "RESPONSE"
+      path: "/entities/{id}/ancestor-organs"
+      method: "GET"
+      statusCode: "200"
+    properties:
+      description: "An array of Samples (sub-type organ) are returned"
+  - location:
+      type: "RESPONSE"
+      path: "/entities/{id}/ancestor-organs"
+      method: "GET"
+      statusCode: "400"
+    properties:
+      description: "Invalid or misformatted entity identifier"
+  - location:
+      type: "RESPONSE"
+      path: "/entities/{id}/ancestor-organs"
+      method: "GET"
+      statusCode: "401"
+    properties:
+      description: "The user's token has expired or the user did not supply a valid\
+        \ token"
+  - location:
+      type: "RESPONSE"
+      path: "/entities/{id}/ancestor-organs"
+      method: "GET"
+      statusCode: "403"
+    properties:
+      description: "The user is not authorized to retrieve the entity"
+  - location:
+      type: "RESPONSE"
+      path: "/entities/{id}/ancestor-organs"
+      method: "GET"
+      statusCode: "404"
+    properties:
+      description: "The target entity could not be found"
+  - location:
+      type: "RESPONSE"
+      path: "/entities/{id}/ancestor-organs"
+      method: "GET"
+      statusCode: "500"
+    properties:
+      description: "Internal error"
+  - location:
+      type: "RESPONSE"
+      path: "/entities/{id}/globus-url"
+      method: "GET"
+      statusCode: "200"
+    properties:
+      description: "Returns the Globus service URL pointing to the Dataset or Upload\
+        \ data is returned"
+  - location:
+      type: "RESPONSE"
+      path: "/entities/{id}/globus-url"
+      method: "GET"
+      statusCode: "400"
+    properties:
+      description: "Invalid or misformatted entity identifier"
+  - location:
+      type: "RESPONSE"
+      path: "/entities/{id}/globus-url"
+      method: "GET"
+      statusCode: "401"
+    properties:
+      description: "The user's token has expired or the user did not supply a valid\
+        \ token"
+  - location:
+      type: "RESPONSE"
+      path: "/entities/{id}/globus-url"
+      method: "GET"
+      statusCode: "403"
+    properties:
+      description: "The user is not autorizized to access the data"
+  - location:
+      type: "RESPONSE"
+      path: "/entities/{id}/globus-url"
+      method: "GET"
+      statusCode: "404"
+    properties:
+      description: "The target entity could not be found"
+  - location:
+      type: "RESPONSE"
+      path: "/entities/{id}/globus-url"
+      method: "GET"
+      statusCode: "500"
+    properties:
+      description: "Internal error"
+  - location:
+      type: "RESPONSE"
+      path: "/entities/{id}/provenance"
+      method: "GET"
+      statusCode: "200"
+    properties:
+      description: "successful operation"
+  - location:
+      type: "RESPONSE"
+      path: "/entities/{id}/provenance"
+      method: "GET"
+      statusCode: "400"
+    properties:
+      description: "Invalid or misformatted entity identifier"
+  - location:
+      type: "RESPONSE"
+      path: "/entities/{id}/provenance"
+      method: "GET"
+      statusCode: "401"
+    properties:
+      description: "The user's token has expired or the user did not supply a valid\
+        \ token"
+  - location:
+      type: "RESPONSE"
+      path: "/entities/{id}/provenance"
+      method: "GET"
+      statusCode: "403"
+    properties:
+      description: "The user is not authorized to query the provenance of the given\
+        \ entity."
+  - location:
+      type: "RESPONSE"
+      path: "/entities/{id}/provenance"
+      method: "GET"
+      statusCode: "404"
+    properties:
+      description: "The target entity could not be found"
+  - location:
+      type: "RESPONSE"
+      path: "/entities/{id}/provenance"
+      method: "GET"
+      statusCode: "500"
+    properties:
+      description: "Internal error"
+  - location:
+      type: "RESPONSE"
+      path: "/entities/{id}"
+      method: "GET"
+      statusCode: "200"
+    properties:
+      description: "The json of the **[Donor](http://somewhere.org)**, **[Sample](http://somewhere.org)**\
+        \ or **[Dataset](http://somewhere.org)**"
+  - location:
+      type: "RESPONSE"
+      path: "/entities/{id}"
+      method: "GET"
+      statusCode: "400"
+    properties:
+      description: "Invalid or misformatted entity identifier was provided."
+  - location:
+      type: "RESPONSE"
+      path: "/entities/{id}"
+      method: "GET"
+      statusCode: "401"
+    properties:
+      description: "The user's bearer token has expired or the user did not supply\
+        \ a valid token."
+  - location:
+      type: "RESPONSE"
+      path: "/entities/{id}"
+      method: "GET"
+      statusCode: "403"
+    properties:
+      description: "The user is not authorized to retrieve the referenced entity."
+  - location:
+      type: "RESPONSE"
+      path: "/entities/{id}"
+      method: "GET"
+      statusCode: "404"
+    properties:
+      description: "The target entity could not be found."
+  - location:
+      type: "RESPONSE"
+      path: "/entities/{id}"
+      method: "GET"
+      statusCode: "500"
+    properties:
+      description: "An unexpected error occurred."
+  - location:
+      type: "RESPONSE"
+      path: "/entities/{id}"
+      method: "PUT"
+      statusCode: "200"
+    properties:
+      description: "The entity was successfully updated and is returned"
+  - location:
+      type: "RESPONSE"
+      path: "/entities/{id}"
+      method: "PUT"
+      statusCode: "400"
+    properties:
+      description: "Invalid or misformatted entity identifier"
+  - location:
+      type: "RESPONSE"
+      path: "/entities/{id}"
+      method: "PUT"
+      statusCode: "401"
+    properties:
+      description: "The user's token has expired or the user did not supply a valid\
+        \ token"
+  - location:
+      type: "RESPONSE"
+      path: "/entities/{id}"
+      method: "PUT"
+      statusCode: "404"
+    properties:
+      description: "The target entity could not be found"
+  - location:
+      type: "RESPONSE"
+      path: "/entities/{id}"
+      method: "PUT"
+      statusCode: "500"
+    properties:
+      description: "Internal error"
+  - location:
+      type: "RESPONSE"
+      path: "/entity-types"
+      method: "GET"
+      statusCode: "200"
+    properties:
+      description: "An array of entity types is returned"
+  - location:
+      type: "RESPONSE"
+      path: "/entity-types"
+      method: "GET"
+      statusCode: "401"
+    properties:
+      description: "The user's token has expired or the user did not supply a valid\
+        \ token"
+  - location:
+      type: "RESPONSE"
+      path: "/entity-types"
+      method: "GET"
+      statusCode: "403"
+    properties:
+      description: "THe user is not authorized to use this method"
+  - location:
+      type: "RESPONSE"
+      path: "/entity-types"
+      method: "GET"
+      statusCode: "500"
+    properties:
+      description: "Internal error"
+  - location:
+      type: "RESPONSE"
+      path: "/parents/{id}"
+      method: "GET"
+      statusCode: "200"
+    properties:
+      description: "An array of parent entities is returned"
+  - location:
+      type: "RESPONSE"
+      path: "/parents/{id}"
+      method: "GET"
+      statusCode: "400"
+    properties:
+      description: "Invalid or misformatted entity identifier"
+  - location:
+      type: "RESPONSE"
+      path: "/parents/{id}"
+      method: "GET"
+      statusCode: "401"
+    properties:
+      description: "The user's token has expired or the user did not supply a valid\
+        \ token"
+  - location:
+      type: "RESPONSE"
+      path: "/parents/{id}"
+      method: "GET"
+      statusCode: "403"
+    properties:
+      description: "The user is not authorized to access the entity."
+  - location:
+      type: "RESPONSE"
+      path: "/parents/{id}"
+      method: "GET"
+      statusCode: "404"
+    properties:
+      description: "The target entity could not be found"
+  - location:
+      type: "RESPONSE"
+      path: "/parents/{id}"
+      method: "GET"
+      statusCode: "500"
+    properties:
+      description: "Internal error"
+x-amazon-apigateway-gateway-responses:
+  UNAUTHORIZED:
+    statusCode: 401
+    responseTemplates:
+      application/json: "{\n  \"message\": \"$context.error.message\",\n  \"hint\"\
+        : \"$context.authorizer.key\",\n  \"http_method\": \"$context.httpMethod\"\
+        \n}"
+  ACCESS_DENIED:
+    statusCode: 403
+    responseTemplates:
+      application/json: "{\n  \"message\": \"$context.error.message\",\n  \"hint\"\
+        : \"$context.authorizer.key\",\n  \"http_method\": \"$context.httpMethod\"\
+        \n}"
+  RESOURCE_NOT_FOUND:
+    statusCode: 404
+    responseTemplates:
+      application/json: "{\"message\":$context.error.messageString,\n\"http_method\"\
+        : \"$context.httpMethod\"}"

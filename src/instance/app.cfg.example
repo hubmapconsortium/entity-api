@@ -14,8 +14,9 @@ NEO4J_PASSWORD = '123'
 # URL for talking to UUID API (default value used for docker deployment, no token needed)
 # Don't use localhost since uuid-api is running on a different container
 # Point to remote URL for non-docker development
-# Works regardless of the trailing slash
-UUID_API_URL = 'http://hubmap-auth:9999/hmuuid'
+# Works regardless of the trailing slash /
+# Use 'http://hubmap-auth:9999' for localhost docker deployment
+UUID_API_URL = 'http://uuid-api:8080'
 
 # URL for talking to Ingest API (default value used for PSC DEV)
 # Use INGEST_API_URL = 'http://hubmap-auth:4444' for localhost docker
@@ -25,8 +26,9 @@ INGEST_API_URL = 'https://ingest-api.dev.hubmapconsortium.org'
 # URL for talking to Search API (default value used for docker deployment, no token needed)
 # Don't use localhost since search-api is running on a different container
 # Point to remote URL for non-docker development
-# Works regardless of the trailing slash
-SEARCH_API_URL = 'http://hubmap-auth:6666'
+# Works regardless of the trailing slash /
+# Use 'http://hubmap-auth:6666' for localhost docker deployment
+SEARCH_API_URL = 'http://search-api:8080'
 
 #The Base URL to the Globus transfer application site
 GLOBUS_APP_BASE_URL = 'https://app.globus.org'
@@ -48,4 +50,4 @@ PUBLIC_DATA_SUBDIR = 'public'
 DOI_REDIRECT_URL = 'https://portal.hubmapconsortium.org/browse/<entity_type>/<identifier>'
 
 #URL to tsv file that holds the redirect url information for DOI redirects
-REDIRECTION_INFO_URL = 'https://raw.githubusercontent.com/hubmapconsortium/ccf-releases/main/v1.0/reference-entity-ids.tsv'
+REDIRECTION_INFO_URL = 'https://raw.githubusercontent.com/hubmapconsortium/ccf-releases/main/reference-entity-ids.tsv'
