@@ -1,20 +1,25 @@
-from flask import Flask, g, jsonify, abort, request, Response, redirect
+import collections
+import yaml
+from datetime import datetime
+from flask import Flask, g, jsonify, abort, request, Response, redirect, make_response
 from neo4j.exceptions import TransactionError
 import os
 import re
 import csv
 import requests
-import urllib
+import urllib.request
+from io import StringIO
 # Don't confuse urllib (Python native library) with urllib3 (3rd-party library, requests also uses urllib3)
 from requests.packages.urllib3.exceptions import InsecureRequestWarning
 from pathlib import Path
 import logging
-
+import json
 # Local modules
 import app_neo4j_queries
 import provenance
 from schema import schema_manager
 from schema import schema_errors
+from schema import schema_triggers
 
 # HuBMAP commons
 from hubmap_commons import string_helper
@@ -2075,6 +2080,7 @@ Returns
 list
     The list of revision datasets
 """
+@app.route('/entities/<id>/revisions', methods=['GET'])
 @app.route('/datasets/<id>/revisions', methods=['GET'])
 def get_revisions_list(id):
     # By default, do not return dataset. Only return dataset if return_dataset is true
@@ -2097,7 +2103,7 @@ def get_revisions_list(id):
 
     # Only for Dataset
     if normalized_entity_type != 'Dataset':
-        bad_request_error("The entity of given id is not a Dataset")
+        bad_request_error("The entity is not a Dataset. Found entity type:" + normalized_entity_type)
 
     # Only published/public datasets don't require token
     if entity_dict['status'].lower() != DATASET_STATUS_PUBLISHED:
@@ -2137,7 +2143,7 @@ def get_revisions_list(id):
     for revision in normalized_revisions_list:
         result = {
             'revision_number': revision_number,
-            'dataset_uuid': revision['uuid']
+            'uuid': revision['uuid']
         }
         if show_dataset:
             result['dataset'] = revision
@@ -2199,6 +2205,589 @@ def get_associated_organs_from_dataset(id):
     final_result = schema_manager.normalize_entities_list_for_response(complete_entities_list)
 
     return jsonify(final_result)
+
+"""
+Get the complete provenance info for all datasets
+
+Authorization handled by gateway. HuBMAP-Read group is required for this call. 
+
+Returns
+-------
+json
+    an array of each datatset's provenance info
+tsv
+    a text file of tab separated values where each row is a dataset and the columns include all its prov info
+"""
+@app.route('/datasets/prov-info', methods=['GET'])
+def get_prov_info():
+    # String constants
+    HEADER_DATASET_UUID = 'dataset_uuid'
+    HEADER_DATASET_HUBMAP_ID = 'dataset_hubmap_id'
+    HEADER_DATASET_STATUS = 'dataset_status'
+    HEADER_DATASET_GROUP_NAME = 'dataset_group_name'
+    HEADER_DATASET_GROUP_UUID = 'dataset_group_uuid'
+    HEADER_DATASET_DATE_TIME_CREATED = 'dataset_date_time_created'
+    HEADER_DATASET_CREATED_BY_EMAIL = 'dataset_created_by_email'
+    HEADER_DATASET_DATE_TIME_MODIFIED = 'dataset_date_time_modified'
+    HEADER_DATASET_MODIFIED_BY_EMAIL = 'dataset_modified_by_email'
+    HEADER_DATASET_LAB_ID = 'lab_id_or_name'
+    HEADER_DATASET_DATA_TYPES = 'dataset_data_types'
+    HEADER_DATASET_PORTAL_URL = 'dataset_portal_url'
+    HEADER_FIRST_SAMPLE_HUBMAP_ID = 'first_sample_hubmap_id'
+    HEADER_FIRST_SAMPLE_SUBMISSION_ID = 'first_sample_submission_id'
+    HEADER_FIRST_SAMPLE_UUID = 'first_sample_uuid'
+    HEADER_FIRST_SAMPLE_TYPE = 'first_sample_type'
+    HEADER_FIRST_SAMPLE_PORTAL_URL = 'first_sample_portal_url'
+    HEADER_ORGAN_HUBMAP_ID = 'organ_hubmap_id'
+    HEADER_ORGAN_SUBMISSION_ID = 'organ_submission_id'
+    HEADER_ORGAN_UUID = 'organ_uuid'
+    HEADER_ORGAN_TYPE = 'organ_type'
+    HEADER_DONOR_HUBMAP_ID = 'donor_hubmap_id'
+    HEADER_DONOR_SUBMISSION_ID = 'donor_submission_id'
+    HEADER_DONOR_UUID = 'donor_uuid'
+    HEADER_DONOR_GROUP_NAME = 'donor_group_name'
+    HEADER_RUI_LOCATION_HUBMAP_ID = 'rui_location_hubmap_id'
+    HEADER_RUI_LOCATION_SUBMISSION_ID = 'rui_location_submission_id'
+    HEADER_RUI_LOCATION_UUID = 'rui_location_uuid'
+    HEADER_SAMPLE_METADATA_HUBMAP_ID = 'sample_metadata_hubmap_id'
+    HEADER_SAMPLE_METADATA_SUBMISSION_ID = 'sample_metadata_submission_id'
+    HEADER_SAMPLE_METADATA_UUID = 'sample_metadata_uuid'
+    HEADER_PROCESSED_DATASET_UUID = 'processed_dataset_uuid'
+    HEADER_PROCESSED_DATASET_HUBMAP_ID = 'processed_dataset_hubmap_id'
+    HEADER_PROCESSED_DATASET_STATUS = 'processed_dataset_status'
+    HEADER_PROCESSED_DATASET_PORTAL_URL = 'processed_dataset_portal_url'
+    ASSAY_TYPES_URL = 'https://raw.githubusercontent.com/hubmapconsortium/search-api/master/src/search-schema/data/definitions/enums/assay_types.yaml'
+    ORGAN_TYPES_URL = 'https://raw.githubusercontent.com/hubmapconsortium/search-api/master/src/search-schema/data/definitions/enums/organ_types.yaml'
+
+    headers = [
+        HEADER_DATASET_UUID, HEADER_DATASET_HUBMAP_ID, HEADER_DATASET_STATUS, HEADER_DATASET_GROUP_NAME,
+        HEADER_DATASET_GROUP_UUID, HEADER_DATASET_DATE_TIME_CREATED, HEADER_DATASET_CREATED_BY_EMAIL,
+        HEADER_DATASET_DATE_TIME_MODIFIED, HEADER_DATASET_MODIFIED_BY_EMAIL, HEADER_DATASET_LAB_ID,
+        HEADER_DATASET_DATA_TYPES, HEADER_DATASET_PORTAL_URL, HEADER_FIRST_SAMPLE_HUBMAP_ID,
+        HEADER_FIRST_SAMPLE_SUBMISSION_ID, HEADER_FIRST_SAMPLE_UUID, HEADER_FIRST_SAMPLE_TYPE,
+        HEADER_FIRST_SAMPLE_PORTAL_URL, HEADER_ORGAN_HUBMAP_ID, HEADER_ORGAN_SUBMISSION_ID, HEADER_ORGAN_UUID,
+        HEADER_ORGAN_TYPE, HEADER_DONOR_HUBMAP_ID, HEADER_DONOR_SUBMISSION_ID, HEADER_DONOR_UUID,
+        HEADER_DONOR_GROUP_NAME, HEADER_RUI_LOCATION_HUBMAP_ID, HEADER_RUI_LOCATION_SUBMISSION_ID,
+        HEADER_RUI_LOCATION_UUID, HEADER_SAMPLE_METADATA_HUBMAP_ID, HEADER_SAMPLE_METADATA_SUBMISSION_ID,
+        HEADER_SAMPLE_METADATA_UUID, HEADER_PROCESSED_DATASET_UUID, HEADER_PROCESSED_DATASET_HUBMAP_ID,
+        HEADER_PROCESSED_DATASET_STATUS, HEADER_PROCESSED_DATASET_PORTAL_URL
+    ]
+
+    # Parsing the organ types yaml has to be done here rather than calling schema.schema_triggers.get_organ_description
+    # because that would require using a urllib request for each dataset
+    with urllib.request.urlopen(ORGAN_TYPES_URL) as response:
+        yaml_file = response.read()
+        try:
+            organ_types_dict = yaml.safe_load(yaml_file)
+        except yaml.YAMLError as e:
+            raise yaml.YAMLError(e)
+
+    # As above, we parse te assay type yaml here rather than calling the special method for it because this avoids
+    # having to access the resource for every dataset.
+    with urllib.request.urlopen(ASSAY_TYPES_URL) as response:
+        yaml_file = response.read()
+        try:
+            assay_types_dict = yaml.safe_load(yaml_file)
+        except yaml.YAMLError as e:
+            raise yaml.YAMLError(e)
+
+    # Processing and validating query parameters
+    accepted_arguments = ['format', 'organ', 'has_rui_info', 'dataset_status', 'group_uuid']
+    return_json = False
+    param_dict = {}
+    if bool(request.args):
+        for argument in request.args:
+            if argument not in accepted_arguments:
+                bad_request_error(f"{argument} is an unrecognized argument.")
+        return_format = request.args.get('format')
+        if return_format is not None:
+            if return_format.lower() not in ['json', 'tsv']:
+                bad_request_error(
+                    "Invalid Format. Accepted formats are json and tsv. If no format is given, TSV will be the default")
+            if return_format.lower() == 'json':
+                return_json = True
+        group_uuid = request.args.get('group_uuid')
+        if group_uuid is not None:
+            groups_by_id_dict = globus_groups.get_globus_groups_info()['by_id']
+            if group_uuid not in groups_by_id_dict:
+                bad_request_error(
+                    f"Invalid Group UUID.")
+            if not groups_by_id_dict[group_uuid]['data_provider']:
+                bad_request_error(f"Invalid Group UUID. Group must be a data provider")
+            param_dict['group_uuid'] = group_uuid
+        organ = request.args.get('organ')
+        if organ is not None:
+            validate_organ_code(organ)
+            param_dict['organ'] = organ
+        has_rui_info = request.args.get('has_rui_info')
+        if has_rui_info is not None:
+            if has_rui_info.lower() not in ['true', 'false']:
+                bad_request_error("Invalid value for 'has_rui_info'. Only values of true or false are acceptable")
+            param_dict['has_rui_info'] = has_rui_info
+        dataset_status = request.args.get('dataset_status')
+        if dataset_status is not None:
+            if dataset_status.lower() not in ['new', 'qa', 'published']:
+                bad_request_error("Invalid Dataset Status. Must be 'new', 'qa', or 'published' Case-Insensitive")
+            param_dict['dataset_status'] = dataset_status
+
+    # Instantiation of the list dataset_prov_list
+    dataset_prov_list = []
+
+    # Call to app_neo4j_queries to prepare and execute the database query
+    prov_info = app_neo4j_queries.get_prov_info(neo4j_driver_instance, param_dict)
+
+    # Each dataset's provinence info is placed into a dictionary
+    for dataset in prov_info:
+        internal_dict = collections.OrderedDict()
+        internal_dict[HEADER_DATASET_UUID] = dataset['uuid']
+        internal_dict[HEADER_DATASET_HUBMAP_ID] = dataset['hubmap_id']
+        internal_dict[HEADER_DATASET_STATUS] = dataset['status']
+        internal_dict[HEADER_DATASET_GROUP_NAME] = dataset['group_name']
+        internal_dict[HEADER_DATASET_GROUP_UUID] = dataset['group_uuid']
+        internal_dict[HEADER_DATASET_DATE_TIME_CREATED] = datetime.fromtimestamp(int(dataset['created_timestamp']/1000.0))
+        internal_dict[HEADER_DATASET_CREATED_BY_EMAIL] = dataset['created_by_user_email']
+        internal_dict[HEADER_DATASET_DATE_TIME_MODIFIED] = datetime.fromtimestamp(int(dataset['last_modified_timestamp']/1000.0))
+        internal_dict[HEADER_DATASET_MODIFIED_BY_EMAIL] = dataset['last_modified_user_email']
+        internal_dict[HEADER_DATASET_LAB_ID] = dataset['lab_dataset_id']
+
+        # Data type codes are replaced with data type descriptions
+        assay_description_list = []
+        for item in dataset['data_types']:
+            try:
+                assay_description_list.append(assay_types_dict[item]['description'])
+            # Some data types aren't given by their code in the assay types yaml and are instead given as an alt name.
+            # In these cases, we have to search each assay type and see if the given code matches any alternate names.
+            except KeyError:
+                valid_key = False
+                for each in assay_types_dict:
+                    if valid_key is False:
+                        if item in assay_types_dict[each]['alt-names']:
+                            assay_description_list.append(assay_types_dict[each]['description'])
+                            valid_key = True
+                if valid_key is False:
+                    assay_description_list.append(item)
+        dataset['data_types'] = assay_description_list
+        internal_dict[HEADER_DATASET_DATA_TYPES] = dataset['data_types']
+
+        # If return_format was not equal to json, json arrays must be converted into comma separated lists for the tsv
+        if return_json is False:
+            internal_dict[HEADER_DATASET_DATA_TYPES] = ",".join(dataset['data_types'])
+
+        internal_dict[HEADER_DATASET_PORTAL_URL] = app.config['DOI_REDIRECT_URL'].replace('<entity_type>', 'dataset').replace('<identifier>', dataset['uuid'])
+
+        # first_sample properties are retrieved from its own dictionary
+        if dataset['first_sample'] is not None:
+            first_sample_hubmap_id_list = []
+            first_sample_submission_id_list = []
+            first_sample_uuid_list = []
+            first_sample_type_list = []
+            first_sample_portal_url_list = []
+            for item in dataset['first_sample']:
+                first_sample_hubmap_id_list.append(item['hubmap_id'])
+                first_sample_submission_id_list.append(item['submission_id'])
+                first_sample_uuid_list.append(item['uuid'])
+                first_sample_type_list.append(item['specimen_type'])
+                first_sample_portal_url_list.append(app.config['DOI_REDIRECT_URL'].replace('<entity_type>', 'sample').replace('<identifier>', item['uuid']))
+            internal_dict[HEADER_FIRST_SAMPLE_HUBMAP_ID] = first_sample_hubmap_id_list
+            internal_dict[HEADER_FIRST_SAMPLE_SUBMISSION_ID] = first_sample_submission_id_list
+            internal_dict[HEADER_FIRST_SAMPLE_UUID] = first_sample_uuid_list
+            internal_dict[HEADER_FIRST_SAMPLE_TYPE] = first_sample_type_list
+            internal_dict[HEADER_FIRST_SAMPLE_PORTAL_URL] = first_sample_portal_url_list
+            if return_json is False:
+                internal_dict[HEADER_FIRST_SAMPLE_HUBMAP_ID] = ",".join(first_sample_hubmap_id_list)
+                internal_dict[HEADER_FIRST_SAMPLE_SUBMISSION_ID] = ",".join(first_sample_submission_id_list)
+                internal_dict[HEADER_FIRST_SAMPLE_UUID] = ",".join(first_sample_uuid_list)
+                internal_dict[HEADER_FIRST_SAMPLE_TYPE] = ",".join(first_sample_type_list)
+                internal_dict[HEADER_FIRST_SAMPLE_PORTAL_URL] = ",".join(first_sample_portal_url_list)
+
+        # distinct_organ properties are retrieved from its own dictionary
+        if dataset['distinct_organ'] is not None:
+            distinct_organ_hubmap_id_list = []
+            distinct_organ_submission_id_list = []
+            distinct_organ_uuid_list = []
+            distinct_organ_type_list = []
+            for item in dataset['distinct_organ']:
+                distinct_organ_hubmap_id_list.append(item['hubmap_id'])
+                distinct_organ_submission_id_list.append(item['submission_id'])
+                distinct_organ_uuid_list.append(item['uuid'])
+                distinct_organ_type_list.append(organ_types_dict[item['organ']]['description'].lower())
+            internal_dict[HEADER_ORGAN_HUBMAP_ID] = distinct_organ_hubmap_id_list
+            internal_dict[HEADER_ORGAN_SUBMISSION_ID] = distinct_organ_submission_id_list
+            internal_dict[HEADER_ORGAN_UUID] = distinct_organ_uuid_list
+            internal_dict[HEADER_ORGAN_TYPE] = distinct_organ_type_list
+            if return_json is False:
+                internal_dict[HEADER_ORGAN_HUBMAP_ID] = ",".join(distinct_organ_hubmap_id_list)
+                internal_dict[HEADER_ORGAN_SUBMISSION_ID] = ",".join(distinct_organ_submission_id_list)
+                internal_dict[HEADER_ORGAN_UUID] = ",".join(distinct_organ_uuid_list)
+                internal_dict[HEADER_ORGAN_TYPE] = ",".join(distinct_organ_type_list)
+
+        # distinct_donor properties are retrieved from its own dictionary
+        if dataset['distinct_donor'] is not None:
+            distinct_donor_hubmap_id_list = []
+            distinct_donor_submission_id_list = []
+            distinct_donor_uuid_list = []
+            distinct_donor_group_name_list = []
+            for item in dataset['distinct_donor']:
+                distinct_donor_hubmap_id_list.append(item['hubmap_id'])
+                distinct_donor_submission_id_list.append(item['submission_id'])
+                distinct_donor_uuid_list.append(item['uuid'])
+                distinct_donor_group_name_list.append(item['group_name'])
+            internal_dict[HEADER_DONOR_HUBMAP_ID] = distinct_donor_hubmap_id_list
+            internal_dict[HEADER_DONOR_SUBMISSION_ID] = distinct_donor_submission_id_list
+            internal_dict[HEADER_DONOR_UUID] = distinct_donor_uuid_list
+            internal_dict[HEADER_DONOR_GROUP_NAME] = distinct_donor_group_name_list
+            if return_json is False:
+                internal_dict[HEADER_DONOR_HUBMAP_ID] = ",".join(distinct_donor_hubmap_id_list)
+                internal_dict[HEADER_DONOR_SUBMISSION_ID] = ",".join(distinct_donor_submission_id_list)
+                internal_dict[HEADER_DONOR_UUID] = ",".join(distinct_donor_uuid_list)
+                internal_dict[HEADER_DONOR_GROUP_NAME] = ",".join(distinct_donor_group_name_list)
+
+        # distinct_rui_sample properties are retrieved from its own dictionary
+        if dataset['distinct_rui_sample'] is not None:
+            rui_location_hubmap_id_list = []
+            rui_location_submission_id_list = []
+            rui_location_uuid_list = []
+            for item in dataset['distinct_rui_sample']:
+                rui_location_hubmap_id_list.append(item['hubmap_id'])
+                rui_location_submission_id_list.append(item['submission_id'])
+                rui_location_uuid_list.append(item['uuid'])
+            internal_dict[HEADER_RUI_LOCATION_HUBMAP_ID] = rui_location_hubmap_id_list
+            internal_dict[HEADER_RUI_LOCATION_SUBMISSION_ID] = rui_location_submission_id_list
+            internal_dict[HEADER_RUI_LOCATION_UUID] = rui_location_uuid_list
+            if return_json is False:
+                internal_dict[HEADER_RUI_LOCATION_HUBMAP_ID] = ",".join(rui_location_hubmap_id_list)
+                internal_dict[HEADER_RUI_LOCATION_SUBMISSION_ID] = ",".join(rui_location_submission_id_list)
+                internal_dict[HEADER_RUI_LOCATION_UUID] = ",".join(rui_location_uuid_list)
+
+        # distinct_metasample properties are retrieved from its own dictionary
+        if dataset['distinct_metasample'] is not None:
+            metasample_hubmap_id_list = []
+            metasample_submission_id_list = []
+            metasample_uuid_list = []
+            for item in dataset['distinct_metasample']:
+                metasample_hubmap_id_list.append(item['hubmap_id'])
+                metasample_submission_id_list.append(item['submission_id'])
+                metasample_uuid_list.append(item['uuid'])
+            internal_dict[HEADER_SAMPLE_METADATA_HUBMAP_ID] = metasample_hubmap_id_list
+            internal_dict[HEADER_SAMPLE_METADATA_SUBMISSION_ID] = metasample_submission_id_list
+            internal_dict[HEADER_SAMPLE_METADATA_UUID] = metasample_uuid_list
+            if return_json is False:
+                internal_dict[HEADER_SAMPLE_METADATA_HUBMAP_ID] = ",".join(metasample_hubmap_id_list)
+                internal_dict[HEADER_SAMPLE_METADATA_SUBMISSION_ID] = ",".join(metasample_submission_id_list)
+                internal_dict[HEADER_SAMPLE_METADATA_UUID] = ",".join(metasample_uuid_list)
+
+        # processed_dataset properties are retrived from its own dictionary
+        if dataset['processed_dataset'] is not None:
+            processed_dataset_uuid_list = []
+            processed_dataset_hubmap_id_list = []
+            processed_dataset_status_list = []
+            processed_dataset_portal_url_list = []
+            for item in dataset['processed_dataset']:
+                processed_dataset_uuid_list.append(item['uuid'])
+                processed_dataset_hubmap_id_list.append(item['hubmap_id'])
+                processed_dataset_status_list.append(item['status'])
+                processed_dataset_portal_url_list.append(app.config['DOI_REDIRECT_URL'].replace('<entity_type>', 'dataset').replace('<identifier>', item['uuid']))
+            internal_dict[HEADER_PROCESSED_DATASET_UUID] = processed_dataset_uuid_list
+            internal_dict[HEADER_PROCESSED_DATASET_HUBMAP_ID] = processed_dataset_hubmap_id_list
+            internal_dict[HEADER_PROCESSED_DATASET_STATUS] = processed_dataset_status_list
+            internal_dict[HEADER_PROCESSED_DATASET_PORTAL_URL] = processed_dataset_portal_url_list
+            if return_json is False:
+                internal_dict[HEADER_PROCESSED_DATASET_UUID] = ",".join(processed_dataset_uuid_list)
+                internal_dict[HEADER_PROCESSED_DATASET_UUID] = ",".join(processed_dataset_hubmap_id_list)
+                internal_dict[HEADER_PROCESSED_DATASET_UUID] = ",".join(processed_dataset_status_list)
+                internal_dict[HEADER_PROCESSED_DATASET_UUID] = ",".join(processed_dataset_portal_url_list)
+
+        # Each dataset's dictionary is added to the list to be returned
+        dataset_prov_list.append(internal_dict)
+
+    # if return_json is true, this dictionary is ready to be returned already
+    if return_json:
+        return jsonify(dataset_prov_list)
+
+    # if return_json is false, the data must be converted to be returned as a tsv
+    else:
+        new_tsv_file = StringIO()
+        writer = csv.DictWriter(new_tsv_file, fieldnames=headers, delimiter='\t')
+        writer.writeheader()
+        writer.writerows(dataset_prov_list)
+        new_tsv_file.seek(0)
+        output = Response(new_tsv_file, mimetype='text/tsv')
+        output.headers['Content-Disposition'] = 'attachment; filename=prov-info.tsv'
+        return output
+
+@app.route('/datasets/<id>/prov-info', methods=['GET'])
+def get_prov_info_for_dataset(id):
+    # Token is not required, but if an invalid token provided,
+    # we need to tell the client with a 401 error
+    validate_token_if_auth_header_exists(request)
+
+    # Use the internal token to query the target entity
+    # since public entities don't require user token
+    token = get_internal_token()
+
+    # Query target entity against uuid-api and neo4j and return as a dict if exists
+    entity_dict = query_target_entity(id, token)
+    normalized_entity_type = entity_dict['entity_type']
+
+    # Only for Dataset
+    if normalized_entity_type != 'Dataset':
+        bad_request_error("The entity of given id is not a Dataset")
+
+    # published/public datasets don't require token
+    if entity_dict['status'].lower() != DATASET_STATUS_PUBLISHED:
+        # Token is required and the user must belong to HuBMAP-READ group
+        token = get_user_token(request, non_public_access_required=True)
+
+    return_json = False
+    dataset_prov_list = []
+    if bool(request.args):
+        return_format = request.args.get('format')
+        if (return_format is not None) and (return_format.lower() == 'json'):
+            return_json = True
+
+    HEADER_DATASET_UUID = 'dataset_uuid'
+    HEADER_DATASET_HUBMAP_ID = 'dataset_hubmap_id'
+    HEADER_DATASET_STATUS = 'dataset_status'
+    HEADER_DATASET_GROUP_NAME = 'dataset_group_name'
+    HEADER_DATASET_GROUP_UUID = 'dataset_group_uuid'
+    HEADER_DATASET_DATE_TIME_CREATED = 'dataset_date_time_created'
+    HEADER_DATASET_CREATED_BY_EMAIL = 'dataset_created_by_email'
+    HEADER_DATASET_DATE_TIME_MODIFIED = 'dataset_date_time_modified'
+    HEADER_DATASET_MODIFIED_BY_EMAIL = 'dataset_modified_by_email'
+    HEADER_DATASET_LAB_ID = 'lab_id_or_name'
+    HEADER_DATASET_DATA_TYPES = 'dataset_data_types'
+    HEADER_DATASET_PORTAL_URL = 'dataset_portal_url'
+    HEADER_FIRST_SAMPLE_HUBMAP_ID = 'first_sample_hubmap_id'
+    HEADER_FIRST_SAMPLE_SUBMISSION_ID = 'first_sample_submission_id'
+    HEADER_FIRST_SAMPLE_UUID = 'first_sample_uuid'
+    HEADER_FIRST_SAMPLE_TYPE = 'first_sample_type'
+    HEADER_FIRST_SAMPLE_PORTAL_URL = 'first_sample_portal_url'
+    HEADER_ORGAN_HUBMAP_ID = 'organ_hubmap_id'
+    HEADER_ORGAN_SUBMISSION_ID = 'organ_submission_id'
+    HEADER_ORGAN_UUID = 'organ_uuid'
+    HEADER_ORGAN_TYPE = 'organ_type'
+    HEADER_DONOR_HUBMAP_ID = 'donor_hubmap_id'
+    HEADER_DONOR_SUBMISSION_ID = 'donor_submission_id'
+    HEADER_DONOR_UUID = 'donor_uuid'
+    HEADER_DONOR_GROUP_NAME = 'donor_group_name'
+    HEADER_RUI_LOCATION_HUBMAP_ID = 'rui_location_hubmap_id'
+    HEADER_RUI_LOCATION_SUBMISSION_ID = 'rui_location_submission_id'
+    HEADER_RUI_LOCATION_UUID = 'rui_location_uuid'
+    HEADER_SAMPLE_METADATA_HUBMAP_ID = 'sample_metadata_hubmap_id'
+    HEADER_SAMPLE_METADATA_SUBMISSION_ID = 'sample_metadata_submission_id'
+    HEADER_SAMPLE_METADATA_UUID = 'sample_metadata_uuid'
+    HEADER_PROCESSED_DATASET_UUID = 'processed_dataset_uuid'
+    HEADER_PROCESSED_DATASET_HUBMAP_ID = 'processed_dataset_hubmap_id'
+    HEADER_PROCESSED_DATASET_STATUS = 'processed_dataset_status'
+    HEADER_PROCESSED_DATASET_PORTAL_URL = 'processed_dataset_portal_url'
+    ASSAY_TYPES_URL = 'https://raw.githubusercontent.com/hubmapconsortium/search-api/master/src/search-schema/data/definitions/enums/assay_types.yaml'
+    ORGAN_TYPES_URL = 'https://raw.githubusercontent.com/hubmapconsortium/search-api/master/src/search-schema/data/definitions/enums/organ_types.yaml'
+
+    headers = [
+        HEADER_DATASET_UUID, HEADER_DATASET_HUBMAP_ID, HEADER_DATASET_STATUS, HEADER_DATASET_GROUP_NAME,
+        HEADER_DATASET_GROUP_UUID, HEADER_DATASET_DATE_TIME_CREATED, HEADER_DATASET_CREATED_BY_EMAIL,
+        HEADER_DATASET_DATE_TIME_MODIFIED, HEADER_DATASET_MODIFIED_BY_EMAIL, HEADER_DATASET_LAB_ID,
+        HEADER_DATASET_DATA_TYPES, HEADER_DATASET_PORTAL_URL, HEADER_FIRST_SAMPLE_HUBMAP_ID,
+        HEADER_FIRST_SAMPLE_SUBMISSION_ID, HEADER_FIRST_SAMPLE_UUID, HEADER_FIRST_SAMPLE_TYPE,
+        HEADER_FIRST_SAMPLE_PORTAL_URL, HEADER_ORGAN_HUBMAP_ID, HEADER_ORGAN_SUBMISSION_ID, HEADER_ORGAN_UUID,
+        HEADER_ORGAN_TYPE, HEADER_DONOR_HUBMAP_ID, HEADER_DONOR_SUBMISSION_ID, HEADER_DONOR_UUID,
+        HEADER_DONOR_GROUP_NAME, HEADER_RUI_LOCATION_HUBMAP_ID, HEADER_RUI_LOCATION_SUBMISSION_ID,
+        HEADER_RUI_LOCATION_UUID, HEADER_SAMPLE_METADATA_HUBMAP_ID, HEADER_SAMPLE_METADATA_SUBMISSION_ID,
+        HEADER_SAMPLE_METADATA_UUID, HEADER_PROCESSED_DATASET_UUID, HEADER_PROCESSED_DATASET_HUBMAP_ID,
+        HEADER_PROCESSED_DATASET_STATUS, HEADER_PROCESSED_DATASET_PORTAL_URL
+    ]
+
+    # Parsing the organ types yaml has to be done here rather than calling schema.schema_triggers.get_organ_description
+    # because that would require using a urllib request for each dataset
+    with urllib.request.urlopen(ORGAN_TYPES_URL) as response:
+        yaml_file = response.read()
+        try:
+            organ_types_dict = yaml.safe_load(yaml_file)
+        except yaml.YAMLError as e:
+            raise yaml.YAMLError(e)
+
+    # As above, we parse te assay type yaml here rather than calling the special method for it because this avoids
+    # having to access the resource for every dataset.
+    with urllib.request.urlopen(ASSAY_TYPES_URL) as response:
+        yaml_file = response.read()
+        try:
+            assay_types_dict = yaml.safe_load(yaml_file)
+        except yaml.YAMLError as e:
+            raise yaml.YAMLError(e)
+
+    hubmap_ids = schema_manager.get_hubmap_ids(id, token)
+
+    # Get the target uuid if all good
+    uuid = hubmap_ids['hm_uuid']
+    dataset = app_neo4j_queries.get_individual_prov_info(neo4j_driver_instance, uuid)
+    if dataset is None:
+        bad_request_error("Query For this Dataset Returned no Records. Make sure this is a Primary Dataset")
+    internal_dict = collections.OrderedDict()
+    internal_dict[HEADER_DATASET_HUBMAP_ID] = dataset['hubmap_id']
+    internal_dict[HEADER_DATASET_UUID] = dataset['uuid']
+    internal_dict[HEADER_DATASET_STATUS] = dataset['status']
+    internal_dict[HEADER_DATASET_GROUP_NAME] = dataset['group_name']
+    internal_dict[HEADER_DATASET_GROUP_UUID] = dataset['group_uuid']
+    internal_dict[HEADER_DATASET_DATE_TIME_CREATED] = datetime.fromtimestamp(int(dataset['created_timestamp'] / 1000.0))
+    internal_dict[HEADER_DATASET_CREATED_BY_EMAIL] = dataset['created_by_user_email']
+    internal_dict[HEADER_DATASET_DATE_TIME_MODIFIED] = datetime.fromtimestamp(
+        int(dataset['last_modified_timestamp'] / 1000.0))
+    internal_dict[HEADER_DATASET_MODIFIED_BY_EMAIL] = dataset['last_modified_user_email']
+    internal_dict[HEADER_DATASET_LAB_ID] = dataset['lab_dataset_id']
+
+    # Data type codes are replaced with data type descriptions
+    assay_description_list = []
+    for item in dataset['data_types']:
+        try:
+            assay_description_list.append(assay_types_dict[item]['description'])
+        # Some data types aren't given by their code in the assay types yaml and are instead given as an alt name.
+        # In these cases, we have to search each assay type and see if the given code matches any alternate names.
+        except KeyError:
+            valid_key = False
+            for each in assay_types_dict:
+                if valid_key is False:
+                    if item in assay_types_dict[each]['alt-names']:
+                        assay_description_list.append(assay_types_dict[each]['description'])
+                        valid_key = True
+            if valid_key is False:
+                assay_description_list.append(item)
+    dataset['data_types'] = assay_description_list
+    internal_dict[HEADER_DATASET_DATA_TYPES] = dataset['data_types']
+    if return_json is False:
+        internal_dict[HEADER_DATASET_DATA_TYPES] = ",".join(dataset['data_types'])
+    internal_dict[HEADER_DATASET_PORTAL_URL] = app.config['DOI_REDIRECT_URL'].replace('<entity_type>', 'dataset').replace(
+        '<identifier>', dataset['uuid'])
+    if dataset['first_sample'] is not None:
+        first_sample_hubmap_id_list = []
+        first_sample_submission_id_list = []
+        first_sample_uuid_list = []
+        first_sample_type_list = []
+        first_sample_portal_url_list = []
+        for item in dataset['first_sample']:
+            first_sample_hubmap_id_list.append(item['hubmap_id'])
+            first_sample_submission_id_list.append(item['submission_id'])
+            first_sample_uuid_list.append(item['uuid'])
+            first_sample_type_list.append(item['specimen_type'])
+            first_sample_portal_url_list.append(
+                app.config['DOI_REDIRECT_URL'].replace('<entity_type>', 'sample').replace('<identifier>', item['uuid']))
+        internal_dict[HEADER_FIRST_SAMPLE_HUBMAP_ID] = first_sample_hubmap_id_list
+        internal_dict[HEADER_FIRST_SAMPLE_SUBMISSION_ID] = first_sample_submission_id_list
+        internal_dict[HEADER_FIRST_SAMPLE_UUID] = first_sample_uuid_list
+        internal_dict[HEADER_FIRST_SAMPLE_TYPE] = first_sample_type_list
+        internal_dict[HEADER_FIRST_SAMPLE_PORTAL_URL] = first_sample_portal_url_list
+        if return_json is False:
+            internal_dict[HEADER_FIRST_SAMPLE_HUBMAP_ID] = ",".join(first_sample_hubmap_id_list)
+            internal_dict[HEADER_FIRST_SAMPLE_SUBMISSION_ID] = ",".join(first_sample_submission_id_list)
+            internal_dict[HEADER_FIRST_SAMPLE_UUID] = ",".join(first_sample_uuid_list)
+            internal_dict[HEADER_FIRST_SAMPLE_TYPE] = ",".join(first_sample_type_list)
+            internal_dict[HEADER_FIRST_SAMPLE_PORTAL_URL] = ",".join(first_sample_portal_url_list)
+    if dataset['distinct_organ'] is not None:
+        distinct_organ_hubmap_id_list = []
+        distinct_organ_submission_id_list = []
+        distinct_organ_uuid_list = []
+        distinct_organ_type_list = []
+        for item in dataset['distinct_organ']:
+            distinct_organ_hubmap_id_list.append(item['hubmap_id'])
+            distinct_organ_submission_id_list.append(item['submission_id'])
+            distinct_organ_uuid_list.append(item['uuid'])
+            distinct_organ_type_list.append(organ_types_dict[item['organ']]['description'].lower())
+        internal_dict[HEADER_ORGAN_HUBMAP_ID] = distinct_organ_hubmap_id_list
+        internal_dict[HEADER_ORGAN_SUBMISSION_ID] = distinct_organ_submission_id_list
+        internal_dict[HEADER_ORGAN_UUID] = distinct_organ_uuid_list
+        internal_dict[HEADER_ORGAN_TYPE] = distinct_organ_type_list
+        if return_json is False:
+            internal_dict[HEADER_ORGAN_HUBMAP_ID] = ",".join(distinct_organ_hubmap_id_list)
+            internal_dict[HEADER_ORGAN_SUBMISSION_ID] = ",".join(distinct_organ_submission_id_list)
+            internal_dict[HEADER_ORGAN_UUID] = ",".join(distinct_organ_uuid_list)
+            internal_dict[HEADER_ORGAN_TYPE] = ",".join(distinct_organ_type_list)
+    if dataset['distinct_donor'] is not None:
+        distinct_donor_hubmap_id_list = []
+        distinct_donor_submission_id_list = []
+        distinct_donor_uuid_list = []
+        distinct_donor_group_name_list = []
+        for item in dataset['distinct_donor']:
+            distinct_donor_hubmap_id_list.append(item['hubmap_id'])
+            distinct_donor_submission_id_list.append(item['submission_id'])
+            distinct_donor_uuid_list.append(item['uuid'])
+            distinct_donor_group_name_list.append(item['group_name'])
+        internal_dict[HEADER_DONOR_HUBMAP_ID] = distinct_donor_hubmap_id_list
+        internal_dict[HEADER_DONOR_SUBMISSION_ID] = distinct_donor_submission_id_list
+        internal_dict[HEADER_DONOR_UUID] = distinct_donor_uuid_list
+        internal_dict[HEADER_DONOR_GROUP_NAME] = distinct_donor_group_name_list
+        if return_json is False:
+            internal_dict[HEADER_DONOR_HUBMAP_ID] = ",".join(distinct_donor_hubmap_id_list)
+            internal_dict[HEADER_DONOR_SUBMISSION_ID] = ",".join(distinct_donor_submission_id_list)
+            internal_dict[HEADER_DONOR_UUID] = ",".join(distinct_donor_uuid_list)
+            internal_dict[HEADER_DONOR_GROUP_NAME] = ",".join(distinct_donor_group_name_list)
+    if dataset['distinct_rui_sample'] is not None:
+        rui_location_hubmap_id_list = []
+        rui_location_submission_id_list = []
+        rui_location_uuid_list = []
+        for item in dataset['distinct_rui_sample']:
+            rui_location_hubmap_id_list.append(item['hubmap_id'])
+            rui_location_submission_id_list.append(item['submission_id'])
+            rui_location_uuid_list.append(item['uuid'])
+        internal_dict[HEADER_RUI_LOCATION_HUBMAP_ID] = rui_location_hubmap_id_list
+        internal_dict[HEADER_RUI_LOCATION_SUBMISSION_ID] = rui_location_submission_id_list
+        internal_dict[HEADER_RUI_LOCATION_UUID] = rui_location_uuid_list
+        if return_json is False:
+            internal_dict[HEADER_RUI_LOCATION_HUBMAP_ID] = ",".join(rui_location_hubmap_id_list)
+            internal_dict[HEADER_RUI_LOCATION_SUBMISSION_ID] = ",".join(rui_location_submission_id_list)
+            internal_dict[HEADER_RUI_LOCATION_UUID] = ",".join(rui_location_uuid_list)
+    if dataset['distinct_metasample'] is not None:
+        metasample_hubmap_id_list = []
+        metasample_submission_id_list = []
+        metasample_uuid_list = []
+        for item in dataset['distinct_metasample']:
+            metasample_hubmap_id_list.append(item['hubmap_id'])
+            metasample_submission_id_list.append(item['submission_id'])
+            metasample_uuid_list.append(item['uuid'])
+        internal_dict[HEADER_SAMPLE_METADATA_HUBMAP_ID] = metasample_hubmap_id_list
+        internal_dict[HEADER_SAMPLE_METADATA_SUBMISSION_ID] = metasample_submission_id_list
+        internal_dict[HEADER_SAMPLE_METADATA_UUID] = metasample_uuid_list
+        if return_json is False:
+            internal_dict[HEADER_SAMPLE_METADATA_HUBMAP_ID] = ",".join(metasample_hubmap_id_list)
+            internal_dict[HEADER_SAMPLE_METADATA_SUBMISSION_ID] = ",".join(metasample_submission_id_list)
+            internal_dict[HEADER_SAMPLE_METADATA_UUID] = ",".join(metasample_uuid_list)
+
+    # processed_dataset properties are retrived from its own dictionary
+    if dataset['processed_dataset'] is not None:
+        processed_dataset_uuid_list = []
+        processed_dataset_hubmap_id_list = []
+        processed_dataset_status_list = []
+        processed_dataset_portal_url_list = []
+        for item in dataset['processed_dataset']:
+            processed_dataset_uuid_list.append(item['uuid'])
+            processed_dataset_hubmap_id_list.append(item['hubmap_id'])
+            processed_dataset_status_list.append(item['status'])
+            processed_dataset_portal_url_list.append(
+                app.config['DOI_REDIRECT_URL'].replace('<entity_type>', 'dataset').replace('<identifier>',
+                                                                                           item['uuid']))
+        internal_dict[HEADER_PROCESSED_DATASET_UUID] = processed_dataset_uuid_list
+        internal_dict[HEADER_PROCESSED_DATASET_HUBMAP_ID] = processed_dataset_hubmap_id_list
+        internal_dict[HEADER_PROCESSED_DATASET_STATUS] = processed_dataset_status_list
+        internal_dict[HEADER_PROCESSED_DATASET_PORTAL_URL] = processed_dataset_portal_url_list
+        if return_json is False:
+            internal_dict[HEADER_PROCESSED_DATASET_UUID] = ",".join(processed_dataset_uuid_list)
+            internal_dict[HEADER_PROCESSED_DATASET_UUID] = ",".join(processed_dataset_hubmap_id_list)
+            internal_dict[HEADER_PROCESSED_DATASET_UUID] = ",".join(processed_dataset_status_list)
+            internal_dict[HEADER_PROCESSED_DATASET_UUID] = ",".join(processed_dataset_portal_url_list)
+
+    dataset_prov_list.append(internal_dict)
+
+
+    if return_json:
+        return jsonify(dataset_prov_list[0])
+    else:
+        new_tsv_file = StringIO()
+        writer = csv.DictWriter(new_tsv_file, fieldnames=headers, delimiter='\t')
+        writer.writeheader()
+        writer.writerows(dataset_prov_list)
+        new_tsv_file.seek(0)
+        output = Response(new_tsv_file, mimetype='text/tsv')
+        output.headers['Content-Disposition'] = 'attachment; filename=prov-info.tsv'
+        return output
+
 
 ####################################################################################################
 ## Internal Functions
@@ -2983,7 +3572,19 @@ def access_level_prefix_dir(dir_name):
         return ''
     
     return hm_file_helper.ensureTrailingSlashURL(hm_file_helper.ensureBeginningSlashURL(dir_name))
+"""
+Ensures that a given organ code matches what is found on the organ_types yaml document
 
+organ_code : str
+
+Returns nothing. Raises bad_request_error is organ code not found on organ_types.yaml 
+"""
+def validate_organ_code(organ_code):
+    ORGAN_YAML_URL = 'https://raw.githubusercontent.com/hubmapconsortium/search-api/test-release/src/search-schema/data/definitions/enums/organ_types.yaml'
+    with urllib.request.urlopen(ORGAN_YAML_URL) as organ_file:
+        organ_yaml = yaml.load(organ_file, Loader=yaml.FullLoader)
+    if organ_code.upper() not in organ_yaml:
+        bad_request_error(f"Invalid Organ. Organ must be 2 digit code, case-insensitive located at {ORGAN_YAML_URL}")
 
 # For local development/testing
 if __name__ == "__main__":
