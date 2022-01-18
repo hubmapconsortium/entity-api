@@ -3,7 +3,7 @@ info:
   title: "HuBMAP Entity API"
   description: "The HuBMAP Entity API is a standard RESTful web service with create,\
     \ update and read operations for the standard HuBMAP provenance graph entities."
-  version: "2.0.21"
+  version: "2.0.23"
 servers:
 - url: "https://entity.api.hubmapconsortium.org"
 paths:
