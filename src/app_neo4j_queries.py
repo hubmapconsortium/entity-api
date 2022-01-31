@@ -940,7 +940,9 @@ def get_prov_info(neo4j_driver, param_dict):
     rui_info_query_string = 'OPTIONAL MATCH (ds)<-[*]-(ruiSample:Sample)'
     rui_info_where_clause = "WHERE NOT ruiSample.rui_location IS NULL AND NOT trim(ruiSample.rui_location) = '' "
     dataset_status_query_string = ''
+    first_param = True
     if 'group_uuid' in param_dict:
+        first_param = False
         group_uuid_query_string = f" WHERE ds.group_uuid = '{param_dict['group_uuid']}'"
     if 'organ' in param_dict:
         organ_query_string = 'MATCH'
@@ -951,7 +953,15 @@ def get_prov_info(neo4j_driver, param_dict):
             rui_info_query_string = 'MATCH (ds:Dataset)'
             rui_info_where_clause = "WHERE NOT EXISTS {MATCH (ds)<-[*]-(ruiSample:Sample) WHERE NOT ruiSample.rui_location IS NULL AND NOT TRIM(ruiSample.rui_location) = ''} MATCH (ds)<-[*]-(ruiSample:Sample)"
     if 'dataset_status' in param_dict:
-        dataset_status_query_string = f" WHERE ds.status = '{param_dict['dataset_status'].lower().capitalize()}'"
+        if first_param:
+            print("true")
+            dataset_status_query_string = f" WHERE ds.status = '{param_dict['dataset_status'].lower().capitalize()}'"
+            if param_dict['dataset_status'].lower() == "qa":
+                dataset_status_query_string = f" WHERE ds.status = '{param_dict['dataset_status'].upper()}'"
+        else:
+            dataset_status_query_string = f" AND ds.status = '{param_dict['dataset_status'].lower().capitalize()}'"
+            if param_dict['dataset_status'].lower() == "qa":
+                dataset_status_query_string = f" AND ds.status = '{param_dict['dataset_status'].upper()}'"
     query = (f"MATCH (ds:Dataset)<-[:ACTIVITY_OUTPUT]-(a)<-[:ACTIVITY_INPUT]-(firstSample:Sample)<-[*]-(donor:Donor)"
              f"{group_uuid_query_string}"
              f"{dataset_status_query_string}"
@@ -971,7 +981,7 @@ def get_prov_info(neo4j_driver, param_dict):
              f" ds.last_modified_user_email, ds.lab_dataset_id, ds.data_types, METASAMPLE, PROCESSED_DATASET")
     logger.debug("======get_prov_info() query======")
     logger.debug(query)
-
+    print(query)
     with neo4j_driver.session() as session:
         # Because we're returning multiple things, we use session.run rather than session.read_transaction
         result = session.run(query)
