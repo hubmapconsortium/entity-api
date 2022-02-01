@@ -943,10 +943,11 @@ def get_prov_info(neo4j_driver, param_dict):
     first_param = True
     if 'group_uuid' in param_dict:
         first_param = False
-        group_uuid_query_string = f" WHERE ds.group_uuid = '{param_dict['group_uuid']}'"
+        group_uuid_query_string = f" WHERE toUpper(ds.group_uuid) = '{param_dict['group_uuid'].upper()}'"
     if 'organ' in param_dict:
         organ_query_string = 'MATCH'
-        organ_where_clause = f", organ: '{param_dict['organ'].upper()}'"
+        # organ_where_clause = f", organ: '{param_dict['organ'].upper()}'"
+        organ_where_clause = f" WHERE toUPPER(organ.organ) = '{param_dict['organ'].upper()}'"
     if 'has_rui_info' in param_dict:
         rui_info_query_string = 'MATCH (ds)<-[*]-(ruiSample:Sample)'
         if param_dict['has_rui_info'].lower() == 'false':
@@ -954,13 +955,9 @@ def get_prov_info(neo4j_driver, param_dict):
             rui_info_where_clause = "WHERE NOT EXISTS {MATCH (ds)<-[*]-(ruiSample:Sample) WHERE NOT ruiSample.rui_location IS NULL AND NOT TRIM(ruiSample.rui_location) = ''} MATCH (ds)<-[*]-(ruiSample:Sample)"
     if 'dataset_status' in param_dict:
         if first_param:
-            dataset_status_query_string = f" WHERE ds.status = '{param_dict['dataset_status'].capitalize()}'"
-            if param_dict['dataset_status'].lower() == "qa":
-                dataset_status_query_string = f" WHERE ds.status = 'QA'"
+            dataset_status_query_string = f" WHERE toUpper(ds.status) = '{param_dict['dataset_status'].upper()}'"
         else:
-            dataset_status_query_string = f" AND ds.status = '{param_dict['dataset_status'].capitalize()}'"
-            if param_dict['dataset_status'].lower() == "qa":
-                dataset_status_query_string = f" AND ds.status = 'QA'"
+            dataset_status_query_string = f" AND toUpper(ds.status) = '{param_dict['dataset_status'].upper()}'"
     query = (f"MATCH (ds:Dataset)<-[:ACTIVITY_OUTPUT]-(a)<-[:ACTIVITY_INPUT]-(firstSample:Sample)<-[*]-(donor:Donor)"
              f"{group_uuid_query_string}"
              f"{dataset_status_query_string}"
@@ -971,7 +968,8 @@ def get_prov_info(neo4j_driver, param_dict):
              f" {rui_info_query_string}"
              f" {rui_info_where_clause}"
              f" WITH ds, FIRSTSAMPLE, DONOR, METASAMPLE, collect(distinct ruiSample) as RUISAMPLE"
-             f" {organ_query_string} (donor)-[:ACTIVITY_INPUT]->(oa)-[:ACTIVITY_OUTPUT]->(organ:Sample {{specimen_type:'organ'{organ_where_clause}}})-[*]->(ds)"
+             f" {organ_query_string} (donor)-[:ACTIVITY_INPUT]->(oa)-[:ACTIVITY_OUTPUT]->(organ:Sample {{specimen_type:'organ'}})-[*]->(ds)"
+             f" {organ_where_clause}"
              f" WITH ds, FIRSTSAMPLE, DONOR, METASAMPLE, RUISAMPLE, COLLECT(DISTINCT organ) AS ORGAN "
              f" OPTIONAL MATCH (ds)-[:ACTIVITY_INPUT]->(a3)-[:ACTIVITY_OUTPUT]->(processed_dataset:Dataset)"
              f" WITH ds, FIRSTSAMPLE, DONOR, METASAMPLE, RUISAMPLE, ORGAN, COLLECT(distinct processed_dataset) AS PROCESSED_DATASET"
