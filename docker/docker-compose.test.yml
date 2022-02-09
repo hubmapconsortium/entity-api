@@ -8,12 +8,3 @@ services:
     # since nginx is running under non-root user hubmap
     ports:
       - "3333:8080"
-    environment:
-      - HOST_GID=${HOST_GID:-1000}
-      - HOST_UID=${HOST_UID:-1000}
-    init: true
-    restart: always
-    volumes:
-      # Mount conf.d on host machine to the nginx conf.d on container
-      - "./entity-api/nginx/conf.d:/etc/nginx/conf.d"
-
