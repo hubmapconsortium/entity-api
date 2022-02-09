@@ -20,6 +20,11 @@ services:
       timeout: 10s
       retries: 3
       start_period: 40s
+    environment:
+      - HOST_GID=${HOST_GID:-1000}
+      - HOST_UID=${HOST_UID:-1000}
+    init: true
+    restart: always
     volumes:
       # Mount the app config to container in order to keep it outside of the image
       - "../src/instance:/usr/src/app/src/instance"
@@ -27,6 +32,8 @@ services:
       - "../log:/usr/src/app/log"
       # Mount the schema yaml file
       - "../src/schema/provenance_schema.yaml:/usr/src/app/src/schema/provenance_schema.yaml"
+      # Mount conf.d on host machine to the nginx conf.d on container
+      - "./entity-api/nginx/conf.d:/etc/nginx/conf.d"
     networks:
       - gateway_hubmap
 
