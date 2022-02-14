@@ -2258,6 +2258,7 @@ def get_prov_info():
     HEADER_PROCESSED_DATASET_PORTAL_URL = 'processed_dataset_portal_url'
     ASSAY_TYPES_URL = 'https://raw.githubusercontent.com/hubmapconsortium/search-api/master/src/search-schema/data/definitions/enums/assay_types.yaml'
     ORGAN_TYPES_URL = 'https://raw.githubusercontent.com/hubmapconsortium/search-api/master/src/search-schema/data/definitions/enums/organ_types.yaml'
+    HEADER_PREVIOUS_VERSION_HUBMAP_IDS = 'previous_version_hubmap_ids'
 
     headers = [
         HEADER_DATASET_UUID, HEADER_DATASET_HUBMAP_ID, HEADER_DATASET_STATUS, HEADER_DATASET_GROUP_NAME,
@@ -2270,8 +2271,16 @@ def get_prov_info():
         HEADER_DONOR_GROUP_NAME, HEADER_RUI_LOCATION_HUBMAP_ID, HEADER_RUI_LOCATION_SUBMISSION_ID,
         HEADER_RUI_LOCATION_UUID, HEADER_SAMPLE_METADATA_HUBMAP_ID, HEADER_SAMPLE_METADATA_SUBMISSION_ID,
         HEADER_SAMPLE_METADATA_UUID, HEADER_PROCESSED_DATASET_UUID, HEADER_PROCESSED_DATASET_HUBMAP_ID,
-        HEADER_PROCESSED_DATASET_STATUS, HEADER_PROCESSED_DATASET_PORTAL_URL
+        HEADER_PROCESSED_DATASET_STATUS, HEADER_PROCESSED_DATASET_PORTAL_URL, HEADER_PREVIOUS_VERSION_HUBMAP_IDS
     ]
+    published_only = True
+
+    # Token is not required, but if an invalid token is provided,
+    # we need to tell the client with a 401 error
+    validate_token_if_auth_header_exists(request)
+
+    if user_in_hubmap_read_group(request):
+        published_only = False
 
     # Parsing the organ types yaml has to be done here rather than calling schema.schema_triggers.get_organ_description
     # because that would require using a urllib request for each dataset
@@ -2328,13 +2337,19 @@ def get_prov_info():
         if dataset_status is not None:
             if dataset_status.lower() not in ['new', 'qa', 'published']:
                 bad_request_error("Invalid Dataset Status. Must be 'new', 'qa', or 'published' Case-Insensitive")
-            param_dict['dataset_status'] = dataset_status
+            if published_only and dataset_status.lower() != 'published':
+                bad_request_error(f"Invalid Dataset Status. No auth token given or token is not a member of HuBMAP-Read"
+                                  " Group. If no token with HuBMAP-Read Group access is given, only datasets marked "
+                                  "'Published' are available. Try again with a proper token, or change/remove "
+                                  "dataset_status")
+            if not published_only:
+                param_dict['dataset_status'] = dataset_status
 
     # Instantiation of the list dataset_prov_list
     dataset_prov_list = []
 
     # Call to app_neo4j_queries to prepare and execute the database query
-    prov_info = app_neo4j_queries.get_prov_info(neo4j_driver_instance, param_dict)
+    prov_info = app_neo4j_queries.get_prov_info(neo4j_driver_instance, param_dict, published_only)
 
     # Each dataset's provinence info is placed into a dictionary
     for dataset in prov_info:
@@ -2496,6 +2511,15 @@ def get_prov_info():
                 internal_dict[HEADER_PROCESSED_DATASET_UUID] = ",".join(processed_dataset_hubmap_id_list)
                 internal_dict[HEADER_PROCESSED_DATASET_UUID] = ",".join(processed_dataset_status_list)
                 internal_dict[HEADER_PROCESSED_DATASET_UUID] = ",".join(processed_dataset_portal_url_list)
+
+
+        if dataset['previous_version_hubmap_ids'] is not None:
+            previous_version_hubmap_ids_list = []
+            for item in dataset['previous_version_hubmap_ids']:
+                previous_version_hubmap_ids_list.append(item)
+            internal_dict[HEADER_PREVIOUS_VERSION_HUBMAP_IDS] = previous_version_hubmap_ids_list
+            if return_json is False:
+                internal_dict[HEADER_PREVIOUS_VERSION_HUBMAP_IDS] = ",".join(previous_version_hubmap_ids_list)
 
         # Each dataset's dictionary is added to the list to be returned
         dataset_prov_list.append(internal_dict)
