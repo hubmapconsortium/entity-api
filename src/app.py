@@ -2209,7 +2209,29 @@ def get_associated_organs_from_dataset(id):
 """
 Get the complete provenance info for all datasets
 
-Authorization handled by gateway. HuBMAP-Read group is required for this call. 
+Authentication
+-------
+No token is required, however if a token is given it must be valid or an error will be raised. If no token with HuBMAP
+Read Group access is given, only datasets designated as "published" will be returned
+
+Query Parameters
+-------
+    format : string
+        Designates the output format of the returned data. Accepted values are "json" and "tsv". If none provided, by 
+        default will return a tsv.
+    group_uuid : string
+        Filters returned datasets by a given group uuid. 
+    organ : string
+        Filters returned datasets related to a samples of the given organ. Accepts 2 character organ codes. These codes
+        must match the organ types yaml at https://raw.githubusercontent.com/hubmapconsortium/search-api/test-release/src/search-schema/data/definitions/enums/organ_types.yaml
+        or an error will be raised
+    has_rui_info : string
+        Accepts strings "true" or "false. Any other value will result in an error. If true, only datasets connected to 
+        an sample that contain rui info will be returned. If false, only datasets that are NOT connected to samples
+        containing rui info will be returned. By default, no filtering is performed. 
+    dataset_status : string
+        Filters results by dataset status. Accepted values are "Published", "QA", and "NEW". If a user only has access
+        to published datasets and enters QA or New, an error will be raised. By default, no filtering is performed 
 
 Returns
 -------
@@ -2539,6 +2561,33 @@ def get_prov_info():
         output.headers['Content-Disposition'] = 'attachment; filename=prov-info.tsv'
         return output
 
+
+"""
+Get the complete provenance info for a given dataset
+
+Authentication
+-------
+No token is required, however if a token is given it must be valid or an error will be raised. If no token with HuBMAP
+Read Group access is given, only datasets designated as "published" will be returned
+
+Query Parameters
+-------
+format : string
+        Designates the output format of the returned data. Accepted values are "json" and "tsv". If none provided, by 
+        default will return a tsv.
+
+Path Parameters
+-------
+id : string
+    A HuBMAP_ID or UUID for a dataset. If an invalid dataset id is given, an error will be raised    
+
+Returns
+-------
+json
+    an array of each datatset's provenance info
+tsv
+    a text file of tab separated values where each row is a dataset and the columns include all its prov info
+"""
 @app.route('/datasets/<id>/prov-info', methods=['GET'])
 def get_prov_info_for_dataset(id):
     # Token is not required, but if an invalid token provided,
