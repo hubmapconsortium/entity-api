@@ -932,6 +932,9 @@ neo4j_driver : neo4j.Driver object
     The neo4j database connection pool
 param_dict : dictionary
     Dictionary containing any parameters desired to filter for certain results
+published_only : boolean
+    If a user does not have a token with HuBMAP-Read Group access, published_only is set to true. This will cause only 
+    datasets with status = 'Published' to be included in the result.
 """
 def get_prov_info(neo4j_driver, param_dict, published_only):
     group_uuid_query_string = ''
