@@ -544,6 +544,9 @@ Retrive all the entity nodes for a given entity type
 Result filtering is supported based on query string
 For example: /<entity_type>/entities?property=uuid
 
+NOTE: this endpoint is NOT exposed via AWS API Gateway due to performance consideration
+It's only used by search-api with making internal calls during index/reindex time bypassing AWS API Gateway
+
 Parameters
 ----------
 entity_type : str
