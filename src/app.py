@@ -2212,7 +2212,29 @@ def get_associated_organs_from_dataset(id):
 """
 Get the complete provenance info for all datasets
 
-Authorization handled by gateway. HuBMAP-Read group is required for this call. 
+Authentication
+-------
+No token is required, however if a token is given it must be valid or an error will be raised. If no token with HuBMAP
+Read Group access is given, only datasets designated as "published" will be returned
+
+Query Parameters
+-------
+    format : string
+        Designates the output format of the returned data. Accepted values are "json" and "tsv". If none provided, by 
+        default will return a tsv.
+    group_uuid : string
+        Filters returned datasets by a given group uuid. 
+    organ : string
+        Filters returned datasets related to a samples of the given organ. Accepts 2 character organ codes. These codes
+        must match the organ types yaml at https://raw.githubusercontent.com/hubmapconsortium/search-api/test-release/src/search-schema/data/definitions/enums/organ_types.yaml
+        or an error will be raised
+    has_rui_info : string
+        Accepts strings "true" or "false. Any other value will result in an error. If true, only datasets connected to 
+        an sample that contain rui info will be returned. If false, only datasets that are NOT connected to samples
+        containing rui info will be returned. By default, no filtering is performed. 
+    dataset_status : string
+        Filters results by dataset status. Accepted values are "Published", "QA", and "NEW". If a user only has access
+        to published datasets and enters QA or New, an error will be raised. By default, no filtering is performed 
 
 Returns
 -------
@@ -2261,6 +2283,7 @@ def get_prov_info():
     HEADER_PROCESSED_DATASET_PORTAL_URL = 'processed_dataset_portal_url'
     ASSAY_TYPES_URL = 'https://raw.githubusercontent.com/hubmapconsortium/search-api/master/src/search-schema/data/definitions/enums/assay_types.yaml'
     ORGAN_TYPES_URL = 'https://raw.githubusercontent.com/hubmapconsortium/search-api/master/src/search-schema/data/definitions/enums/organ_types.yaml'
+    HEADER_PREVIOUS_VERSION_HUBMAP_IDS = 'previous_version_hubmap_ids'
 
     headers = [
         HEADER_DATASET_UUID, HEADER_DATASET_HUBMAP_ID, HEADER_DATASET_STATUS, HEADER_DATASET_GROUP_NAME,
@@ -2273,8 +2296,16 @@ def get_prov_info():
         HEADER_DONOR_GROUP_NAME, HEADER_RUI_LOCATION_HUBMAP_ID, HEADER_RUI_LOCATION_SUBMISSION_ID,
         HEADER_RUI_LOCATION_UUID, HEADER_SAMPLE_METADATA_HUBMAP_ID, HEADER_SAMPLE_METADATA_SUBMISSION_ID,
         HEADER_SAMPLE_METADATA_UUID, HEADER_PROCESSED_DATASET_UUID, HEADER_PROCESSED_DATASET_HUBMAP_ID,
-        HEADER_PROCESSED_DATASET_STATUS, HEADER_PROCESSED_DATASET_PORTAL_URL
+        HEADER_PROCESSED_DATASET_STATUS, HEADER_PROCESSED_DATASET_PORTAL_URL, HEADER_PREVIOUS_VERSION_HUBMAP_IDS
     ]
+    published_only = True
+
+    # Token is not required, but if an invalid token is provided,
+    # we need to tell the client with a 401 error
+    validate_token_if_auth_header_exists(request)
+
+    if user_in_hubmap_read_group(request):
+        published_only = False
 
     # Parsing the organ types yaml has to be done here rather than calling schema.schema_triggers.get_organ_description
     # because that would require using a urllib request for each dataset
@@ -2331,13 +2362,19 @@ def get_prov_info():
         if dataset_status is not None:
             if dataset_status.lower() not in ['new', 'qa', 'published']:
                 bad_request_error("Invalid Dataset Status. Must be 'new', 'qa', or 'published' Case-Insensitive")
-            param_dict['dataset_status'] = dataset_status
+            if published_only and dataset_status.lower() != 'published':
+                bad_request_error(f"Invalid Dataset Status. No auth token given or token is not a member of HuBMAP-Read"
+                                  " Group. If no token with HuBMAP-Read Group access is given, only datasets marked "
+                                  "'Published' are available. Try again with a proper token, or change/remove "
+                                  "dataset_status")
+            if not published_only:
+                param_dict['dataset_status'] = dataset_status
 
     # Instantiation of the list dataset_prov_list
     dataset_prov_list = []
 
     # Call to app_neo4j_queries to prepare and execute the database query
-    prov_info = app_neo4j_queries.get_prov_info(neo4j_driver_instance, param_dict)
+    prov_info = app_neo4j_queries.get_prov_info(neo4j_driver_instance, param_dict, published_only)
 
     # Each dataset's provinence info is placed into a dictionary
     for dataset in prov_info:
@@ -2500,6 +2537,15 @@ def get_prov_info():
                 internal_dict[HEADER_PROCESSED_DATASET_UUID] = ",".join(processed_dataset_status_list)
                 internal_dict[HEADER_PROCESSED_DATASET_UUID] = ",".join(processed_dataset_portal_url_list)
 
+
+        if dataset['previous_version_hubmap_ids'] is not None:
+            previous_version_hubmap_ids_list = []
+            for item in dataset['previous_version_hubmap_ids']:
+                previous_version_hubmap_ids_list.append(item)
+            internal_dict[HEADER_PREVIOUS_VERSION_HUBMAP_IDS] = previous_version_hubmap_ids_list
+            if return_json is False:
+                internal_dict[HEADER_PREVIOUS_VERSION_HUBMAP_IDS] = ",".join(previous_version_hubmap_ids_list)
+
         # Each dataset's dictionary is added to the list to be returned
         dataset_prov_list.append(internal_dict)
 
@@ -2518,6 +2564,33 @@ def get_prov_info():
         output.headers['Content-Disposition'] = 'attachment; filename=prov-info.tsv'
         return output
 
+
+"""
+Get the complete provenance info for a given dataset
+
+Authentication
+-------
+No token is required, however if a token is given it must be valid or an error will be raised. If no token with HuBMAP
+Read Group access is given, only datasets designated as "published" will be returned
+
+Query Parameters
+-------
+format : string
+        Designates the output format of the returned data. Accepted values are "json" and "tsv". If none provided, by 
+        default will return a tsv.
+
+Path Parameters
+-------
+id : string
+    A HuBMAP_ID or UUID for a dataset. If an invalid dataset id is given, an error will be raised    
+
+Returns
+-------
+json
+    an array of each datatset's provenance info
+tsv
+    a text file of tab separated values where each row is a dataset and the columns include all its prov info
+"""
 @app.route('/datasets/<id>/prov-info', methods=['GET'])
 def get_prov_info_for_dataset(id):
     # Token is not required, but if an invalid token provided,
