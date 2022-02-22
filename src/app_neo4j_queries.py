@@ -932,50 +932,55 @@ neo4j_driver : neo4j.Driver object
     The neo4j database connection pool
 param_dict : dictionary
     Dictionary containing any parameters desired to filter for certain results
+published_only : boolean
+    If a user does not have a token with HuBMAP-Read Group access, published_only is set to true. This will cause only 
+    datasets with status = 'Published' to be included in the result.
 """
-def get_prov_info(neo4j_driver, param_dict):
+def get_prov_info(neo4j_driver, param_dict, published_only):
     group_uuid_query_string = ''
     organ_query_string = 'OPTIONAL MATCH'
     organ_where_clause = ""
     rui_info_query_string = 'OPTIONAL MATCH (ds)<-[*]-(ruiSample:Sample)'
     rui_info_where_clause = "WHERE NOT ruiSample.rui_location IS NULL AND NOT trim(ruiSample.rui_location) = '' "
     dataset_status_query_string = ''
-    first_param = True
+    published_only_query_string = ''
     if 'group_uuid' in param_dict:
-        first_param = False
-        group_uuid_query_string = f" WHERE toUpper(ds.group_uuid) = '{param_dict['group_uuid'].upper()}'"
+        group_uuid_query_string = f" AND toUpper(ds.group_uuid) = '{param_dict['group_uuid'].upper()}'"
     if 'organ' in param_dict:
         organ_query_string = 'MATCH'
         # organ_where_clause = f", organ: '{param_dict['organ'].upper()}'"
-        organ_where_clause = f" WHERE toUPPER(organ.organ) = '{param_dict['organ'].upper()}'"
+        organ_where_clause = f" WHERE toUpper(organ.organ) = '{param_dict['organ'].upper()}'"
     if 'has_rui_info' in param_dict:
         rui_info_query_string = 'MATCH (ds)<-[*]-(ruiSample:Sample)'
         if param_dict['has_rui_info'].lower() == 'false':
             rui_info_query_string = 'MATCH (ds:Dataset)'
             rui_info_where_clause = "WHERE NOT EXISTS {MATCH (ds)<-[*]-(ruiSample:Sample) WHERE NOT ruiSample.rui_location IS NULL AND NOT TRIM(ruiSample.rui_location) = ''} MATCH (ds)<-[*]-(ruiSample:Sample)"
     if 'dataset_status' in param_dict:
-        if first_param:
-            dataset_status_query_string = f" WHERE toUpper(ds.status) = '{param_dict['dataset_status'].upper()}'"
-        else:
-            dataset_status_query_string = f" AND toUpper(ds.status) = '{param_dict['dataset_status'].upper()}'"
+        dataset_status_query_string = f" AND toUpper(ds.status) = '{param_dict['dataset_status'].upper()}'"
+    if published_only:
+        published_only_query_string = f" AND toUpper(ds.status) = 'PUBLISHED'"
     query = (f"MATCH (ds:Dataset)<-[:ACTIVITY_OUTPUT]-(a)<-[:ACTIVITY_INPUT]-(firstSample:Sample)<-[*]-(donor:Donor)"
+             f"WHERE not (ds)-[:REVISION_OF]->(:Dataset)"
              f"{group_uuid_query_string}"
              f"{dataset_status_query_string}"
+             f"{published_only_query_string}"
              f" WITH ds, COLLECT(distinct donor) AS DONOR, COLLECT(distinct firstSample) AS FIRSTSAMPLE"
+             f" OPTIONAL MATCH (ds)<-[:REVISION_OF]-(rev:Dataset)"
+             f" WITH ds, DONOR, FIRSTSAMPLE, COLLECT(rev.hubmap_id) as REVISIONS"
              f" OPTIONAL MATCH (ds)<-[*]-(metaSample:Sample)"
              f" WHERE NOT metaSample.metadata IS NULL AND NOT TRIM(metaSample.metadata) = ''"
-             f" WITH ds, FIRSTSAMPLE, DONOR, collect(distinct metaSample) as METASAMPLE"
+             f" WITH ds, FIRSTSAMPLE, DONOR, REVISIONS, collect(distinct metaSample) as METASAMPLE"
              f" {rui_info_query_string}"
              f" {rui_info_where_clause}"
-             f" WITH ds, FIRSTSAMPLE, DONOR, METASAMPLE, collect(distinct ruiSample) as RUISAMPLE"
+             f" WITH ds, FIRSTSAMPLE, DONOR, REVISIONS, METASAMPLE, collect(distinct ruiSample) as RUISAMPLE"
              f" {organ_query_string} (donor)-[:ACTIVITY_INPUT]->(oa)-[:ACTIVITY_OUTPUT]->(organ:Sample {{specimen_type:'organ'}})-[*]->(ds)"
              f" {organ_where_clause}"
-             f" WITH ds, FIRSTSAMPLE, DONOR, METASAMPLE, RUISAMPLE, COLLECT(DISTINCT organ) AS ORGAN "
+             f" WITH ds, FIRSTSAMPLE, DONOR, REVISIONS, METASAMPLE, RUISAMPLE, COLLECT(DISTINCT organ) AS ORGAN "
              f" OPTIONAL MATCH (ds)-[:ACTIVITY_INPUT]->(a3)-[:ACTIVITY_OUTPUT]->(processed_dataset:Dataset)"
-             f" WITH ds, FIRSTSAMPLE, DONOR, METASAMPLE, RUISAMPLE, ORGAN, COLLECT(distinct processed_dataset) AS PROCESSED_DATASET"
+             f" WITH ds, FIRSTSAMPLE, DONOR, REVISIONS, METASAMPLE, RUISAMPLE, ORGAN, COLLECT(distinct processed_dataset) AS PROCESSED_DATASET"
              f" RETURN ds.uuid, FIRSTSAMPLE, DONOR, RUISAMPLE, ORGAN, ds.hubmap_id, ds.status, ds.group_name,"
              f" ds.group_uuid, ds.created_timestamp, ds.created_by_user_email, ds.last_modified_timestamp, "
-             f" ds.last_modified_user_email, ds.lab_dataset_id, ds.data_types, METASAMPLE, PROCESSED_DATASET")
+             f" ds.last_modified_user_email, ds.lab_dataset_id, ds.data_types, METASAMPLE, PROCESSED_DATASET, REVISIONS")
     logger.debug("======get_prov_info() query======")
     logger.debug(query)
     with neo4j_driver.session() as session:
@@ -1033,6 +1038,11 @@ def get_prov_info(neo4j_driver, param_dict):
                 node_dict = _node_to_dict(entry)
                 content_sixteen.append(node_dict)
             record_dict['processed_dataset'] = content_sixteen
+            content_seventeen = []
+            for entry in record_contents[17]:
+                node_dict = _node_to_dict(entry)
+                content_seventeen.append(node_dict)
+            record_dict['previous_version_hubmap_ids'] = content_seventeen
             list_of_dictionaries.append(record_dict)
     return list_of_dictionaries
 

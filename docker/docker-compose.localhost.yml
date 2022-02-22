@@ -3,9 +3,6 @@ version: "3.7"
 services:
   
   entity-api:
-    environment:
-      - HOST_GID=${HOST_GID:-1000}
-      - HOST_UID=${HOST_UID:-1000}
     volumes:
       # Mount the VERSION file and BUILD file
       - "../VERSION:/usr/src/app/VERSION"
