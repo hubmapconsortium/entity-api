@@ -1245,9 +1245,11 @@ def create_hubmap_ids(normalized_class, json_data_dict, user_token, user_info_di
         """
         ids_list = response.json()
 
-        # Remove the "hubmap_base_id" key
+        # Remove the "hubmap_base_id" key from each dict in the list
         for d in ids_list:
-            d.pop('hubmap_base_id')
+            # Return None when the key is not in the dict
+            # Will get keyError exception without the default value when the key is not found
+            d.pop('hubmap_base_id', None)
 
         logger.debug("======create_hubmap_ids() generated ids from uuid-api======")
         logger.debug(ids_list)
