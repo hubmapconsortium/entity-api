@@ -66,8 +66,8 @@ def get_entity(neo4j_driver, uuid):
              f"WHERE e.uuid = '{uuid}' "
              f"RETURN e AS {record_field_name}")
 
-    logger.debug("======get_entity() query======")
-    logger.debug(query)
+    logger.info("======get_entity() query======")
+    logger.info(query)
 
     with neo4j_driver.session() as session:
         record = session.read_transaction(_execute_readonly_tx, query)
@@ -196,8 +196,8 @@ def get_ancestor_organs(neo4j_driver, entity_uuid):
              # apoc.coll.toSet() reruns a set containing unique nodes
              f"RETURN apoc.coll.toSet(COLLECT(organ)) AS {record_field_name}")
     
-    logger.debug("======get_ancestor_organs() query======")
-    logger.debug(query)
+    logger.info("======get_ancestor_organs() query======")
+    logger.info(query)
 
     with neo4j_driver.session() as session:
         record = session.read_transaction(_execute_readonly_tx, query)
@@ -233,8 +233,8 @@ def create_entity(neo4j_driver, entity_type, entity_data_dict):
              f"SET e = {node_properties_map} "
              f"RETURN e AS {record_field_name}")
 
-    logger.debug("======create_entity() query======")
-    logger.debug(query)
+    logger.info("======create_entity() query======")
+    logger.info(query)
 
     try:
         with neo4j_driver.session() as session:
@@ -248,8 +248,8 @@ def create_entity(neo4j_driver, entity_type, entity_data_dict):
 
             entity_dict = _node_to_dict(entity_node)
 
-            logger.debug("======create_entity() resulting entity_dict======")
-            logger.debug(entity_dict)
+            # logger.info("======create_entity() resulting entity_dict======")
+            # logger.info(entity_dict)
 
             tx.commit()
 
@@ -306,8 +306,8 @@ def create_multiple_samples(neo4j_driver, samples_dict_list, activity_data_dict,
                          f"CREATE (e:Entity:Sample {node_properties_map} ) "
                          f"CREATE (a)-[:ACTIVITY_OUTPUT]->(e)")
 
-                logger.debug("======create_multiple_samples() individual query======")
-                logger.debug(query)
+                logger.info("======create_multiple_samples() individual query======")
+                logger.info(query)
 
                 result = tx.run(query)
 
@@ -353,8 +353,8 @@ def update_entity(neo4j_driver, entity_type, entity_data_dict, uuid):
              f"SET e += {node_properties_map} "
              f"RETURN e AS {record_field_name}")
 
-    logger.debug("======update_entity() query======")
-    logger.debug(query)
+    logger.info("======update_entity() query======")
+    logger.info(query)
 
     try:
         with neo4j_driver.session() as session:
@@ -370,8 +370,8 @@ def update_entity(neo4j_driver, entity_type, entity_data_dict, uuid):
 
             entity_dict = _node_to_dict(entity_node)
 
-            logger.debug("======update_entity() resulting entity_dict======")
-            logger.debug(entity_dict)
+            # logger.info("======update_entity() resulting entity_dict======")
+            # logger.info(entity_dict)
 
             return entity_dict
     except TransactionError as te:
@@ -422,8 +422,8 @@ def get_ancestors(neo4j_driver, uuid, property_key = None):
                  # apoc.coll.toSet() reruns a set containing unique nodes
                  f"RETURN apoc.coll.toSet(COLLECT(ancestor)) AS {record_field_name}")
 
-    logger.debug("======get_ancestors() query======")
-    logger.debug(query)
+    logger.info("======get_ancestors() query======")
+    logger.info(query)
 
     with neo4j_driver.session() as session:
         record = session.read_transaction(_execute_readonly_tx, query)
@@ -473,8 +473,8 @@ def get_descendants(neo4j_driver, uuid, property_key = None):
                  # apoc.coll.toSet() reruns a set containing unique nodes
                  f"RETURN apoc.coll.toSet(COLLECT(descendant)) AS {record_field_name}")
 
-    logger.debug("======get_descendants() query======")
-    logger.debug(query)
+    logger.info("======get_descendants() query======")
+    logger.info(query)
 
     with neo4j_driver.session() as session:
         record = session.read_transaction(_execute_readonly_tx, query)
@@ -524,8 +524,8 @@ def get_parents(neo4j_driver, uuid, property_key = None):
                  # apoc.coll.toSet() reruns a set containing unique nodes
                  f"RETURN apoc.coll.toSet(COLLECT(parent)) AS {record_field_name}")
 
-    logger.debug("======get_parents() query======")
-    logger.debug(query)
+    logger.info("======get_parents() query======")
+    logger.info(query)
 
     with neo4j_driver.session() as session:
         record = session.read_transaction(_execute_readonly_tx, query)
@@ -575,8 +575,8 @@ def get_children(neo4j_driver, uuid, property_key = None):
                  # apoc.coll.toSet() reruns a set containing unique nodes
                  f"RETURN apoc.coll.toSet(COLLECT(child)) AS {record_field_name}")
 
-    logger.debug("======get_children() query======")
-    logger.debug(query)
+    logger.info("======get_children() query======")
+    logger.info(query)
 
     with neo4j_driver.session() as session:
         record = session.read_transaction(_execute_readonly_tx, query)
@@ -620,8 +620,8 @@ def get_sorted_revisions(neo4j_driver, uuid):
              f"WITH node ORDER BY node.created_timestamp DESC "
              f"RETURN COLLECT(node) AS {record_field_name}")
 
-    logger.debug("======get_sorted_revisions() query======")
-    logger.debug(query)
+    logger.info("======get_sorted_revisions() query======")
+    logger.info(query)
 
     with neo4j_driver.session() as session:
         record = session.read_transaction(_execute_readonly_tx, query)
@@ -666,8 +666,8 @@ def get_previous_revisions(neo4j_driver, uuid, property_key = None):
                  # apoc.coll.toSet() reruns a set containing unique nodes
                  f"RETURN apoc.coll.toSet(COLLECT(prev)) AS {record_field_name}")
 
-    logger.debug("======get_previous_revisions() query======")
-    logger.debug(query)
+    logger.info("======get_previous_revisions() query======")
+    logger.info(query)
 
     with neo4j_driver.session() as session:
         record = session.read_transaction(_execute_readonly_tx, query)
@@ -716,8 +716,8 @@ def get_next_revisions(neo4j_driver, uuid, property_key = None):
                  # apoc.coll.toSet() reruns a set containing unique nodes
                  f"RETURN apoc.coll.toSet(COLLECT(next)) AS {record_field_name}")
 
-    logger.debug("======get_next_revisions() query======")
-    logger.debug(query)
+    logger.info("======get_next_revisions() query======")
+    logger.info(query)
 
     with neo4j_driver.session() as session:
         record = session.read_transaction(_execute_readonly_tx, query)
@@ -764,8 +764,8 @@ def add_datasets_to_collection(neo4j_driver, collection_uuid, dataset_uuids_list
                      # MERGE creates the relationship only if there is no existing relationship
                      f"MERGE (c)<-[r:IN_COLLECTION]-(d)") 
 
-            logger.debug("======add_datasets_to_collection() query======")
-            logger.debug(query)
+            logger.info("======add_datasets_to_collection() query======")
+            logger.info(query)
 
             tx.run(query)
             tx.commit()
@@ -810,8 +810,8 @@ def get_provenance(neo4j_driver, uuid, depth):
              f"WITH {{ nodes:nodes, relationships:rels }} as json "
              f"RETURN json")
 
-    logger.debug("======get_provenance() query======")
-    logger.debug(query)
+    logger.info("======get_provenance() query======")
+    logger.info(query)
 
     with neo4j_driver.session() as session:
         return session.read_transaction(_execute_readonly_tx, query)
@@ -846,8 +846,8 @@ def get_dataset_latest_revision(neo4j_driver, uuid, public = False):
                  f"WITH LAST(COLLECT(next)) as latest "
                  f"RETURN latest AS {record_field_name}")
 
-    logger.debug("======get_dataset_latest_revision() query======")
-    logger.debug(query)
+    logger.info("======get_dataset_latest_revision() query======")
+    logger.info(query)
 
     with neo4j_driver.session() as session:
         record = session.read_transaction(_execute_readonly_tx, query)
@@ -879,8 +879,8 @@ def get_dataset_revision_number(neo4j_driver, uuid):
              f"WHERE e.uuid='{uuid}' "
              f"RETURN COUNT(prev) AS {record_field_name}")
 
-    logger.debug("======get_dataset_revision_number() query======")
-    logger.debug(query)
+    logger.info("======get_dataset_revision_number() query======")
+    logger.info(query)
 
     with neo4j_driver.session() as session:
         record = session.read_transaction(_execute_readonly_tx, query)
@@ -907,8 +907,9 @@ def get_associated_organs_from_dataset(neo4j_driver, dataset_uuid):
     query = (f"MATCH (ds:Dataset)<-[*]-(organ:Sample {{specimen_type:'organ'}}) "
              f"WHERE ds.uuid='{dataset_uuid}'"
              f"RETURN apoc.coll.toSet(COLLECT(organ)) AS {record_field_name}")
-    logger.debug("======get_associated_organs_from_dataset() query======")
-    logger.debug(query)
+
+    logger.info("======get_associated_organs_from_dataset() query======")
+    logger.info(query)
 
     with neo4j_driver.session() as session:
         record = session.read_transaction(_execute_readonly_tx, query)
@@ -981,8 +982,10 @@ def get_prov_info(neo4j_driver, param_dict, published_only):
              f" RETURN ds.uuid, FIRSTSAMPLE, DONOR, RUISAMPLE, ORGAN, ds.hubmap_id, ds.status, ds.group_name,"
              f" ds.group_uuid, ds.created_timestamp, ds.created_by_user_email, ds.last_modified_timestamp, "
              f" ds.last_modified_user_email, ds.lab_dataset_id, ds.data_types, METASAMPLE, PROCESSED_DATASET, REVISIONS")
-    logger.debug("======get_prov_info() query======")
-    logger.debug(query)
+
+    logger.info("======get_prov_info() query======")
+    logger.info(query)
+
     with neo4j_driver.session() as session:
         # Because we're returning multiple things, we use session.run rather than session.read_transaction
         result = session.run(query)
@@ -1075,8 +1078,9 @@ def get_individual_prov_info(neo4j_driver, dataset_uuid):
              f" ds.group_uuid, ds.created_timestamp, ds.created_by_user_email, ds.last_modified_timestamp, "
              f" ds.last_modified_user_email, ds.lab_dataset_id, ds.data_types, METASAMPLE, PROCESSED_DATASET")
 
-    logger.debug("======get_prov_info() query======")
-    logger.debug(query)
+    logger.info("======get_prov_info() query======")
+    logger.info(query)
+    
     record_contents = []
     record_dict = {}
     with neo4j_driver.session() as session:
@@ -1237,8 +1241,8 @@ def _create_relationship_tx(tx, source_node_uuid, target_node_uuid, relationship
              f"CREATE (s){incoming}[r:{relationship}]{outgoing}(t) "
              f"RETURN type(r) AS {record_field_name}") 
 
-    logger.debug("======_create_relationship_tx() query======")
-    logger.debug(query)
+    logger.info("======_create_relationship_tx() query======")
+    logger.info(query)
 
     result = tx.run(query)
 
@@ -1309,8 +1313,8 @@ def _create_activity_tx(tx, activity_data_dict):
              f"SET e = {node_properties_map} "
              f"RETURN e AS {record_field_name}")
 
-    logger.debug("======_create_activity_tx() query======")
-    logger.debug(query)
+    logger.info("======_create_activity_tx() query======")
+    logger.info(query)
 
     result = tx.run(query)
     record = result.single()
