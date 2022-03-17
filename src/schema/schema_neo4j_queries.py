@@ -39,8 +39,8 @@ def get_dataset_direct_ancestors(neo4j_driver, uuid, property_key = None):
                  f"WHERE t.uuid = '{uuid}' "
                  f"RETURN apoc.coll.toSet(COLLECT(s)) AS {record_field_name}")
 
-    logger.debug("======get_dataset_direct_ancestors() query======")
-    logger.debug(query)
+    logger.info("======get_dataset_direct_ancestors() query======")
+    logger.info(query)
 
     # Sessions will often be created and destroyed using a with block context
     with neo4j_driver.session() as session:
@@ -83,8 +83,8 @@ def get_dataset_organ_and_donor_info(neo4j_driver, uuid):
              # apoc.coll.toSet() reruns a set containing unique nodes
              f"RETURN s.organ AS organ_name, d.metadata AS donor_metadata")
 
-    logger.debug("======get_dataset_organ_and_donor_info() query======")
-    logger.debug(query)
+    logger.info("======get_dataset_organ_and_donor_info() query======")
+    logger.info(query)
 
     with neo4j_driver.session() as session:
         record = session.read_transaction(_execute_readonly_tx, query)
@@ -205,8 +205,8 @@ def get_previous_revision_uuid(neo4j_driver, uuid):
              f"WHERE e.uuid='{uuid}' "
              f"RETURN previous_revision.uuid AS {record_field_name}")
 
-    logger.debug("======get_previous_revision_uuid() query======")
-    logger.debug(query)
+    logger.info("======get_previous_revision_uuid() query======")
+    logger.info(query)
 
     with neo4j_driver.session() as session:
         record = session.read_transaction(_execute_readonly_tx, query)
@@ -241,8 +241,8 @@ def get_next_revision_uuid(neo4j_driver, uuid):
              f"WHERE e.uuid='{uuid}' "
              f"RETURN next_revision.uuid AS {record_field_name}")
 
-    logger.debug("======get_next_revision_uuid() query======")
-    logger.debug(query)
+    logger.info("======get_next_revision_uuid() query======")
+    logger.info(query)
 
     with neo4j_driver.session() as session:
         record = session.read_transaction(_execute_readonly_tx, query)
@@ -282,8 +282,8 @@ def get_dataset_collections(neo4j_driver, uuid, property_key = None):
                  f"WHERE e.uuid = '{uuid}' "
                  f"RETURN apoc.coll.toSet(COLLECT(c)) AS {record_field_name}")
 
-    logger.debug("======get_dataset_collections() query======")
-    logger.debug(query)
+    logger.info("======get_dataset_collections() query======")
+    logger.info(query)
 
     with neo4j_driver.session() as session:
         record = session.read_transaction(_execute_readonly_tx, query)
@@ -323,8 +323,8 @@ def get_dataset_upload(neo4j_driver, uuid, property_key = None):
              f"WHERE e.uuid = '{uuid}' "
              f"RETURN s AS {record_field_name}")
 
-    logger.debug("======get_dataset_upload() query======")
-    logger.debug(query)
+    logger.info("======get_dataset_upload() query======")
+    logger.info(query)
 
     with neo4j_driver.session() as session:
         record = session.read_transaction(_execute_readonly_tx, query)
@@ -358,8 +358,8 @@ def get_collection_datasets(neo4j_driver, uuid):
              f"WHERE c.uuid = '{uuid}' "
              f"RETURN apoc.coll.toSet(COLLECT(e)) AS {record_field_name}")
 
-    logger.debug("======get_collection_datasets() query======")
-    logger.debug(query)
+    logger.info("======get_collection_datasets() query======")
+    logger.info(query)
 
     with neo4j_driver.session() as session:
         record = session.read_transaction(_execute_readonly_tx, query)
@@ -402,8 +402,8 @@ def link_datasets_to_upload(neo4j_driver, upload_uuid, dataset_uuids_list):
                      # MERGE creates the relationship only if there is no existing relationship
                      f"MERGE (s)<-[r:IN_UPLOAD]-(d)") 
 
-            logger.debug("======link_datasets_to_upload() query======")
-            logger.debug(query)
+            logger.info("======link_datasets_to_upload() query======")
+            logger.info(query)
 
             tx.run(query)
             tx.commit()
@@ -448,8 +448,8 @@ def unlink_datasets_from_upload(neo4j_driver, upload_uuid, dataset_uuids_list):
                      f"WHERE s.uuid = '{upload_uuid}' AND d.uuid IN {dataset_uuids_list_str} "
                      f"DELETE r") 
 
-            logger.debug("======unlink_datasets_from_upload() query======")
-            logger.debug(query)
+            logger.info("======unlink_datasets_from_upload() query======")
+            logger.info(query)
 
             tx.run(query)
             tx.commit()
@@ -488,8 +488,8 @@ def get_upload_datasets(neo4j_driver, uuid):
              f"WHERE s.uuid = '{uuid}' "
              f"RETURN apoc.coll.toSet(COLLECT(e)) AS {record_field_name}")
 
-    logger.debug("======get_upload_datasets() query======")
-    logger.debug(query)
+    logger.info("======get_upload_datasets() query======")
+    logger.info(query)
 
     with neo4j_driver.session() as session:
         record = session.read_transaction(_execute_readonly_tx, query)
@@ -527,16 +527,16 @@ def count_attached_published_datasets(neo4j_driver, entity_type, uuid):
              # apoc.coll.toSet() reruns a set containing unique nodes
              f"RETURN COUNT(d) AS {record_field_name}")
 
-    logger.debug("======count_attached_published_datasets() query======")
-    logger.debug(query)
+    logger.info("======count_attached_published_datasets() query======")
+    logger.info(query)
 
     with neo4j_driver.session() as session:
         record = session.read_transaction(_execute_readonly_tx, query)
 
         count = record[record_field_name]
 
-        logger.debug("======count_attached_published_datasets() resulting count======")
-        logger.debug(count)
+        # logger.info("======count_attached_published_datasets() resulting count======")
+        # logger.info(count)
         
         return count               
 
@@ -561,8 +561,8 @@ def update_dataset_and_ancestors_data_access_level(neo4j_driver, uuid, data_acce
              # We don't really use the returned value
              f"RETURN COUNT(e) AS {record_field_name}")
 
-    logger.debug("======update_dataset_and_ancestors_data_access_level() query======")
-    logger.debug(query)
+    logger.info("======update_dataset_and_ancestors_data_access_level() query======")
+    logger.info(query)
     
     try:
         with neo4j_driver.session() as session:
@@ -617,8 +617,8 @@ def get_sample_direct_ancestor(neo4j_driver, uuid, property_key = None):
                  # apoc.coll.toSet() reruns a set containing unique nodes
                  f"RETURN parent AS {record_field_name}")
 
-    logger.debug("======get_sample_direct_ancestor() query======")
-    logger.debug(query)
+    logger.info("======get_sample_direct_ancestor() query======")
+    logger.info(query)
 
     with neo4j_driver.session() as session:
         record = session.read_transaction(_execute_readonly_tx, query)
@@ -728,8 +728,8 @@ def _create_activity_tx(tx, activity_data_dict):
              f"SET e = {node_properties_map} "
              f"RETURN e AS {record_field_name}")
 
-    logger.debug("======_create_activity_tx() query======")
-    logger.debug(query)
+    logger.info("======_create_activity_tx() query======")
+    logger.info(query)
 
     result = tx.run(query)
     record = result.single()
@@ -752,8 +752,8 @@ def _delete_activity_node_and_linkages_tx(tx, uuid):
              f"WHERE t.uuid = '{uuid}' "
              f"DELETE in, a, out")
 
-    logger.debug("======_delete_activity_node_and_linkages_tx() query======")
-    logger.debug(query)
+    logger.info("======_delete_activity_node_and_linkages_tx() query======")
+    logger.info(query)
 
     result = tx.run(query)
 
@@ -789,8 +789,8 @@ def _create_relationship_tx(tx, source_node_uuid, target_node_uuid, relationship
              f"CREATE (s){incoming}[r:{relationship}]{outgoing}(t) "
              f"RETURN type(r) AS {record_field_name}") 
 
-    logger.debug("======_create_relationship_tx() query======")
-    logger.debug(query)
+    logger.info("======_create_relationship_tx() query======")
+    logger.info(query)
 
     result = tx.run(query)
 

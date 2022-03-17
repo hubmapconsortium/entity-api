@@ -34,7 +34,7 @@ from hubmap_commons.exceptions import HTTPException
 # All the API logging is forwarded to the uWSGI server and gets written into the log file `uwsgo-entity-api.log`
 # Log rotation is handled via logrotate on the host system with a configuration file
 # Do NOT handle log file and rotation via the Python logging to avoid issues with multi-worker processes
-logging.basicConfig(format='[%(asctime)s] %(levelname)s in %(module)s: %(message)s', level=logging.DEBUG, datefmt='%Y-%m-%d %H:%M:%S')
+logging.basicConfig(format='[%(asctime)s] %(levelname)s in %(module)s: %(message)s', level=logging.INFO, datefmt='%Y-%m-%d %H:%M:%S')
 logger = logging.getLogger(__name__)
 
 # Specify the absolute path of the instance folder and use the config file relative to the instance path
