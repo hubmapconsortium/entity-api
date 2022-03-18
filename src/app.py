@@ -36,13 +36,11 @@ from hubmap_commons.exceptions import HTTPException
 # but still captures the 4xx and 5xx errors to the file `log/uwsgi-entity-api.log`
 # Log rotation is handled via logrotate on the host system with a configuration file
 # Do NOT handle log file and rotation via the Python logging to avoid issues with multi-worker processes
-logging.basicConfig(filename='../log/entity-api-' + time.strftime("%m-%d-%Y-%H-%M-%S") + '.log',
-                    filemode='a',
-                    format='[%(asctime)s] %(levelname)s in %(module)s: %(message)s',
-                    datefmt='%Y-%m-%d %H:%M:%S',
-                    level=logging.INFO)
-
 logger = logging.getLogger(__name__)
+log_file_handler = logging.FileHandler('../log/entity-api-' + time.strftime("%m-%d-%Y-%H-%M-%S") + '.log')
+log_file_handler.setLevel(logging.INFO)
+log_file_handler.setFormatter(logging.Formatter('[%(asctime)s] %(levelname)s in %(module)s: %(message)s'))
+logger.addHandler(log_file_handler)
 
 # Specify the absolute path of the instance folder and use the config file relative to the instance path
 app = Flask(__name__, instance_path=os.path.join(os.path.abspath(os.path.dirname(__file__)), 'instance'), instance_relative_config=True)
