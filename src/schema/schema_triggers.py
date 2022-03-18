@@ -957,12 +957,13 @@ def get_dataset_title(property_key, normalized_type, user_token, existing_data_d
 
     # Parse age, race, and sex
     if donor_metadata is not None:
+        # Note: The donor_metadata is stored in Neo4j as a string representation of the Python dict
+        # It's not stored in Neo4j as a json string! And we can't store it as a json string 
+        # due to the way that Cypher handles single/double quotes.
+        ancestor_metadata_dict = schema_manager.convert_str_to_data(donor_metadata)
+        
+        # Either 'organ_donor_data' or 'living_donor_data' can be present, but not both
         try:
-            # Note: The donor_metadata is stored in Neo4j as a string representation of the Python dict
-            # It's not stored in Neo4j as a json string! And we can't store it as a json string 
-            # due to the way that Cypher handles single/double quotes.
-            ancestor_metadata_dict = schema_manager.convert_str_to_data(donor_metadata)
-
             # Easier to ask for forgiveness than permission (EAFP)
             # Rather than checking key existence at every level
             data_list = ancestor_metadata_dict['organ_donor_data']
@@ -979,7 +980,23 @@ def get_dataset_title(property_key, normalized_type, user_token, existing_data_d
                     if data['grouping_concept_preferred_term'].lower() == 'sex':
                         sex = data['preferred_term'].lower()
         except KeyError:
-            pass
+            try:
+                data_list = ancestor_metadata_dict['living_donor_data']
+
+                for data in data_list:
+                    if 'grouping_concept_preferred_term' in data:
+                        if data['grouping_concept_preferred_term'].lower() == 'age':
+                            # The actual value of age stored in 'data_value' instead of 'preferred_term'
+                            age = data['data_value']
+
+                        if data['grouping_concept_preferred_term'].lower() == 'race':
+                            race = data['preferred_term'].lower()
+
+                        if data['grouping_concept_preferred_term'].lower() == 'sex':
+                            sex = data['preferred_term'].lower()
+            except KeyError:
+                # When neither 'organ_donor_data' or 'living_donor_data' exists, use default None and continue
+                pass
 
     age_race_sex_info = None
 
