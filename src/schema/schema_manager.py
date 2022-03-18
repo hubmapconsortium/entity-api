@@ -218,7 +218,7 @@ def generate_triggered_data(trigger_type, normalized_class, user_token, existing
                         # Get the target trigger method defined in the schema_triggers.py module
                         trigger_method_to_call = getattr(schema_triggers, trigger_method_name)
                         
-                        logger.debug(f"To run {trigger_type}: {trigger_method_name} defined for {normalized_class}")
+                        logger.info(f"To run {trigger_type}: {trigger_method_name} defined for {normalized_class}")
 
                         # No return values for 'after_create_trigger' and 'after_update_trigger'
                         # because the property value is already set and stored in neo4j
@@ -244,7 +244,7 @@ def generate_triggered_data(trigger_type, normalized_class, user_token, existing
                     try:
                         trigger_method_to_call = getattr(schema_triggers, trigger_method_name)
 
-                        logger.debug(f"To run {trigger_type}: {trigger_method_name} defined for {normalized_class}")
+                        logger.info(f"To run {trigger_type}: {trigger_method_name} defined for {normalized_class}")
 
                         # Will set the trigger return value as the property value by default
                         # Unless the return value is to be assigned to another property different target key
@@ -291,7 +291,7 @@ def generate_triggered_data(trigger_type, normalized_class, user_token, existing
                 try:
                     trigger_method_to_call = getattr(schema_triggers, trigger_method_name)
 
-                    logger.debug(f"To run {trigger_type}: {trigger_method_name} defined for {normalized_class}")
+                    logger.info(f"To run {trigger_type}: {trigger_method_name} defined for {normalized_class}")
 
                     # Will set the trigger return value as the property value by default
                     # Unless the return value is to be assigned to another property different target key
@@ -713,7 +713,7 @@ def execute_entity_level_validator(validator_type, normalized_entity_type, reque
                 # Get the target validator method defined in the schema_validators.py module
                 validator_method_to_call = getattr(schema_validators, validator_method_name)
                 
-                logger.debug(f"To run {validator_type}: {validator_method_name} defined for entity {normalized_entity_type}")
+                logger.info(f"To run {validator_type}: {validator_method_name} defined for entity {normalized_entity_type}")
 
                 validator_method_to_call(normalized_entity_type, request)
             except schema_errors.MissingApplicationHeaderException as e: 
@@ -765,7 +765,7 @@ def execute_property_level_validators(validator_type, normalized_entity_type, re
                     # Get the target validator method defined in the schema_validators.py module
                     validator_method_to_call = getattr(schema_validators, validator_method_name)
                     
-                    logger.debug(f"To run {validator_type}: {validator_method_name} defined for entity {normalized_entity_type} on property {key}")
+                    logger.info(f"To run {validator_type}: {validator_method_name} defined for entity {normalized_entity_type} on property {key}")
 
                     validator_method_to_call(key, normalized_entity_type, request, existing_data_dict, new_data_dict)
                 except schema_errors.MissingApplicationHeaderException as e: 
@@ -1007,8 +1007,8 @@ def get_user_info(request):
     # `group_required` is a boolean, when True, 'hmgroupids' is in the output
     user_info = _auth_helper.getUserInfoUsingRequest(request, True)
 
-    logger.debug("======get_user_info()======")
-    logger.debug(user_info)
+    logger.info("======get_user_info()======")
+    logger.info(user_info)
 
     # It returns error response when:
     # - invalid header or token
@@ -1214,8 +1214,8 @@ def create_hubmap_ids(normalized_class, json_data_dict, user_token, user_info_di
 
     query_parms = {'entity_count': count}
 
-    logger.debug("======create_hubmap_ids() json_to_post to uuid-api======")
-    logger.debug(json_to_post)
+    logger.info("======create_hubmap_ids() json_to_post to uuid-api======")
+    logger.info(json_to_post)
 
     # Disable ssl certificate verification
     response = requests.post(url = _uuid_api_url, headers = request_headers, json = json_to_post, verify = False, params = query_parms) 
@@ -1251,8 +1251,8 @@ def create_hubmap_ids(normalized_class, json_data_dict, user_token, user_info_di
             # Will get keyError exception without the default value when the key is not found
             d.pop('hubmap_base_id', None)
 
-        logger.debug("======create_hubmap_ids() generated ids from uuid-api======")
-        logger.debug(ids_list)
+        logger.info("======create_hubmap_ids() generated ids from uuid-api======")
+        logger.info(ids_list)
 
         return ids_list
     else:
