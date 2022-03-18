@@ -31,14 +31,20 @@ from hubmap_commons.hm_auth import AuthHelper
 from hubmap_commons.exceptions import HTTPException
 
 
-# All the API logging is gets written into the log file 
+# Root logger configuration
+global logger
+
+# Use `getLogger()` instead of `getLogger(__name__)` to apply the config to the root logger
+# will be inherited by the sub-module loggers
+logger = logging.getLogger()
+logger.setLevel(logging.INFO)
+
+# All the API logging is gets written into the same log file 
 # The uWSGI logging for each deployment disables the request logging 
 # but still captures the 4xx and 5xx errors to the file `log/uwsgi-entity-api.log`
 # Log rotation is handled via logrotate on the host system with a configuration file
 # Do NOT handle log file and rotation via the Python logging to avoid issues with multi-worker processes
-logger = logging.getLogger(__name__)
 log_file_handler = logging.FileHandler('../log/entity-api-' + time.strftime("%m-%d-%Y-%H-%M-%S") + '.log')
-log_file_handler.setLevel(logging.INFO)
 log_file_handler.setFormatter(logging.Formatter('[%(asctime)s] %(levelname)s in %(module)s: %(message)s'))
 logger.addHandler(log_file_handler)
 
