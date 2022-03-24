@@ -1049,6 +1049,7 @@ def get_prov_info(neo4j_driver, param_dict, published_only):
             list_of_dictionaries.append(record_dict)
     return list_of_dictionaries
 
+
 """
 Returns all of the same information as get_prov_info however only for a single dataset at a time. Returns a dictionary
 containing all of the provenance info for a given dataset. For fields such as first sample where there can be multiples,
@@ -1137,6 +1138,15 @@ def get_individual_prov_info(neo4j_driver, dataset_uuid):
     return record_dict
 
 
+"""
+Returns group_name, data_types, and status for every primary dataset. Also returns the organ type for the closest 
+sample above the dataset in the provenance where {specimen_type: 'organ'}.  
+
+Parameters
+----------
+neo4j_driver : neo4j.Driver object
+    The neo4j database connection pool
+"""
 def get_sankey_info(neo4j_driver):
     query = (f"MATCH (ds:Dataset)<-[]-(a)<-[]-(:Sample)"
              f"MATCH (donor)-[:ACTIVITY_INPUT]->(oa)-[:ACTIVITY_OUTPUT]->(organ:Sample {{specimen_type:'organ'}})-[*]->(ds)"

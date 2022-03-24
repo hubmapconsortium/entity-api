@@ -2875,6 +2875,29 @@ def get_prov_info_for_dataset(id):
         output.headers['Content-Disposition'] = 'attachment; filename=prov-info.tsv'
         return output
 
+
+"""
+Get the information needed to generate the sankey on software-docs as a json.
+
+Authentication
+-------
+No token is required or checked. The information returned is what is displayed in the public sankey
+
+Query Parameters
+-------
+N/A
+
+Path Parameters
+-------
+N/A
+
+Returns
+-------
+json
+    a json array. Each item in the array corresponds to a dataset. Each dataset has the values: dataset_group_name, 
+    organ_type, dataset_data_types, and dataset_status, each of which is a string. 
+
+"""
 @app.route('/datasets/get_sankey_data', methods=['GET'])
 def get_sankey_data():
     # String constants
