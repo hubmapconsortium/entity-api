@@ -2898,8 +2898,8 @@ json
     organ_type, dataset_data_types, and dataset_status, each of which is a string. 
 
 """
-@app.route('/datasets/get_sankey_data', methods=['GET'])
-def get_sankey_data():
+@app.route('/datasets/sankey_data', methods=['GET'])
+def sankey_data():
     # String constants
     HEADER_DATASET_GROUP_NAME = 'dataset_group_name'
     HEADER_ORGAN_TYPE = 'organ_type'
@@ -2907,42 +2907,8 @@ def get_sankey_data():
     HEADER_DATASET_STATUS = 'dataset_status'
     ASSAY_TYPES_URL = 'https://raw.githubusercontent.com/hubmapconsortium/search-api/master/src/search-schema/data/definitions/enums/assay_types.yaml'
     ORGAN_TYPES_URL = 'https://raw.githubusercontent.com/hubmapconsortium/search-api/master/src/search-schema/data/definitions/enums/organ_types.yaml'
-    mapping_dict = {
-        "hubmap-uflorida-tmc": "University of Florida TMC",
-        "hubmap-northwestern-r": "Northwestern RTI",
-        "hubmap-vanderbilt-tmc": "Vanderbilt TMC",
-        "hubmap-stanford-tmc": "Stanford TMC",
-        "hubmap-caltech-tmc": "California Institute of Technology TMC",
-        "hubmap-ucsd-tmc": "University of California San Diego TMC",
-        "LC-MS Top Down": "MS-non-spatial",
-        "Untargeted LC-MS": "MS-non-spatial",
-        "TMT LC-MS": "MS-non-spatial",
-        "Targeted Shotgun / Flow-injection LC-MS": "MS-non-spatial",
-        "snRNAseq (SNARE-seq2)": "SNARE-seq",
-        "scRNA-seq (10x Genomics v3)": "RNA-seq",
-        "snRNA-seq (10x Genomics v3)": "sc/snRNA-seq",
-        "snRNA-seq (10x Genomics v2)": "SNARE-seq",
-        "scRNA-seq (10x Genomics v2)": "sc/snRNA-seq",
-        "sciRNA-seq": "sc/snRNA-seq",
-        "sciATAC-seq": "ATAC-seq",
-        "snATAC-seq": "sc/snATAC-seq",
-        "PAS Stained Microscopy": "Histology",
-        "MALDI IMS": "MS-Spatial",
-        "Autofluorescence Microscopy": "AF",
-        "Imaging Mass Cytometry (2D)": "Other-MxIF",
-        "Imaging Mass Cytometry (3D)": "Other-MxIF",
-        "Lightsheet Microscopy": "Other-MxIF",
-        "Bulk ATAC-seq": "ATAC-seq",
-        "Whole Genome Sequencing": "WGS",
-        "Bulk RNA-seq": "RNA-seq",
-        "seqFISH": "FISH",
-        "nano-DESI IMS positive": "MS-Spatial",
-        "snATACseq (SNARE-seq2)": "Multiome (RNA, ATAC)",
-        "Cell DIVE": "Other-MxIF",
-        "DART-FISH": "FISH",
-        "Slide-seq": "RNA-spatial",
-        "scRNA-seq (10x Genomics v3),snATAC-seq": "Multiome (RNA, ATAC)"
-    }
+    with open('sankey_mapping.json') as f:
+        mapping_dict = json.load(f)
     # Parsing the organ types yaml has to be done here rather than calling schema.schema_triggers.get_organ_description
     # because that would require using a urllib request for each dataset
     with urllib.request.urlopen(ORGAN_TYPES_URL) as response:

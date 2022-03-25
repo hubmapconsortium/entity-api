@@ -1850,7 +1850,7 @@ paths:
             description: THe user is not authorized to use this method
           '500':
             description: Internal error
-  /datasets/get_sankey_data:
+  /datasets/sankey_data:
     get:
       summary: Retrieves the information needed to generate the sankey on software-docs as a json.
       responses:
