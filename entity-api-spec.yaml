@@ -1573,13 +1573,13 @@ paths:
                        description: the date/time that the dataset was last modified
                    dataset_modified_by_email:
                      type: string
-                       description: the email address of the person who last modified the dataset
+                     description: the email address of the person who last modified the dataset
                    dataset_lab_id:
                      type: string
-                       description: identifier used by the data provider
+                     description: identifier used by the data provider
                    dataset_data_types:
                      type: string
-                       description:the data/assay types (can be multiple types for pipeline derived data, so a comma separated list for tsv output or a json array for json output)
+                     description: the data/assay types (can be multiple types for pipeline derived data, so a comma separated list for tsv output or a json array for json output)
                    dataset_portl_url:
                      type: string
                        description: the url to open the dataset in the data portal
@@ -1850,5 +1850,29 @@ paths:
             description: THe user is not authorized to use this method
           '500':
             description: Internal error
+  /datasets/sankey_data:
+    get:
+      summary: Retrieves the information needed to generate the sankey on software-docs as a json.
+      responses:
+        '200':
+          description: dataset_group_name, organ_type, dataset_data_types, and dataset_status for every primary dataset
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  dataset_group_name:
+                    type: string
+                    description: The displayname of globus group which the user who created this entity is a member of
+                  organ_type:
+                    type: string
+                    description: The organ type of the organ associated to this dataset in the provenance chain
+                  dataset_data_types:
+                    type: string
+                    description: the data/assay types (if more than one, output is a comma separated string)
+                  dataset_status:
+                    type: string
+                    description: status of the dataset New, QA, Published, etc ...
 
-
+        '500':
+          description: Internal error

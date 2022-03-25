@@ -32,8 +32,8 @@ def check_connection(neo4j_driver):
     with neo4j_driver.session() as session:
         # Returned type is a Record object
         record = session.read_transaction(_execute_readonly_tx, query)
-        
-        # When record[record_field_name] is not None (namely the cypher result is not null) 
+
+        # When record[record_field_name] is not None (namely the cypher result is not null)
         # and the value equals 1
         if record and record[record_field_name] and (record[record_field_name] == 1):
             logger.info("Neo4j is connected :)")
@@ -71,7 +71,7 @@ def get_entity(neo4j_driver, uuid):
 
     with neo4j_driver.session() as session:
         record = session.read_transaction(_execute_readonly_tx, query)
-    
+
         if record and record[record_field_name]:
             # Convert the neo4j node into Python dict
             result = _node_to_dict(record[record_field_name])
@@ -114,7 +114,7 @@ def get_entities_by_type(neo4j_driver, entity_type, property_key = None):
 
     with neo4j_driver.session() as session:
         record = session.read_transaction(_execute_readonly_tx, query)
-       
+
         if record and record[record_field_name]:
             if property_key:
                 # Just return the list of property values from each entity node
@@ -155,7 +155,7 @@ def get_public_collections(neo4j_driver, property_key = None):
                  # COLLECT() returns a list
                  # apoc.coll.toSet() reruns a set containing unique nodes
                  f"RETURN apoc.coll.toSet(COLLECT(e)) AS {record_field_name}")
-    
+
     logger.info("======get_public_collections() query======")
     logger.info(query)
 
@@ -188,14 +188,14 @@ Returns
 list
     A list of organs that are ancestors of the given entity returned from the Cypher query
 """
-def get_ancestor_organs(neo4j_driver, entity_uuid):  
+def get_ancestor_organs(neo4j_driver, entity_uuid):
     results = []
 
     query = (f"MATCH (e:Entity {{uuid:'{entity_uuid}'}})<-[*]-(organ:Sample {{specimen_type:'organ'}}) "
              # COLLECT() returns a list
              # apoc.coll.toSet() reruns a set containing unique nodes
              f"RETURN apoc.coll.toSet(COLLECT(organ)) AS {record_field_name}")
-    
+
     logger.info("======get_ancestor_organs() query======")
     logger.info(query)
 
@@ -311,7 +311,7 @@ def create_multiple_samples(neo4j_driver, samples_dict_list, activity_data_dict,
 
                 result = tx.run(query)
 
-            # Then 
+            # Then
             tx.commit()
     except TransactionError as te:
         msg = f"TransactionError from calling create_multiple_samples(): {te.value}"
@@ -347,7 +347,7 @@ dict
 """
 def update_entity(neo4j_driver, entity_type, entity_data_dict, uuid):
     node_properties_map = _build_properties_map(entity_data_dict)
-    
+
     query = (f"MATCH (e:{entity_type}) "
              f"WHERE e.uuid = '{uuid}' "
              f"SET e += {node_properties_map} "
@@ -359,9 +359,9 @@ def update_entity(neo4j_driver, entity_type, entity_data_dict, uuid):
     try:
         with neo4j_driver.session() as session:
             entity_dict = {}
-            
+
             tx = session.begin_transaction()
-            
+
             result = tx.run(query)
             record = result.single()
             entity_node = record[record_field_name]
@@ -537,7 +537,7 @@ def get_parents(neo4j_driver, uuid, property_key = None):
             else:
                 # Convert the list of nodes to a list of dicts
                 results = _nodes_to_dicts(record[record_field_name])
-     
+
     return results
 
 """
@@ -762,7 +762,7 @@ def add_datasets_to_collection(neo4j_driver, collection_uuid, dataset_uuids_list
                      f"WHERE c.uuid = '{collection_uuid}' AND d.uuid IN {dataset_uuids_list_str} "
                      # Use MERGE instead of CREATE to avoid creating the relationship multiple times
                      # MERGE creates the relationship only if there is no existing relationship
-                     f"MERGE (c)<-[r:IN_COLLECTION]-(d)") 
+                     f"MERGE (c)<-[r:IN_COLLECTION]-(d)")
 
             logger.info("======add_datasets_to_collection() query======")
             logger.info(query)
@@ -834,7 +834,7 @@ def get_dataset_latest_revision(neo4j_driver, uuid, public = False):
     result = get_entity(neo4j_driver, uuid)
 
     if public:
-        # Don't use [r:REVISION_OF] because 
+        # Don't use [r:REVISION_OF] because
         # Binding a variable length relationship pattern to a variable ('r') is deprecated
         query = (f"MATCH (e:Dataset)<-[:REVISION_OF*]-(next:Dataset) "
                  f"WHERE e.uuid='{uuid}' AND next.status='Published' "
@@ -851,7 +851,7 @@ def get_dataset_latest_revision(neo4j_driver, uuid, public = False):
 
     with neo4j_driver.session() as session:
         record = session.read_transaction(_execute_readonly_tx, query)
-    
+
         # Only convert when record[record_field_name] is not None (namely the cypher result is not null)
         if record and record[record_field_name]:
             # Convert the neo4j node into Python dict
@@ -873,7 +873,7 @@ uuid : str
 def get_dataset_revision_number(neo4j_driver, uuid):
     revision_number = 1
 
-    # Don't use [r:REVISION_OF] because 
+    # Don't use [r:REVISION_OF] because
     # Binding a variable length relationship pattern to a variable ('r') is deprecated
     query = (f"MATCH (e:Dataset)-[:REVISION_OF*]->(prev:Dataset) "
              f"WHERE e.uuid='{uuid}' "
@@ -884,7 +884,7 @@ def get_dataset_revision_number(neo4j_driver, uuid):
 
     with neo4j_driver.session() as session:
         record = session.read_transaction(_execute_readonly_tx, query)
-        
+
         if record and record[record_field_name]:
             # The revision number is the count of previous revisions plus 1
             revision_number = record[record_field_name] + 1
@@ -1049,6 +1049,7 @@ def get_prov_info(neo4j_driver, param_dict, published_only):
             list_of_dictionaries.append(record_dict)
     return list_of_dictionaries
 
+
 """
 Returns all of the same information as get_prov_info however only for a single dataset at a time. Returns a dictionary
 containing all of the provenance info for a given dataset. For fields such as first sample where there can be multiples,
@@ -1080,7 +1081,7 @@ def get_individual_prov_info(neo4j_driver, dataset_uuid):
 
     logger.info("======get_prov_info() query======")
     logger.info(query)
-    
+
     record_contents = []
     record_dict = {}
     with neo4j_driver.session() as session:
@@ -1135,6 +1136,43 @@ def get_individual_prov_info(neo4j_driver, dataset_uuid):
                 content_sixteen.append(node_dict)
             record_dict['processed_dataset'] = content_sixteen
     return record_dict
+
+
+"""
+Returns group_name, data_types, and status for every primary dataset. Also returns the organ type for the closest 
+sample above the dataset in the provenance where {specimen_type: 'organ'}.  
+
+Parameters
+----------
+neo4j_driver : neo4j.Driver object
+    The neo4j database connection pool
+"""
+def get_sankey_info(neo4j_driver):
+    query = (f"MATCH (ds:Dataset)<-[]-(a)<-[]-(:Sample)"
+             f"MATCH (donor)-[:ACTIVITY_INPUT]->(oa)-[:ACTIVITY_OUTPUT]->(organ:Sample {{specimen_type:'organ'}})-[*]->(ds)"
+             f"RETURN distinct ds.group_name, organ.organ, ds.data_types, ds.status, ds. uuid order by ds.group_name")
+    logger.info("======get_sankey_info() query======")
+    logger.info(query)
+    with neo4j_driver.session() as session:
+        # Because we're returning multiple things, we use session.run rather than session.read_transaction
+        result = session.run(query)
+        list_of_dictionaries = []
+        for record in result:
+            record_dict = {}
+            record_contents = []
+            # Individual items within a record are non subscriptable. By putting then in a small list, we can address
+            # Each item in a record.
+            for item in record:
+                record_contents.append(item)
+            record_dict['dataset_group_name'] = record_contents[0]
+            record_dict['organ_type'] = record_contents[1]
+            data_types = record_contents[2]
+            data_types = data_types.replace("'", '"')
+            data_types = json.loads(data_types)
+            record_dict['dataset_data_types'] = ",".join(data_types)
+            record_dict['dataset_status'] = record_contents[3]
+            list_of_dictionaries.append(record_dict)
+        return list_of_dictionaries
 
 ####################################################################################################
 ## Internal Functions
@@ -1229,7 +1267,7 @@ direction: str
 def _create_relationship_tx(tx, source_node_uuid, target_node_uuid, relationship, direction):
     incoming = "-"
     outgoing = "-"
-    
+
     if direction == "<-":
         incoming = direction
 
@@ -1239,7 +1277,7 @@ def _create_relationship_tx(tx, source_node_uuid, target_node_uuid, relationship
     query = (f"MATCH (s), (t) " +
              f"WHERE s.uuid = '{source_node_uuid}' AND t.uuid = '{target_node_uuid}' "
              f"CREATE (s){incoming}[r:{relationship}]{outgoing}(t) "
-             f"RETURN type(r) AS {record_field_name}") 
+             f"RETURN type(r) AS {record_field_name}")
 
     logger.info("======_create_relationship_tx() query======")
     logger.info(query)
