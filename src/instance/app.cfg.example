@@ -1,6 +1,11 @@
 # File path of schema yaml file, DO NOT MODIFY
 SCHEMA_YAML_FILE = '/usr/src/app/src/schema/provenance_schema.yaml'
 
+# File path to the requests_cache generated sqlite (without extension) within docker container, DO NOT MODIFY
+# Expire the cache after the time-to-live (seconds)
+REQUESTS_CACHE_SQLITE_NAME = '/usr/src/app/requests_cache/entity-api'
+CACHE_TTL = 7200
+
 # Globus App ID and secret
 APP_CLIENT_ID = ''
 APP_CLIENT_SECRET = ''

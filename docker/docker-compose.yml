@@ -28,6 +28,8 @@ services:
     volumes:
       # Mount the app config to container in order to keep it outside of the image
       - "../src/instance:/usr/src/app/src/instance"
+      # Mount the directory of requests_cache generated sqlite database
+      - "../src/requests_cache:/usr/src/app/requests_cache"
       # Mount the logging to container
       - "../log:/usr/src/app/log"
       # Mount the schema yaml file

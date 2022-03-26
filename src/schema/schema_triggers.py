@@ -5,8 +5,11 @@ import yaml
 import logging
 import datetime
 import requests
-import urllib.request
+import requests_cache
 from neo4j.exceptions import TransactionError
+
+# Use the current_app proxy, which points to the application handling the current activity
+from flask import current_app as app
 
 # Local modules
 from schema import schema_manager
@@ -14,6 +17,12 @@ from schema import schema_errors
 from schema import schema_neo4j_queries
 
 logger = logging.getLogger(__name__)
+
+# Requests cache generates the sqlite file
+# File path defined in app.config['REQUESTS_CACHE_SQLITE_NAME'] without the .sqlite extension
+# Use the same CACHE_TTL from configuration
+requests_cache.install_cache('/usr/src/app/requests_cache/entity-api', backend='sqlite', expire_after=7200)
+
 
 ####################################################################################################
 ## Trigger methods shared among Collection, Dataset, Donor, Sample - DO NOT RENAME
@@ -952,8 +961,8 @@ def get_dataset_title(property_key, normalized_type, user_token, existing_data_d
             # Convert the two-letter code to a description
             # https://github.com/hubmapconsortium/search-api/blob/test-release/src/search-schema/data/definitions/enums/organ_types.yaml
             organ_desc = _get_organ_description(organ_name)
-        except yaml.YAMLError as e:
-            raise yaml.YAMLError(e)
+        except (yaml.YAMLError, requests.exceptions.RequestException) as e:
+            raise Exception(e)
 
     # Parse age, race, and sex
     if donor_metadata is not None:
@@ -1905,6 +1914,9 @@ def _get_assay_type_description(data_types):
         # Disable ssl certificate verification
         response = requests.get(url = search_api_target_url, verify = False)
 
+        # Verify if the cached response from the SQLite database being used
+        schema_manager._verify_request_cache(search_api_target_url, response.from_cache)
+
         if response.status_code == 200:
             assay_type_info = response.json()
             # Add to the list
@@ -1956,10 +1968,32 @@ str: The organ code description
 """
 def _get_organ_description(organ_code):
     yaml_file_url = 'https://raw.githubusercontent.com/hubmapconsortium/search-api/master/src/search-schema/data/definitions/enums/organ_types.yaml'
-    with urllib.request.urlopen(yaml_file_url) as response:
-        yaml_file = response.read()
+    
+    # Disable ssl certificate verification
+    response = requests.get(url = yaml_file_url, verify = False)
+
+    # Verify if the cached response from the SQLite database being used
+    schema_manager._verify_request_cache(yaml_file_url, response.from_cache)
+
+    if response.status_code == 200:
+        yaml_file = response.text
+
         try:
-            organ_types_dict = yaml.safe_load(yaml_file)
+            organ_types_dict = yaml.safe_load(response.text)
             return organ_types_dict[organ_code]['description'].lower()
         except yaml.YAMLError as e:
             raise yaml.YAMLError(e)
+    else:
+        msg = f"Unable to fetch the: {yaml_file_url}"
+        # Log the full stack trace, prepend a line with our message
+        logger.exception(msg)
+
+        logger.debug("======_get_organ_description() status code======")
+        logger.debug(response.status_code)
+
+        logger.debug("======_get_organ_description() response text======")
+        logger.debug(response.text)
+
+        # Also bubble up the error message
+        raise requests.exceptions.RequestException(response.text)
+

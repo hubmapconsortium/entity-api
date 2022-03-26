@@ -2,6 +2,7 @@ import ast
 import yaml
 import logging
 import requests
+import requests_cache
 from cachetools import cached, TTLCache
 
 # Don't confuse urllib (Python native library) with urllib3 (3rd-party library, requests also uses urllib3)
@@ -25,12 +26,11 @@ logger = logging.getLogger(__name__)
 # Suppress InsecureRequestWarning warning when requesting status on https with ssl cert verify disabled
 requests.packages.urllib3.disable_warnings(category = InsecureRequestWarning)
 
-# LRU Cache implementation with per-item time-to-live (TTL) value
-# with a memoizing callable that saves up to maxsize results based on a Least Frequently Used (LFU) algorithm
-# with a per-item time-to-live (TTL) value
-# The maximum integer number of entries in the cache queue: 128
-# Expire the cache after the time-to-live (seconds): two hours, 7200 seconds
-cache = TTLCache(128, ttl=7200)
+# Requests cache generates the sqlite file
+# File path defined in app.config['REQUESTS_CACHE_SQLITE_NAME'] without the .sqlite extension
+# Use the same CACHE_TTL from configuration
+#requests_cache.install_cache(app.config['REQUESTS_CACHE_SQLITE_NAME'], backend='sqlite', expire_after=app.config['CACHE_TTL'])
+requests_cache.install_cache('/usr/src/app/requests_cache/entity-api', backend='sqlite', expire_after=7200)
 
 # In Python, "privacy" depends on "consenting adults'" levels of agreement, we can't force it.
 # A single leading underscore means you're not supposed to access it "from the outside"
@@ -40,6 +40,7 @@ _ingest_api_url = None
 _search_api_url = None
 _auth_helper = None
 _neo4j_driver = None
+
 
 ####################################################################################################
 ## Provenance yaml schema initialization
@@ -97,7 +98,6 @@ Returns
 dict
     A dict containing the schema details
 """
-@cached(cache)
 def load_provenance_schema(valid_yaml_file):
     with open(valid_yaml_file) as file:
         schema_dict = yaml.safe_load(file)
@@ -1060,7 +1060,10 @@ def get_hubmap_ids(id, user_token):
     request_headers = _create_request_headers(user_token)
 
     # Disable ssl certificate verification
-    response = requests.get(url = target_url, headers = request_headers, verify = False) 
+    response = requests.get(url = target_url, headers = request_headers, verify = False)
+
+    # Verify if the cached response from the SQLite database being used
+    _verify_request_cache(target_url, response.from_cache)
     
     # Invoke .raise_for_status(), an HTTPError will be raised with certain status codes
     response.raise_for_status()
@@ -1537,3 +1540,7 @@ def _create_request_headers(user_token):
     return headers_dict
 
 
+# Verify if the cached response from the SQLite database being used
+def _verify_request_cache(url, response_from_cache):
+    now = time.ctime(int(time.time()))
+    logger.debug(f"Time: {now} / GET request URL: {url} / Used requests cache: {response_from_cache}")
