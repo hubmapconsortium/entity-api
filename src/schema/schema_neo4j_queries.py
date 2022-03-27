@@ -336,8 +336,43 @@ def get_dataset_upload(neo4j_driver, uuid, property_key = None):
     return result
 
 
+# """
+# Get a list of associated dataset dicts for a given collection
+
+# Parameters
+# ----------
+# neo4j_driver : neo4j.Driver object
+#     The neo4j database connection pool
+# uuid : str
+#     The uuid of collection
+
+# Returns
+# -------
+# list
+#     The list containing associated dataset dicts
+# """
+# def get_collection_datasets(neo4j_driver, uuid):
+#     results = []
+
+#     query = (f"MATCH (e:Entity)-[:IN_COLLECTION]->(c:Collection) "
+#              f"WHERE c.uuid = '{uuid}' "
+#              f"RETURN apoc.coll.toSet(COLLECT(e)) AS {record_field_name}")
+
+#     logger.info("======get_collection_datasets() query======")
+#     logger.info(query)
+
+#     with neo4j_driver.session() as session:
+#         record = session.read_transaction(_execute_readonly_tx, query)
+
+#         if record and record[record_field_name]:
+#             # Convert the list of nodes to a list of dicts
+#             results = _nodes_to_dicts(record[record_field_name])
+
+#     return results
+
+
 """
-Get a list of associated dataset dicts for a given collection
+Get a list of associated dataset uuids for a given Collection
 
 Parameters
 ----------
@@ -349,24 +384,24 @@ uuid : str
 Returns
 -------
 list
-    The list containing associated dataset dicts
+    The list of associated dataset uuids
 """
-def get_collection_datasets(neo4j_driver, uuid):
+def get_collection_dataset_uuids(neo4j_driver, uuid):
     results = []
 
-    query = (f"MATCH (e:Entity)-[:IN_COLLECTION]->(c:Collection) "
+    query = (f"MATCH (e:Dataset)-[:IN_COLLECTION]->(c:Collection) "
              f"WHERE c.uuid = '{uuid}' "
              f"RETURN apoc.coll.toSet(COLLECT(e)) AS {record_field_name}")
 
-    logger.info("======get_collection_datasets() query======")
+    logger.info("======get_collection_dataset_uuids() query======")
     logger.info(query)
 
     with neo4j_driver.session() as session:
         record = session.read_transaction(_execute_readonly_tx, query)
 
         if record and record[record_field_name]:
-            # Convert the list of nodes to a list of dicts
-            results = _nodes_to_dicts(record[record_field_name])
+            # Just return the list of uuids
+            results = record[record_field_name]
 
     return results
 
@@ -466,8 +501,43 @@ def unlink_datasets_from_upload(neo4j_driver, upload_uuid, dataset_uuids_list):
         raise TransactionError(msg)
 
 
+# """
+# Get a list of associated dataset dicts for a given Upload
+
+# Parameters
+# ----------
+# neo4j_driver : neo4j.Driver object
+#     The neo4j database connection pool
+# uuid : str
+#     The uuid of Upload
+
+# Returns
+# -------
+# list
+#     The list containing associated dataset dicts
+# """
+# def get_upload_datasets(neo4j_driver, uuid):
+#     results = []
+
+#     query = (f"MATCH (e:Dataset)-[:IN_UPLOAD]->(s:Upload) "
+#              f"WHERE s.uuid = '{uuid}' "
+#              f"RETURN apoc.coll.toSet(COLLECT(e)) AS {record_field_name}")
+
+#     logger.info("======get_upload_datasets() query======")
+#     logger.info(query)
+
+#     with neo4j_driver.session() as session:
+#         record = session.read_transaction(_execute_readonly_tx, query)
+
+#         if record and record[record_field_name]:
+#             # Convert the list of nodes to a list of dicts
+#             results = _nodes_to_dicts(record[record_field_name])
+
+#     return results
+
+
 """
-Get a list of associated dataset dicts for a given collection
+Get a list of associated dataset uuids for a given Upload
 
 Parameters
 ----------
@@ -479,24 +549,24 @@ uuid : str
 Returns
 -------
 list
-    The list containing associated dataset dicts
+    The list of associated dataset uuids
 """
-def get_upload_datasets(neo4j_driver, uuid):
+def get_upload_dataset_uuids(neo4j_driver, uuid):
     results = []
 
-    query = (f"MATCH (e:Entity)-[:IN_UPLOAD]->(s:Upload) "
-             f"WHERE s.uuid = '{uuid}' "
-             f"RETURN apoc.coll.toSet(COLLECT(e)) AS {record_field_name}")
+    query = (f"MATCH (d:Dataset)-[:IN_UPLOAD]->(u:Upload) "
+             f"WHERE u.uuid = '{uuid}' "
+             f"RETURN apoc.coll.toSet(COLLECT(d.uuid)) AS {record_field_name}")
 
-    logger.info("======get_upload_datasets() query======")
+    logger.info("======get_upload_dataset_uuids() query======")
     logger.info(query)
 
     with neo4j_driver.session() as session:
         record = session.read_transaction(_execute_readonly_tx, query)
 
         if record and record[record_field_name]:
-            # Convert the list of nodes to a list of dicts
-            results = _nodes_to_dicts(record[record_field_name])
+            # Just return the list of uuids
+            results = record[record_field_name]
 
     return results
 

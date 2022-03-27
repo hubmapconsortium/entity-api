@@ -192,12 +192,19 @@ ENTITIES:
         type: string
         description: "Free text description of the collection"
       ###### Transient properties ######
-      datasets:
+      # Causing performanc issue
+      # datasets:
+      #   type: list
+      #   transient: true
+      #   generated: true
+      #   description: "The datasets that are contained in the collection."
+      #   on_read_trigger: get_collection_datasets
+      dataset_uuids:
         type: list
         transient: true
         generated: true
-        description: "The datasets that are contained in the collection."
-        on_read_trigger: get_collection_datasets
+        description: "The dataset uuids that are contained in the collection."
+        on_read_trigger: get_collection_dataset_uuids
 
   ############################################# Dataset #############################################
   Dataset:
@@ -766,9 +773,16 @@ ENTITIES:
         description: 'List of datasets to remove from a Upload. Provide as a json array of the dataset uuids like: ["232934234234234234234270c0ea6c51d604a850558ef2247d0b4", "230948203482234234234a57bfe9c056d08a0f8e6cd612baa3bfa"]'
         # Use after_update_trigger instead of before_update_trigger since we are not updating this property
         after_update_trigger: unlink_datasets_from_upload 
-      datasets:
+      # Causing performanc issue
+      # datasets:
+      #   type: list
+      #   generated: true # Disallow user input from request json when being created
+      #   transient: true
+      #   description: "The datasets that are contained in this Upload."
+      #   on_read_trigger: get_upload_datasets
+      dataset_uuids:
         type: list
         generated: true # Disallow user input from request json when being created
         transient: true
-        description: "The datasets that are contained in this Upload."
-        on_read_trigger: get_upload_datasets
+        description: "The uuids of datasets that are contained in this Upload."
+        on_read_trigger: get_upload_dataset_uuids
