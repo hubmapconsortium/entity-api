@@ -15,14 +15,14 @@ from flask import current_app as app
 from schema import schema_manager
 from schema import schema_errors
 from schema import schema_neo4j_queries
+from schema.schema_constants import SchemaConstants
 
 logger = logging.getLogger(__name__)
-
 
 # Requests cache generates the sqlite file
 # File path without the .sqlite extension
 # Expire the cache after the time-to-live (7200 seconds)
-requests_cache.install_cache('/usr/src/app/requests_cache/entity-api', backend='sqlite', expire_after=7200)
+requests_cache.install_cache(SchemaConstants.REQUESTS_CACHE_SQLITE_NAME, backend=SchemaConstants.REQUESTS_CACHE_BACKEND, expire_after=SchemaConstants.REQUESTS_CACHE_TTL)
 
 
 ####################################################################################################
@@ -247,38 +247,32 @@ def set_data_access_level(property_key, normalized_type, user_token, existing_da
     if 'uuid' not in new_data_dict:
         raise KeyError("Missing 'uuid' key in 'new_data_dict' during calling 'set_data_access_level()' trigger method.")
 
-    # For now, don't use the constants from commons
-    # All lowercase for easy comparision
-    ACCESS_LEVEL_PUBLIC = 'public'
-    ACCESS_LEVEL_CONSORTIUM = 'consortium'
-    ACCESS_LEVEL_PROTECTED = 'protected'
-    
     if normalized_type == 'Dataset':
         # 'contains_human_genetic_sequences' is required on create
         if 'contains_human_genetic_sequences' not in new_data_dict:
             raise KeyError("Missing 'contains_human_genetic_sequences' key in 'new_data_dict' during calling 'set_data_access_level()' trigger method.")
 
         # Default to protected
-        data_access_level = ACCESS_LEVEL_PROTECTED
+        data_access_level = SchemaConstants.ACCESS_LEVEL_PROTECTED
 
         # When `contains_human_genetic_sequences` is true, even if `status` is 'Published', 
         # the `data_access_level` is still 'protected'
         if new_data_dict['contains_human_genetic_sequences']:
-            data_access_level = ACCESS_LEVEL_PROTECTED
+            data_access_level = SchemaConstants.ACCESS_LEVEL_PROTECTED
         else:
             # When creating a new dataset, status should always be "New"
             # Thus we don't use Dataset.status == "Published" to determine the data_access_level as public
-            data_access_level = ACCESS_LEVEL_CONSORTIUM
+            data_access_level = SchemaConstants.ACCESS_LEVEL_CONSORTIUM
     else:
         # Default to consortium for Donor/Sample
-        data_access_level = ACCESS_LEVEL_CONSORTIUM
+        data_access_level = SchemaConstants.ACCESS_LEVEL_CONSORTIUM
         
         # public if any dataset below it in the provenance hierarchy is published
         # (i.e. Dataset.status == "Published")
         count = schema_neo4j_queries.count_attached_published_datasets(schema_manager.get_neo4j_driver_instance(), normalized_type, new_data_dict['uuid'])
 
         if count > 0:
-            data_access_level = ACCESS_LEVEL_PUBLIC
+            data_access_level = SchemaConstants.ACCESS_LEVEL_PUBLIC
 
     return property_key, data_access_level
 
@@ -990,7 +984,6 @@ def get_dataset_title(property_key, normalized_type, user_token, existing_data_d
         try: 
             # The organ_name is the two-letter code only set if specimen_type == 'organ'
             # Convert the two-letter code to a description
-            # https://github.com/hubmapconsortium/search-api/blob/test-release/src/search-schema/data/definitions/enums/organ_types.yaml
             organ_desc = _get_organ_description(organ_name)
         except (yaml.YAMLError, requests.exceptions.RequestException) as e:
             raise Exception(e)
@@ -1974,7 +1967,7 @@ def _get_assay_type_description(data_types):
         # Disable ssl certificate verification
         response = requests.get(url = search_api_target_url, verify = False)
 
-        # Verify if the cached response from the SQLite database being used
+        # Verify if the cached response being used
         schema_manager._verify_request_cache(search_api_target_url, response.from_cache)
 
         if response.status_code == 200:
@@ -2027,12 +2020,12 @@ Returns
 str: The organ code description
 """
 def _get_organ_description(organ_code):
-    yaml_file_url = 'https://raw.githubusercontent.com/hubmapconsortium/search-api/master/src/search-schema/data/definitions/enums/organ_types.yaml'
+    yaml_file_url = SchemaConstants.ORGAN_TYPES_YAML
     
     # Disable ssl certificate verification
     response = requests.get(url = yaml_file_url, verify = False)
 
-    # Verify if the cached response from the SQLite database being used
+    # Verify if the cached response being used
     schema_manager._verify_request_cache(yaml_file_url, response.from_cache)
 
     if response.status_code == 200:
