@@ -1,4 +1,5 @@
 import ast
+import time
 import yaml
 import logging
 import requests
@@ -8,9 +9,6 @@ from cachetools import cached, TTLCache
 # Don't confuse urllib (Python native library) with urllib3 (3rd-party library, requests also uses urllib3)
 from requests.packages.urllib3.exceptions import InsecureRequestWarning
 from flask import Response
-
-# Use the current_app proxy, which points to the application handling the current activity
-from flask import current_app as app
 
 # Local modules
 from schema import schema_errors
@@ -27,9 +25,8 @@ logger = logging.getLogger(__name__)
 requests.packages.urllib3.disable_warnings(category = InsecureRequestWarning)
 
 # Requests cache generates the sqlite file
-# File path defined in app.config['REQUESTS_CACHE_SQLITE_NAME'] without the .sqlite extension
-# Use the same CACHE_TTL from configuration
-#requests_cache.install_cache(app.config['REQUESTS_CACHE_SQLITE_NAME'], backend='sqlite', expire_after=app.config['CACHE_TTL'])
+# File path without the .sqlite extension
+# Expire the cache after the time-to-live (7200 seconds)
 requests_cache.install_cache('/usr/src/app/requests_cache/entity-api', backend='sqlite', expire_after=7200)
 
 # In Python, "privacy" depends on "consenting adults'" levels of agreement, we can't force it.
@@ -1539,8 +1536,16 @@ def _create_request_headers(user_token):
 
     return headers_dict
 
+"""
+Verify if the cached response from the SQLite database being used
 
-# Verify if the cached response from the SQLite database being used
+Parameters
+----------
+url: str
+    The cached url
+response_from_cache: bool
+    If response.from_cache being used or not
+"""
 def _verify_request_cache(url, response_from_cache):
     now = time.ctime(int(time.time()))
-    logger.debug(f"Time: {now} / GET request URL: {url} / Used requests cache: {response_from_cache}")
+    logger.info(f"Time: {now} / GET request URL: {url} / Used requests cache: {response_from_cache}")

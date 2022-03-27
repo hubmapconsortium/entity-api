@@ -18,9 +18,10 @@ from schema import schema_neo4j_queries
 
 logger = logging.getLogger(__name__)
 
+
 # Requests cache generates the sqlite file
-# File path defined in app.config['REQUESTS_CACHE_SQLITE_NAME'] without the .sqlite extension
-# Use the same CACHE_TTL from configuration
+# File path without the .sqlite extension
+# Expire the cache after the time-to-live (7200 seconds)
 requests_cache.install_cache('/usr/src/app/requests_cache/entity-api', backend='sqlite', expire_after=7200)
 
 
