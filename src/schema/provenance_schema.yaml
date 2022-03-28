@@ -197,6 +197,7 @@ ENTITIES:
         transient: true
         generated: true
         description: "The datasets that are contained in the collection."
+        # A few time-consuming properties (with read triggers) of each dataset are excluded
         on_read_trigger: get_collection_datasets
 
   ############################################# Dataset #############################################
@@ -766,11 +767,10 @@ ENTITIES:
         description: 'List of datasets to remove from a Upload. Provide as a json array of the dataset uuids like: ["232934234234234234234270c0ea6c51d604a850558ef2247d0b4", "230948203482234234234a57bfe9c056d08a0f8e6cd612baa3bfa"]'
         # Use after_update_trigger instead of before_update_trigger since we are not updating this property
         after_update_trigger: unlink_datasets_from_upload 
-      # Different from the handling of Collection (only returns dataset_uuids)
       datasets:
         type: list
         generated: true # Disallow user input from request json when being created
         transient: true
         description: "The datasets that are contained in this Upload."
-        # A few time-consuming read triggers are excluded
+        # A few time-consuming properties (with read triggers) of each dataset are excluded
         on_read_trigger: get_upload_datasets
