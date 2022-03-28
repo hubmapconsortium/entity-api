@@ -25,6 +25,9 @@ src/VERSION
 # Rotated log files
 **/*.log*
 
+# requests-cache generated sqlite
+**/*.sqlite
+
 #ignore eclipse files
 .project
 .pydevproject

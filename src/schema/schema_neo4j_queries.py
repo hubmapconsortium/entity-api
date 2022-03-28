@@ -76,22 +76,47 @@ def get_dataset_organ_and_donor_info(neo4j_driver, uuid):
     organ_name = None
     donor_metadata = None
 
-    query = (f"MATCH (e:Dataset)<-[:ACTIVITY_INPUT|ACTIVITY_OUTPUT*]-(s:Sample)<-[:ACTIVITY_INPUT|ACTIVITY_OUTPUT*]-(d:Donor) "
-             # Filter out the Lab entities
-             f"WHERE e.uuid='{uuid}' AND s.specimen_type='organ' AND EXISTS(s.organ) "
-             # COLLECT() returns a list
-             # apoc.coll.toSet() reruns a set containing unique nodes
-             f"RETURN s.organ AS organ_name, d.metadata AS donor_metadata")
-
-    logger.info("======get_dataset_organ_and_donor_info() query======")
-    logger.info(query)
-
     with neo4j_driver.session() as session:
-        record = session.read_transaction(_execute_readonly_tx, query)
+        # Old time-consuming single query, it takes a significant amounts of DB hits
+        # query = (f"MATCH (e:Dataset)<-[:ACTIVITY_INPUT|ACTIVITY_OUTPUT*]-(s:Sample)<-[:ACTIVITY_INPUT|ACTIVITY_OUTPUT*]-(d:Donor) "
+        #          f"WHERE e.uuid='{uuid}' AND s.specimen_type='organ' AND EXISTS(s.organ) "
+        #          f"RETURN s.organ AS organ_name, d.metadata AS donor_metadata")
 
-        if record:
-            organ_name = record['organ_name']
-            donor_metadata = record['donor_metadata']
+        # logger.info("======get_dataset_organ_and_donor_info() query======")
+        # logger.info(query)
+
+        # with neo4j_driver.session() as session:
+        #     record = session.read_transaction(_execute_readonly_tx, query)
+
+        #     if record:
+        #         organ_name = record['organ_name']
+        #         donor_metadata = record['donor_metadata']
+
+        # To improve the query performance, we implement the two-step queries to drastically reduce the DB hits
+        sample_query = (f"MATCH (e:Dataset)<-[:ACTIVITY_INPUT|ACTIVITY_OUTPUT*]-(s:Sample) "
+                        f"WHERE e.uuid='{uuid}' AND s.specimen_type='organ' AND EXISTS(s.organ) "
+                        f"RETURN DISTINCT s.organ AS organ_name, s.uuid AS sample_uuid")
+
+        logger.info("======get_dataset_organ_and_donor_info() sample_query======")
+        logger.info(sample_query)
+
+        sample_record = session.read_transaction(_execute_readonly_tx, sample_query)
+
+        if sample_record:
+            organ_name = sample_record['organ_name']
+            sample_uuid = sample_record['sample_uuid']
+
+            donor_query = (f"MATCH (s:Sample)<-[:ACTIVITY_OUTPUT]-(a:Activity)<-[:ACTIVITY_INPUT]-(d:Donor) "
+                           f"WHERE s.uuid='{sample_uuid}' AND s.specimen_type='organ' AND EXISTS(s.organ) "
+                           f"RETURN DISTINCT d.metadata AS donor_metadata")
+
+            logger.info("======get_dataset_organ_and_donor_info() donor_query======")
+            logger.info(donor_query)
+
+            donor_record = session.read_transaction(_execute_readonly_tx, donor_query)
+
+            if donor_record:
+                donor_metadata = donor_record['donor_metadata']
 
     return organ_name, donor_metadata
 
@@ -336,8 +361,43 @@ def get_dataset_upload(neo4j_driver, uuid, property_key = None):
     return result
 
 
+# """
+# Get a list of associated dataset dicts for a given collection
+
+# Parameters
+# ----------
+# neo4j_driver : neo4j.Driver object
+#     The neo4j database connection pool
+# uuid : str
+#     The uuid of collection
+
+# Returns
+# -------
+# list
+#     The list containing associated dataset dicts
+# """
+# def get_collection_datasets(neo4j_driver, uuid):
+#     results = []
+
+#     query = (f"MATCH (e:Entity)-[:IN_COLLECTION]->(c:Collection) "
+#              f"WHERE c.uuid = '{uuid}' "
+#              f"RETURN apoc.coll.toSet(COLLECT(e)) AS {record_field_name}")
+
+#     logger.info("======get_collection_datasets() query======")
+#     logger.info(query)
+
+#     with neo4j_driver.session() as session:
+#         record = session.read_transaction(_execute_readonly_tx, query)
+
+#         if record and record[record_field_name]:
+#             # Convert the list of nodes to a list of dicts
+#             results = _nodes_to_dicts(record[record_field_name])
+
+#     return results
+
+
 """
-Get a list of associated dataset dicts for a given collection
+Get a list of associated dataset uuids for a given Collection
 
 Parameters
 ----------
@@ -349,24 +409,24 @@ uuid : str
 Returns
 -------
 list
-    The list containing associated dataset dicts
+    The list of associated dataset uuids
 """
-def get_collection_datasets(neo4j_driver, uuid):
+def get_collection_dataset_uuids(neo4j_driver, uuid):
     results = []
 
-    query = (f"MATCH (e:Entity)-[:IN_COLLECTION]->(c:Collection) "
+    query = (f"MATCH (e:Dataset)-[:IN_COLLECTION]->(c:Collection) "
              f"WHERE c.uuid = '{uuid}' "
              f"RETURN apoc.coll.toSet(COLLECT(e)) AS {record_field_name}")
 
-    logger.info("======get_collection_datasets() query======")
+    logger.info("======get_collection_dataset_uuids() query======")
     logger.info(query)
 
     with neo4j_driver.session() as session:
         record = session.read_transaction(_execute_readonly_tx, query)
 
         if record and record[record_field_name]:
-            # Convert the list of nodes to a list of dicts
-            results = _nodes_to_dicts(record[record_field_name])
+            # Just return the list of uuids
+            results = record[record_field_name]
 
     return results
 
@@ -467,7 +527,7 @@ def unlink_datasets_from_upload(neo4j_driver, upload_uuid, dataset_uuids_list):
 
 
 """
-Get a list of associated dataset dicts for a given collection
+Get a list of associated dataset dicts for a given Upload
 
 Parameters
 ----------
@@ -484,7 +544,7 @@ list
 def get_upload_datasets(neo4j_driver, uuid):
     results = []
 
-    query = (f"MATCH (e:Entity)-[:IN_UPLOAD]->(s:Upload) "
+    query = (f"MATCH (e:Dataset)-[:IN_UPLOAD]->(s:Upload) "
              f"WHERE s.uuid = '{uuid}' "
              f"RETURN apoc.coll.toSet(COLLECT(e)) AS {record_field_name}")
 
