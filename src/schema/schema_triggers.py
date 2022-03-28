@@ -995,41 +995,28 @@ def get_dataset_title(property_key, normalized_type, user_token, existing_data_d
         # due to the way that Cypher handles single/double quotes.
         ancestor_metadata_dict = schema_manager.convert_str_to_data(donor_metadata)
         
+        data_list = []
+
         # Either 'organ_donor_data' or 'living_donor_data' can be present, but not both
-        try:
-            # Easier to ask for forgiveness than permission (EAFP)
-            # Rather than checking key existence at every level
+        if 'organ_donor_data' in ancestor_metadata_dict:
             data_list = ancestor_metadata_dict['organ_donor_data']
+        elif 'living_donor_data' in ancestor_metadata_dict:
+            data_list = ancestor_metadata_dict['living_donor_data']
+        else:
+            # When neither 'organ_donor_data' nor 'living_donor_data' exists, use default None and continue
+            pass
 
-            for data in data_list:
-                if 'grouping_concept_preferred_term' in data:
-                    if data['grouping_concept_preferred_term'].lower() == 'age':
-                        # The actual value of age stored in 'data_value' instead of 'preferred_term'
-                        age = data['data_value']
+        for data in data_list:
+            if 'grouping_concept_preferred_term' in data:
+                if data['grouping_concept_preferred_term'].lower() == 'age':
+                    # The actual value of age stored in 'data_value' instead of 'preferred_term'
+                    age = data['data_value']
 
-                    if data['grouping_concept_preferred_term'].lower() == 'race':
-                        race = data['preferred_term'].lower()
+                if data['grouping_concept_preferred_term'].lower() == 'race':
+                    race = data['preferred_term'].lower()
 
-                    if data['grouping_concept_preferred_term'].lower() == 'sex':
-                        sex = data['preferred_term'].lower()
-        except KeyError:
-            try:
-                data_list = ancestor_metadata_dict['living_donor_data']
-
-                for data in data_list:
-                    if 'grouping_concept_preferred_term' in data:
-                        if data['grouping_concept_preferred_term'].lower() == 'age':
-                            # The actual value of age stored in 'data_value' instead of 'preferred_term'
-                            age = data['data_value']
-
-                        if data['grouping_concept_preferred_term'].lower() == 'race':
-                            race = data['preferred_term'].lower()
-
-                        if data['grouping_concept_preferred_term'].lower() == 'sex':
-                            sex = data['preferred_term'].lower()
-            except KeyError:
-                # When neither 'organ_donor_data' or 'living_donor_data' exists, use default None and continue
-                pass
+                if data['grouping_concept_preferred_term'].lower() == 'sex':
+                    sex = data['preferred_term'].lower()
 
     age_race_sex_info = None
 
