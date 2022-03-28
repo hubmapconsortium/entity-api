@@ -5,15 +5,25 @@ import yaml
 import logging
 import datetime
 import requests
-import urllib.request
+import requests_cache
 from neo4j.exceptions import TransactionError
+
+# Use the current_app proxy, which points to the application handling the current activity
+from flask import current_app as app
 
 # Local modules
 from schema import schema_manager
 from schema import schema_errors
 from schema import schema_neo4j_queries
+from schema.schema_constants import SchemaConstants
 
 logger = logging.getLogger(__name__)
+
+# Requests cache generates the sqlite file
+# File path without the .sqlite extension
+# Expire the cache after the time-to-live (7200 seconds)
+requests_cache.install_cache(SchemaConstants.REQUESTS_CACHE_SQLITE_NAME, backend=SchemaConstants.REQUESTS_CACHE_BACKEND, expire_after=SchemaConstants.REQUESTS_CACHE_TTL)
+
 
 ####################################################################################################
 ## Trigger methods shared among Collection, Dataset, Donor, Sample - DO NOT RENAME
@@ -237,38 +247,32 @@ def set_data_access_level(property_key, normalized_type, user_token, existing_da
     if 'uuid' not in new_data_dict:
         raise KeyError("Missing 'uuid' key in 'new_data_dict' during calling 'set_data_access_level()' trigger method.")
 
-    # For now, don't use the constants from commons
-    # All lowercase for easy comparision
-    ACCESS_LEVEL_PUBLIC = 'public'
-    ACCESS_LEVEL_CONSORTIUM = 'consortium'
-    ACCESS_LEVEL_PROTECTED = 'protected'
-    
     if normalized_type == 'Dataset':
         # 'contains_human_genetic_sequences' is required on create
         if 'contains_human_genetic_sequences' not in new_data_dict:
             raise KeyError("Missing 'contains_human_genetic_sequences' key in 'new_data_dict' during calling 'set_data_access_level()' trigger method.")
 
         # Default to protected
-        data_access_level = ACCESS_LEVEL_PROTECTED
+        data_access_level = SchemaConstants.ACCESS_LEVEL_PROTECTED
 
         # When `contains_human_genetic_sequences` is true, even if `status` is 'Published', 
         # the `data_access_level` is still 'protected'
         if new_data_dict['contains_human_genetic_sequences']:
-            data_access_level = ACCESS_LEVEL_PROTECTED
+            data_access_level = SchemaConstants.ACCESS_LEVEL_PROTECTED
         else:
             # When creating a new dataset, status should always be "New"
             # Thus we don't use Dataset.status == "Published" to determine the data_access_level as public
-            data_access_level = ACCESS_LEVEL_CONSORTIUM
+            data_access_level = SchemaConstants.ACCESS_LEVEL_CONSORTIUM
     else:
         # Default to consortium for Donor/Sample
-        data_access_level = ACCESS_LEVEL_CONSORTIUM
+        data_access_level = SchemaConstants.ACCESS_LEVEL_CONSORTIUM
         
         # public if any dataset below it in the provenance hierarchy is published
         # (i.e. Dataset.status == "Published")
         count = schema_neo4j_queries.count_attached_published_datasets(schema_manager.get_neo4j_driver_instance(), normalized_type, new_data_dict['uuid'])
 
         if count > 0:
-            data_access_level = ACCESS_LEVEL_PUBLIC
+            data_access_level = SchemaConstants.ACCESS_LEVEL_PUBLIC
 
     return property_key, data_access_level
 
@@ -589,7 +593,15 @@ def get_collection_datasets(property_key, normalized_type, user_token, existing_
 
     # Additional properties of the datasets to exclude 
     # We don't want to show too much nested information
-    properties_to_skip = ['direct_ancestors', 'collections']
+    properties_to_skip = [
+        'direct_ancestors', 
+        'collections', 
+        'upload',
+        'title', 
+        'previous_revision_uuid', 
+        'next_revision_uuid'
+    ]
+
     complete_entities_list = schema_manager.get_complete_entities_list(user_token, datasets_list, properties_to_skip)
 
     return property_key, schema_manager.normalize_entities_list_for_response(complete_entities_list)
@@ -722,7 +734,7 @@ def get_dataset_upload(property_key, normalized_type, user_token, existing_data_
     return_dict = None
     
     if 'uuid' not in existing_data_dict:
-        raise KeyError("Missing 'uuid' key in 'existing_data_dict' during calling 'get_dataset_collections()' trigger method.")
+        raise KeyError("Missing 'uuid' key in 'existing_data_dict' during calling 'get_dataset_upload()' trigger method.")
 
     # It could be None if the dataset doesn't in any Upload
     upload_dict = schema_neo4j_queries.get_dataset_upload(schema_manager.get_neo4j_driver_instance(), existing_data_dict['uuid'])
@@ -950,10 +962,9 @@ def get_dataset_title(property_key, normalized_type, user_token, existing_data_d
         try: 
             # The organ_name is the two-letter code only set if specimen_type == 'organ'
             # Convert the two-letter code to a description
-            # https://github.com/hubmapconsortium/search-api/blob/test-release/src/search-schema/data/definitions/enums/organ_types.yaml
             organ_desc = _get_organ_description(organ_name)
-        except yaml.YAMLError as e:
-            raise yaml.YAMLError(e)
+        except (yaml.YAMLError, requests.exceptions.RequestException) as e:
+            raise Exception(e)
 
     # Parse age, race, and sex
     if donor_metadata is not None:
@@ -962,41 +973,28 @@ def get_dataset_title(property_key, normalized_type, user_token, existing_data_d
         # due to the way that Cypher handles single/double quotes.
         ancestor_metadata_dict = schema_manager.convert_str_to_data(donor_metadata)
         
+        data_list = []
+
         # Either 'organ_donor_data' or 'living_donor_data' can be present, but not both
-        try:
-            # Easier to ask for forgiveness than permission (EAFP)
-            # Rather than checking key existence at every level
+        if 'organ_donor_data' in ancestor_metadata_dict:
             data_list = ancestor_metadata_dict['organ_donor_data']
+        elif 'living_donor_data' in ancestor_metadata_dict:
+            data_list = ancestor_metadata_dict['living_donor_data']
+        else:
+            # When neither 'organ_donor_data' nor 'living_donor_data' exists, use default None and continue
+            pass
 
-            for data in data_list:
-                if 'grouping_concept_preferred_term' in data:
-                    if data['grouping_concept_preferred_term'].lower() == 'age':
-                        # The actual value of age stored in 'data_value' instead of 'preferred_term'
-                        age = data['data_value']
+        for data in data_list:
+            if 'grouping_concept_preferred_term' in data:
+                if data['grouping_concept_preferred_term'].lower() == 'age':
+                    # The actual value of age stored in 'data_value' instead of 'preferred_term'
+                    age = data['data_value']
 
-                    if data['grouping_concept_preferred_term'].lower() == 'race':
-                        race = data['preferred_term'].lower()
+                if data['grouping_concept_preferred_term'].lower() == 'race':
+                    race = data['preferred_term'].lower()
 
-                    if data['grouping_concept_preferred_term'].lower() == 'sex':
-                        sex = data['preferred_term'].lower()
-        except KeyError:
-            try:
-                data_list = ancestor_metadata_dict['living_donor_data']
-
-                for data in data_list:
-                    if 'grouping_concept_preferred_term' in data:
-                        if data['grouping_concept_preferred_term'].lower() == 'age':
-                            # The actual value of age stored in 'data_value' instead of 'preferred_term'
-                            age = data['data_value']
-
-                        if data['grouping_concept_preferred_term'].lower() == 'race':
-                            race = data['preferred_term'].lower()
-
-                        if data['grouping_concept_preferred_term'].lower() == 'sex':
-                            sex = data['preferred_term'].lower()
-            except KeyError:
-                # When neither 'organ_donor_data' or 'living_donor_data' exists, use default None and continue
-                pass
+                if data['grouping_concept_preferred_term'].lower() == 'sex':
+                    sex = data['preferred_term'].lower()
 
     age_race_sex_info = None
 
@@ -1597,7 +1595,7 @@ def unlink_datasets_from_upload(property_key, normalized_type, user_token, exist
 
 
 """
-Trigger event method of getting a list of associated datasets for a given Submission
+Trigger event method of getting a list of associated datasets for a given Upload
 
 Parameters
 ----------
@@ -1618,13 +1616,21 @@ list: A list of associated dataset dicts with all the normalized information
 """
 def get_upload_datasets(property_key, normalized_type, user_token, existing_data_dict, new_data_dict):
     if 'uuid' not in existing_data_dict:
-        raise KeyError("Missing 'uuid' key in 'existing_data_dict' during calling 'get_collection_datasets()' trigger method.")
+        raise KeyError("Missing 'uuid' key in 'existing_data_dict' during calling 'get_upload_datasets()' trigger method.")
 
     datasets_list = schema_neo4j_queries.get_upload_datasets(schema_manager.get_neo4j_driver_instance(), existing_data_dict['uuid'])
 
     # Additional properties of the datasets to exclude 
-    # We don't want to show too much nested information
-    properties_to_skip = ['direct_ancestors', 'collections']
+    # We don't want to show too much nested information due to performance consideration
+    properties_to_skip = [
+        'direct_ancestors', 
+        'collections', 
+        'upload',
+        'title', 
+        'previous_revision_uuid', 
+        'next_revision_uuid'
+    ]
+
     complete_entities_list = schema_manager.get_complete_entities_list(user_token, datasets_list, properties_to_skip)
 
     return property_key, schema_manager.normalize_entities_list_for_response(complete_entities_list)
@@ -1905,6 +1911,9 @@ def _get_assay_type_description(data_types):
         # Disable ssl certificate verification
         response = requests.get(url = search_api_target_url, verify = False)
 
+        # Verify if the cached response being used
+        schema_manager._verify_request_cache(search_api_target_url, response.from_cache)
+
         if response.status_code == 200:
             assay_type_info = response.json()
             # Add to the list
@@ -1955,11 +1964,33 @@ Returns
 str: The organ code description
 """
 def _get_organ_description(organ_code):
-    yaml_file_url = 'https://raw.githubusercontent.com/hubmapconsortium/search-api/master/src/search-schema/data/definitions/enums/organ_types.yaml'
-    with urllib.request.urlopen(yaml_file_url) as response:
-        yaml_file = response.read()
+    yaml_file_url = SchemaConstants.ORGAN_TYPES_YAML
+    
+    # Disable ssl certificate verification
+    response = requests.get(url = yaml_file_url, verify = False)
+
+    # Verify if the cached response being used
+    schema_manager._verify_request_cache(yaml_file_url, response.from_cache)
+
+    if response.status_code == 200:
+        yaml_file = response.text
+
         try:
-            organ_types_dict = yaml.safe_load(yaml_file)
+            organ_types_dict = yaml.safe_load(response.text)
             return organ_types_dict[organ_code]['description'].lower()
         except yaml.YAMLError as e:
             raise yaml.YAMLError(e)
+    else:
+        msg = f"Unable to fetch the: {yaml_file_url}"
+        # Log the full stack trace, prepend a line with our message
+        logger.exception(msg)
+
+        logger.debug("======_get_organ_description() status code======")
+        logger.debug(response.status_code)
+
+        logger.debug("======_get_organ_description() response text======")
+        logger.debug(response.text)
+
+        # Also bubble up the error message
+        raise requests.exceptions.RequestException(response.text)
+

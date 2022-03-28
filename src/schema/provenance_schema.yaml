@@ -197,6 +197,7 @@ ENTITIES:
         transient: true
         generated: true
         description: "The datasets that are contained in the collection."
+        # A few time-consuming properties (with read triggers) of each dataset are excluded
         on_read_trigger: get_collection_datasets
 
   ############################################# Dataset #############################################
@@ -799,4 +800,5 @@ ENTITIES:
         generated: true # Disallow user input from request json when being created
         transient: true
         description: "The datasets that are contained in this Upload."
+        # A few time-consuming properties (with read triggers) of each dataset are excluded
         on_read_trigger: get_upload_datasets
