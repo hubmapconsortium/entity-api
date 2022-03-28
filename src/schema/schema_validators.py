@@ -3,14 +3,10 @@ import logging
 # Local modules
 from schema import schema_manager
 from schema import schema_errors
+from schema.schema_constants import SchemaConstants
 
 logger = logging.getLogger(__name__)
 
-# Shared constants
-INGEST_API_APP = 'ingest-api'
-INGEST_PIPELINE_APP = 'ingest-pipeline'
-HUBMAP_APP_HEADER = 'X-Hubmap-Application'
-DATASET_STATUS_PUBLISHED = 'published'
 
 ####################################################################################################
 ## Entity Level Validators
@@ -32,7 +28,7 @@ def validate_application_header_before_entity_create(normalized_entity_type, req
     # Currently only ingest-api and ingest-pipeline are allowed
     # to create or update Dataset and Upload
     # Use lowercase for comparison
-    applications_allowed = [INGEST_API_APP, INGEST_PIPELINE_APP]
+    applications_allowed = [SchemaConstants.INGEST_API_APP, SchemaConstants.INGEST_PIPELINE_APP]
 
     _validate_application_header(applications_allowed, request.headers)
 
@@ -85,7 +81,7 @@ def validate_application_header_before_property_update(property_key, normalized_
     # Currently only ingest-api and ingest-pipeline are allowed
     # to update Dataset.status or Upload.status
     # Use lowercase for comparison
-    applications_allowed = [INGEST_API_APP, INGEST_PIPELINE_APP]
+    applications_allowed = [SchemaConstants.INGEST_API_APP, SchemaConstants.INGEST_PIPELINE_APP]
 
     _validate_application_header(applications_allowed, request.headers)
 
@@ -119,17 +115,17 @@ def validate_dataset_status_value(property_key, normalized_entity_type, request,
 
     # If status == 'Published' already in Neo4j, then fail for any changes at all
     # Because once published, the dataset should be read-only
-    if existing_data_dict['status'].lower() == DATASET_STATUS_PUBLISHED:
+    if existing_data_dict['status'].lower() == SchemaConstants.DATASET_STATUS_PUBLISHED:
         raise ValueError("This dataset is already published, status change is not allowed")
 
     # HTTP header names are case-insensitive
     # request.headers.get('X-Hubmap-Application') returns None if the header doesn't exist
-    app_header = request.headers.get(HUBMAP_APP_HEADER)
+    app_header = request.headers.get(SchemaConstants.HUBMAP_APP_HEADER)
 
     # Change status to 'Published' can only happen via ingest-api 
     # because file system changes are needed
-    if (new_status == DATASET_STATUS_PUBLISHED) and (app_header.lower() != INGEST_API_APP):
-        raise ValueError(f"Dataset status change to 'Published' can only be made via {INGEST_API_APP}")
+    if (new_status == SchemaConstants.DATASET_STATUS_PUBLISHED) and (app_header.lower() != SchemaConstants.INGEST_API_APP):
+        raise ValueError(f"Dataset status change to 'Published' can only be made via {SchemaConstants.INGEST_API_APP}")
 
 """
 Validate the sub_status field is also provided when Dataset.retraction_reason is provided on update via PUT
@@ -152,7 +148,7 @@ def validate_if_retraction_permitted(property_key, normalized_entity_type, reque
         raise KeyError("Missing 'status' key in 'existing_data_dict' during calling 'validate_if_retraction_permitted()' validator method.")
 
     # Only published dataset can be retracted
-    if existing_data_dict['status'].lower() != DATASET_STATUS_PUBLISHED:
+    if existing_data_dict['status'].lower() != SchemaConstants.DATASET_STATUS_PUBLISHED:
         raise ValueError("This dataset is not published, retraction is not allowed")
 
     # Only token in HuBMAP-Data-Admin group can retract a published dataset
@@ -280,13 +276,13 @@ request_headers: Flask request.headers object, behaves like a dict
 def _validate_application_header(applications_allowed, request_headers):
     # HTTP header names are case-insensitive
     # request_headers.get('X-Hubmap-Application') returns None if the header doesn't exist
-    app_header = request_headers.get(HUBMAP_APP_HEADER)
+    app_header = request_headers.get(SchemaConstants.HUBMAP_APP_HEADER)
 
     if not app_header:
-        msg = f"Unbale to proceed due to missing {HUBMAP_APP_HEADER} header from request"
+        msg = f"Unbale to proceed due to missing {SchemaConstants.HUBMAP_APP_HEADER} header from request"
         raise schema_errors.MissingApplicationHeaderException(msg)
 
     # Use lowercase for comparing the application header value against the yaml
     if app_header.lower() not in applications_allowed:
-        msg = f"Unable to proceed due to invalid {HUBMAP_APP_HEADER} header value: {app_header}"
+        msg = f"Unable to proceed due to invalid {SchemaConstants.HUBMAP_APP_HEADER} header value: {app_header}"
         raise schema_errors.InvalidApplicationHeaderException(msg)

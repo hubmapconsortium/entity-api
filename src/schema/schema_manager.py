@@ -1,20 +1,20 @@
 import ast
+import time
 import yaml
 import logging
 import requests
+import requests_cache
 from cachetools import cached, TTLCache
 
 # Don't confuse urllib (Python native library) with urllib3 (3rd-party library, requests also uses urllib3)
 from requests.packages.urllib3.exceptions import InsecureRequestWarning
 from flask import Response
 
-# Use the current_app proxy, which points to the application handling the current activity
-from flask import current_app as app
-
 # Local modules
 from schema import schema_errors
 from schema import schema_triggers
 from schema import schema_validators
+from schema.schema_constants import SchemaConstants
 
 # HuBMAP commons
 from hubmap_commons.hm_auth import AuthHelper
@@ -25,12 +25,10 @@ logger = logging.getLogger(__name__)
 # Suppress InsecureRequestWarning warning when requesting status on https with ssl cert verify disabled
 requests.packages.urllib3.disable_warnings(category = InsecureRequestWarning)
 
-# LRU Cache implementation with per-item time-to-live (TTL) value
-# with a memoizing callable that saves up to maxsize results based on a Least Frequently Used (LFU) algorithm
-# with a per-item time-to-live (TTL) value
-# The maximum integer number of entries in the cache queue: 128
-# Expire the cache after the time-to-live (seconds): two hours, 7200 seconds
-cache = TTLCache(128, ttl=7200)
+# Requests cache generates the sqlite file
+# File path without the .sqlite extension
+# Expire the cache after the time-to-live (7200 seconds)
+requests_cache.install_cache(SchemaConstants.REQUESTS_CACHE_SQLITE_NAME, backend=SchemaConstants.REQUESTS_CACHE_BACKEND, expire_after=SchemaConstants.REQUESTS_CACHE_TTL)
 
 # In Python, "privacy" depends on "consenting adults'" levels of agreement, we can't force it.
 # A single leading underscore means you're not supposed to access it "from the outside"
@@ -40,6 +38,7 @@ _ingest_api_url = None
 _search_api_url = None
 _auth_helper = None
 _neo4j_driver = None
+
 
 ####################################################################################################
 ## Provenance yaml schema initialization
@@ -97,7 +96,6 @@ Returns
 dict
     A dict containing the schema details
 """
-@cached(cache)
 def load_provenance_schema(valid_yaml_file):
     with open(valid_yaml_file) as file:
         schema_dict = yaml.safe_load(file)
@@ -1060,7 +1058,10 @@ def get_hubmap_ids(id, user_token):
     request_headers = _create_request_headers(user_token)
 
     # Disable ssl certificate verification
-    response = requests.get(url = target_url, headers = request_headers, verify = False) 
+    response = requests.get(url = target_url, headers = request_headers, verify = False)
+
+    # Verify if the cached response being used
+    _verify_request_cache(target_url, response.from_cache)
     
     # Invoke .raise_for_status(), an HTTPError will be raised with certain status codes
     response.raise_for_status()
@@ -1536,4 +1537,16 @@ def _create_request_headers(user_token):
 
     return headers_dict
 
+"""
+Verify if the cached response being used
 
+Parameters
+----------
+url: str
+    The request url
+response_from_cache: bool
+    If response.from_cache is used or not
+"""
+def _verify_request_cache(url, response_from_cache):
+    now = time.ctime(int(time.time()))
+    logger.info(f"Time: {now} / GET request URL: {url} / Requests cache used: {response_from_cache}")
