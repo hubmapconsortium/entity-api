@@ -564,43 +564,8 @@ def update_file_descriptions(property_key, normalized_type, user_token, existing
 ## Trigger methods specific to Collection - DO NOT RENAME
 ####################################################################################################
 
-# """
-# Trigger event method of getting a list of associated datasets for a given collection
-
-# Parameters
-# ----------
-# property_key : str
-#     The target property key of the value to be generated
-# normalized_type : str
-#     One of the types defined in the schema yaml: Activity, Collection, Donor, Sample, Dataset
-# user_token: str
-#     The user's globus nexus token
-# existing_data_dict : dict
-#     A dictionary that contains all existing entity properties
-# new_data_dict : dict
-#     A merged dictionary that contains all possible input data to be used
-
-# Returns
-# -------
-# str: The target property key
-# list: A list of associated dataset dicts with all the normalized information
-# """
-# def get_collection_datasets(property_key, normalized_type, user_token, existing_data_dict, new_data_dict):
-#     if 'uuid' not in existing_data_dict:
-#         raise KeyError("Missing 'uuid' key in 'existing_data_dict' during calling 'get_collection_datasets()' trigger method.")
-
-#     datasets_list = schema_neo4j_queries.get_collection_datasets(schema_manager.get_neo4j_driver_instance(), existing_data_dict['uuid'])
-
-#     # Additional properties of the datasets to exclude 
-#     # We don't want to show too much nested information
-#     properties_to_skip = ['direct_ancestors', 'collections']
-#     complete_entities_list = schema_manager.get_complete_entities_list(user_token, datasets_list, properties_to_skip)
-
-#     return property_key, schema_manager.normalize_entities_list_for_response(complete_entities_list)
-
-
 """
-Trigger event method of getting a list of associated dataset uuids for a given collection
+Trigger event method of getting a list of associated datasets for a given collection
 
 Parameters
 ----------
@@ -618,15 +583,28 @@ new_data_dict : dict
 Returns
 -------
 str: The target property key
-list: A list of associated dataset uuids
+list: A list of associated dataset dicts with all the normalized information
 """
-def get_collection_dataset_uuids(property_key, normalized_type, user_token, existing_data_dict, new_data_dict):
+def get_collection_datasets(property_key, normalized_type, user_token, existing_data_dict, new_data_dict):
     if 'uuid' not in existing_data_dict:
-        raise KeyError("Missing 'uuid' key in 'existing_data_dict' during calling 'get_collection_dataset_uuids()' trigger method.")
+        raise KeyError("Missing 'uuid' key in 'existing_data_dict' during calling 'get_collection_datasets()' trigger method.")
 
-    dataset_uuids = schema_neo4j_queries.get_collection_dataset_uuids(schema_manager.get_neo4j_driver_instance(), existing_data_dict['uuid'])
+    datasets_list = schema_neo4j_queries.get_collection_datasets(schema_manager.get_neo4j_driver_instance(), existing_data_dict['uuid'])
 
-    return property_key, dataset_uuids
+    # Additional properties of the datasets to exclude 
+    # We don't want to show too much nested information
+    properties_to_skip = [
+        'direct_ancestors', 
+        'collections', 
+        'upload',
+        'title', 
+        'previous_revision_uuid', 
+        'next_revision_uuid'
+    ]
+
+    complete_entities_list = schema_manager.get_complete_entities_list(user_token, datasets_list, properties_to_skip)
+
+    return property_key, schema_manager.normalize_entities_list_for_response(complete_entities_list)
 
 
 ####################################################################################################

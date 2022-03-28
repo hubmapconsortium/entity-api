@@ -192,19 +192,12 @@ ENTITIES:
         type: string
         description: "Free text description of the collection"
       ###### Transient properties ######
-      # Causing performanc issue
-      # datasets:
-      #   type: list
-      #   transient: true
-      #   generated: true
-      #   description: "The datasets that are contained in the collection."
-      #   on_read_trigger: get_collection_datasets
-      dataset_uuids:
+      datasets:
         type: list
         transient: true
         generated: true
-        description: "The dataset uuids that are contained in the collection."
-        on_read_trigger: get_collection_dataset_uuids
+        description: "The datasets that are contained in the collection."
+        on_read_trigger: get_collection_datasets
 
   ############################################# Dataset #############################################
   Dataset:
