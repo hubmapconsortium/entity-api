@@ -1647,11 +1647,12 @@ def get_upload_datasets(property_key, normalized_type, user_token, existing_data
     properties_to_skip = [
         'direct_ancestors', 
         'collections', 
+        'upload',
         'title', 
         'previous_revision_uuid', 
         'next_revision_uuid'
     ]
-    
+
     complete_entities_list = schema_manager.get_complete_entities_list(user_token, datasets_list, properties_to_skip)
 
     return property_key, schema_manager.normalize_entities_list_for_response(complete_entities_list)
