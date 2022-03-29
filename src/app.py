@@ -383,7 +383,8 @@ def get_entity_by_id(id):
         property_to_pop = 'next_revision_uuid'
 
         # When the dataset is published but:
-        # - The nexus token is valid but the user doesn't belong to HuBMAP-READ group
+        # - There's no Authorization header thus no token
+        # - The groups token is valid but the user doesn't belong to HuBMAP-READ group
         # - Or the token is valid but doesn't contain group information (auth token or transfer token)
         # We need to remove the `next_revision_uuid` from response
         # Otherwise, we should send back the `next_revision_uuid` (if exists) when the member belongs to HuBMAP-Read group
@@ -639,7 +640,7 @@ Retrive the collection detail by id
 
 The gateway treats this endpoint as public accessible
 
-An optional Globus nexus token can be provided in a standard Authentication Bearer header. If a valid token
+An optional Globus groups token can be provided in a standard Authentication Bearer header. If a valid token
 is provided with group membership in the HuBMAP-Read group any collection matching the id will be returned.
 otherwise if no token is provided or a valid token with no HuBMAP-Read group membership then
 only a public collection will be returned.  Public collections are defined as being published via a DOI 
@@ -692,7 +693,7 @@ def get_collection(id):
         # for Collection.datasets property
         complete_dict = get_complete_public_collection_dict(collection_dict)
     else:
-        # When the nexus token is valid, but the user doesn't belong to HuBMAP-READ group
+        # When the groups token is valid, but the user doesn't belong to HuBMAP-READ group
         # Or the token is valid but doesn't contain group information (auth token or transfer token)
         # Only return the public datasets attached to this Collection
         if not user_in_hubmap_read_group(request):
@@ -3077,7 +3078,7 @@ Parameters
 ----------
 request : falsk.request
     The flask http request object that containing the Authorization header
-    with a valid Globus nexus token for checking group information
+    with a valid Globus groups token for checking group information
 
 Returns
 -------
@@ -3085,16 +3086,19 @@ bool
     True if the user belongs to HuBMAP-READ group, otherwise False
 """
 def user_in_hubmap_read_group(request):
+    if 'Authorization' not in request.headers:
+        return False
+
     try:
         # The property 'hmgroupids' is ALWASYS in the output with using schema_manager.get_user_info()
-        # when the token in request is a nexus_token
+        # when the token in request is a groups token
         user_info = schema_manager.get_user_info(request)
         hubmap_read_group_uuid = auth_helper_instance.groupNameToId('HuBMAP-READ')['uuid']
     except Exception as e:
         # Log the full stack trace, prepend a line with our message
         logger.exception(e)
 
-        # If the token is not a nexus token, no group information available
+        # If the token is not a groups token, no group information available
         # The commons.hm_auth.AuthCache would return a Response with 500 error message
         # We treat such cases as the user not in the HuBMAP-READ group
         return False
@@ -3194,7 +3198,7 @@ request : flask.Request object
 normalized_entity_type : str
     One of the normalized entity types: Dataset, Collection, Sample, Donor
 user_token: str
-    The user's globus nexus token
+    The user's globus groups token
 json_data_dict: dict
     The json request dict from user input
 
@@ -3337,7 +3341,7 @@ request : flask.Request object
 normalized_entity_type : str
     One of the normalized entity types: Dataset, Collection, Sample, Donor
 user_token: str
-    The user's globus nexus token
+    The user's globus groups token
 json_data_dict: dict
     The json request dict from user input
 count : int
@@ -3481,7 +3485,7 @@ Parameters
 normalized_entity_type : str
     One of the normalized entity types: Dataset, Collection, Sample, Donor
 user_token: str
-    The user's globus nexus token
+    The user's globus groups token
 merged_data_dict: dict
     The merged dict that contains the entity dict newly created and 
     information from user request json that are not stored in Neo4j
@@ -3512,7 +3516,7 @@ request : flask.Request object
 normalized_entity_type : str
     One of the normalized entity types: Dataset, Collection, Sample, Donor
 user_token: str
-    The user's globus nexus token
+    The user's globus groups token
 json_data_dict: dict
     The json request dict
 existing_entity_dict: dict
@@ -3591,7 +3595,7 @@ Parameters
 normalized_entity_type : str
     One of the normalized entity types: Dataset, Collection, Sample, Donor
 user_token: str
-    The user's globus nexus token
+    The user's globus groups token
 entity_dict: dict
     The entity dict newly updated
 """
@@ -3619,7 +3623,7 @@ Parameters
 id : str
     The uuid or hubmap_id of target entity
 user_token: str
-    The user's globus nexus token from the incoming request
+    The user's globus groups token from the incoming request
 
 Returns
 -------
@@ -3686,7 +3690,7 @@ Parameters
 uuid : str
     The uuid of the target entity
 user_token: str
-    The user's globus nexus token
+    The user's globus groups token
 """
 def reindex_entity(uuid, user_token):
     try:
@@ -3714,7 +3718,7 @@ Create a dict of HTTP Authorization header with Bearer token for making calls to
 Parameters
 ----------
 user_token: str
-    The user's globus nexus token
+    The user's globus groups token
 
 Returns
 -------
