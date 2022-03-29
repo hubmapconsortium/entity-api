@@ -923,19 +923,25 @@ def create_entity(entity_type):
 
     # By default we'll return all the properties but skip these time-consuming ones
     # Donor doesn't need to skip any
-    properties_to_skip = [
-        # Properties to skip for Sample
-        'direct_ancestor',
-        # Properties to skip for Collection and Upload
-        'datasets',
-        # Properties to skip for Dataset
-        'direct_ancestors',
-        'collections',
-        'upload',
-        'title', 
-        'previous_revision_uuid', 
-        'next_revision_uuid'
-    ]
+    properties_to_skip = []
+
+    if normalized_entity_type == 'Sample':
+        properties_to_skip = [
+            'direct_ancestor'
+        ]
+    elif normalized_entity_type == 'Dataset':
+        properties_to_skip = [
+            'direct_ancestors',
+            'collections',
+            'upload',
+            'title', 
+            'previous_revision_uuid', 
+            'next_revision_uuid'
+        ]
+    elif normalized_entity_type in ['Upload', 'Collection']:
+        properties_to_skip = [
+            'datasets'
+        ]
 
     # Result filtering based on query string
     # Will return all properties by running all the read triggers
@@ -1150,19 +1156,25 @@ def update_entity(id):
 
     # By default we'll return all the properties but skip these time-consuming ones
     # Donor doesn't need to skip any
-    properties_to_skip = [
-        # Properties to skip for Sample
-        'direct_ancestor',
-        # Properties to skip for Collection and Upload
-        'datasets',
-        # Properties to skip for Dataset
-        'direct_ancestors',
-        'collections',
-        'upload',
-        'title', 
-        'previous_revision_uuid', 
-        'next_revision_uuid'
-    ]
+    properties_to_skip = []
+
+    if normalized_entity_type == 'Sample':
+        properties_to_skip = [
+            'direct_ancestor'
+        ]
+    elif normalized_entity_type == 'Dataset':
+        properties_to_skip = [
+            'direct_ancestors',
+            'collections',
+            'upload',
+            'title', 
+            'previous_revision_uuid', 
+            'next_revision_uuid'
+        ]
+    elif normalized_entity_type in ['Upload', 'Collection']:
+        properties_to_skip = [
+            'datasets'
+        ]
 
     # Result filtering based on query string
     # Will return all properties by running all the read triggers
