@@ -615,15 +615,19 @@ def get_entities_by_type(entity_type):
         entities_list = app_neo4j_queries.get_entities_by_type(neo4j_driver_instance, normalized_entity_type)
 
         # Generate trigger data and merge into a big dict
-        # Skip some of the properties that are time-consuming to generate via triggers
-        # direct_ancestor for Sample, direct_ancestors/collections/upload for Dataset,
-        # datasets for Upload
+        # Skip some of the properties that are time-consuming to generate via read triggers
         properties_to_skip = [
+            # Properties to skip for Sample
             'direct_ancestor',
+            # Properties to skip for Collection and Upload
+            'datasets',
+            # Properties to skip for Dataset
             'direct_ancestors',
             'collections',
             'upload',
-            'datasets'
+            'title', 
+            'previous_revision_uuid', 
+            'next_revision_uuid'
         ]
 
         complete_entities_list = schema_manager.get_complete_entities_list(user_token, entities_list, properties_to_skip)
