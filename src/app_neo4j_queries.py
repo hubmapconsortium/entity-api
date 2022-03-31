@@ -1178,6 +1178,55 @@ def get_sankey_info(neo4j_driver):
             list_of_dictionaries.append(record_dict)
         return list_of_dictionaries
 
+def get_sample_prov_info(neo4j_driver, param_dict):
+    group_uuid_query_string = ''
+    if 'group_uuid' in param_dict:
+        group_uuid_query_string = f" WHERE toUpper(s.group_uuid) = '{param_dict['group_uuid'].upper()}'"
+    query = (
+        f" MATCH (s:Sample)<-[*]-(d:Donor)"
+        f" {group_uuid_query_string}"
+        f" WITH s, d"
+        f" OPTIONAL MATCH (s)<-[*]-(organ:Sample{{specimen_type: 'organ'}})"
+        f" WITH s, organ, d"
+        f" MATCH (s)<-[]-()<-[]-(da)"
+        f" RETURN s.uuid, s.lab_tissue_sample_id, s.group_name, s.created_by_user_email, s.metadata, s.rui_location,"
+        f" d.uuid, d.metadata, organ.uuid, organ.specimen_type, organ.metadata, da.uuid, da.entity_type, "
+        f"s.specimen_type, organ.organ, s.organ"
+    )
+
+    logger.info("======get_sample_prov_info() query======")
+    logger.info(query)
+
+    with neo4j_driver.session() as session:
+        # Because we're returning multiple things, we use session.run rather than session.read_transaction
+        result = session.run(query)
+        list_of_dictionaries = []
+        for record in result:
+            record_dict = {}
+            record_contents = []
+            # Individual items within a record are not subscriptable. By putting them in a small list, we can address
+            # each item in a record
+            for item in record:
+                record_contents.append(item)
+            record_dict['sample_uuid'] = record_contents[0]
+            record_dict['lab_sample_id'] = record_contents[1]
+            record_dict['sample_group_name'] = record_contents[2]
+            record_dict['sample_created_by_email'] = record_contents[3]
+            record_dict['sample_metadata'] = record_contents[4]
+            record_dict['sample_rui_info'] = record_contents[5]
+            record_dict['donor_uuid'] = record_contents[6]
+            record_dict['donor_metadata'] = record_contents[7]
+            record_dict['organ_uuid'] = record_contents[8]
+            record_dict['organ_type'] = record_contents[9]
+            record_dict['organ_metadata'] = record_contents[10]
+            record_dict['sample_ancestor_id'] = record_contents[11]
+            record_dict['sample_ancestor_entity'] = record_contents[12]
+            record_dict['sample_specimen_type'] = record_contents[13]
+            record_dict['organ_organ_type'] = record_contents[14]
+            record_dict['sample_organ'] = record_contents[15]
+            list_of_dictionaries.append(record_dict)
+    return list_of_dictionaries
+
 ####################################################################################################
 ## Internal Functions
 ####################################################################################################
