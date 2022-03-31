@@ -2965,6 +2965,91 @@ def sankey_data():
         dataset_sankey_list.append(internal_dict)
     return jsonify(dataset_sankey_list)
 
+@app.route('/samples/prov-info', methods=['GET'])
+def get_sample_prov_info():
+    # String Constants
+    HEADER_SAMPLE_UUID = "sample_uuid"
+    HEADER_SAMPLE_LAB_ID = "lab_id_or_name",
+    HEADER_SAMPLE_GROUP_NAME = "sample_group_name",
+    HEADER_SAMPLE_CREATED_BY_EMAIL = "sample_created_by_email",
+    HEADER_SAMPLE_HAS_METADATA = "sample_has_metadata",
+    HEADER_SAMPLE_HAS_RUI_INFO = "sample_has_rui_info",
+    HEADER_SAMPLE_DIRECT_ANCESTOR_ID = "sample_ancestor_id",
+    HEADER_SAMPLE_DIRECT_ANCESTOR_ENTITY_TYPE = "sample_ancestor_entity",
+    HEADER_DONOR_UUID = "donor_uuid",
+    HEADER_DONOR_HAS_METADATA = "donor_has_metadata",
+    HEADER_ORGAN_UUID = "organ_uuid",
+    HEADER_ORGAN_TYPE = "organ_type",
+    HEADER_ORGAN_HAS_METADATA = "organ_has_metadata"
+
+    # Processing and validating query parameters
+    accepted_arguments = ['group_uuid']
+    param_dict = {}  # currently the only filter is group_uuid, but in case this grows, we're using a dictionary
+    if bool(request.args):
+        for argument in request.args:
+            if argument not in accepted_arguments:
+                bad_request_error(f"{argument} is an unrecognized argument.")
+        group_uuid = request.args.get('group_uuid')
+        if group_uuid is not None:
+            groups_by_id_dict = globus_groups.get_globus_groups_info()['by_id']
+            if group_uuid not in groups_by_id_dict:
+                bad_request_error(f"Invalid Group UUID.")
+            if not groups_by_id_dict[group_uuid]['data_provider']:
+                bad_request_error(f"Invalid Group UUID. Group must be a data provider")
+            param_dict['group_uuid'] = group_uuid
+
+    # Instantiation of the list sample_prov_list
+    sample_prov_list = []
+
+    # Call to app_neo4j_queries to prepare and execute database query
+    prov_info = app_neo4j_queries.get_sample_prov_info(neo4j_driver_instance, param_dict)
+
+    for sample in prov_info:
+
+        # For cases where there is no sample of type organ above a given sample in the provenance, we check to see if
+        # the given sample is itself an organ.
+        organ_uuid = None
+        if sample['organ_uuid'] is not None:
+            organ_uuid = sample['organ_uuid']
+        else:
+            if sample['sample_specimen_type'] == "organ":
+                organ_uuid = sample['sample_uuid']
+
+        sample_has_metadata = False
+        if sample['sample_metadata'] is not None:
+            sample_has_metadata = True
+
+        sample_has_rui_info = False
+        if sample['sample_rui_info'] is not None:
+            sample_has_rui_info = True
+
+        donor_has_metadata = False
+        if sample['donor_metadata'] is not None:
+            donor_has_metadata = True
+
+        organ_has_metadata = False
+        if sample['organ_metadata'] is not None:
+            organ_has_metadata = True
+
+        internal_dict = collections.OrderedDict()
+        internal_dict[HEADER_SAMPLE_UUID] = sample['sample_uuid']
+        internal_dict[HEADER_SAMPLE_LAB_ID] = sample['lab_sample_id']
+        internal_dict[HEADER_SAMPLE_GROUP_NAME] = sample['sample_group_name']
+        internal_dict[HEADER_SAMPLE_CREATED_BY_EMAIL] = sample['sample_created_by_email']
+        internal_dict[HEADER_SAMPLE_HAS_METADATA] = sample_has_metadata
+        internal_dict[HEADER_SAMPLE_HAS_RUI_INFO] = sample_has_rui_info
+        internal_dict[HEADER_SAMPLE_DIRECT_ANCESTOR_ID] = sample['sample_ancestor_id']
+        internal_dict[HEADER_SAMPLE_DIRECT_ANCESTOR_ENTITY_TYPE] = sample['sample_ancestor_entity']
+        internal_dict[HEADER_DONOR_UUID] = sample['donor_uuid']
+        internal_dict[HEADER_DONOR_HAS_METADATA] = donor_has_metadata
+        internal_dict[HEADER_ORGAN_UUID] = organ_uuid
+        internal_dict[HEADER_ORGAN_TYPE] = sample['organ_type']
+        internal_dict[HEADER_ORGAN_HAS_METADATA] = organ_has_metadata
+
+        # Each sample's dictionary is added to the list to be returned
+        sample_prov_list.append(internal_dict)
+    return jsonify(sample_prov_list)
+
 
 ####################################################################################################
 ## Internal Functions
