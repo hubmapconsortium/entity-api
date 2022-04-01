@@ -1178,6 +1178,19 @@ def get_sankey_info(neo4j_driver):
             list_of_dictionaries.append(record_dict)
         return list_of_dictionaries
 
+
+"""
+Returns sample uuid, sample rui location, sample metadata, sample group name, sample created_by_email, sample ancestor
+uuid, sample ancestor entity type, organ uuid, organ type, organ metadata, lab tissue sample id, donor uuid, donor 
+metadata all in a dictionary
+
+Parameters
+----------
+neo4j_driver : neo4j.Driver object
+    The neo4j database connection pool
+param_dict : dictionary
+    dictionary containing any filters to be applied in the samples-prov-info query
+"""
 def get_sample_prov_info(neo4j_driver, param_dict):
     group_uuid_query_string = ''
     if 'group_uuid' in param_dict:

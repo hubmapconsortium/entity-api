@@ -3057,6 +3057,23 @@ def sankey_data():
     return jsonify(dataset_sankey_list)
 
 
+"""
+Get the complete provenance info for all samples
+
+Authentication
+-------
+Token that is part of the HuBMAP Read-Group is required.
+
+Query Parameters
+-------
+    group_uuid : string
+        Filters returned samples by a given group uuid. 
+
+Returns
+-------
+json
+    an array of each datatset's provenance info
+"""
 @app.route('/samples/prov-info', methods=['GET'])
 def get_sample_prov_info():
     # String Constants
