@@ -1181,8 +1181,9 @@ def get_sankey_info(neo4j_driver):
 
 """
 Returns sample uuid, sample rui location, sample metadata, sample group name, sample created_by_email, sample ancestor
-uuid, sample ancestor entity type, organ uuid, organ type, organ metadata, lab tissue sample id, donor uuid, donor 
-metadata all in a dictionary
+uuid, sample ancestor entity type, organ uuid, organ type, lab tissue sample id, donor uuid, donor 
+metadata, sample_hubmap_id, organ_hubmap_id, donor_hubmap_id, sample_submission_id, organ_submission_id,
+ donor_submission_id, and sample_type all in a dictionary
 
 Parameters
 ----------

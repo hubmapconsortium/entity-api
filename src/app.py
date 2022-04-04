@@ -3094,7 +3094,6 @@ def get_sample_prov_info():
     HEADER_DONOR_HAS_METADATA = "donor_has_metadata"
     HEADER_ORGAN_UUID = "organ_uuid"
     HEADER_ORGAN_TYPE = "organ_type"
-    HEADER_ORGAN_HAS_METADATA = "organ_has_metadata"
     HEADER_ORGAN_HUBMAP_ID = "organ_hubmap_id"
     HEADER_ORGAN_SUBMISSION_ID = "organ_submission_id"
     ORGAN_TYPES_URL = 'https://raw.githubusercontent.com/hubmapconsortium/search-api/master/src/search-schema/data/definitions/enums/organ_types.yaml'
