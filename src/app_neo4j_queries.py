@@ -1204,7 +1204,8 @@ def get_sample_prov_info(neo4j_driver, param_dict):
         f" MATCH (s)<-[]-()<-[]-(da)"
         f" RETURN s.uuid, s.lab_tissue_sample_id, s.group_name, s.created_by_user_email, s.metadata, s.rui_location,"
         f" d.uuid, d.metadata, organ.uuid, organ.specimen_type, organ.metadata, da.uuid, da.entity_type, "
-        f"s.specimen_type, organ.organ, s.organ"
+        f"s.specimen_type, organ.organ, s.organ, s.hubmap_id, s.submission_id, organ.hubmap_id, organ.submission_id, "
+        f"d.hubmap_id, d.submission_id"
     )
 
     logger.info("======get_sample_prov_info() query======")
@@ -1237,6 +1238,13 @@ def get_sample_prov_info(neo4j_driver, param_dict):
             record_dict['sample_specimen_type'] = record_contents[13]
             record_dict['organ_organ_type'] = record_contents[14]
             record_dict['sample_organ'] = record_contents[15]
+            record_dict['sample_hubmap_id'] = record_contents[16]
+            record_dict['sample_submission_id'] = record_contents[17]
+            record_dict['organ_hubmap_id'] = record_contents[18]
+            record_dict['organ_submission_id'] = record_contents[19]
+            record_dict['donor_hubmap_id'] = record_contents[20]
+            record_dict['donor_submission_id'] = record_contents[21]
+
             list_of_dictionaries.append(record_dict)
     return list_of_dictionaries
 

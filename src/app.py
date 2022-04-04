@@ -3085,11 +3085,18 @@ def get_sample_prov_info():
     HEADER_SAMPLE_HAS_RUI_INFO = "sample_has_rui_info"
     HEADER_SAMPLE_DIRECT_ANCESTOR_ID = "sample_ancestor_id"
     HEADER_SAMPLE_DIRECT_ANCESTOR_ENTITY_TYPE = "sample_ancestor_entity"
+    HEADER_SAMPLE_HUBMAP_ID = "sample_hubmap_id"
+    HEADER_SAMPLE_SUBMISSION_ID = "sample_submission_id"
+    HEADER_SAMPLE_TYPE = "sample_type"
     HEADER_DONOR_UUID = "donor_uuid"
+    HEADER_DONOR_SUBMISSION_ID = "donor_submission_id"
+    HEADER_DONOR_HUBMAP_ID = "donor_hubmap_id"
     HEADER_DONOR_HAS_METADATA = "donor_has_metadata"
     HEADER_ORGAN_UUID = "organ_uuid"
     HEADER_ORGAN_TYPE = "organ_type"
     HEADER_ORGAN_HAS_METADATA = "organ_has_metadata"
+    HEADER_ORGAN_HUBMAP_ID = "organ_hubmap_id"
+    HEADER_ORGAN_SUBMISSION_ID = "organ_submission_id"
     ORGAN_TYPES_URL = 'https://raw.githubusercontent.com/hubmapconsortium/search-api/master/src/search-schema/data/definitions/enums/organ_types.yaml'
 
     with urllib.request.urlopen(ORGAN_TYPES_URL) as response:
@@ -3160,13 +3167,18 @@ def get_sample_prov_info():
         internal_dict[HEADER_SAMPLE_HAS_METADATA] = sample_has_metadata
         internal_dict[HEADER_SAMPLE_HAS_RUI_INFO] = sample_has_rui_info
         internal_dict[HEADER_SAMPLE_DIRECT_ANCESTOR_ID] = sample['sample_ancestor_id']
+        internal_dict[HEADER_SAMPLE_TYPE] = sample['sample_specimen_type']
+        internal_dict[HEADER_SAMPLE_HUBMAP_ID] = sample['sample_hubmap_id']
+        internal_dict[HEADER_SAMPLE_SUBMISSION_ID] = sample['sample_submission_id']
         internal_dict[HEADER_SAMPLE_DIRECT_ANCESTOR_ENTITY_TYPE] = sample['sample_ancestor_entity']
         internal_dict[HEADER_DONOR_UUID] = sample['donor_uuid']
         internal_dict[HEADER_DONOR_HAS_METADATA] = donor_has_metadata
+        internal_dict[HEADER_DONOR_HUBMAP_ID] = sample['donor_hubmap_id']
+        internal_dict[HEADER_DONOR_SUBMISSION_ID] = sample['donor_submission_id']
         internal_dict[HEADER_ORGAN_UUID] = organ_uuid
         internal_dict[HEADER_ORGAN_TYPE] = organ_type
-        internal_dict[HEADER_ORGAN_HAS_METADATA] = organ_has_metadata
-
+        internal_dict[HEADER_ORGAN_HUBMAP_ID] = sample['organ_hubmap_id']
+        internal_dict[HEADER_ORGAN_SUBMISSION_ID] = sample['organ_submission_id']
 
         # Each sample's dictionary is added to the list to be returned
         sample_prov_list.append(internal_dict)
