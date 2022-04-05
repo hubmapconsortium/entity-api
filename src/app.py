@@ -3148,18 +3148,20 @@ def get_sample_prov_info():
         # the given sample is itself an organ.
         organ_uuid = None
         organ_type = None
-        organ_has_metadata = False
+        organ_hubmap_id = None
+        organ_submission_id = None
         if sample['organ_uuid'] is not None:
             organ_uuid = sample['organ_uuid']
             organ_type = organ_types_dict[sample['organ_organ_type']]['description'].lower()
-            if sample['organ_metadata'] is not None:
-                organ_has_metadata = True
+            organ_hubmap_id = sample['organ_hubmap_id']
+            organ_submission_id = sample['organ_submission_id']
         else:
             if sample['sample_specimen_type'] == "organ":
                 organ_uuid = sample['sample_uuid']
                 organ_type = organ_types_dict[sample['sample_organ']]['description'].lower()
-                if sample['organ_metadata'] is not None:
-                    organ_has_metadata = True
+                organ_hubmap_id = sample['sample_hubmap_id']
+                organ_submission_id = sample['sample_submission_id']
+
 
         sample_has_metadata = False
         if sample['sample_metadata'] is not None:
@@ -3191,8 +3193,8 @@ def get_sample_prov_info():
         internal_dict[HEADER_DONOR_SUBMISSION_ID] = sample['donor_submission_id']
         internal_dict[HEADER_ORGAN_UUID] = organ_uuid
         internal_dict[HEADER_ORGAN_TYPE] = organ_type
-        internal_dict[HEADER_ORGAN_HUBMAP_ID] = sample['organ_hubmap_id']
-        internal_dict[HEADER_ORGAN_SUBMISSION_ID] = sample['organ_submission_id']
+        internal_dict[HEADER_ORGAN_HUBMAP_ID] = organ_hubmap_id
+        internal_dict[HEADER_ORGAN_SUBMISSION_ID] = organ_submission_id
 
         # Each sample's dictionary is added to the list to be returned
         sample_prov_list.append(internal_dict)
