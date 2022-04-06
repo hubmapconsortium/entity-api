@@ -263,11 +263,11 @@ Returns
 json
     A json list of globus groups this user belongs to
 """
-@app.route('/user-groups', methods = ['GET'])
+@app.route('/usergroups', methods = ['GET'])
 def get_user_groups():
     token = get_user_token(request)
     groups_list = auth_helper_instance.get_user_groups_deprecated(token)
-
+    return jsonify(groups_list)
 
 
 """

@@ -1014,7 +1014,7 @@ def get_user_info(request):
         token = auth_helper_instance.getAuthorizationTokens(request.headers)
         groups_list = auth_helper_instance.get_user_groups_deprecated(token)
 
-        logger.info("======Debugging groups_list using get_user_groups_deprecated()======")
+        logger.info("======Groups using get_user_groups_deprecated()======")
         logger.info(groups_list)
     except Exception:
         msg = "For debugging purposes, failed to parse the Authorization token by calling commons.auth_helper.getAuthorizationTokens()"
