@@ -252,6 +252,24 @@ def get_status():
 
     return jsonify(status_data)
 
+
+"""
+Currently for debugging purpose 
+Essentially does the same as ingest-api's `/metadata/usergroups` using the deprecated commons method
+Globus groups token is required by AWS API Gateway lambda authorizer
+
+Returns
+-------
+json
+    A json list of globus groups this user belongs to
+"""
+@app.route('/user-groups', methods = ['GET'])
+def get_user_groups():
+    token = get_user_token(request)
+    groups_list = auth_helper_instance.get_user_groups_deprecated(token)
+
+
+
 """
 Retrieve the ancestor organ(s) of a given entity
 
