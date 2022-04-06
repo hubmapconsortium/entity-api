@@ -21,6 +21,7 @@ import provenance
 from schema import schema_manager
 from schema import schema_errors
 from schema import schema_triggers
+from schema.schema_constants import SchemaConstants
 
 # HuBMAP commons
 from hubmap_commons import string_helper
@@ -2384,8 +2385,8 @@ def get_prov_info():
     HEADER_PROCESSED_DATASET_HUBMAP_ID = 'processed_dataset_hubmap_id'
     HEADER_PROCESSED_DATASET_STATUS = 'processed_dataset_status'
     HEADER_PROCESSED_DATASET_PORTAL_URL = 'processed_dataset_portal_url'
-    ASSAY_TYPES_URL = 'https://raw.githubusercontent.com/hubmapconsortium/search-api/master/src/search-schema/data/definitions/enums/assay_types.yaml'
-    ORGAN_TYPES_URL = 'https://raw.githubusercontent.com/hubmapconsortium/search-api/master/src/search-schema/data/definitions/enums/organ_types.yaml'
+    ASSAY_TYPES_URL = SchemaConstants.ASSAY_TYPES_YAML
+    ORGAN_TYPES_URL = SchemaConstants.ORGAN_TYPES_YAML
     HEADER_PREVIOUS_VERSION_HUBMAP_IDS = 'previous_version_hubmap_ids'
 
     headers = [
@@ -2412,8 +2413,10 @@ def get_prov_info():
 
     # Parsing the organ types yaml has to be done here rather than calling schema.schema_triggers.get_organ_description
     # because that would require using a urllib request for each dataset
-    with urllib.request.urlopen(ORGAN_TYPES_URL) as response:
-        yaml_file = response.read()
+    response = requests.get(url=ORGAN_TYPES_URL, verify=False)
+    schema_manager._verify_request_cache(ORGAN_TYPES_URL, response.from_cache)
+    if response.status_code == 200:
+        yaml_file = response.text
         try:
             organ_types_dict = yaml.safe_load(yaml_file)
         except yaml.YAMLError as e:
@@ -2421,8 +2424,10 @@ def get_prov_info():
 
     # As above, we parse te assay type yaml here rather than calling the special method for it because this avoids
     # having to access the resource for every dataset.
-    with urllib.request.urlopen(ASSAY_TYPES_URL) as response:
-        yaml_file = response.read()
+    response = requests.get(url=ASSAY_TYPES_URL, verify=False)
+    schema_manager._verify_request_cache(ASSAY_TYPES_URL, response.from_cache)
+    if response.status_code == 200:
+        yaml_file = response.text
         try:
             assay_types_dict = yaml.safe_load(yaml_file)
         except yaml.YAMLError as e:
@@ -2759,8 +2764,8 @@ def get_prov_info_for_dataset(id):
     HEADER_PROCESSED_DATASET_HUBMAP_ID = 'processed_dataset_hubmap_id'
     HEADER_PROCESSED_DATASET_STATUS = 'processed_dataset_status'
     HEADER_PROCESSED_DATASET_PORTAL_URL = 'processed_dataset_portal_url'
-    ASSAY_TYPES_URL = 'https://raw.githubusercontent.com/hubmapconsortium/search-api/master/src/search-schema/data/definitions/enums/assay_types.yaml'
-    ORGAN_TYPES_URL = 'https://raw.githubusercontent.com/hubmapconsortium/search-api/master/src/search-schema/data/definitions/enums/organ_types.yaml'
+    ASSAY_TYPES_URL = SchemaConstants.ASSAY_TYPES_YAML
+    ORGAN_TYPES_URL = SchemaConstants.ORGAN_TYPES_YAML
 
     headers = [
         HEADER_DATASET_UUID, HEADER_DATASET_HUBMAP_ID, HEADER_DATASET_STATUS, HEADER_DATASET_GROUP_NAME,
@@ -2778,8 +2783,10 @@ def get_prov_info_for_dataset(id):
 
     # Parsing the organ types yaml has to be done here rather than calling schema.schema_triggers.get_organ_description
     # because that would require using a urllib request for each dataset
-    with urllib.request.urlopen(ORGAN_TYPES_URL) as response:
-        yaml_file = response.read()
+    response = requests.get(url=ORGAN_TYPES_URL, verify=False)
+    schema_manager._verify_request_cache(ORGAN_TYPES_URL, response.from_cache)
+    if response.status_code == 200:
+        yaml_file = response.text
         try:
             organ_types_dict = yaml.safe_load(yaml_file)
         except yaml.YAMLError as e:
@@ -2787,8 +2794,10 @@ def get_prov_info_for_dataset(id):
 
     # As above, we parse te assay type yaml here rather than calling the special method for it because this avoids
     # having to access the resource for every dataset.
-    with urllib.request.urlopen(ASSAY_TYPES_URL) as response:
-        yaml_file = response.read()
+    response = requests.get(url=ASSAY_TYPES_URL, verify=False)
+    schema_manager._verify_request_cache(ASSAY_TYPES_URL, response.from_cache)
+    if response.status_code == 200:
+        yaml_file = response.text
         try:
             assay_types_dict = yaml.safe_load(yaml_file)
         except yaml.YAMLError as e:
@@ -2997,14 +3006,16 @@ def sankey_data():
     HEADER_ORGAN_TYPE = 'organ_type'
     HEADER_DATASET_DATA_TYPES = 'dataset_data_types'
     HEADER_DATASET_STATUS = 'dataset_status'
-    ASSAY_TYPES_URL = 'https://raw.githubusercontent.com/hubmapconsortium/search-api/master/src/search-schema/data/definitions/enums/assay_types.yaml'
-    ORGAN_TYPES_URL = 'https://raw.githubusercontent.com/hubmapconsortium/search-api/master/src/search-schema/data/definitions/enums/organ_types.yaml'
+    ASSAY_TYPES_URL = SchemaConstants.ASSAY_TYPES_YAML
+    ORGAN_TYPES_URL = SchemaConstants.ORGAN_TYPES_YAML
     with open('sankey_mapping.json') as f:
         mapping_dict = json.load(f)
     # Parsing the organ types yaml has to be done here rather than calling schema.schema_triggers.get_organ_description
     # because that would require using a urllib request for each dataset
-    with urllib.request.urlopen(ORGAN_TYPES_URL) as response:
-        yaml_file = response.read()
+    response = requests.get(url=ORGAN_TYPES_URL, verify=False)
+    schema_manager._verify_request_cache(ORGAN_TYPES_URL, response.from_cache)
+    if response.status_code == 200:
+        yaml_file = response.text
         try:
             organ_types_dict = yaml.safe_load(yaml_file)
         except yaml.YAMLError as e:
@@ -3012,8 +3023,10 @@ def sankey_data():
 
     # As above, we parse te assay type yaml here rather than calling the special method for it because this avoids
     # having to access the resource for every dataset.
-    with urllib.request.urlopen(ASSAY_TYPES_URL) as response:
-        yaml_file = response.read()
+    response = requests.get(url=ASSAY_TYPES_URL, verify=False)
+    schema_manager._verify_request_cache(ASSAY_TYPES_URL, response.from_cache)
+    if response.status_code == 200:
+        yaml_file = response.text
         try:
             assay_types_dict = yaml.safe_load(yaml_file)
         except yaml.YAMLError as e:
@@ -3055,6 +3068,137 @@ def sankey_data():
         # Each dataset's dictionary is added to the list to be returned
         dataset_sankey_list.append(internal_dict)
     return jsonify(dataset_sankey_list)
+
+
+"""
+Get the complete provenance info for all samples
+
+Authentication
+-------
+Token that is part of the HuBMAP Read-Group is required.
+
+Query Parameters
+-------
+    group_uuid : string
+        Filters returned samples by a given group uuid. 
+
+Returns
+-------
+json
+    an array of each datatset's provenance info
+"""
+@app.route('/samples/prov-info', methods=['GET'])
+def get_sample_prov_info():
+    # String Constants
+    HEADER_SAMPLE_UUID = "sample_uuid"
+    HEADER_SAMPLE_LAB_ID = "lab_id_or_name"
+    HEADER_SAMPLE_GROUP_NAME = "sample_group_name"
+    HEADER_SAMPLE_CREATED_BY_EMAIL = "sample_created_by_email"
+    HEADER_SAMPLE_HAS_METADATA = "sample_has_metadata"
+    HEADER_SAMPLE_HAS_RUI_INFO = "sample_has_rui_info"
+    HEADER_SAMPLE_DIRECT_ANCESTOR_ID = "sample_ancestor_id"
+    HEADER_SAMPLE_DIRECT_ANCESTOR_ENTITY_TYPE = "sample_ancestor_entity"
+    HEADER_SAMPLE_HUBMAP_ID = "sample_hubmap_id"
+    HEADER_SAMPLE_SUBMISSION_ID = "sample_submission_id"
+    HEADER_SAMPLE_TYPE = "sample_type"
+    HEADER_DONOR_UUID = "donor_uuid"
+    HEADER_DONOR_SUBMISSION_ID = "donor_submission_id"
+    HEADER_DONOR_HUBMAP_ID = "donor_hubmap_id"
+    HEADER_DONOR_HAS_METADATA = "donor_has_metadata"
+    HEADER_ORGAN_UUID = "organ_uuid"
+    HEADER_ORGAN_TYPE = "organ_type"
+    HEADER_ORGAN_HUBMAP_ID = "organ_hubmap_id"
+    HEADER_ORGAN_SUBMISSION_ID = "organ_submission_id"
+    ORGAN_TYPES_URL = SchemaConstants.ORGAN_TYPES_YAML
+
+    response = requests.get(url=ORGAN_TYPES_URL, verify=False)
+    schema_manager._verify_request_cache(ORGAN_TYPES_URL, response.from_cache)
+    if response.status_code == 200:
+        yaml_file = response.text
+        try:
+            organ_types_dict = yaml.safe_load(yaml_file)
+        except yaml.YAMLError as e:
+            raise yaml.YAMLError(e)
+
+    # Processing and validating query parameters
+    accepted_arguments = ['group_uuid']
+    param_dict = {}  # currently the only filter is group_uuid, but in case this grows, we're using a dictionary
+    if bool(request.args):
+        for argument in request.args:
+            if argument not in accepted_arguments:
+                bad_request_error(f"{argument} is an unrecognized argument.")
+        group_uuid = request.args.get('group_uuid')
+        if group_uuid is not None:
+            groups_by_id_dict = globus_groups.get_globus_groups_info()['by_id']
+            if group_uuid not in groups_by_id_dict:
+                bad_request_error(f"Invalid Group UUID.")
+            if not groups_by_id_dict[group_uuid]['data_provider']:
+                bad_request_error(f"Invalid Group UUID. Group must be a data provider")
+            param_dict['group_uuid'] = group_uuid
+
+    # Instantiation of the list sample_prov_list
+    sample_prov_list = []
+
+    # Call to app_neo4j_queries to prepare and execute database query
+    prov_info = app_neo4j_queries.get_sample_prov_info(neo4j_driver_instance, param_dict)
+
+    for sample in prov_info:
+
+        # For cases where there is no sample of type organ above a given sample in the provenance, we check to see if
+        # the given sample is itself an organ.
+        organ_uuid = None
+        organ_type = None
+        organ_hubmap_id = None
+        organ_submission_id = None
+        if sample['organ_uuid'] is not None:
+            organ_uuid = sample['organ_uuid']
+            organ_type = organ_types_dict[sample['organ_organ_type']]['description'].lower()
+            organ_hubmap_id = sample['organ_hubmap_id']
+            organ_submission_id = sample['organ_submission_id']
+        else:
+            if sample['sample_specimen_type'] == "organ":
+                organ_uuid = sample['sample_uuid']
+                organ_type = organ_types_dict[sample['sample_organ']]['description'].lower()
+                organ_hubmap_id = sample['sample_hubmap_id']
+                organ_submission_id = sample['sample_submission_id']
+
+
+        sample_has_metadata = False
+        if sample['sample_metadata'] is not None:
+            sample_has_metadata = True
+
+        sample_has_rui_info = False
+        if sample['sample_rui_info'] is not None:
+            sample_has_rui_info = True
+
+        donor_has_metadata = False
+        if sample['donor_metadata'] is not None:
+            donor_has_metadata = True
+
+        internal_dict = collections.OrderedDict()
+        internal_dict[HEADER_SAMPLE_UUID] = sample['sample_uuid']
+        internal_dict[HEADER_SAMPLE_LAB_ID] = sample['lab_sample_id']
+        internal_dict[HEADER_SAMPLE_GROUP_NAME] = sample['sample_group_name']
+        internal_dict[HEADER_SAMPLE_CREATED_BY_EMAIL] = sample['sample_created_by_email']
+        internal_dict[HEADER_SAMPLE_HAS_METADATA] = sample_has_metadata
+        internal_dict[HEADER_SAMPLE_HAS_RUI_INFO] = sample_has_rui_info
+        internal_dict[HEADER_SAMPLE_DIRECT_ANCESTOR_ID] = sample['sample_ancestor_id']
+        internal_dict[HEADER_SAMPLE_TYPE] = sample['sample_specimen_type']
+        internal_dict[HEADER_SAMPLE_HUBMAP_ID] = sample['sample_hubmap_id']
+        internal_dict[HEADER_SAMPLE_SUBMISSION_ID] = sample['sample_submission_id']
+        internal_dict[HEADER_SAMPLE_DIRECT_ANCESTOR_ENTITY_TYPE] = sample['sample_ancestor_entity']
+        internal_dict[HEADER_DONOR_UUID] = sample['donor_uuid']
+        internal_dict[HEADER_DONOR_HAS_METADATA] = donor_has_metadata
+        internal_dict[HEADER_DONOR_HUBMAP_ID] = sample['donor_hubmap_id']
+        internal_dict[HEADER_DONOR_SUBMISSION_ID] = sample['donor_submission_id']
+        internal_dict[HEADER_ORGAN_UUID] = organ_uuid
+        internal_dict[HEADER_ORGAN_TYPE] = organ_type
+        internal_dict[HEADER_ORGAN_HUBMAP_ID] = organ_hubmap_id
+        internal_dict[HEADER_ORGAN_SUBMISSION_ID] = organ_submission_id
+
+        # Each sample's dictionary is added to the list to be returned
+        sample_prov_list.append(internal_dict)
+    return jsonify(sample_prov_list)
 
 
 ####################################################################################################
