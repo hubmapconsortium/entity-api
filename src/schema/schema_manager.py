@@ -1008,6 +1008,19 @@ def get_user_info(request):
     logger.info("======get_user_info()======")
     logger.info(user_info)
 
+    # For debugging purposes
+    try:
+        auth_helper_instance = get_auth_helper_instance()
+        token = auth_helper_instance.getAuthorizationTokens(request.headers)
+        groups_list = auth_helper_instance.get_user_groups_deprecated(token)
+
+        logger.info("======Groups using get_user_groups_deprecated()======")
+        logger.info(groups_list)
+    except Exception:
+        msg = "For debugging purposes, failed to parse the Authorization token by calling commons.auth_helper.getAuthorizationTokens()"
+        # Log the full stack trace, prepend a line with our message
+        logger.exception(msg)
+
     # It returns error response when:
     # - invalid header or token
     # - token is valid but not nexus token, can't find group info
