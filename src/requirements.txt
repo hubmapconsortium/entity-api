@@ -18,9 +18,6 @@ nested-lookup==0.2.22
 requests==2.25.1
 PyYAML==5.4.1
 
-# 0.5.2 compatible with Python 3.6
-requests_cache==0.5.2
-
 # The branch name of commons to be used during image build
 # Default is master branch specified in docker-compose.yml if not set
 git+https://github.com/hubmapconsortium/commons.git@${COMMONS_BRANCH}#egg=hubmap-commons

@@ -5,7 +5,6 @@ import yaml
 import logging
 import datetime
 import requests
-import requests_cache
 from neo4j.exceptions import TransactionError
 
 # Use the current_app proxy, which points to the application handling the current activity
@@ -18,11 +17,6 @@ from schema import schema_neo4j_queries
 from schema.schema_constants import SchemaConstants
 
 logger = logging.getLogger(__name__)
-
-# Requests cache generates the sqlite file
-# File path without the .sqlite extension
-# Expire the cache after the time-to-live (7200 seconds)
-requests_cache.install_cache(SchemaConstants.REQUESTS_CACHE_SQLITE_NAME, backend=SchemaConstants.REQUESTS_CACHE_BACKEND, expire_after=SchemaConstants.REQUESTS_CACHE_TTL)
 
 
 ####################################################################################################
@@ -1911,9 +1905,6 @@ def _get_assay_type_description(data_types):
         # Disable ssl certificate verification
         response = requests.get(url = search_api_target_url, verify = False)
 
-        # Verify if the cached response being used
-        schema_manager._verify_request_cache(search_api_target_url, response.from_cache)
-
         if response.status_code == 200:
             assay_type_info = response.json()
             # Add to the list
@@ -1968,9 +1959,6 @@ def _get_organ_description(organ_code):
     
     # Disable ssl certificate verification
     response = requests.get(url = yaml_file_url, verify = False)
-
-    # Verify if the cached response being used
-    schema_manager._verify_request_cache(yaml_file_url, response.from_cache)
 
     if response.status_code == 200:
         yaml_file = response.text

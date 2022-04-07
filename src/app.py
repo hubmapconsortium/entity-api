@@ -15,6 +15,7 @@ from pathlib import Path
 import logging
 import json
 import time
+
 # Local modules
 import app_neo4j_queries
 import provenance
@@ -2432,7 +2433,7 @@ def get_prov_info():
     # Parsing the organ types yaml has to be done here rather than calling schema.schema_triggers.get_organ_description
     # because that would require using a urllib request for each dataset
     response = requests.get(url=ORGAN_TYPES_URL, verify=False)
-    schema_manager._verify_request_cache(ORGAN_TYPES_URL, response.from_cache)
+
     if response.status_code == 200:
         yaml_file = response.text
         try:
@@ -2443,7 +2444,7 @@ def get_prov_info():
     # As above, we parse te assay type yaml here rather than calling the special method for it because this avoids
     # having to access the resource for every dataset.
     response = requests.get(url=ASSAY_TYPES_URL, verify=False)
-    schema_manager._verify_request_cache(ASSAY_TYPES_URL, response.from_cache)
+
     if response.status_code == 200:
         yaml_file = response.text
         try:
@@ -2802,7 +2803,7 @@ def get_prov_info_for_dataset(id):
     # Parsing the organ types yaml has to be done here rather than calling schema.schema_triggers.get_organ_description
     # because that would require using a urllib request for each dataset
     response = requests.get(url=ORGAN_TYPES_URL, verify=False)
-    schema_manager._verify_request_cache(ORGAN_TYPES_URL, response.from_cache)
+
     if response.status_code == 200:
         yaml_file = response.text
         try:
@@ -2813,7 +2814,7 @@ def get_prov_info_for_dataset(id):
     # As above, we parse te assay type yaml here rather than calling the special method for it because this avoids
     # having to access the resource for every dataset.
     response = requests.get(url=ASSAY_TYPES_URL, verify=False)
-    schema_manager._verify_request_cache(ASSAY_TYPES_URL, response.from_cache)
+
     if response.status_code == 200:
         yaml_file = response.text
         try:
@@ -3031,7 +3032,7 @@ def sankey_data():
     # Parsing the organ types yaml has to be done here rather than calling schema.schema_triggers.get_organ_description
     # because that would require using a urllib request for each dataset
     response = requests.get(url=ORGAN_TYPES_URL, verify=False)
-    schema_manager._verify_request_cache(ORGAN_TYPES_URL, response.from_cache)
+
     if response.status_code == 200:
         yaml_file = response.text
         try:
@@ -3042,7 +3043,7 @@ def sankey_data():
     # As above, we parse te assay type yaml here rather than calling the special method for it because this avoids
     # having to access the resource for every dataset.
     response = requests.get(url=ASSAY_TYPES_URL, verify=False)
-    schema_manager._verify_request_cache(ASSAY_TYPES_URL, response.from_cache)
+
     if response.status_code == 200:
         yaml_file = response.text
         try:
@@ -3130,7 +3131,7 @@ def get_sample_prov_info():
     ORGAN_TYPES_URL = SchemaConstants.ORGAN_TYPES_YAML
 
     response = requests.get(url=ORGAN_TYPES_URL, verify=False)
-    schema_manager._verify_request_cache(ORGAN_TYPES_URL, response.from_cache)
+
     if response.status_code == 200:
         yaml_file = response.text
         try:
