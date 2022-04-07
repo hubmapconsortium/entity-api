@@ -1,11 +1,5 @@
 class SchemaConstants(object):
 
-    # File path to the requests_cache generated sqlite (without extension) within docker container, DO NOT MODIFY
-    # Expire the cache after the time-to-live (seconds)
-    REQUESTS_CACHE_BACKEND = 'sqlite'
-    REQUESTS_CACHE_SQLITE_NAME = '/usr/src/app/requests_cache/entity-api'
-    REQUESTS_CACHE_TTL = 7200
-
     # Constants used by validators
     INGEST_API_APP = 'ingest-api'
     INGEST_PIPELINE_APP = 'ingest-pipeline'
