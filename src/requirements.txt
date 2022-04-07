@@ -6,6 +6,11 @@
 # Add this itsdangerous dependency and downgrade to 2.0.1 as a temporary solution
 itsdangerous==2.0.1
 
+# 4/7/2022
+# Note: pin version of Jinja2 to 3.0.3 because escape function was removed from newer release 
+# but Flask v1.1.2 that we are using still depends on the older version
+Jinja2==3.0.3
+
 Flask==1.1.2
 neo4j==4.4
 prov==2.0.0
