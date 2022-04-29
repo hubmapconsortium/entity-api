@@ -535,6 +535,14 @@ ENTITIES:
       specimen_type_other:
         type: string
         description: "The user provided sample type if the 'other' sample_type is chosen."
+      
+      # In-progress
+      tissue_type:
+        type: string
+        description: 'The type of the tissue based on the mapping between type (Block/Section/Suspension) and the specimen_type'
+        before_create_trigger: set_tissue_type
+        before_update_trigger: set_tissue_type
+      
       portal_metadata_upload_files:
         type: json_string
         description: "A list of relative paths to metadata files"
@@ -698,6 +706,7 @@ ENTITIES:
         # The updated_peripherally tag is a temporary measure to correctly handle any attributes
         # which are potentially updated by multiple triggers
         updated_peripherally: true
+
 
   ############################################# Upload #############################################
   # Eventually we might allow folks to bulk register Samples or Donors through the same mechanism.

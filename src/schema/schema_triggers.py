@@ -1459,6 +1459,34 @@ def get_sample_direct_ancestor(property_key, normalized_type, user_token, existi
     return property_key, schema_manager.normalize_entity_result_for_response(complete_dict)
 
 
+"""
+TO-DO
+
+Trigger event method of generating the type of the tissue based on the mapping between type (Block/Section/Suspension) and the specimen_type
+
+Parameters
+----------
+property_key : str
+    The target property key of the value to be generated
+normalized_type : str
+    One of the types defined in the schema yaml: Activity, Collection, Donor, Sample, Dataset
+user_token: str
+    The user's globus nexus token
+existing_data_dict : dict
+    A dictionary that contains all existing entity properties
+new_data_dict : dict
+    A merged dictionary that contains all possible input data to be used
+
+Returns
+-------
+str: The target property key
+str: The hubmap_id created via uuid-api
+"""
+def set_tissue_type(property_key, normalized_type, user_token, existing_data_dict, new_data_dict):
+    tissue_type = ''
+    
+    return property_key, tissue_type
+
 
 ####################################################################################################
 ## Trigger methods specific to Upload - DO NOT RENAME
