@@ -1460,8 +1460,6 @@ def get_sample_direct_ancestor(property_key, normalized_type, user_token, existi
 
 
 """
-TO-DO
-
 Trigger event method of generating the type of the tissue based on the mapping between type (Block/Section/Suspension) and the specimen_type
 This method applies to both the create and update triggers
 
@@ -1491,45 +1489,62 @@ def set_tissue_type(property_key, normalized_type, user_token, existing_data_dic
     if ('specimen_type' not in new_data_dict) and ('specimen_type' not in existing_data_dict):
         raise KeyError("Missing 'specimen_type' key in both 'new_data_dict' and 'existing_data_dict' during calling 'set_tissue_type()' trigger method.")
 
-    # Case 1: new entity creation
+    # Case 1: new entity creation with required `specimen_type`
     # Case 2: entity update with providing `specimen_type`
     # Case 3: entity update without providing `specimen_type`
     # Case 1 and 2 share the same handling
-    # Case 3 just reuses the existing `tissue_type` value
+    # Case 3 just reuse the existing `tissue_type` value
     if 'specimen_type' in new_data_dict:
         # Do we have a complete list of specimen_type values for validation?
         specimen_type = new_data_dict['specimen_type'].lower()
 
         block_category = [
+            'pbmc',
             'biopsy',
-            'organ_piece',
-            'flash_frozen_liquid_nitrogen',
-            'fresh_frozen_tissue',
+            'segment',
             'ffpe_block',
+            'organ_piece',
+            'fresh_tissue',
+            'clarity_hydrogel',
+            'fixed_tissue_piece',
+            'fresh_frozen_tissue',
             'fresh_frozen_oct_block',
-            'frozen_cell_pellet_buffy_coat',
+            'formalin_fixed_oct_block',
             'pfa_fixed_frozen_oct_block',
-            'clarity_hydrogel'
+            'flash_frozen_liquid_nitrogen',
+            'frozen_cell_pellet_buffy_coat'
         ]
 
         section_category = [
-            'fresh_frozen_tissue_section',
             'ffpe_slide',
-            'cryosections_curls_from_fresh_frozen_oct',
+            'fixed_frozen_section_slide',
+            'fresh_frozen_section_slide',
+            'fresh_frozen_tissue_section',
             'cryosections_curls_rnalater',
-            'fresh_frozen_section_slide'
+            'cryosections_curls_from_fresh_frozen_oct'
         ]
 
         suspension_category = [
+            'gdna',
+            'serum',
+            'plasma',
+            'nuclei',
+            'protein',
+            'rna_total',
             'cell_lysate',
+            'tissue_lysate',
+            'sequence_library',
+            'ran_poly_a_enriched',
             'single_cell_cryopreserved'
         ]
 
         # How to handle unknown? 
         unknown_category = [
             'organ',
-            'rnalater_treated_and_stored',
-            'other'
+            'other',
+            'module',
+            'nuclei_rnalater',
+            'rnalater_treated_and_stored'
         ]
 
         if specimen_type in block_category:
@@ -1539,7 +1554,7 @@ def set_tissue_type(property_key, normalized_type, user_token, existing_data_dic
         elif specimen_type in suspension_category:
             tissue_type = 'suspension'
     else
-        # Reue the existing value
+        # Reuse the existing value
         tissue_type = existing_data_dict['tissue_type']
 
     return property_key, tissue_type
