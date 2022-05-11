@@ -1463,6 +1463,10 @@ def get_sample_direct_ancestor(property_key, normalized_type, user_token, existi
 Trigger event method of generating the type of the tissue based on the mapping between type (Block/Section/Suspension) and the specimen_type
 This method applies to both the create and update triggers
 
+Rererence:
+    - https://docs.google.com/spreadsheets/d/1OODo8QK852txSNSmfIe0ua4A7nPFSgKq6h46grmrpto/edit#gid=0
+    - https://github.com/hubmapconsortium/search-api/blob/test-release/src/search-schema/data/definitions/enums/tissue_sample_types.yaml
+
 Parameters
 ----------
 property_key : str
@@ -1484,20 +1488,26 @@ str: The type of the tissue
 def set_tissue_type(property_key, normalized_type, user_token, existing_data_dict, new_data_dict):
     tissue_type = None
 
-    # `specimen_type` is required field on entity creation via POST
-    # thus should be available on entity update via PUT
+    # The `specimen_type` field is required on entity creation via POST
+    # thus should be available on existing entity update via PUT
     if ('specimen_type' not in new_data_dict) and ('specimen_type' not in existing_data_dict):
         raise KeyError("Missing 'specimen_type' key in both 'new_data_dict' and 'existing_data_dict' during calling 'set_tissue_type()' trigger method.")
 
-    # Case 1: new entity creation with required `specimen_type`
-    # Case 2: entity update with providing `specimen_type`
-    # Case 3: entity update without providing `specimen_type`
+    # Case 1: new entity creation along with the required `specimen_type` field
+    # Case 2: existing entity update with providing `specimen_type`
+    # Case 3: existing entity update without providing `specimen_type`
     # Case 1 and 2 share the same handling
     # Case 3 just reuse the existing `tissue_type` value
     if 'specimen_type' in new_data_dict:
-        # Do we have a complete list of specimen_type values for validation?
+        # Validate the provided specimenType against the definitions at
+        # https://github.com/hubmapconsortium/search-api/blob/test-release/src/search-schema/data/definitions/enums/tissue_sample_types.yaml
         specimen_type = new_data_dict['specimen_type'].lower()
+        defined_tissue_types = _get_tissue_types()
 
+        if (specimen_type ! = 'other') and (specimen_type not in defined_tissue_types):
+            raise ValueError(f"Invalid 'specimen_type': {specimen_type}. It must be one of the values defined in {SchemaConstants.TISSUE_TYPES_YAML}")
+
+        # Categories: Block, Section, Suspension 
         block_category = [
             'pbmc',
             'biopsy',
@@ -1547,14 +1557,15 @@ def set_tissue_type(property_key, normalized_type, user_token, existing_data_dic
             'rnalater_treated_and_stored'
         ]
 
+        # Capitalized type
         if specimen_type in block_category:
-            tissue_type = 'block'
+            tissue_type = 'Block'
         elif specimen_type in section_category:
-            tissue_type = 'section'
+            tissue_type = 'Section'
         elif specimen_type in suspension_category:
-            tissue_type = 'suspension'
+            tissue_type = 'Suspension'
     else
-        # Reuse the existing value
+        # Reuse the existing value when `specimen_type` is not specified in a PUT
         tissue_type = existing_data_dict['tissue_type']
 
     return property_key, tissue_type
@@ -1982,6 +1993,7 @@ def _delete_files(target_property_key, property_key, normalized_type, user_token
 
     return generated_dict
 
+
 """
 Compose the assay type description
 
@@ -2042,6 +2054,7 @@ def _get_assay_type_description(data_types):
 
     return assay_type_desc
 
+
 """
 Get the organ description based on the given organ code
 
@@ -2077,6 +2090,44 @@ def _get_organ_description(organ_code):
         logger.debug(response.status_code)
 
         logger.debug("======_get_organ_description() response text======")
+        logger.debug(response.text)
+
+        # Also bubble up the error message
+        raise requests.exceptions.RequestException(response.text)
+
+
+"""
+Get the complete list of defined tissue types
+
+Returns
+-------
+list: The list of defined tissue types
+"""
+def _get_tissue_types():
+    yaml_file_url = SchemaConstants.TISSUE_TYPES_YAML
+    
+    # Disable ssl certificate verification
+    response = requests.get(url = yaml_file_url, verify = False)
+
+    if response.status_code == 200:
+        yaml_file = response.text
+
+        try:
+            tissue_types_dict = yaml.safe_load(response.text)
+
+            # We don't need the description here, just a list of tissue types
+            return tissue_types_dict.keys()
+        except yaml.YAMLError as e:
+            raise yaml.YAMLError(e)
+    else:
+        msg = f"Unable to fetch the: {yaml_file_url}"
+        # Log the full stack trace, prepend a line with our message
+        logger.exception(msg)
+
+        logger.debug("======_get_tissue_types() status code======")
+        logger.debug(response.status_code)
+
+        logger.debug("======_get_tissue_types() response text======")
         logger.debug(response.text)
 
         # Also bubble up the error message

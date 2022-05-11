@@ -14,3 +14,6 @@ class SchemaConstants(object):
     # Yaml file to parse organ description
     ORGAN_TYPES_YAML = 'https://raw.githubusercontent.com/hubmapconsortium/search-api/master/src/search-schema/data/definitions/enums/organ_types.yaml'
     ASSAY_TYPES_YAML = 'https://raw.githubusercontent.com/hubmapconsortium/search-api/master/src/search-schema/data/definitions/enums/assay_types.yaml'
+
+    # For generating Sample.tissue_type
+    TISSUE_TYPES_YAML = 'https://github.com/hubmapconsortium/search-api/blob/test-release/src/search-schema/data/definitions/enums/tissue_sample_types.yaml'
