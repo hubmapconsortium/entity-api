@@ -16,4 +16,4 @@ class SchemaConstants(object):
     ASSAY_TYPES_YAML = 'https://raw.githubusercontent.com/hubmapconsortium/search-api/master/src/search-schema/data/definitions/enums/assay_types.yaml'
 
     # For generating Sample.tissue_type
-    TISSUE_TYPES_YAML = 'https://github.com/hubmapconsortium/search-api/blob/test-release/src/search-schema/data/definitions/enums/tissue_sample_types.yaml'
+    TISSUE_TYPES_YAML = 'https://github.com/hubmapconsortium/search-api/blob/master/src/search-schema/data/definitions/enums/tissue_sample_types.yaml'

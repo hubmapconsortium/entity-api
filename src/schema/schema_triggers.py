@@ -1465,7 +1465,7 @@ This method applies to both the create and update triggers
 
 Rererence:
     - https://docs.google.com/spreadsheets/d/1OODo8QK852txSNSmfIe0ua4A7nPFSgKq6h46grmrpto/edit#gid=0
-    - https://github.com/hubmapconsortium/search-api/blob/test-release/src/search-schema/data/definitions/enums/tissue_sample_types.yaml
+    - https://github.com/hubmapconsortium/search-api/blob/master/src/search-schema/data/definitions/enums/tissue_sample_types.yaml
 
 Parameters
 ----------
@@ -1486,87 +1486,73 @@ str: The target property key
 str: The type of the tissue
 """
 def set_tissue_type(property_key, normalized_type, user_token, existing_data_dict, new_data_dict):
-    tissue_type = None
+    tissue_type = 'Unknown'
 
     # The `specimen_type` field is required on entity creation via POST
     # thus should be available on existing entity update via PUT
+    # We do a double check here just in case
     if ('specimen_type' not in new_data_dict) and ('specimen_type' not in existing_data_dict):
         raise KeyError("Missing 'specimen_type' key in both 'new_data_dict' and 'existing_data_dict' during calling 'set_tissue_type()' trigger method.")
 
-    # Case 1: new entity creation along with the required `specimen_type` field
-    # Case 2: existing entity update with providing `specimen_type`
-    # Case 3: existing entity update without providing `specimen_type`
-    # Case 1 and 2 share the same handling
-    # Case 3 just reuse the existing `tissue_type` value
+    # Always calculate the tissue_type value no matter new creation or update existing
+    # The `specimen_type` field can be used in a PUT
+    # But if it's not in the request JSON of a PUT, it must be in the existing data
     if 'specimen_type' in new_data_dict:
-        # Validate the provided specimenType against the definitions at
-        # https://github.com/hubmapconsortium/search-api/blob/test-release/src/search-schema/data/definitions/enums/tissue_sample_types.yaml
+        # The `specimen_type` value validation is handled in the `schema_validators.validate_specimen_type()`
+        # and that gets called before this trigger method
         specimen_type = new_data_dict['specimen_type'].lower()
-        defined_tissue_types = _get_tissue_types()
+    else:
+        # use lowercase in case someone manually updated the neo4j filed with incorrect case
+        specimen_type = existing_data_dict['specimen_type'].lower()
 
-        if (specimen_type ! = 'other') and (specimen_type not in defined_tissue_types):
-            raise ValueError(f"Invalid 'specimen_type': {specimen_type}. It must be one of the values defined in {SchemaConstants.TISSUE_TYPES_YAML}")
+    # Categories: Block, Section, Suspension 
+    block_category = [
+        'pbmc',
+        'biopsy',
+        'segment',
+        'ffpe_block',
+        'organ_piece',
+        'fresh_tissue',
+        'clarity_hydrogel',
+        'fixed_tissue_piece',
+        'fresh_frozen_tissue',
+        'fresh_frozen_oct_block',
+        'formalin_fixed_oct_block',
+        'pfa_fixed_frozen_oct_block',
+        'flash_frozen_liquid_nitrogen',
+        'frozen_cell_pellet_buffy_coat'
+    ]
 
-        # Categories: Block, Section, Suspension 
-        block_category = [
-            'pbmc',
-            'biopsy',
-            'segment',
-            'ffpe_block',
-            'organ_piece',
-            'fresh_tissue',
-            'clarity_hydrogel',
-            'fixed_tissue_piece',
-            'fresh_frozen_tissue',
-            'fresh_frozen_oct_block',
-            'formalin_fixed_oct_block',
-            'pfa_fixed_frozen_oct_block',
-            'flash_frozen_liquid_nitrogen',
-            'frozen_cell_pellet_buffy_coat'
-        ]
+    section_category = [
+        'ffpe_slide',
+        'fixed_frozen_section_slide',
+        'fresh_frozen_section_slide',
+        'fresh_frozen_tissue_section',
+        'cryosections_curls_rnalater',
+        'cryosections_curls_from_fresh_frozen_oct'
+    ]
 
-        section_category = [
-            'ffpe_slide',
-            'fixed_frozen_section_slide',
-            'fresh_frozen_section_slide',
-            'fresh_frozen_tissue_section',
-            'cryosections_curls_rnalater',
-            'cryosections_curls_from_fresh_frozen_oct'
-        ]
+    suspension_category = [
+        'gdna',
+        'serum',
+        'plasma',
+        'nuclei',
+        'protein',
+        'rna_total',
+        'cell_lysate',
+        'tissue_lysate',
+        'sequence_library',
+        'ran_poly_a_enriched',
+        'single_cell_cryopreserved'
+    ]
 
-        suspension_category = [
-            'gdna',
-            'serum',
-            'plasma',
-            'nuclei',
-            'protein',
-            'rna_total',
-            'cell_lysate',
-            'tissue_lysate',
-            'sequence_library',
-            'ran_poly_a_enriched',
-            'single_cell_cryopreserved'
-        ]
-
-        # How to handle unknown? 
-        unknown_category = [
-            'organ',
-            'other',
-            'module',
-            'nuclei_rnalater',
-            'rnalater_treated_and_stored'
-        ]
-
-        # Capitalized type
-        if specimen_type in block_category:
-            tissue_type = 'Block'
-        elif specimen_type in section_category:
-            tissue_type = 'Section'
-        elif specimen_type in suspension_category:
-            tissue_type = 'Suspension'
-    else
-        # Reuse the existing value when `specimen_type` is not specified in a PUT
-        tissue_type = existing_data_dict['tissue_type']
+    # Capitalized type, default is 'Unknown' if no match
+    if specimen_type in block_category:
+        tissue_type = 'Block'
+    elif specimen_type in section_category:
+        tissue_type = 'Section'
+    elif specimen_type in suspension_category:
+        tissue_type = 'Suspension'
 
     return property_key, tissue_type
 
@@ -2096,40 +2082,5 @@ def _get_organ_description(organ_code):
         raise requests.exceptions.RequestException(response.text)
 
 
-"""
-Get the complete list of defined tissue types
 
-Returns
--------
-list: The list of defined tissue types
-"""
-def _get_tissue_types():
-    yaml_file_url = SchemaConstants.TISSUE_TYPES_YAML
-    
-    # Disable ssl certificate verification
-    response = requests.get(url = yaml_file_url, verify = False)
-
-    if response.status_code == 200:
-        yaml_file = response.text
-
-        try:
-            tissue_types_dict = yaml.safe_load(response.text)
-
-            # We don't need the description here, just a list of tissue types
-            return tissue_types_dict.keys()
-        except yaml.YAMLError as e:
-            raise yaml.YAMLError(e)
-    else:
-        msg = f"Unable to fetch the: {yaml_file_url}"
-        # Log the full stack trace, prepend a line with our message
-        logger.exception(msg)
-
-        logger.debug("======_get_tissue_types() status code======")
-        logger.debug(response.status_code)
-
-        logger.debug("======_get_tissue_types() response text======")
-        logger.debug(response.text)
-
-        # Also bubble up the error message
-        raise requests.exceptions.RequestException(response.text)
 
