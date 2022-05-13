@@ -540,15 +540,12 @@ ENTITIES:
       specimen_type_other:
         type: string
         description: "The user provided sample type if the 'other' sample_type is chosen."
-      
-      # In-progress
       tissue_type:
         type: string
         generated: true # Can not be updated via the PUT
-        description: 'The type of the tissue based on the mapping between type (Block/Section/Suspension) and the specimen_type'
+        description: 'The type of the tissue based on the mapping between type (Block/Section/Suspension) and the specimen_type, default is Unknown'
         before_create_trigger: set_tissue_type
         before_update_trigger: set_tissue_type
-      
       portal_metadata_upload_files:
         type: json_string
         description: "A list of relative paths to metadata files"

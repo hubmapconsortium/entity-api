@@ -1486,6 +1486,7 @@ str: The target property key
 str: The type of the tissue
 """
 def set_tissue_type(property_key, normalized_type, user_token, existing_data_dict, new_data_dict):
+    # Default to use 'Unknown'
     tissue_type = 'Unknown'
 
     # The `specimen_type` field is required on entity creation via POST
@@ -1502,7 +1503,7 @@ def set_tissue_type(property_key, normalized_type, user_token, existing_data_dic
         # and that gets called before this trigger method
         specimen_type = new_data_dict['specimen_type'].lower()
     else:
-        # use lowercase in case someone manually updated the neo4j filed with incorrect case
+        # Use lowercase in case someone manually updated the neo4j filed with incorrect case
         specimen_type = existing_data_dict['specimen_type'].lower()
 
     # Categories: Block, Section, Suspension 
