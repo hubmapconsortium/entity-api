@@ -1,4 +1,9 @@
 class SchemaConstants(object):
+    # Used by function cache (memoization)
+    # The maximum integer number of entries in the cache queue
+    # Expire the cache after the time-to-live (seconds)
+    CACHE_MAXSIZE = 1024
+    CACHE_TTL = 7200
 
     # Constants used by validators
     INGEST_API_APP = 'ingest-api'
@@ -14,3 +19,6 @@ class SchemaConstants(object):
     # Yaml file to parse organ description
     ORGAN_TYPES_YAML = 'https://raw.githubusercontent.com/hubmapconsortium/search-api/master/src/search-schema/data/definitions/enums/organ_types.yaml'
     ASSAY_TYPES_YAML = 'https://raw.githubusercontent.com/hubmapconsortium/search-api/master/src/search-schema/data/definitions/enums/assay_types.yaml'
+
+    # For generating Sample.tissue_type
+    TISSUE_TYPES_YAML = 'https://github.com/hubmapconsortium/search-api/blob/master/src/search-schema/data/definitions/enums/tissue_sample_types.yaml'

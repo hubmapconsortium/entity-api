@@ -3,10 +3,11 @@ import time
 import yaml
 import logging
 import requests
+from flask import Response
+from cachetools import cached, TTLCache
 
 # Don't confuse urllib (Python native library) with urllib3 (3rd-party library, requests also uses urllib3)
 from requests.packages.urllib3.exceptions import InsecureRequestWarning
-from flask import Response
 
 # Local modules
 from schema import schema_errors
@@ -19,6 +20,12 @@ from hubmap_commons.hm_auth import AuthHelper
 from hubmap_commons import globus_groups
 
 logger = logging.getLogger(__name__)
+
+# LRU Cache implementation with per-item time-to-live (TTL) value
+# with a memoizing callable that saves up to maxsize results based on a Least Frequently Used (LFU) algorithm
+# with a per-item time-to-live (TTL) value
+# Here we use two hours, 7200 seconds for ttl
+cache = TTLCache(maxsize=SchemaConstants.CACHE_MAXSIZE, ttl=SchemaConstants.CACHE_TTL)
 
 # Suppress InsecureRequestWarning warning when requesting status on https with ssl cert verify disabled
 requests.packages.urllib3.disable_warnings(category = InsecureRequestWarning)
@@ -1026,9 +1033,7 @@ Retrive target uuid, hubmap_id, and submission_id based on the given id
 Parameters
 ----------
 id : str
-    Either the uuid or hubmap_id of target entity 
-user_token: str
-    The user's globus nexus token
+    Either the uuid or hubmap_id of target entity
 
 Returns
 -------
@@ -1049,15 +1054,14 @@ dict
         "user_id": "694c6f6a-1deb-41a6-880f-d1ad8af3705f"
     }
 """
-def get_hubmap_ids(id, user_token):
+def get_hubmap_ids(id):
     global _uuid_api_url
 
     target_url = _uuid_api_url + '/' + id
-    request_headers = _create_request_headers(user_token)
 
-    # Disable ssl certificate verification
-    response = requests.get(url = target_url, headers = request_headers, verify = False)
-    
+    # Function cache to improve performance
+    response = make_request_get_with_internal_token(target_url)
+
     # Invoke .raise_for_status(), an HTTPError will be raised with certain status codes
     response.raise_for_status()
 
@@ -1531,3 +1535,59 @@ def _create_request_headers(user_token):
     }
 
     return headers_dict
+
+
+"""
+Cache the request response for the given URL with using function cache (memoization)
+
+Parameters
+----------
+target_url: str
+    The target URL
+
+Returns
+-------
+flask.Response
+    The response object
+"""
+@cached(cache)
+def make_request_get(target_url):
+    now = time.ctime(int(time.time()))
+
+    # Log the first non-cache call, the subsequent requests will juse use the function cache unless it's expired
+    logger.info(f'Making a fresh non-cache HTTP request to GET {target_url} at time {now}')
+
+    # Disable ssl certificate verification
+    response = requests.get(url = target_url, verify = False)
+
+    return response
+
+
+"""
+Cache the request response for the given URL with using function cache (memoization) with an internal token
+
+Parameters
+----------
+target_url: str
+    The target URL
+
+Returns
+-------
+flask.Response
+    The response object
+"""
+@cached(cache)
+def make_request_get_with_internal_token(target_url):
+    now = time.ctime(int(time.time()))
+
+    # Log the first non-cache call, the subsequent requests will juse use the function cache unless it's expired
+    logger.info(f'Making a fresh non-cache HTTP request with internal token to GET {target_url} at time {now}')
+
+    # Use modified version of globus app secret from configuration as the internal token
+    auth_helper_instance = get_auth_helper_instance()
+    request_headers = _create_request_headers(auth_helper_instance.getProcessSecret())
+
+    # Disable ssl certificate verification
+    response = requests.get(url = target_url, headers = request_headers, verify = False)
+
+    return response

@@ -1459,6 +1459,104 @@ def get_sample_direct_ancestor(property_key, normalized_type, user_token, existi
     return property_key, schema_manager.normalize_entity_result_for_response(complete_dict)
 
 
+"""
+Trigger event method of generating the type of the tissue based on the mapping between type (Block/Section/Suspension) and the specimen_type
+This method applies to both the create and update triggers
+
+Rererence:
+    - https://docs.google.com/spreadsheets/d/1OODo8QK852txSNSmfIe0ua4A7nPFSgKq6h46grmrpto/edit#gid=0
+    - https://github.com/hubmapconsortium/search-api/blob/master/src/search-schema/data/definitions/enums/tissue_sample_types.yaml
+
+Parameters
+----------
+property_key : str
+    The target property key of the value to be generated
+normalized_type : str
+    One of the types defined in the schema yaml: Activity, Collection, Donor, Sample, Dataset
+user_token: str
+    The user's globus nexus token
+existing_data_dict : dict
+    A dictionary that contains all existing entity properties
+new_data_dict : dict
+    A merged dictionary that contains all possible input data to be used
+
+Returns
+-------
+str: The target property key
+str: The type of the tissue
+"""
+def set_tissue_type(property_key, normalized_type, user_token, existing_data_dict, new_data_dict):
+    # Default to use 'Unknown'
+    tissue_type = 'Unknown'
+
+    # The `specimen_type` field is required on entity creation via POST
+    # thus should be available on existing entity update via PUT
+    # We do a double check here just in case
+    if ('specimen_type' not in new_data_dict) and ('specimen_type' not in existing_data_dict):
+        raise KeyError("Missing 'specimen_type' key in both 'new_data_dict' and 'existing_data_dict' during calling 'set_tissue_type()' trigger method.")
+
+    # Always calculate the tissue_type value no matter new creation or update existing
+    # The `specimen_type` field can be used in a PUT
+    # But if it's not in the request JSON of a PUT, it must be in the existing data
+    if 'specimen_type' in new_data_dict:
+        # The `specimen_type` value validation is handled in the `schema_validators.validate_specimen_type()`
+        # and that gets called before this trigger method
+        specimen_type = new_data_dict['specimen_type'].lower()
+    else:
+        # Use lowercase in case someone manually updated the neo4j filed with incorrect case
+        specimen_type = existing_data_dict['specimen_type'].lower()
+
+    # Categories: Block, Section, Suspension 
+    block_category = [
+        'pbmc',
+        'biopsy',
+        'segment',
+        'ffpe_block',
+        'organ_piece',
+        'fresh_tissue',
+        'clarity_hydrogel',
+        'fixed_tissue_piece',
+        'fresh_frozen_tissue',
+        'fresh_frozen_oct_block',
+        'formalin_fixed_oct_block',
+        'pfa_fixed_frozen_oct_block',
+        'flash_frozen_liquid_nitrogen',
+        'frozen_cell_pellet_buffy_coat'
+    ]
+
+    section_category = [
+        'ffpe_slide',
+        'fixed_frozen_section_slide',
+        'fresh_frozen_section_slide',
+        'fresh_frozen_tissue_section',
+        'cryosections_curls_rnalater',
+        'cryosections_curls_from_fresh_frozen_oct'
+    ]
+
+    suspension_category = [
+        'gdna',
+        'serum',
+        'plasma',
+        'nuclei',
+        'protein',
+        'rna_total',
+        'cell_lysate',
+        'tissue_lysate',
+        'sequence_library',
+        'ran_poly_a_enriched',
+        'single_cell_cryopreserved'
+    ]
+
+    # Capitalized type, default is 'Unknown' if no match
+    if specimen_type in block_category:
+        tissue_type = 'Block'
+    elif specimen_type in section_category:
+        tissue_type = 'Section'
+    elif specimen_type in suspension_category:
+        tissue_type = 'Suspension'
+
+    return property_key, tissue_type
+
 
 ####################################################################################################
 ## Trigger methods specific to Upload - DO NOT RENAME
@@ -1882,6 +1980,7 @@ def _delete_files(target_property_key, property_key, normalized_type, user_token
 
     return generated_dict
 
+
 """
 Compose the assay type description
 
@@ -1902,8 +2001,8 @@ def _get_assay_type_description(data_types):
         # The assaytype endpoint in search-api is public accessible, no token needed
         search_api_target_url = schema_manager.get_search_api_url() + f"/assaytype/{data_type}"
 
-        # Disable ssl certificate verification
-        response = requests.get(url = search_api_target_url, verify = False)
+        # Function cache to improve performance
+        response = schema_manager.make_request_get(search_api_target_url)
 
         if response.status_code == 200:
             assay_type_info = response.json()
@@ -1942,6 +2041,7 @@ def _get_assay_type_description(data_types):
 
     return assay_type_desc
 
+
 """
 Get the organ description based on the given organ code
 
@@ -1956,9 +2056,9 @@ str: The organ code description
 """
 def _get_organ_description(organ_code):
     yaml_file_url = SchemaConstants.ORGAN_TYPES_YAML
-    
-    # Disable ssl certificate verification
-    response = requests.get(url = yaml_file_url, verify = False)
+
+    # Function cache to improve performance
+    response = schema_manager.make_request_get(yaml_file_url)
 
     if response.status_code == 200:
         yaml_file = response.text
@@ -1981,4 +2081,7 @@ def _get_organ_description(organ_code):
 
         # Also bubble up the error message
         raise requests.exceptions.RequestException(response.text)
+
+
+
 

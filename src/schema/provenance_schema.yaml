@@ -532,9 +532,20 @@ ENTITIES:
         type: string
         required_on_create: true # Only required for create via POST, not update via PUT
         description: "A code representing the type of specimen.  Must be one of the codes specified in: [tissue sample types](https://github.com/hubmapconsortium/search-api/blob/master/src/search-schema/data/definitions/enums/tissue_sample_types.yaml)"
+        # Validate the given value against the definitions: https://github.com/hubmapconsortium/search-api/blob/master/src/search-schema/data/definitions/enums/tissue_sample_types.yaml
+        before_property_create_validators:
+          - validate_specimen_type
+        before_property_update_validators:
+          - validate_specimen_type
       specimen_type_other:
         type: string
         description: "The user provided sample type if the 'other' sample_type is chosen."
+      tissue_type:
+        type: string
+        generated: true # Can not be updated via the PUT
+        description: 'The type of the tissue based on the mapping between type (Block/Section/Suspension) and the specimen_type, default is Unknown'
+        before_create_trigger: set_tissue_type
+        before_update_trigger: set_tissue_type
       portal_metadata_upload_files:
         type: json_string
         description: "A list of relative paths to metadata files"
@@ -726,6 +737,7 @@ ENTITIES:
         # The updated_peripherally tag is a temporary measure to correctly handle any attributes
         # which are potentially updated by multiple triggers
         updated_peripherally: true
+
 
   ############################################# Upload #############################################
   # Eventually we might allow folks to bulk register Samples or Donors through the same mechanism.
