@@ -325,10 +325,10 @@ list: The list of defined tissue types
 """
 def _get_tissue_types():
     yaml_file_url = SchemaConstants.TISSUE_TYPES_YAML
-    
-    # Disable ssl certificate verification
-    response = requests.get(url = yaml_file_url, verify = False)
 
+    # Function cache to improve performance
+    response = schema_manager.make_request_get(yaml_file_url)
+    
     if response.status_code == 200:
         yaml_file = response.text
 

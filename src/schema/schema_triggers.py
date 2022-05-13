@@ -2001,8 +2001,8 @@ def _get_assay_type_description(data_types):
         # The assaytype endpoint in search-api is public accessible, no token needed
         search_api_target_url = schema_manager.get_search_api_url() + f"/assaytype/{data_type}"
 
-        # Disable ssl certificate verification
-        response = requests.get(url = search_api_target_url, verify = False)
+        # Function cache to improve performance
+        response = schema_manager.make_request_get(search_api_target_url)
 
         if response.status_code == 200:
             assay_type_info = response.json()
@@ -2056,9 +2056,9 @@ str: The organ code description
 """
 def _get_organ_description(organ_code):
     yaml_file_url = SchemaConstants.ORGAN_TYPES_YAML
-    
-    # Disable ssl certificate verification
-    response = requests.get(url = yaml_file_url, verify = False)
+
+    # Function cache to improve performance
+    response = schema_manager.make_request_get(yaml_file_url)
 
     if response.status_code == 200:
         yaml_file = response.text
