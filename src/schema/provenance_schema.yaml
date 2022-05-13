@@ -543,6 +543,7 @@ ENTITIES:
       tissue_type:
         type: string
         generated: true # Can not be updated via the PUT
+        auto_update: true # Will always update automatically if the entity gets updated
         description: 'The type of the tissue based on the mapping between type (Block/Section/Suspension) and the specimen_type, default is Unknown'
         before_create_trigger: set_tissue_type
         before_update_trigger: set_tissue_type
