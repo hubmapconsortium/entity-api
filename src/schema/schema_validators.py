@@ -336,7 +336,8 @@ def _get_tissue_types():
             tissue_types_dict = yaml.safe_load(response.text)
 
             # We don't need the description here, just a list of tissue types
-            tissue_types_list = tissue_types_dict.keys()
+            # Note: dict.keys() returns a dict, need to typecast to list
+            tissue_types_list = list(tissue_types_dict.keys())
 
             # Add the 'other'
             tissue_types_list.append('other')
