@@ -2822,7 +2822,7 @@ def get_prov_info_for_dataset(id):
         except yaml.YAMLError as e:
             raise yaml.YAMLError(e)
 
-    hubmap_ids = schema_manager.get_hubmap_ids(id, token)
+    hubmap_ids = schema_manager.get_hubmap_ids(id)
 
     # Get the target uuid if all good
     uuid = hubmap_ids['hm_uuid']
@@ -3902,7 +3902,7 @@ def query_target_entity(id, user_token):
             "user_id": "694c6f6a-1deb-41a6-880f-d1ad8af3705f"
         }
         """
-        hubmap_ids = schema_manager.get_hubmap_ids(id, user_token)
+        hubmap_ids = schema_manager.get_hubmap_ids(id)
 
         # Get the target uuid if all good
         uuid = hubmap_ids['hm_uuid']
@@ -4022,7 +4022,11 @@ def validate_organ_code(organ_code):
     if organ_code.upper() not in organ_yaml:
         bad_request_error(f"Invalid Organ. Organ must be 2 digit code, case-insensitive located at {ORGAN_YAML_URL}")
 
-# For local development/testing
+
+####################################################################################################
+## For local development/testing
+####################################################################################################
+
 if __name__ == "__main__":
     try:
         app.run(host='0.0.0.0', port="5002")
