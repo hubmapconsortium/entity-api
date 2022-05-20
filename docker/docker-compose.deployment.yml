@@ -1,0 +1,9 @@
+version: "3.7"
+
+services:
+  
+  entity-api:build: 
+    # Use the published image from DockerHub
+    image: hubmap/entity-api:latest
+
+
