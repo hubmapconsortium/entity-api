@@ -6,23 +6,8 @@ A set of standard RESTful web service that provides CRUD operations into our ent
 
 The yaml file `src/resources/hubmap-entities.yaml` contains all the attributes of each entity type and generated metadata information of attributes via trigger methods. This file is being used to validate the user input and also as a way of standarding all the details of entities.
 
-## Docker development and deployment environments
 
-We have the following 5 development and deployment environments:
-
-* localhost - all the services will be deployed with docker containers including sample Neo4j and sample MySQL are running on the same localhost listing on different ports, without globus data
-* dev - all services except ingest-api will be running on AWS EC2 with SSL certificates, Neo4j and MySQL are dev versions on AWS, and ingest-api(and another nginx) will be running on PSC with domain and globus data
-* test - similar to dev with a focus on testing and connects to Neo4j and MySQL test versions of database
-* stage - as similar to the production environment as it can be.
-* prod - similar to test but for production settings with production versions of Neo4j and MySQL
-
-### Localhost development
-
-This option allows you to setup all the pieces in a containerized environment with docker and docker-compose. This requires to have the [HuBMAP Gateway](https://github.com/hubmapconsortium/gateway) running locally before starting building this docker compose project. Please follow the [instructions](https://github.com/hubmapconsortium/gateway#workflow-of-setting-up-multiple-hubmap-docker-compose-projects). It also requires the Gateway project to be configured accordingly.
-
-### Remote deployment
-
-In localhost mode, all the docker containers are running on the same host machine. However, the ingest-api will be deployed on a separare host machine for dev, test, stage, and prod mode due to different deployment requirements. 
+## Docker build for local development
 
 There are a few configurable environment variables to keep in mind:
 
@@ -33,28 +18,23 @@ There are a few configurable environment variables to keep in mind:
 We can set and verify the environment variable like below:
 
 ````
-export COMMONS_BRANCH=devel
+export COMMONS_BRANCH=master
 echo $COMMONS_BRANCH
 ````
 
 Note: Environment variables set like this are only stored temporally. When you exit the running instance of bash by exiting the terminal, they get discarded. So for rebuilding the docker image, we'll need to make sure to set the environment variables again if necessary.
 
-````
-Usage: ./entity-api-docker.sh [localhost|dev|test|stage|prod] [check|config|build|start|stop|down]
-````
-
-Before we go ahead to start building the docker image, we can do a check to see if the required configuration file is in place:
-
-````
+```
 cd docker
-./entity-api-docker.sh dev check
-````
+./docker-development.sh [check|config|build|start|stop|down]
+```
 
-We can also validate and view the details of corresponding compose file:
+## Docker build for deployment on DEV/TEST/STAGE/PROD
 
-````
-./entity-api-docker.sh dev config
-````
+```
+cd docker
+./docker-deployment.sh [start|stop|down]
+```
 
 Building the docker images and starting/stopping the contianers require to use docker daemon, you'll probably need to use `sudo` in the following steps. If you don’t want to preface the docker command with sudo, add users to the docker group:
 
@@ -63,30 +43,6 @@ sudo usermod -aG docker $USER
 ````
 
 Then log out and log back in so that your group membership is re-evaluated. If testing on a virtual machine, it may be necessary to restart the virtual machine for changes to take effect.
-
-To build the docker image of entity-api:
-
-````
-./entity-api-docker.sh dev build
-````
-
-To start up the entity-api container:
-
-````
-./entity-api-docker.sh dev start
-````
-
-And stop the running container by:
-
-````
-./entity-api-docker.sh dev stop
-````
-
-You can also stop the running container and remove it by:
-
-````
-./entity-api-docker.sh dev down
-````
 
 ### Updating API Documentation
 
