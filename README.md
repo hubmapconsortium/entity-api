@@ -6,57 +6,17 @@ A set of standard RESTful web service that provides CRUD operations into our ent
 
 The yaml file `src/resources/hubmap-entities.yaml` contains all the attributes of each entity type and generated metadata information of attributes via trigger methods. This file is being used to validate the user input and also as a way of standarding all the details of entities.
 
-## Docker development and deployment environments
 
-We have the following 5 development and deployment environments:
+## Overview of tools
 
-* localhost - all the services will be deployed with docker containers including sample Neo4j and sample MySQL are running on the same localhost listing on different ports, without globus data
-* dev - all services except ingest-api will be running on AWS EC2 with SSL certificates, Neo4j and MySQL are dev versions on AWS, and ingest-api(and another nginx) will be running on PSC with domain and globus data
-* test - similar to dev with a focus on testing and connects to Neo4j and MySQL test versions of database
-* stage - as similar to the production environment as it can be.
-* prod - similar to test but for production settings with production versions of Neo4j and MySQL
+- [Docker Engine](https://docs.docker.com/install/)
+- [Docker Compose](https://docs.docker.com/compose/install/)
 
-### Localhost development
+Note: Docker Compose requires Docker to be installed and running first.
 
-This option allows you to setup all the pieces in a containerized environment with docker and docker-compose. This requires to have the [HuBMAP Gateway](https://github.com/hubmapconsortium/gateway) running locally before starting building this docker compose project. Please follow the [instructions](https://github.com/hubmapconsortium/gateway#workflow-of-setting-up-multiple-hubmap-docker-compose-projects). It also requires the Gateway project to be configured accordingly.
+### Docker post-installation configurations
 
-### Remote deployment
-
-In localhost mode, all the docker containers are running on the same host machine. However, the ingest-api will be deployed on a separare host machine for dev, test, stage, and prod mode due to different deployment requirements. 
-
-There are a few configurable environment variables to keep in mind:
-
-- `COMMONS_BRANCH`: build argument only to be used during image creation. We can specify which [commons](https://github.com/hubmapconsortium/commons) branch to use during the image creation. Default to master branch if not set or null.
-- `HOST_UID`: the user id on the host machine to be mapped to the container. Default to 1000 if not set or null.
-- `HOST_GID`: the user's group id on the host machine to be mapped to the container. Default to 1000 if not set or null.
-
-We can set and verify the environment variable like below:
-
-````
-export COMMONS_BRANCH=devel
-echo $COMMONS_BRANCH
-````
-
-Note: Environment variables set like this are only stored temporally. When you exit the running instance of bash by exiting the terminal, they get discarded. So for rebuilding the docker image, we'll need to make sure to set the environment variables again if necessary.
-
-````
-Usage: ./entity-api-docker.sh [localhost|dev|test|stage|prod] [check|config|build|start|stop|down]
-````
-
-Before we go ahead to start building the docker image, we can do a check to see if the required configuration file is in place:
-
-````
-cd docker
-./entity-api-docker.sh dev check
-````
-
-We can also validate and view the details of corresponding compose file:
-
-````
-./entity-api-docker.sh dev config
-````
-
-Building the docker images and starting/stopping the contianers require to use docker daemon, you'll probably need to use `sudo` in the following steps. If you don’t want to preface the docker command with sudo, add users to the docker group:
+The Docker daemon binds to a Unix socket instead of a TCP port. By default that Unix socket is owned by the user root and other users can only access it using sudo. The Docker daemon always runs as the root user. If you don’t want to preface the docker command with sudo, add users to the `docker` group:
 
 ````
 sudo usermod -aG docker $USER
@@ -64,29 +24,53 @@ sudo usermod -aG docker $USER
 
 Then log out and log back in so that your group membership is re-evaluated. If testing on a virtual machine, it may be necessary to restart the virtual machine for changes to take effect.
 
-To build the docker image of entity-api:
+Note: the following instructions with docker commands are based on managing Docker as a non-root user.
+
+
+## Docker build for local/DEV development
+
+There are a few configurable environment variables to keep in mind:
+
+- `COMMONS_BRANCH`: build argument only to be used during image creation when we need to use a branch of commons from github rather than the published PyPI package. Default to master branch if not set or null.
+- `HOST_UID`: the user id on the host machine to be mapped to the container. Default to 1000 if not set or null.
+- `HOST_GID`: the user's group id on the host machine to be mapped to the container. Default to 1000 if not set or null.
+
+We can set and verify the environment variable like below:
 
 ````
-./entity-api-docker.sh dev build
+export COMMONS_BRANCH=master
+echo $COMMONS_BRANCH
 ````
 
-To start up the entity-api container:
+Note: Environment variables set like this are only stored temporally. When you exit the running instance of bash by exiting the terminal, they get discarded. So for rebuilding the docker image, we'll need to make sure to set the environment variables again if necessary.
 
-````
-./entity-api-docker.sh dev start
-````
+```
+cd docker
+./docker-development.sh [check|config|build|start|stop|down]
+```
 
-And stop the running container by:
+## Docker build for deployment on TEST/STAGE/PROD
 
-````
-./entity-api-docker.sh dev stop
-````
+```
+cd docker
+export ENTITY_API_VERSION=a.b.c (replace with the actual released version number)
+./docker-deployment.sh [start|stop|down]
+```
 
-You can also stop the running container and remove it by:
+## Development process
 
-````
-./entity-api-docker.sh dev down
-````
+### To release via TEST infrastructure
+- Make new feature or bug fix branches from `main` branch (the default branch)
+- Make PRs to `main`
+- As a codeowner, Zhou (github username `yuanzhou`) is automatically assigned as a reviewer to each PR. When all other reviewers have approved, he will approve as well, merge to TEST infrastructure, and redeploy and reindex the TEST instance.
+- Developer or someone on the team who is familiar with the change will test/qa the change
+- When any current changes in the `main` have been approved after test/qa on TEST, Zhou will release to PROD using the same docker image that has been tested on TEST infrastructure.
+
+### To work on features in the development environment before ready for testing and releasing
+- Make new feature branches off the `main` branch
+- Make PRs to `dev-integrate`
+- As a codeowner, Zhou is automatically assigned as a reviewer to each PR. When all other reviewers have approved, he will approve as well, merge to devel, and redeploy and reindex the DEV instance.
+- When a feature branch is ready for testing and release, make a PR to `main` for deployment and testing on the TEST infrastructure as above.
 
 ### Updating API Documentation
 
