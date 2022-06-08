@@ -2,8 +2,8 @@ version: "3.7"
 
 services:
   
-  entity-api:build: 
-    # Use the published image from DockerHub
-    image: hubmap/entity-api:latest
+  entity-api: 
+    # Use the published image and tag from DockerHub
+    image: hubmap/entity-api:${ENTITY_API_VERSION:?err}
 
 
