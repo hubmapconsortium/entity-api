@@ -1,10 +1,9 @@
 import ast
-import time
 import yaml
 import logging
 import requests
 from flask import Response
-from cachetools import cached, TTLCache
+from datetime import datetime
 
 # Don't confuse urllib (Python native library) with urllib3 (3rd-party library, requests also uses urllib3)
 from requests.packages.urllib3.exceptions import InsecureRequestWarning
@@ -21,12 +20,6 @@ from hubmap_commons import globus_groups
 
 logger = logging.getLogger(__name__)
 
-# LRU Cache implementation with per-item time-to-live (TTL) value
-# with a memoizing callable that saves up to maxsize results based on a Least Frequently Used (LFU) algorithm
-# with a per-item time-to-live (TTL) value
-# Here we use two hours, 7200 seconds for ttl
-cache = TTLCache(maxsize=SchemaConstants.CACHE_MAXSIZE, ttl=SchemaConstants.CACHE_TTL)
-
 # Suppress InsecureRequestWarning warning when requesting status on https with ssl cert verify disabled
 requests.packages.urllib3.disable_warnings(category = InsecureRequestWarning)
 
@@ -38,6 +31,9 @@ _ingest_api_url = None
 _search_api_url = None
 _auth_helper = None
 _neo4j_driver = None
+
+# For handling cached requests to uuid-api and external static resources (github raw yaml files)
+request_cache = {}
 
 
 ####################################################################################################
@@ -1060,7 +1056,7 @@ def get_hubmap_ids(id):
     target_url = _uuid_api_url + '/' + id
 
     # Function cache to improve performance
-    response = make_request_get_with_internal_token(target_url)
+    response = make_request_get(target_url, internal_token_used = True)
 
     # Invoke .raise_for_status(), an HTTPError will be raised with certain status codes
     response.raise_for_status()
@@ -1550,44 +1546,37 @@ Returns
 flask.Response
     The response object
 """
-@cached(cache)
-def make_request_get(target_url):
-    now = time.ctime(int(time.time()))
+def make_request_get(target_url, internal_token_used = False):
+    response = None
 
-    # Log the first non-cache call, the subsequent requests will juse use the function cache unless it's expired
-    logger.info(f'Making a fresh non-cache HTTP request to GET {target_url} at time {now}')
+    current_datetime = datetime.now()
+    current_timestamp = int(round(current_datetime.timestamp()))
 
-    # Disable ssl certificate verification
-    response = requests.get(url = target_url, verify = False)
+    # Use the cached response of the given url if exists and valid
+    # Otherwise make a fresh request and add the response to the cache pool
+    if request_cache[target_url] and (current_timestamp <= request_cache[target_url]['created_timestamp'] + SchemaConstants.REQUEST_CACHE_TTL):
+        response = cache_pool[target_url]['response']
+    else:
+        # Log the first non-cache call, the subsequent requests will juse use the function cache unless it's expired
+        logger.info(f'Making a fresh non-cache HTTP request to GET {target_url} at time {current_datetime}')
+        
+        if internal_token_used:
+            # Use modified version of globus app secret from configuration as the internal token
+            auth_helper_instance = get_auth_helper_instance()
+            request_headers = _create_request_headers(auth_helper_instance.getProcessSecret())
 
-    return response
+            # Disable ssl certificate verification
+            response = requests.get(url = target_url, headers = request_headers, verify = False)
+        else:
+            response = requests.get(url = target_url, verify = False)
 
+        # Add or update cache
+        new_datetime = datetime.now()
+        new_timestamp = int(round(new_datetime.timestamp()))
 
-"""
-Cache the request response for the given URL with using function cache (memoization) with an internal token
-
-Parameters
-----------
-target_url: str
-    The target URL
-
-Returns
--------
-flask.Response
-    The response object
-"""
-@cached(cache)
-def make_request_get_with_internal_token(target_url):
-    now = time.ctime(int(time.time()))
-
-    # Log the first non-cache call, the subsequent requests will juse use the function cache unless it's expired
-    logger.info(f'Making a fresh non-cache HTTP request with internal token to GET {target_url} at time {now}')
-
-    # Use modified version of globus app secret from configuration as the internal token
-    auth_helper_instance = get_auth_helper_instance()
-    request_headers = _create_request_headers(auth_helper_instance.getProcessSecret())
-
-    # Disable ssl certificate verification
-    response = requests.get(url = target_url, headers = request_headers, verify = False)
+        request_cache[target_url] = {
+            'created_timestamp': new_timestamp,
+            'response': response
+        }
 
     return response

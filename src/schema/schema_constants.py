@@ -1,9 +1,6 @@
 class SchemaConstants(object):
-    # Used by function cache (memoization)
-    # The maximum integer number of entries in the cache queue
-    # Expire the cache after the time-to-live (seconds)
-    CACHE_MAXSIZE = 1024
-    CACHE_TTL = 7200
+    # Expire the request cache after the time-to-live (seconds), default 4 hours
+    REQUEST_CACHE_TTL = 14400
 
     # Constants used by validators
     INGEST_API_APP = 'ingest-api'
