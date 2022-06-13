@@ -13,7 +13,7 @@ services:
       #   - COMMONS_BRANCH=${COMMONS_BRANCH:-master}
     # Build the image with name and tag
     # Exit with an error message containing err if unset or empty in the environment
-    image: entity-api:${ENTITY_API_VERSION:?err}
+    image: hubmap/entity-api:${ENTITY_API_VERSION:?err}
     volumes:  
       # Mount the VERSION file and BUILD file 
       - "../VERSION:/usr/src/app/VERSION" 
