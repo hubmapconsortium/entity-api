@@ -4,16 +4,13 @@ version: "3.7"
 services:
   
   entity-api:
-    build: 
-      context: ./entity-api
-      args:
-        # The commons github branch to be used during image build (default to master if not set or null)
-        - COMMONS_BRANCH=${COMMONS_BRANCH:-master}
-    # Build the image with name and tag
-    # Exit with an error message containing err if unset or empty in the environment
-    image: entity-api:${ENTITY_API_VERSION:?err}
     hostname: entity-api
     container_name: entity-api
+    # Map host machine port 3333 to container port 8080
+    # Only root can listen on ports below 1024, we use higher-numbered ports
+    # since nginx is running under non-root user hubmap
+    ports:
+      - "3333:8080"
     healthcheck:
       test: ["CMD", "curl", "--fail", "http://localhost:8080"]
       interval: 1m30s
