@@ -1555,10 +1555,11 @@ def make_request_get(target_url, internal_token_used = False):
     # Use the cached response of the given url if exists and valid
     # Otherwise make a fresh request and add the response to the cache pool
     if (target_url in request_cache) and (current_timestamp <= request_cache[target_url]['created_timestamp'] + SchemaConstants.REQUEST_CACHE_TTL):
+        logger.info(f'Useing the cached HTTP response of GET {target_url} at time {current_datetime}')
+
         response = request_cache[target_url]['response']
     else:
-        # Log the first non-cache call, the subsequent requests will juse use the function cache unless it's expired
-        logger.info(f'Making a fresh non-cache HTTP request to GET {target_url} at time {current_datetime}')
+        logger.info(f'Cache not found or expired. Making a new HTTP request of GET {target_url} at time {current_datetime}')
         
         if internal_token_used:
             # Use modified version of globus app secret from configuration as the internal token
