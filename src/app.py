@@ -1075,6 +1075,11 @@ def update_entity(id):
     # Parse incoming json string into json data(python dict object)
     json_data_dict = request.get_json()
 
+    # Normalize user provided status
+    if "status" in json_data_dict:
+        normalized_status = schema_manager.normalize_status(json_data_dict["status"])
+        json_data_dict["status"] = normalized_status
+
     # Get target entity and return as a dict if exists
     entity_dict = query_target_entity(id, user_token)
 
