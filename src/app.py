@@ -1082,7 +1082,6 @@ def update_entity(id):
 
     # Normalize user provided status
     if "sub_status" in json_data_dict:
-        print("Inside sub status")
         normalized_status = schema_manager.normalize_status(json_data_dict["sub_status"])
         json_data_dict["sub_status"] = normalized_status
 
