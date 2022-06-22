@@ -1080,6 +1080,12 @@ def update_entity(id):
         normalized_status = schema_manager.normalize_status(json_data_dict["status"])
         json_data_dict["status"] = normalized_status
 
+    # Normalize user provided status
+    if "sub_status" in json_data_dict:
+        print("Inside sub status")
+        normalized_status = schema_manager.normalize_status(json_data_dict["sub_status"])
+        json_data_dict["sub_status"] = normalized_status
+
     # Get target entity and return as a dict if exists
     entity_dict = query_target_entity(id, user_token)
 
@@ -2134,6 +2140,7 @@ def retract_dataset(id):
 
     # Normalize user provided status
     if "sub_status" in json_data_dict:
+        print("Inside sub status")
         normalized_status = schema_manager.normalize_status(json_data_dict["sub_status"])
         json_data_dict["sub_status"] = normalized_status
 
