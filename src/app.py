@@ -1075,6 +1075,11 @@ def update_entity(id):
     # Parse incoming json string into json data(python dict object)
     json_data_dict = request.get_json()
 
+    # Normalize user provided status
+    if "status" in json_data_dict:
+        normalized_status = schema_manager.normalize_status(json_data_dict["status"])
+        json_data_dict["status"] = normalized_status
+
     # Get target entity and return as a dict if exists
     entity_dict = query_target_entity(id, user_token)
 
@@ -2126,6 +2131,11 @@ def retract_dataset(id):
 
     # Parse incoming json string into json data(python dict object)
     json_data_dict = request.get_json()
+
+    # Normalize user provided status
+    if "sub_status" in json_data_dict:
+        normalized_status = schema_manager.normalize_status(json_data_dict["sub_status"])
+        json_data_dict["sub_status"] = normalized_status
 
     # Use beblow application-level validations to avoid complicating schema validators
     # The 'retraction_reason' and `sub_status` are the only required/allowed fields. No other fields allowed.
