@@ -824,6 +824,26 @@ def normalize_entity_type(entity_type):
     return normalized_entity_type
 
 """
+Lowercase and capitalize the status string unless its "qa", then make it capitalized.
+
+Parameters
+----------
+status : str
+    One of the status types: New|Processing|QA|Published|Error|Hold|Invalid
+    
+Returns
+-------
+string
+    One of the normalized status types: New|Processing|QA|Published|Error|Hold|Invalid
+"""
+def normalize_status(status):
+    if status.lower() == "qa":
+        normalized_status = "QA"
+    else:
+        normalized_status = status.lower().capitalize()
+    return normalized_status
+
+"""
 Validate the provided trigger type
 
 Parameters
