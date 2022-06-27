@@ -6,27 +6,6 @@ A set of standard RESTful web service that provides CRUD operations into our ent
 
 The yaml file `src/resources/hubmap-entities.yaml` contains all the attributes of each entity type and generated metadata information of attributes via trigger methods. This file is being used to validate the user input and also as a way of standarding all the details of entities.
 
-
-## Overview of tools
-
-- [Docker Engine](https://docs.docker.com/install/)
-- [Docker Compose](https://docs.docker.com/compose/install/)
-
-Note: Docker Compose requires Docker to be installed and running first.
-
-### Docker post-installation configurations
-
-The Docker daemon binds to a Unix socket instead of a TCP port. By default that Unix socket is owned by the user root and other users can only access it using sudo. The Docker daemon always runs as the root user. If you don’t want to preface the docker command with sudo, add users to the `docker` group:
-
-````
-sudo usermod -aG docker $USER
-````
-
-Then log out and log back in so that your group membership is re-evaluated. If testing on a virtual machine, it may be necessary to restart the virtual machine for changes to take effect.
-
-Note: the following instructions with docker commands are based on managing Docker as a non-root user.
-
-
 ## Docker build for local/DEV development
 
 There are a few configurable environment variables to keep in mind:
