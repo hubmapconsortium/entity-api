@@ -247,7 +247,6 @@ ENTITIES:
         immutable: true # Disallow update via PUT
         description: "The auto generated dataset title."
         on_read_trigger: get_dataset_title
-        description: "The auto generated dataset title."
       lab_dataset_id:
         type: string
         description: "A name or identifier used by the lab who is uploading the data to cross reference the data locally"
@@ -404,6 +403,9 @@ ENTITIES:
       provider_info:
         type: string
         description: 'Information recorded about the data provider before an analysis pipeline is run on the data.'
+      dbgap_url:
+        type: string
+        description: 'A URL linking the dataset to the associated uploaded data at dbGaP.'
 
   ############################################# Donor #############################################
   Donor:
