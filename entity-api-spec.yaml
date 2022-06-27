@@ -783,6 +783,15 @@ components:
           type: string
           format: file_uuid
           description: 'The thumbnail image file previously uploaded to delete. Provide as a string of the file_uuid like: "c35002f9c3d49f8b77e1e2cd4a01803d"'
+        sub_status:
+          type: string
+          description: 'A sub-status provided to further define the status. The only current allowable value is "Retracted"'
+        retraction_reason:
+          type: string
+          description: 'Information recorded about why a the dataset was retracted.'
+        dbgap_url:
+          type: string
+          description: 'A URL linking the dataset to the associated uploaded data at dbGaP.'
     Upload:
       type: object
       properties:
