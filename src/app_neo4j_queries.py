@@ -1249,6 +1249,30 @@ def get_sample_prov_info(neo4j_driver, param_dict):
             list_of_dictionaries.append(record_dict)
     return list_of_dictionaries
 
+
+"""
+Returns "data_types", "donor_hubmap_id", "donor_submission_id", "hubmap_id", "organ", "organization", 
+"provider_experiment_id", "uuid" in a dictionary
+
+Parameters
+----------
+neo4j_driver : neo4j.Driver object
+    The neo4j database connection pool
+"""
+def get_unpublished(neo4j_driver):
+    query = (
+        "MATCH (ds:Dataset)<-[*]-(d:Donor) "
+        "WHERE ds.status <> 'Published' and ds.status <> 'Hold' "
+        "OPTIONAL MATCH (ds)<-[*]-(s:Sample {specimen_type:'organ'}) "
+        "RETURN distinct ds.data_types as data_types, ds.group_name as organization, ds.uuid as uuid, "
+        "ds.hubmap_id as hubmap_id, s.organ as organ, d.hubmap_id as donor_hubmap_id, "
+        "d.submission_id as donor_submission_id, ds.lab_dataset_id as provider_experiment_id"
+    )
+
+    with neo4j_driver.session() as session:
+        rval = session.run(query).data()
+        return rval
+
 ####################################################################################################
 ## Internal Functions
 ####################################################################################################

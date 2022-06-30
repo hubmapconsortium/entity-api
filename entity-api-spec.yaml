@@ -1692,7 +1692,6 @@ paths:
           description: THe user is not authorized to use this method
         '500':
           description: Internal error
-
   '/datasets/{id}/prov-info':
     get:
       summary: 'returns aLL provenance information for a single dataset in a default table/tsv format or optionally a json format when an optional ?format=json parameter is provided'
@@ -1886,7 +1885,7 @@ paths:
           description: Internal error
   '/samples/prov-info':
     get:
-      summary: 'returns aLL provenance information for a each sample in a json format'
+      summary: 'returns all provenance information for a each sample in a json format'
       parameters:
         - name: group_uuid
           in: query
@@ -1941,6 +1940,60 @@ paths:
                   donor_has_metadata:
                     type: string
                     description: True or false value corresponding to whether the donor has metadata info
+        '401':
+          description: The user's token has expired or the user did not supply a valid token
+        '403':
+          description: THe user is not authorized to use this method
+        '500':
+          description: Internal error
+  '/datasets/unpublished':
+    get:
+      summary: returns information about all unpublished datasets in json or tsv format. Defaults to json
+      parameters:
+        - name: format
+          in: query
+          description: The desired return format
+          required: false
+          schema:
+            type: string
+      responses:
+        '200':
+          description: reterns data_types, donor_hubmap_id, donor_submission_id, hubmap_id, organ, organization, provider_experiment_id, uuid for each unpublished dataset in the requested format
+          content:
+            text/tsv:
+              schema:
+                type: string
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data_types:
+                    type: string
+                    description: the data_types of the unpublished dataset
+                  donor_hubmap_id:
+                    type: string
+                    description: the hubmap_id of the unpublished dataset's donor
+                  donor_submission_id:
+                    type: string
+                    description: the submission id of the unpublished dataset's donor
+                  hubmap_id:
+                    type: string
+                    description: the hubmap_id of the unpublished dataset
+                  organ:
+                    type: string
+                    description: the organ type of the sample with specimen_type organ above the unpublished dataset if applicable
+                  organization:
+                    type: string
+                    description: the group_name of the unpublished dataset
+                  provider_experiment_id:
+                    type: string
+                    description: the lab_dataset_id of the unpublished dataset
+                  uuid:
+                    type: string
+                    description: The unique identifier for the  unpublisheddataset
+
+        '404':
+          description: Bad request. A query parameter is either invalid (accepted value; format) or its value is bad (accepted values; tsv|json)
         '401':
           description: The user's token has expired or the user did not supply a valid token
         '403':
