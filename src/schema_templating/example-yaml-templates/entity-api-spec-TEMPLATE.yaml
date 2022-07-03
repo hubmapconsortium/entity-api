@@ -8,7 +8,7 @@ info:
     email: help@hubmapconsortium.org
   license:
     name: MIT License
-    url: 'https://github.com/hubmapconsortium/entity-api/blob/master/license.txt'
+    url: 'https://github.com/hubmapconsortium/entity-api/blob/main/license.txt'
 servers:
   - url: 'https://entity.api.hubmapconsortium.org'
 components:
@@ -402,8 +402,8 @@ components:
           type: string
           enum:
             X-replace-enum-list:
-              enum-file-ref: https://raw.githubusercontent.com/hubmapconsortium/search-api/test-release/src/search-schema/data/definitions/enums/tissue_sample_types.yaml
-          description: "A code representing the type of specimen.  Must be one of the codes specified in: [tissue sample types](https://github.com/hubmapconsortium/search-api/blob/master/src/search-schema/data/definitions/enums/tissue_sample_types.yaml)"
+              enum-file-ref: https://raw.githubusercontent.com/hubmapconsortium/search-api/main/src/search-schema/data/definitions/enums/tissue_sample_types.yaml
+          description: "A code representing the type of specimen.  Must be one of the codes specified in: [tissue sample types](https://github.com/hubmapconsortium/search-api/blob/main/src/search-schema/data/definitions/enums/tissue_sample_types.yaml)"
         specimen_type_other:
           type: string
           description: "The user provided sample type if the 'other' sample_type is chosen."
@@ -421,8 +421,8 @@ components:
           type: string
           enum:
             X-replace-enum-list:
-              enum-file-ref: https://raw.githubusercontent.com/hubmapconsortium/search-api/test-release/src/search-schema/data/definitions/enums/organ_types.yaml
-          description: "Organ code specifier, only set if sample_type == organ.  Valid values found in: [organ types](https://github.com/hubmapconsortium/search-api/blob/master/src/search-schema/data/definitions/enums/organ_types.yaml)"
+              enum-file-ref: https://raw.githubusercontent.com/hubmapconsortium/search-api/main/src/search-schema/data/definitions/enums/organ_types.yaml
+          description: "Organ code specifier, only set if sample_type == organ.  Valid values found in: [organ types](https://github.com/hubmapconsortium/search-api/blob/main/src/search-schema/data/definitions/enums/organ_types.yaml)"
         organ_other:
           type: string
           description: The organ type provided by the user if "other" organ type is selected
@@ -589,8 +589,8 @@ components:
             type: string
             enum:
               X-replace-enum-list:
-                enum-file-ref: https://raw.githubusercontent.com/hubmapconsortium/search-api/test-release/src/search-schema/data/definitions/enums/assay_types.yaml
-          description: "The data or assay types contained in this dataset as a json array of strings.  Each is an assay code from [assay types](https://github.com/hubmapconsortium/search-api/blob/master/src/search-schema/data/definitions/enums/assay_types.yaml)."
+                enum-file-ref: https://raw.githubusercontent.com/hubmapconsortium/search-api/main/src/search-schema/data/definitions/enums/assay_types.yaml
+          description: "The data or assay types contained in this dataset as a json array of strings.  Each is an assay code from [assay types](https://github.com/hubmapconsortium/search-api/blob/main/src/search-schema/data/definitions/enums/assay_types.yaml)."
         collections:
           readOnly: true
           type: array

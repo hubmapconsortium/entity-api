@@ -889,7 +889,7 @@ def create_entity(entity_type):
 
         # Creating the ids require organ code to be specified for the samples to be created when the
         # sample's direct ancestor is a Donor.
-        # Must be one of the codes from: https://github.com/hubmapconsortium/search-api/blob/test-release/src/search-schema/data/definitions/enums/organ_types.yaml
+        # Must be one of the codes from: https://github.com/hubmapconsortium/search-api/blob/main/src/search-schema/data/definitions/enums/organ_types.yaml
         if direct_ancestor_dict['entity_type'] == 'Donor':
             # `specimen_type` is required on create
             if json_data_dict['specimen_type'].lower() != 'organ':
@@ -1025,7 +1025,7 @@ def create_multiple_samples(count):
 
     # Creating the ids require organ code to be specified for the samples to be created when the
     # sample's direct ancestor is a Donor.
-    # Must be one of the codes from: https://github.com/hubmapconsortium/search-api/blob/test-release/src/search-schema/data/definitions/enums/organ_types.yaml
+    # Must be one of the codes from: https://github.com/hubmapconsortium/search-api/blob/main/src/search-schema/data/definitions/enums/organ_types.yaml
     if direct_ancestor_dict['entity_type'] == 'Donor':
         # `specimen_type` is required on create
         if json_data_dict['specimen_type'].lower() != 'organ':
@@ -2364,7 +2364,7 @@ Query Parameters
         Filters returned datasets by a given group uuid. 
     organ : string
         Filters returned datasets related to a samples of the given organ. Accepts 2 character organ codes. These codes
-        must match the organ types yaml at https://raw.githubusercontent.com/hubmapconsortium/search-api/test-release/src/search-schema/data/definitions/enums/organ_types.yaml
+        must match the organ types yaml at https://raw.githubusercontent.com/hubmapconsortium/search-api/main/src/search-schema/data/definitions/enums/organ_types.yaml
         or an error will be raised
     has_rui_info : string
         Accepts strings "true" or "false. Any other value will result in an error. If true, only datasets connected to 
@@ -4031,7 +4031,7 @@ organ_code : str
 Returns nothing. Raises bad_request_error is organ code not found on organ_types.yaml 
 """
 def validate_organ_code(organ_code):
-    ORGAN_YAML_URL = 'https://raw.githubusercontent.com/hubmapconsortium/search-api/test-release/src/search-schema/data/definitions/enums/organ_types.yaml'
+    ORGAN_YAML_URL = SchemaConstants.ORGAN_TYPES_YAML
     with urllib.request.urlopen(ORGAN_YAML_URL) as organ_file:
         organ_yaml = yaml.load(organ_file, Loader=yaml.FullLoader)
     if organ_code.upper() not in organ_yaml:
