@@ -3234,6 +3234,75 @@ def get_sample_prov_info():
         sample_prov_list.append(internal_dict)
     return jsonify(sample_prov_list)
 
+"""
+Retrieve all unpublished datasets (datasets with status value other than 'Published' or 'Hold')
+
+Authentication
+-------
+Requires HuBMAP Read-Group access. Authenticated in the gateway 
+
+Query Parameters
+-------
+    format : string
+        Determines the output format of the data. Allowable values are ("tsv"|"json")
+
+Returns
+-------
+json
+    an array of each unpublished dataset.
+    fields: ("data_types", "donor_hubmap_id", "donor_submission_id", "hubmap_id", "organ", "organization", 
+             "provider_experiment_id", "uuid")
+tsv
+    a text/tab-seperated-value document including each unpublished dataset.
+    fields: ("data_types", "donor_hubmap_id", "donor_submission_id", "hubmap_id", "organ", "organization", 
+             "provider_experiment_id", "uuid")
+"""
+@app.route('/datasets/unpublished', methods=['GET'])
+def unpublished():
+    # String constraints
+    HEADER_DATA_TYPES = "data_types"
+    HEADER_ORGANIZATION = "organization"
+    HEADER_UUID = "uuid"
+    HEADER_HUBMAP_ID = "hubmap_id"
+    HEADER_ORGAN = "organ"
+    HEADER_DONOR_HUBMAP_ID = "donor_hubmap_id"
+    HEADER_SUBMISSION_ID = "donor_submission_id"
+    HEADER_PROVIDER_EXPERIMENT_ID = "provider_experiment_id"
+
+    headers = [
+        HEADER_DATA_TYPES, HEADER_ORGANIZATION, HEADER_UUID, HEADER_HUBMAP_ID, HEADER_ORGAN, HEADER_DONOR_HUBMAP_ID,
+        HEADER_SUBMISSION_ID, HEADER_PROVIDER_EXPERIMENT_ID
+    ]
+
+    # Processing and validating query parameters
+    accepted_arguments = ['format']
+    return_tsv = False
+    if bool(request.args):
+        for argument in request.args:
+            if argument not in accepted_arguments:
+                bad_request_error(f"{argument} is an unrecognized argument.")
+        return_format = request.args.get('format')
+        if return_format is not None:
+            if return_format.lower() not in ['json', 'tsv']:
+                bad_request_error(
+                    "Invalid Format. Accepted formats are JSON and TSV. If no format is given, JSON will be the default")
+            if return_format.lower() == 'tsv':
+                return_tsv = True
+    unpublished_info = app_neo4j_queries.get_unpublished(neo4j_driver_instance)
+    if return_tsv:
+        new_tsv_file = StringIO()
+        writer = csv.DictWriter(new_tsv_file, fieldnames=headers, delimiter='\t')
+        writer.writeheader()
+        writer.writerows(unpublished_info)
+        new_tsv_file.seek(0)
+        output = Response(new_tsv_file, mimetype='text/tsv')
+        output.headers['Content-Disposition'] = 'attachment; filename=unpublished-datasets.tsv'
+        return output
+
+    # if return_json is false, the data must be converted to be returned as a tsv
+    else:
+        return jsonify(unpublished_info)
+
 
 ####################################################################################################
 ## Internal Functions
