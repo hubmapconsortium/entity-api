@@ -1,20 +1,6 @@
-# 3/18/2022
-# Note: we don't need this dependency. But due to the recent unit test error: 
-# ImportError: cannot import name 'json' from 'itsdangerous'
-# The recommended fix is to upgrade the Flask to latest version i.e, 2.0.3 or above
-# But we don't want to upgrade Flask in case it breaks the API
-# Add this itsdangerous dependency and downgrade to 2.0.1 as a temporary solution
-itsdangerous==2.0.1
-
-# 4/7/2022
-# Note: pin version of Jinja2 to 3.0.3 because escape function was removed from newer release 
-# but Flask v1.1.2 that we are using still depends on the older version
-Jinja2==3.0.3
-
-Flask==1.1.2
+Flask==2.1.3
 neo4j==4.4
 prov==2.0.0
-Werkzeug==1.0.1
 
 # For schema templating
 nested-lookup==0.2.22
