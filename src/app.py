@@ -57,7 +57,7 @@ app.config.from_pyfile('app.cfg')
 # Remove trailing slash / from URL base to avoid "//" caused by config with trailing slash
 app.config['UUID_API_URL'] = app.config['UUID_API_URL'].strip('/')
 app.config['INGEST_API_URL'] = app.config['INGEST_API_URL'].strip('/')
-app.config['SEARCH_API_URL'] = app.config['SEARCH_API_URL'].strip('/')
+app.config['SEARCH_API_URL_LIST'] = [url.strip('/') for url in app.config['SEARCH_API_URL_LIST']]
 
 # Suppress InsecureRequestWarning warning when requesting status on https with ssl cert verify disabled
 requests.packages.urllib3.disable_warnings(category = InsecureRequestWarning)
@@ -152,7 +152,6 @@ try:
     schema_manager.initialize(app.config['SCHEMA_YAML_FILE'],
                               app.config['UUID_API_URL'],
                               app.config['INGEST_API_URL'],
-                              app.config['SEARCH_API_URL'],
                               auth_helper_instance,
                               neo4j_driver_instance)
 
@@ -3925,6 +3924,7 @@ def update_entity_details(request, normalized_entity_type, user_token, json_data
     # merged_dict only contains properties to be updated, not all properties
     return merged_final_dict
 
+
 """
 Execute 'after_update_triiger' methods
 
@@ -4009,6 +4009,7 @@ def query_target_entity(id, user_token):
         else:
             internal_server_error(e.response.text)
 
+
 """
 Always expect a json body from user request
 
@@ -4021,7 +4022,7 @@ def require_json(request):
 
 
 """
-Make a call to search-api to reindex this entity node in elasticsearch
+Make a call to each search-api instance to reindex this entity node in elasticsearch
 
 Parameters
 ----------
@@ -4031,24 +4032,21 @@ user_token: str
     The user's globus groups token
 """
 def reindex_entity(uuid, user_token):
-    try:
-        logger.info(f"Making a call to search-api to reindex uuid: {uuid}")
+    headers = create_request_headers(user_token)
 
-        headers = create_request_headers(user_token)
+    # Reindex the target entity against each configured search-api instance
+    for search_api_url in app.config['SEARCH_API_URL_LIST']:
+        logger.info(f"Making a call to search-api instance of {search_api_url} to reindex uuid: {uuid}")
 
-        response = requests.put(app.config['SEARCH_API_URL'] + "/reindex/" + uuid, headers = headers)
+        response = requests.put(f"{search_api_url}/reindex/{uuid}", headers = headers)
+
         # The reindex takes time, so 202 Accepted response status code indicates that
         # the request has been accepted for processing, but the processing has not been completed
         if response.status_code == 202:
-            logger.info(f"The search-api has accepted the reindex request for uuid: {uuid}")
+            logger.info(f"The search-api instance of {search_api_url} has accepted the reindex request for uuid: {uuid}")
         else:
-            logger.error(f"The search-api failed to initialize the reindex for uuid: {uuid}")
-    except Exception:
-        msg = f"Failed to send the reindex request to search-api for entity with uuid: {uuid}"
-        # Log the full stack trace, prepend a line with our message
-        logger.exception(msg)
-        # Terminate and let the users know
-        internal_server_error(msg)
+            logger.error(f"The search-api instance of {search_api_url} failed to initialize the reindex for uuid: {uuid}")
+
 
 """
 Create a dict of HTTP Authorization header with Bearer token for making calls to uuid-api
@@ -4073,6 +4071,7 @@ def create_request_headers(user_token):
     }
 
     return headers_dict
+
 
 """
 Ensure the access level dir with leading and trailing slashes
