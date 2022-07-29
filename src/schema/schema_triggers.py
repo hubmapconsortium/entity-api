@@ -2004,7 +2004,14 @@ def _get_assay_type_description(assay_type):
 
         try:
             assay_types_dict = yaml.safe_load(response.text)
-            return assay_types_dict[assay_type]['description'].lower()
+
+            if assay_type in assay_types_dict:
+                return assay_types_dict[assay_type]['description'].lower()
+            else:
+                # Check the 'alt-names' list if not found in the top-level keys
+                for key in assay_types_dict:
+                    if assay_type in assay_types_dict[key]['alt-names']:
+                        return assay_types_dict[key]['description'].lower()
         except yaml.YAMLError as e:
             raise yaml.YAMLError(e)
     else:
