@@ -63,6 +63,9 @@ app.config['SEARCH_API_URL_LIST'] = [url.strip('/') for url in app.config['SEARC
 requests.packages.urllib3.disable_warnings(category = InsecureRequestWarning)
 
 # For performance improvement and not overloading the server, especially helpful during Elasticsearch index/reindex
+# We use the cache as long as it exists
+# Only clear the expired one based on TTL setting passively upon lookup rather than the actual expiration time
+# This approach takes advantage of the cache and also prevents from memory overflow
 entity_cache = {}
 
 
@@ -4047,7 +4050,7 @@ def query_target_entity(id, user_token):
             if not entity_dict:
                 not_found_error(f"Entity of id: {id} not found in Neo4j")
 
-            # Add or update cache
+            # Add to cache
             new_datetime = datetime.now()
             new_timestamp = int(round(new_datetime.timestamp()))
 

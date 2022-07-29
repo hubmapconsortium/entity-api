@@ -32,6 +32,9 @@ _auth_helper = None
 _neo4j_driver = None
 
 # For handling cached requests to uuid-api and external static resources (github raw yaml files)
+# We use the cache as long as it exists
+# Only clear the expired one based on TTL setting passively upon lookup rather than the actual expiration time
+# This approach takes advantage of the cache and also prevents from memory overflow
 request_cache = {}
 
 
@@ -1579,7 +1582,7 @@ def make_request_get(target_url, internal_token_used = False):
         else:
             response = requests.get(url = target_url, verify = False)
 
-        # Add or update cache
+        # Add to cache
         new_datetime = datetime.now()
         new_timestamp = int(round(new_datetime.timestamp()))
 
