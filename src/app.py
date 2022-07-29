@@ -51,7 +51,7 @@ log_file_handler.setFormatter(logging.Formatter('[%(asctime)s] %(levelname)s in 
 logger.addHandler(log_file_handler)
 
 # Specify the absolute path of the instance folder and use the config file relative to the instance path
-app = Flask(__name__, instance_path=os.path.join(os.path.abspath(os.path.dirname(__file__)), 'instance'), instance_relative_config=True)
+app = Flask(__name__, instance_path = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'instance'), instance_relative_config = True)
 app.config.from_pyfile('app.cfg')
 
 # Remove trailing slash / from URL base to avoid "//" caused by config with trailing slash
@@ -70,27 +70,31 @@ requests.packages.urllib3.disable_warnings(category = InsecureRequestWarning)
 # Error handler for 400 Bad Request with custom error message
 @app.errorhandler(400)
 def http_bad_request(e):
-    return jsonify(error=str(e)), 400
+    return jsonify(error = str(e)), 400
+
 
 # Error handler for 401 Unauthorized with custom error message
 @app.errorhandler(401)
 def http_unauthorized(e):
-    return jsonify(error=str(e)), 401
+    return jsonify(error = str(e)), 401
+
 
 # Error handler for 403 Forbidden with custom error message
 @app.errorhandler(403)
 def http_forbidden(e):
-    return jsonify(error=str(e)), 403
+    return jsonify(error = str(e)), 403
+
 
 # Error handler for 404 Not Found with custom error message
 @app.errorhandler(404)
 def http_not_found(e):
-    return jsonify(error=str(e)), 404
+    return jsonify(error = str(e)), 404
+
 
 # Error handler for 500 Internal Server Error with custom error message
 @app.errorhandler(500)
 def http_internal_server_error(e):
-    return jsonify(error=str(e)), 500
+    return jsonify(error = str(e)), 500
 
 
 ####################################################################################################
@@ -227,6 +231,7 @@ str
 @app.route('/', methods = ['GET'])
 def index():
     return "Hello! This is HuBMAP Entity API service :)"
+
 
 """
 Show status of neo4j connection with the current VERSION and BUILD
@@ -552,6 +557,7 @@ def get_entity_provenance(id):
     # Response with the provenance details
     return Response(response = provenance_json, mimetype = "application/json")
 
+
 """
 Show all the supported entity types
 
@@ -569,6 +575,7 @@ def get_entity_types():
     validate_token_if_auth_header_exists(request)
 
     return jsonify(schema_manager.get_all_entity_types())
+
 
 """
 Retrive all the entity nodes for a given entity type
@@ -1227,6 +1234,7 @@ def update_entity(id):
 
     return jsonify(normalized_complete_dict)
 
+
 """
 Get all ancestors of the given entity
 
@@ -1402,6 +1410,7 @@ def get_descendants(id):
 
     return jsonify(final_result)
 
+
 """
 Get all parents of the given entity
 
@@ -1502,6 +1511,7 @@ def get_parents(id):
         final_result = schema_manager.normalize_entities_list_for_response(complete_entities_list)
 
     return jsonify(final_result)
+
 
 """
 Get all chilren of the given entity
@@ -1771,6 +1781,7 @@ def add_datasets_to_collection(collection_uuid):
 
     # Send response with success message
     return jsonify(message = "Successfully added all the specified datasets to the target collection")
+
 
 """
 Redirect a request from a doi service for a dataset or collection
@@ -2197,6 +2208,7 @@ def retract_dataset(id):
 
     return jsonify(normalized_complete_dict)
 
+
 """
 Retrieve a list of all revisions of a dataset from the id of any dataset in the chain. 
 E.g: If there are 5 revisions, and the id for revision 4 is given, a list of revisions
@@ -2292,6 +2304,7 @@ def get_revisions_list(id):
 
     return jsonify(results)
 
+
 """
 Get all organs associated with a given dataset
 
@@ -2345,6 +2358,7 @@ def get_associated_organs_from_dataset(id):
     final_result = schema_manager.normalize_entities_list_for_response(complete_entities_list)
 
     return jsonify(final_result)
+
 
 """
 Get the complete provenance info for all datasets
@@ -3233,6 +3247,7 @@ def get_sample_prov_info():
         sample_prov_list.append(internal_dict)
     return jsonify(sample_prov_list)
 
+
 """
 Retrieve all unpublished datasets (datasets with status value other than 'Published' or 'Hold')
 
@@ -3318,6 +3333,7 @@ err_msg : str
 def bad_request_error(err_msg):
     abort(400, description = err_msg)
 
+
 """
 Throws error for 401 Unauthorized with message
 
@@ -3328,6 +3344,7 @@ err_msg : str
 """
 def unauthorized_error(err_msg):
     abort(401, description = err_msg)
+
 
 """
 Throws error for 403 Forbidden with message
@@ -3340,6 +3357,7 @@ err_msg : str
 def forbidden_error(err_msg):
     abort(403, description = err_msg)
 
+
 """
 Throws error for 404 Not Found with message
 
@@ -3350,6 +3368,7 @@ err_msg : str
 """
 def not_found_error(err_msg):
     abort(404, description = err_msg)
+
 
 """
 Throws error for 500 Internal Server Error with message
@@ -3407,6 +3426,7 @@ def get_user_token(request, non_public_access_required = False):
             forbidden_error("Access not granted")
 
     return user_token
+
 
 """
 Check if the user with token is in the HuBMAP-READ group
