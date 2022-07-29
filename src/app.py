@@ -4119,11 +4119,34 @@ organ_code : str
 Returns nothing. Raises bad_request_error is organ code not found on organ_types.yaml 
 """
 def validate_organ_code(organ_code):
-    ORGAN_YAML_URL = 'https://raw.githubusercontent.com/hubmapconsortium/search-api/test-release/src/search-schema/data/definitions/enums/organ_types.yaml'
-    with urllib.request.urlopen(ORGAN_YAML_URL) as organ_file:
-        organ_yaml = yaml.load(organ_file, Loader=yaml.FullLoader)
-    if organ_code.upper() not in organ_yaml:
-        bad_request_error(f"Invalid Organ. Organ must be 2 digit code, case-insensitive located at {ORGAN_YAML_URL}")
+    yaml_file_url = SchemaConstants.ORGAN_TYPES_YAML
+
+    # Function cache to improve performance
+    response = schema_manager.make_request_get(yaml_file_url)
+
+    if response.status_code == 200:
+        yaml_file = response.text
+
+        try:
+            organ_types_dict = yaml.safe_load(response.text)
+            
+            if organ_code.upper() not in organ_types_dict:
+                bad_request_error(f"Invalid Organ. Organ must be 2 digit code, case-insensitive located at {yaml_file_url}")
+        except yaml.YAMLError as e:
+            raise yaml.YAMLError(e)
+    else:
+        msg = f"Unable to fetch the: {yaml_file_url}"
+        # Log the full stack trace, prepend a line with our message
+        logger.exception(msg)
+
+        logger.debug("======validate_organ_code() status code======")
+        logger.debug(response.status_code)
+
+        logger.debug("======validate_organ_code() response text======")
+        logger.debug(response.text)
+
+        # Terminate and let the users know
+        internal_server_error(f"Failed to validate the organ code: {organ_code}")
 
 
 ####################################################################################################
