@@ -312,7 +312,8 @@ def get_ancestor_organs(id):
     # since public entities don't require user token
     token = get_internal_token()
 
-    # Query target entity against uuid-api and neo4j and return as a dict if exists
+    # Get the entity dict from cache if exists
+    # Otherwise query against uuid-api and neo4j to get the entity dict if the id exists
     entity_dict = query_target_entity(id, token)
     normalized_entity_type = entity_dict['entity_type']
 
@@ -488,7 +489,8 @@ def get_entity_provenance(id):
     # since public entities don't require user token
     token = get_internal_token()
 
-    # Query target entity against uuid-api and neo4j and return as a dict if exists
+    # Get the entity dict from cache if exists
+    # Otherwise query against uuid-api and neo4j to get the entity dict if the id exists
     entity_dict = query_target_entity(id, token)
     uuid = entity_dict['uuid']
     normalized_entity_type = entity_dict['entity_type']
@@ -707,7 +709,8 @@ def get_collection(id):
     # since public collections don't require user token
     token = get_internal_token()
 
-    # Query target entity against uuid-api and neo4j and return as a dict if exists
+    # Get the entity dict from cache if exists
+    # Otherwise query against uuid-api and neo4j to get the entity dict if the id exists
     collection_dict = query_target_entity(id, token)
 
     # A bit validation
@@ -1098,7 +1101,8 @@ def update_entity(id):
         normalized_status = schema_manager.normalize_status(json_data_dict["sub_status"])
         json_data_dict["sub_status"] = normalized_status
 
-    # Get target entity and return as a dict if exists
+    # Get the entity dict from cache if exists
+    # Otherwise query against uuid-api and neo4j to get the entity dict if the id exists
     entity_dict = query_target_entity(id, user_token)
 
     # Normalize user provided entity_type
@@ -1276,8 +1280,8 @@ def get_ancestors(id):
     # since public entities don't require user token
     token = get_internal_token()
 
-    # Make sure the id exists in uuid-api and
-    # the corresponding entity also exists in neo4j
+    # Get the entity dict from cache if exists
+    # Otherwise query against uuid-api and neo4j to get the entity dict if the id exists
     entity_dict = query_target_entity(id, token)
     normalized_entity_type = entity_dict['entity_type']
     uuid = entity_dict['uuid']
@@ -1370,8 +1374,8 @@ def get_descendants(id):
     # Get user token from Authorization header
     user_token = get_user_token(request)
 
-    # Make sure the id exists in uuid-api and
-    # the corresponding entity also exists in neo4j
+    # Get the entity dict from cache if exists
+    # Otherwise query against uuid-api and neo4j to get the entity dict if the id exists
     entity_dict = query_target_entity(id, user_token)
     uuid = entity_dict['uuid']
 
@@ -1452,8 +1456,8 @@ def get_parents(id):
     # since public entities don't require user token
     token = get_internal_token()
 
-    # Make sure the id exists in uuid-api and
-    # the corresponding entity also exists in neo4j
+    # Get the entity dict from cache if exists
+    # Otherwise query against uuid-api and neo4j to get the entity dict if the id exists
     entity_dict = query_target_entity(id, token)
     normalized_entity_type = entity_dict['entity_type']
     uuid = entity_dict['uuid']
@@ -1546,8 +1550,8 @@ def get_children(id):
     # Get user token from Authorization header
     user_token = get_user_token(request)
 
-    # Make sure the id exists in uuid-api and
-    # the corresponding entity also exists in neo4j
+    # Get the entity dict from cache if exists
+    # Otherwise query against uuid-api and neo4j to get the entity dict if the id exists
     entity_dict = query_target_entity(id, user_token)
     uuid = entity_dict['uuid']
 
@@ -1618,8 +1622,8 @@ def get_previous_revisions(id):
     # Get user token from Authorization header
     user_token = get_user_token(request)
 
-    # Make sure the id exists in uuid-api and
-    # the corresponding entity also exists in neo4j
+    # Get the entity dict from cache if exists
+    # Otherwise query against uuid-api and neo4j to get the entity dict if the id exists
     entity_dict = query_target_entity(id, user_token)
     uuid = entity_dict['uuid']
 
@@ -1682,8 +1686,8 @@ def get_next_revisions(id):
     # Get user token from Authorization header
     user_token = get_user_token(request)
 
-    # Make sure the id exists in uuid-api and
-    # the corresponding entity also exists in neo4j
+    # Get the entity dict from cache if exists
+    # Otherwise query against uuid-api and neo4j to get the entity dict if the id exists
     entity_dict = query_target_entity(id, user_token)
     uuid = entity_dict['uuid']
 
