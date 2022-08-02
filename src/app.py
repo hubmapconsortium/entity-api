@@ -63,9 +63,6 @@ app.config['SEARCH_API_URL_LIST'] = [url.strip('/') for url in app.config['SEARC
 requests.packages.urllib3.disable_warnings(category = InsecureRequestWarning)
 
 # For performance improvement and not overloading the server, especially helpful during Elasticsearch index/reindex
-# We use the cache as long as it exists
-# Only clear the expired one based on TTL setting passively upon lookup rather than the actual expiration time
-# This approach takes advantage of the cache and also prevents from memory overflow
 entity_cache = {}
 
 
@@ -4009,20 +4006,18 @@ def query_target_entity(id, user_token):
     current_datetime = datetime.now()
     current_timestamp = int(round(current_datetime.timestamp()))
 
-    # Use the cached data as long as it exists, no matter if it's expired or not
-    # Otherwise make a fresh request and add to the cache pool
-    # But we'll clear the expired cache based on TTL setting passively
-    if id in entity_cache:
+    # Check if the cached entity is found and still valid based on TTL upon request, delete if expired
+    if (id in entity_cache) and (current_timestamp > entity_cache[id]['created_timestamp'] + SchemaConstants.REQUEST_CACHE_TTL):
+        del entity_cache[id]
+
+        logger.info(f'Deleted the expired entity cache of {id} at time {current_datetime}')
+
+    # Use the cached data if found and still valid
+    # Otherwise, make a fresh query and add to cache
+    if (id in entity_cache) and (current_timestamp <= entity_cache[id]['created_timestamp'] + SchemaConstants.REQUEST_CACHE_TTL):
         entity_dict = entity_cache[id]['entity']
 
-        # We can still return the cache entity even if it's expired.
-        # Just need to clear the expired data from cache so the next lookup makes a new call and stores the new data to cache
-        if current_timestamp <= entity_cache[id]['created_timestamp'] + SchemaConstants.REQUEST_CACHE_TTL:
-            logger.info(f'Using the entity data of {id} from cache at time {current_datetime}')
-        else:
-            logger.info(f'Using the entity data of {id} from cache at time {current_datetime} then clear it based on TTL setting')
-
-            del entity_cache[id]
+        logger.info(f'Using the valid cache data of entity {id} at time {current_datetime}')
     else:
         logger.info(f'Cache not found or expired. Making a new query to retrieve {id} at time {current_datetime}')
         

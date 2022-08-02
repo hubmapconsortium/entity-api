@@ -32,9 +32,6 @@ _auth_helper = None
 _neo4j_driver = None
 
 # For handling cached requests to uuid-api and external static resources (github raw yaml files)
-# We use the cache as long as it exists
-# Only clear the expired one based on TTL setting passively upon lookup rather than the actual expiration time
-# This approach takes advantage of the cache and also prevents from memory overflow
 request_cache = {}
 
 
@@ -1557,18 +1554,18 @@ def make_request_get(target_url, internal_token_used = False):
     current_datetime = datetime.now()
     current_timestamp = int(round(current_datetime.timestamp()))
 
-    # Use the cached data as long as it exists, no matter if it's expired or not
-    # Otherwise make a fresh request and add to the cache pool
-    # But we'll clear the expired cache based on TTL setting passively
-    if target_url in request_cache:
+    # Check if the cached response is found and still valid based on TTL upon request, delete if expired
+    if (target_url in request_cache) and (current_timestamp > request_cache[target_url]['created_timestamp'] + SchemaConstants.REQUEST_CACHE_TTL):
+        del request_cache[target_url]
+
+        logger.info(f'Deleted the expired HTTP response cache of GET {target_url} at time {current_datetime}')
+
+    # Use the cached data if found and still valid
+    # Otherwise, make a fresh query and add to cache
+    if (target_url in request_cache) and (current_timestamp <= request_cache[target_url]['created_timestamp'] + SchemaConstants.REQUEST_CACHE_TTL):
         response = request_cache[target_url]['response']
 
-        if current_timestamp <= request_cache[target_url]['created_timestamp'] + SchemaConstants.REQUEST_CACHE_TTL:
-            logger.info(f'Using the cached HTTP response of GET {target_url} at time {current_datetime}')
-        else:
-            logger.info(f'Using the cached HTTP response of GET {target_url} at time {current_datetime} then clear it based on TTL setting')
-
-            del request_cache[target_url]
+        logger.info(f'Using the cached HTTP response of GET {target_url} at time {current_datetime}')
     else:
         logger.info(f'Cache not found or expired. Making a new HTTP request of GET {target_url} at time {current_datetime}')
         
