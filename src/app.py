@@ -51,16 +51,19 @@ log_file_handler.setFormatter(logging.Formatter('[%(asctime)s] %(levelname)s in 
 logger.addHandler(log_file_handler)
 
 # Specify the absolute path of the instance folder and use the config file relative to the instance path
-app = Flask(__name__, instance_path=os.path.join(os.path.abspath(os.path.dirname(__file__)), 'instance'), instance_relative_config=True)
+app = Flask(__name__, instance_path = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'instance'), instance_relative_config = True)
 app.config.from_pyfile('app.cfg')
 
 # Remove trailing slash / from URL base to avoid "//" caused by config with trailing slash
 app.config['UUID_API_URL'] = app.config['UUID_API_URL'].strip('/')
 app.config['INGEST_API_URL'] = app.config['INGEST_API_URL'].strip('/')
-app.config['SEARCH_API_URL'] = app.config['SEARCH_API_URL'].strip('/')
+app.config['SEARCH_API_URL_LIST'] = [url.strip('/') for url in app.config['SEARCH_API_URL_LIST']]
 
 # Suppress InsecureRequestWarning warning when requesting status on https with ssl cert verify disabled
 requests.packages.urllib3.disable_warnings(category = InsecureRequestWarning)
+
+# For performance improvement and not overloading the server, especially helpful during Elasticsearch index/reindex
+entity_cache = {}
 
 
 ####################################################################################################
@@ -70,27 +73,31 @@ requests.packages.urllib3.disable_warnings(category = InsecureRequestWarning)
 # Error handler for 400 Bad Request with custom error message
 @app.errorhandler(400)
 def http_bad_request(e):
-    return jsonify(error=str(e)), 400
+    return jsonify(error = str(e)), 400
+
 
 # Error handler for 401 Unauthorized with custom error message
 @app.errorhandler(401)
 def http_unauthorized(e):
-    return jsonify(error=str(e)), 401
+    return jsonify(error = str(e)), 401
+
 
 # Error handler for 403 Forbidden with custom error message
 @app.errorhandler(403)
 def http_forbidden(e):
-    return jsonify(error=str(e)), 403
+    return jsonify(error = str(e)), 403
+
 
 # Error handler for 404 Not Found with custom error message
 @app.errorhandler(404)
 def http_not_found(e):
-    return jsonify(error=str(e)), 404
+    return jsonify(error = str(e)), 404
+
 
 # Error handler for 500 Internal Server Error with custom error message
 @app.errorhandler(500)
 def http_internal_server_error(e):
-    return jsonify(error=str(e)), 500
+    return jsonify(error = str(e)), 500
 
 
 ####################################################################################################
@@ -152,7 +159,6 @@ try:
     schema_manager.initialize(app.config['SCHEMA_YAML_FILE'],
                               app.config['UUID_API_URL'],
                               app.config['INGEST_API_URL'],
-                              app.config['SEARCH_API_URL'],
                               auth_helper_instance,
                               neo4j_driver_instance)
 
@@ -229,6 +235,7 @@ str
 def index():
     return "Hello! This is HuBMAP Entity API service :)"
 
+
 """
 Show status of neo4j connection with the current VERSION and BUILD
 
@@ -302,7 +309,8 @@ def get_ancestor_organs(id):
     # since public entities don't require user token
     token = get_internal_token()
 
-    # Query target entity against uuid-api and neo4j and return as a dict if exists
+    # Get the entity dict from cache if exists
+    # Otherwise query against uuid-api and neo4j to get the entity dict if the id exists
     entity_dict = query_target_entity(id, token)
     normalized_entity_type = entity_dict['entity_type']
 
@@ -365,7 +373,8 @@ def get_entity_by_id(id):
     # since public entities don't require user token
     token = get_internal_token()
 
-    # Query target entity against uuid-api and neo4j and return as a dict if exists
+    # Get the entity dict from cache if exists
+    # Otherwise query against uuid-api and neo4j to get the entity dict if the id exists
     entity_dict = query_target_entity(id, token)
     normalized_entity_type = entity_dict['entity_type']
 
@@ -477,7 +486,8 @@ def get_entity_provenance(id):
     # since public entities don't require user token
     token = get_internal_token()
 
-    # Query target entity against uuid-api and neo4j and return as a dict if exists
+    # Get the entity dict from cache if exists
+    # Otherwise query against uuid-api and neo4j to get the entity dict if the id exists
     entity_dict = query_target_entity(id, token)
     uuid = entity_dict['uuid']
     normalized_entity_type = entity_dict['entity_type']
@@ -553,6 +563,7 @@ def get_entity_provenance(id):
     # Response with the provenance details
     return Response(response = provenance_json, mimetype = "application/json")
 
+
 """
 Show all the supported entity types
 
@@ -570,6 +581,7 @@ def get_entity_types():
     validate_token_if_auth_header_exists(request)
 
     return jsonify(schema_manager.get_all_entity_types())
+
 
 """
 Retrive all the entity nodes for a given entity type
@@ -694,7 +706,8 @@ def get_collection(id):
     # since public collections don't require user token
     token = get_internal_token()
 
-    # Query target entity against uuid-api and neo4j and return as a dict if exists
+    # Get the entity dict from cache if exists
+    # Otherwise query against uuid-api and neo4j to get the entity dict if the id exists
     collection_dict = query_target_entity(id, token)
 
     # A bit validation
@@ -1085,7 +1098,8 @@ def update_entity(id):
         normalized_status = schema_manager.normalize_status(json_data_dict["sub_status"])
         json_data_dict["sub_status"] = normalized_status
 
-    # Get target entity and return as a dict if exists
+    # Get the entity dict from cache if exists
+    # Otherwise query against uuid-api and neo4j to get the entity dict if the id exists
     entity_dict = query_target_entity(id, user_token)
 
     # Normalize user provided entity_type
@@ -1222,11 +1236,16 @@ def update_entity(id):
     # Will also filter the result based on schema
     normalized_complete_dict = schema_manager.normalize_entity_result_for_response(complete_dict)
 
-    # How to handle reindex collection?
+    # Remove the old entity from cache
+    # DO NOT update the cache with new entity dict because the returned dict from PUT (some properties maybe skipped)
+    # can be different from the one generated by GET call 
+    entity_cache.pop(id, None)
+
     # Also reindex the updated entity node in elasticsearch via search-api
     reindex_entity(entity_dict['uuid'], user_token)
 
     return jsonify(normalized_complete_dict)
+
 
 """
 Get all ancestors of the given entity
@@ -1258,8 +1277,8 @@ def get_ancestors(id):
     # since public entities don't require user token
     token = get_internal_token()
 
-    # Make sure the id exists in uuid-api and
-    # the corresponding entity also exists in neo4j
+    # Get the entity dict from cache if exists
+    # Otherwise query against uuid-api and neo4j to get the entity dict if the id exists
     entity_dict = query_target_entity(id, token)
     normalized_entity_type = entity_dict['entity_type']
     uuid = entity_dict['uuid']
@@ -1352,8 +1371,8 @@ def get_descendants(id):
     # Get user token from Authorization header
     user_token = get_user_token(request)
 
-    # Make sure the id exists in uuid-api and
-    # the corresponding entity also exists in neo4j
+    # Get the entity dict from cache if exists
+    # Otherwise query against uuid-api and neo4j to get the entity dict if the id exists
     entity_dict = query_target_entity(id, user_token)
     uuid = entity_dict['uuid']
 
@@ -1403,6 +1422,7 @@ def get_descendants(id):
 
     return jsonify(final_result)
 
+
 """
 Get all parents of the given entity
 
@@ -1433,8 +1453,8 @@ def get_parents(id):
     # since public entities don't require user token
     token = get_internal_token()
 
-    # Make sure the id exists in uuid-api and
-    # the corresponding entity also exists in neo4j
+    # Get the entity dict from cache if exists
+    # Otherwise query against uuid-api and neo4j to get the entity dict if the id exists
     entity_dict = query_target_entity(id, token)
     normalized_entity_type = entity_dict['entity_type']
     uuid = entity_dict['uuid']
@@ -1504,6 +1524,7 @@ def get_parents(id):
 
     return jsonify(final_result)
 
+
 """
 Get all chilren of the given entity
 Result filtering based on query string
@@ -1526,8 +1547,8 @@ def get_children(id):
     # Get user token from Authorization header
     user_token = get_user_token(request)
 
-    # Make sure the id exists in uuid-api and
-    # the corresponding entity also exists in neo4j
+    # Get the entity dict from cache if exists
+    # Otherwise query against uuid-api and neo4j to get the entity dict if the id exists
     entity_dict = query_target_entity(id, user_token)
     uuid = entity_dict['uuid']
 
@@ -1598,8 +1619,8 @@ def get_previous_revisions(id):
     # Get user token from Authorization header
     user_token = get_user_token(request)
 
-    # Make sure the id exists in uuid-api and
-    # the corresponding entity also exists in neo4j
+    # Get the entity dict from cache if exists
+    # Otherwise query against uuid-api and neo4j to get the entity dict if the id exists
     entity_dict = query_target_entity(id, user_token)
     uuid = entity_dict['uuid']
 
@@ -1662,8 +1683,8 @@ def get_next_revisions(id):
     # Get user token from Authorization header
     user_token = get_user_token(request)
 
-    # Make sure the id exists in uuid-api and
-    # the corresponding entity also exists in neo4j
+    # Get the entity dict from cache if exists
+    # Otherwise query against uuid-api and neo4j to get the entity dict if the id exists
     entity_dict = query_target_entity(id, user_token)
     uuid = entity_dict['uuid']
 
@@ -1772,6 +1793,7 @@ def add_datasets_to_collection(collection_uuid):
 
     # Send response with success message
     return jsonify(message = "Successfully added all the specified datasets to the target collection")
+
 
 """
 Redirect a request from a doi service for a dataset or collection
@@ -2198,6 +2220,7 @@ def retract_dataset(id):
 
     return jsonify(normalized_complete_dict)
 
+
 """
 Retrieve a list of all revisions of a dataset from the id of any dataset in the chain. 
 E.g: If there are 5 revisions, and the id for revision 4 is given, a list of revisions
@@ -2293,6 +2316,7 @@ def get_revisions_list(id):
 
     return jsonify(results)
 
+
 """
 Get all organs associated with a given dataset
 
@@ -2346,6 +2370,7 @@ def get_associated_organs_from_dataset(id):
     final_result = schema_manager.normalize_entities_list_for_response(complete_entities_list)
 
     return jsonify(final_result)
+
 
 """
 Get the complete provenance info for all datasets
@@ -3234,6 +3259,7 @@ def get_sample_prov_info():
         sample_prov_list.append(internal_dict)
     return jsonify(sample_prov_list)
 
+
 """
 Retrieve all unpublished datasets (datasets with status value other than 'Published' or 'Hold')
 
@@ -3319,6 +3345,7 @@ err_msg : str
 def bad_request_error(err_msg):
     abort(400, description = err_msg)
 
+
 """
 Throws error for 401 Unauthorized with message
 
@@ -3329,6 +3356,7 @@ err_msg : str
 """
 def unauthorized_error(err_msg):
     abort(401, description = err_msg)
+
 
 """
 Throws error for 403 Forbidden with message
@@ -3341,6 +3369,7 @@ err_msg : str
 def forbidden_error(err_msg):
     abort(403, description = err_msg)
 
+
 """
 Throws error for 404 Not Found with message
 
@@ -3351,6 +3380,7 @@ err_msg : str
 """
 def not_found_error(err_msg):
     abort(404, description = err_msg)
+
 
 """
 Throws error for 500 Internal Server Error with message
@@ -3408,6 +3438,7 @@ def get_user_token(request, non_public_access_required = False):
             forbidden_error("Access not granted")
 
     return user_token
+
 
 """
 Check if the user with token is in the HuBMAP-READ group
@@ -3925,6 +3956,7 @@ def update_entity_details(request, normalized_entity_type, user_token, json_data
     # merged_dict only contains properties to be updated, not all properties
     return merged_final_dict
 
+
 """
 Execute 'after_update_triiger' methods
 
@@ -3954,7 +3986,7 @@ def after_update(normalized_entity_type, user_token, entity_dict):
 
 
 """
-Get target entity dict
+Get target entity dict for the given id
 
 Parameters
 ----------
@@ -3966,48 +3998,80 @@ user_token: str
 Returns
 -------
 dict
-    A dictionary of entity details returned from neo4j
+    A dictionary of entity details either from cache or new neo4j lookup
 """
 def query_target_entity(id, user_token):
-    try:
-        """
-        The dict returned by uuid-api that contains all the associated ids, e.g.:
-        {
-            "ancestor_id": "23c0ffa90648358e06b7ac0c5673ccd2",
-            "ancestor_ids":[
-                "23c0ffa90648358e06b7ac0c5673ccd2"
-            ],
-            "email": "marda@ufl.edu",
-            "hm_uuid": "1785aae4f0fb8f13a56d79957d1cbedf",
-            "hubmap_id": "HBM966.VNKN.965",
-            "submission_id": "UFL0007",
-            "time_generated": "2020-10-19 15:52:02",
-            "type": "DONOR",
-            "user_id": "694c6f6a-1deb-41a6-880f-d1ad8af3705f"
-        }
-        """
-        hubmap_ids = schema_manager.get_hubmap_ids(id)
+    entity_dict = None
 
-        # Get the target uuid if all good
-        uuid = hubmap_ids['hm_uuid']
-        entity_dict = app_neo4j_queries.get_entity(neo4j_driver_instance, uuid)
+    current_datetime = datetime.now()
+    current_timestamp = int(round(current_datetime.timestamp()))
 
-        # The uuid exists via uuid-api doesn't mean it's also in Neo4j
-        if not entity_dict:
-            not_found_error(f"Entity of id: {id} not found in Neo4j")
+    # Check if the cached entity is found and still valid based on TTL upon request, delete if expired
+    if (id in entity_cache) and (current_timestamp > entity_cache[id]['created_timestamp'] + SchemaConstants.REQUEST_CACHE_TTL):
+        del entity_cache[id]
 
-        return entity_dict
-    except requests.exceptions.RequestException as e:
-        # Due to the use of response.raise_for_status() in schema_manager.get_hubmap_ids()
-        # we can access the status codes from the exception
-        status_code = e.response.status_code
+        logger.info(f'Deleted the expired entity cache of {id} at time {current_datetime}')
 
-        if status_code == 400:
-            bad_request_error(e.response.text)
-        if status_code == 404:
-            not_found_error(e.response.text)
-        else:
-            internal_server_error(e.response.text)
+    # Use the cached data if found and still valid
+    # Otherwise, make a fresh query and add to cache
+    if (id in entity_cache) and (current_timestamp <= entity_cache[id]['created_timestamp'] + SchemaConstants.REQUEST_CACHE_TTL):
+        entity_dict = entity_cache[id]['entity']
+
+        logger.info(f'Using the valid cache data of entity {id} at time {current_datetime}')
+    else:
+        logger.info(f'Cache not found or expired. Making a new query to retrieve {id} at time {current_datetime}')
+        
+        try:
+            """
+            The dict returned by uuid-api that contains all the associated ids, e.g.:
+            {
+                "ancestor_id": "940f409ea5b96ff8d98a87d185cc28e2",
+                "ancestor_ids": [
+                    "940f409ea5b96ff8d98a87d185cc28e2"
+                ],
+                "email": "jamie.l.allen@vanderbilt.edu",
+                "hm_uuid": "be5a8f1654364c9ea0ca3071ba48f260",
+                "hubmap_id": "HBM272.FXQF.697",
+                "submission_id": "VAN0032-RK-2-43",
+                "time_generated": "2020-11-09 19:55:09",
+                "type": "SAMPLE",
+                "user_id": "83ae233d-6d1d-40eb-baa7-b6f636ab579a"
+            }
+            """
+            # get_hubmap_ids() uses function cache to improve performance
+            hubmap_ids = schema_manager.get_hubmap_ids(id)
+
+            # Get the target uuid if all good
+            uuid = hubmap_ids['hm_uuid']
+            entity_dict = app_neo4j_queries.get_entity(neo4j_driver_instance, uuid)
+
+            # The uuid exists via uuid-api doesn't mean it's also in Neo4j
+            if not entity_dict:
+                not_found_error(f"Entity of id: {id} not found in Neo4j")
+
+            # Add to cache
+            new_datetime = datetime.now()
+            new_timestamp = int(round(new_datetime.timestamp()))
+
+            entity_cache[id] = {
+                'created_timestamp': new_timestamp,
+                'entity': entity_dict
+            }
+        except requests.exceptions.RequestException as e:
+            # Due to the use of response.raise_for_status() in schema_manager.get_hubmap_ids()
+            # we can access the status codes from the exception
+            status_code = e.response.status_code
+
+            if status_code == 400:
+                bad_request_error(e.response.text)
+            if status_code == 404:
+                not_found_error(e.response.text)
+            else:
+                internal_server_error(e.response.text)
+    
+    # Final return
+    return entity_dict
+
 
 """
 Always expect a json body from user request
@@ -4021,7 +4085,7 @@ def require_json(request):
 
 
 """
-Make a call to search-api to reindex this entity node in elasticsearch
+Make a call to each search-api instance to reindex this entity node in elasticsearch
 
 Parameters
 ----------
@@ -4031,24 +4095,21 @@ user_token: str
     The user's globus groups token
 """
 def reindex_entity(uuid, user_token):
-    try:
-        logger.info(f"Making a call to search-api to reindex uuid: {uuid}")
+    headers = create_request_headers(user_token)
 
-        headers = create_request_headers(user_token)
+    # Reindex the target entity against each configured search-api instance
+    for search_api_url in app.config['SEARCH_API_URL_LIST']:
+        logger.info(f"Making a call to search-api instance of {search_api_url} to reindex uuid: {uuid}")
 
-        response = requests.put(app.config['SEARCH_API_URL'] + "/reindex/" + uuid, headers = headers)
+        response = requests.put(f"{search_api_url}/reindex/{uuid}", headers = headers)
+
         # The reindex takes time, so 202 Accepted response status code indicates that
         # the request has been accepted for processing, but the processing has not been completed
         if response.status_code == 202:
-            logger.info(f"The search-api has accepted the reindex request for uuid: {uuid}")
+            logger.info(f"The search-api instance of {search_api_url} has accepted the reindex request for uuid: {uuid}")
         else:
-            logger.error(f"The search-api failed to initialize the reindex for uuid: {uuid}")
-    except Exception:
-        msg = f"Failed to send the reindex request to search-api for entity with uuid: {uuid}"
-        # Log the full stack trace, prepend a line with our message
-        logger.exception(msg)
-        # Terminate and let the users know
-        internal_server_error(msg)
+            logger.error(f"The search-api instance of {search_api_url} failed to initialize the reindex for uuid: {uuid}")
+
 
 """
 Create a dict of HTTP Authorization header with Bearer token for making calls to uuid-api
@@ -4073,6 +4134,7 @@ def create_request_headers(user_token):
     }
 
     return headers_dict
+
 
 """
 Ensure the access level dir with leading and trailing slashes
@@ -4100,11 +4162,34 @@ organ_code : str
 Returns nothing. Raises bad_request_error is organ code not found on organ_types.yaml 
 """
 def validate_organ_code(organ_code):
-    ORGAN_YAML_URL = 'https://raw.githubusercontent.com/hubmapconsortium/search-api/test-release/src/search-schema/data/definitions/enums/organ_types.yaml'
-    with urllib.request.urlopen(ORGAN_YAML_URL) as organ_file:
-        organ_yaml = yaml.load(organ_file, Loader=yaml.FullLoader)
-    if organ_code.upper() not in organ_yaml:
-        bad_request_error(f"Invalid Organ. Organ must be 2 digit code, case-insensitive located at {ORGAN_YAML_URL}")
+    yaml_file_url = SchemaConstants.ORGAN_TYPES_YAML
+
+    # Function cache to improve performance
+    response = schema_manager.make_request_get(yaml_file_url)
+
+    if response.status_code == 200:
+        yaml_file = response.text
+
+        try:
+            organ_types_dict = yaml.safe_load(response.text)
+            
+            if organ_code.upper() not in organ_types_dict:
+                bad_request_error(f"Invalid Organ. Organ must be 2 digit code, case-insensitive located at {yaml_file_url}")
+        except yaml.YAMLError as e:
+            raise yaml.YAMLError(e)
+    else:
+        msg = f"Unable to fetch the: {yaml_file_url}"
+        # Log the full stack trace, prepend a line with our message
+        logger.exception(msg)
+
+        logger.debug("======validate_organ_code() status code======")
+        logger.debug(response.status_code)
+
+        logger.debug("======validate_organ_code() response text======")
+        logger.debug(response.text)
+
+        # Terminate and let the users know
+        internal_server_error(f"Failed to validate the organ code: {organ_code}")
 
 
 ####################################################################################################
