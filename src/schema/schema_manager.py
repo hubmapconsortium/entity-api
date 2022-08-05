@@ -28,7 +28,6 @@ requests.packages.urllib3.disable_warnings(category = InsecureRequestWarning)
 _schema = None
 _uuid_api_url = None
 _ingest_api_url = None
-_search_api_url = None
 _auth_helper = None
 _neo4j_driver = None
 
@@ -54,21 +53,18 @@ neo4j_session_context : neo4j.Session object
 def initialize(valid_yaml_file, 
                uuid_api_url,
                ingest_api_url,
-               search_api_url,
                auth_helper_instance,
                neo4j_driver_instance):
     # Specify as module-scope variables
     global _schema
     global _uuid_api_url
     global _ingest_api_url
-    global _search_api_url
     global _auth_helper
     global _neo4j_driver
 
     _schema = load_provenance_schema(valid_yaml_file)
     _uuid_api_url = uuid_api_url
     _ingest_api_url = ingest_api_url
-    _search_api_url = search_api_url
 
     # Get the helper instances
     _auth_helper = auth_helper_instance
@@ -1451,20 +1447,6 @@ def get_ingest_api_url():
 
 
 """
-Get the search-api URL to be used by trigger methods
-
-Returns
--------
-str
-    The search-api URL
-"""
-def get_search_api_url():
-    global _search_api_url
-    
-    return _search_api_url
-
-
-"""
 Get the AUthHelper instance to be used by trigger methods
 
 Returns
@@ -1572,12 +1554,18 @@ def make_request_get(target_url, internal_token_used = False):
     current_datetime = datetime.now()
     current_timestamp = int(round(current_datetime.timestamp()))
 
-    # Use the cached response of the given url if exists and valid
-    # Otherwise make a fresh request and add the response to the cache pool
-    if (target_url in request_cache) and (current_timestamp <= request_cache[target_url]['created_timestamp'] + SchemaConstants.REQUEST_CACHE_TTL):
-        logger.info(f'Useing the cached HTTP response of GET {target_url} at time {current_datetime}')
+    # Check if the cached response is found and still valid based on TTL upon request, delete if expired
+    if (target_url in request_cache) and (current_timestamp > request_cache[target_url]['created_timestamp'] + SchemaConstants.REQUEST_CACHE_TTL):
+        del request_cache[target_url]
 
+        logger.info(f'Deleted the expired HTTP response cache of GET {target_url} at time {current_datetime}')
+
+    # Use the cached data if found and still valid
+    # Otherwise, make a fresh query and add to cache
+    if (target_url in request_cache) and (current_timestamp <= request_cache[target_url]['created_timestamp'] + SchemaConstants.REQUEST_CACHE_TTL):
         response = request_cache[target_url]['response']
+
+        logger.info(f'Using the cached HTTP response of GET {target_url} at time {current_datetime}')
     else:
         logger.info(f'Cache not found or expired. Making a new HTTP request of GET {target_url} at time {current_datetime}')
         
@@ -1591,7 +1579,7 @@ def make_request_get(target_url, internal_token_used = False):
         else:
             response = requests.get(url = target_url, verify = False)
 
-        # Add or update cache
+        # Add to cache
         new_datetime = datetime.now()
         new_timestamp = int(round(new_datetime.timestamp()))
 

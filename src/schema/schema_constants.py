@@ -1,6 +1,6 @@
 class SchemaConstants(object):
-    # Expire the request cache after the time-to-live (seconds), default 4 hours
-    REQUEST_CACHE_TTL = 14400
+    # Expire the request cache after the time-to-live (seconds), default 15 minutes
+    REQUEST_CACHE_TTL = 900
 
     # Constants used by validators
     INGEST_API_APP = 'ingest-api'
@@ -15,6 +15,8 @@ class SchemaConstants(object):
 
     # Yaml file to parse organ description
     ORGAN_TYPES_YAML = 'https://raw.githubusercontent.com/hubmapconsortium/search-api/master/src/search-schema/data/definitions/enums/organ_types.yaml'
+    
+    # yaml file to parse assay type description
     ASSAY_TYPES_YAML = 'https://raw.githubusercontent.com/hubmapconsortium/search-api/master/src/search-schema/data/definitions/enums/assay_types.yaml'
 
     # For generating Sample.tissue_type
