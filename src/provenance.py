@@ -2,8 +2,6 @@ from prov.model import ProvDocument, PROV
 import logging
 import datetime
 
-# HuBMAP commons
-from hubmap_commons import globus_groups
 
 logger = logging.getLogger(__name__)
 
@@ -25,7 +23,7 @@ Returns
 str
     A JSON string representation of the provenance document
 """
-def get_provenance_history(uuid, normalized_provenance_dict):
+def get_provenance_history(uuid, normalized_provenance_dict, auth_helper_instance):
     prov_doc = ProvDocument()
     # The 'prov' prefix is build-in namespace, no need to redefine here
     prov_doc.add_namespace(HUBMAP_NAMESPACE, 'https://hubmapconsortium.org/')
@@ -273,16 +271,19 @@ Parameters
 node_dict : dict
     The entity dict
 
+auth_helper_instance: AuthHelper
+    The auth helper instance passed in
+    
 Returns
 -------
 dict
     The prov dict for organization 
 """
-def get_organization_record(node_dict):
+def get_organization_record(node_dict, auth_helper_instance):
     group = {}
 
     # Get the globus groups info based on the groups json file in commons package
-    globus_groups_info = globus_groups.get_globus_groups_info()
+    globus_groups_info = auth_helper_instance.get_globus_groups_info()
     groups_by_id_dict = globus_groups_info['by_id']
     groups_by_name_dict = globus_groups_info['by_name']
     
