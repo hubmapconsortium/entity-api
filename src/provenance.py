@@ -89,7 +89,7 @@ def get_provenance_history(uuid, normalized_provenance_dict, auth_helper_instanc
 
             # Organization
             # Get the organization information from the entity node
-            org_record = get_organization_record(entity_node)
+            org_record = get_organization_record(entity_node, auth_helper_instance)
 
             # Build the organization uri
             group_uuid_prov_key = f'{HUBMAP_NAMESPACE}:groupUUID'
