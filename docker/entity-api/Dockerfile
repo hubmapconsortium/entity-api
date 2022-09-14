@@ -31,7 +31,7 @@ module_hotfixes=true\n'\
 # 4 - Remove the default nginx config file
 # 5 - Overwrite the nginx.conf with ours to run nginx as non-root
 # 6 - Remove the nginx directory copied from host machine (nginx/conf.d gets mounted to the container)
-# 7 - Install flask app dependencies with pip (pip3 also works)
+# 7 - Upgrade pip (the one installed in base image may be old) and install flask app dependencies (pip3 also works)
 # 8 - Make the start script executable
 # 9 - Clean all yum cache
 RUN yum install -y yum-utils && \
@@ -40,7 +40,7 @@ RUN yum install -y yum-utils && \
     rm /etc/nginx/conf.d/default.conf && \
     mv nginx/nginx.conf /etc/nginx/nginx.conf && \
     rm -rf nginx && \
-    pip install -r src/requirements.txt && \
+    pip install --upgrade pip -r src/requirements.txt && \
     chmod +x start.sh && \
     yum clean all 
 
