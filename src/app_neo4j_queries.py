@@ -1197,10 +1197,12 @@ param_dict : dictionary
 def get_sample_prov_info(neo4j_driver, param_dict, public_only):
     group_uuid_query_string = ''
     public_only_query_string = ''
+    clause_modifyer = "WHERE"
     if 'group_uuid' in param_dict:
         group_uuid_query_string = f" WHERE toUpper(s.group_uuid) = '{param_dict['group_uuid'].upper()}'"
+        clause_modifyer = "AND"
     if public_only:
-        public_only_query_string = f" AND toUpper(s.data_access_level) = 'PUBLIC'"
+        public_only_query_string = f" {clause_modifyer} toUpper(s.data_access_level) = 'PUBLIC'"
     query = (
         f" MATCH (s:Sample)<-[*]-(d:Donor)"
         f" {group_uuid_query_string}"
