@@ -1193,6 +1193,8 @@ neo4j_driver : neo4j.Driver object
     The neo4j database connection pool
 param_dict : dictionary
     dictionary containing any filters to be applied in the samples-prov-info query
+public_only : boolean
+    This value indicates whether the query should return all samples, or only samples where data_access_level = 'Public'
 """
 def get_sample_prov_info(neo4j_driver, param_dict, public_only):
     group_uuid_query_string = ''
