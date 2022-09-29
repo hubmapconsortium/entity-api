@@ -58,6 +58,10 @@ app.config['UUID_API_URL'] = app.config['UUID_API_URL'].strip('/')
 app.config['INGEST_API_URL'] = app.config['INGEST_API_URL'].strip('/')
 app.config['SEARCH_API_URL_LIST'] = [url.strip('/') for url in app.config['SEARCH_API_URL_LIST']]
 
+# This mode when set True disables the PUT and POST calls, used on STAGE to make entity-api READ-ONLY 
+# to prevent developers from creating new UUIDs and new entities or updating existing entities
+READ_ONLY_MODE = app.config['READ_ONLY_MODE']
+
 # Suppress InsecureRequestWarning warning when requesting status on https with ssl cert verify disabled
 requests.packages.urllib3.disable_warnings(category = InsecureRequestWarning)
 
@@ -840,6 +844,9 @@ json
 """
 @app.route('/entities/<entity_type>', methods = ['POST'])
 def create_entity(entity_type):
+    if READ_ONLY_MODE:
+        forbidden_error("Access not granted when entity-api in READ-ONLY mode")
+
     # Get user token from Authorization header
     user_token = get_user_token(request)
 
@@ -1012,6 +1019,9 @@ json
 """
 @app.route('/entities/multiple-samples/<count>', methods = ['POST'])
 def create_multiple_samples(count):
+    if READ_ONLY_MODE:
+        forbidden_error("Access not granted when entity-api in READ-ONLY mode")
+
     # Get user token from Authorization header
     user_token = get_user_token(request)
 
@@ -1078,6 +1088,9 @@ json
 """
 @app.route('/entities/<id>', methods = ['PUT'])
 def update_entity(id):
+    if READ_ONLY_MODE:
+        forbidden_error("Access not granted when entity-api in READ-ONLY mode")
+
     # Get user token from Authorization header
     user_token = get_user_token(request)
 
@@ -1752,6 +1765,9 @@ json
 """
 @app.route('/collections/<collection_uuid>/add-datasets', methods = ['PUT'])
 def add_datasets_to_collection(collection_uuid):
+    if READ_ONLY_MODE:
+        forbidden_error("Access not granted when entity-api in READ-ONLY mode")
+
     # Get user token from Authorization header
     user_token = get_user_token(request)
 
@@ -2152,6 +2168,9 @@ dict
 """
 @app.route('/datasets/<id>/retract', methods=['PUT'])
 def retract_dataset(id):
+    if READ_ONLY_MODE:
+        forbidden_error("Access not granted when entity-api in READ-ONLY mode")
+        
     # Always expect a json body
     require_json(request)
 
