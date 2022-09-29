@@ -3169,6 +3169,17 @@ def get_sample_prov_info():
     HEADER_ORGAN_SUBMISSION_ID = "organ_submission_id"
     ORGAN_TYPES_URL = SchemaConstants.ORGAN_TYPES_YAML
 
+    public_only = True
+
+    # Token is not required, but if an invalid token is provided,
+    # we need to tell the client with a 401 error
+    validate_token_if_auth_header_exists(request)
+
+    if user_in_hubmap_read_group(request):
+        public_only = False
+
+    # Parsing the organ types yaml has to be done here rather than calling schema.schema_triggers.get_organ_description
+    # because that would require using a urllib request for each dataset
     response = requests.get(url=ORGAN_TYPES_URL, verify=False)
 
     if response.status_code == 200:
@@ -3198,7 +3209,7 @@ def get_sample_prov_info():
     sample_prov_list = []
 
     # Call to app_neo4j_queries to prepare and execute database query
-    prov_info = app_neo4j_queries.get_sample_prov_info(neo4j_driver_instance, param_dict)
+    prov_info = app_neo4j_queries.get_sample_prov_info(neo4j_driver_instance, param_dict, public_only)
 
     for sample in prov_info:
 
