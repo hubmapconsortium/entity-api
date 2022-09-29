@@ -3133,7 +3133,7 @@ Get the complete provenance info for all samples
 
 Authentication
 -------
-Token that is part of the HuBMAP Read-Group is required.
+Allow no-token/public access
 
 Query Parameters
 -------
