@@ -945,11 +945,11 @@ def get_prov_info(neo4j_driver, param_dict, published_only):
     rui_info_where_clause = "WHERE NOT ruiSample.rui_location IS NULL AND NOT trim(ruiSample.rui_location) = '' "
     dataset_status_query_string = ''
     published_only_query_string = ''
+    published_only_revisions_string = ''
     if 'group_uuid' in param_dict:
         group_uuid_query_string = f" AND toUpper(ds.group_uuid) = '{param_dict['group_uuid'].upper()}'"
     if 'organ' in param_dict:
         organ_query_string = 'MATCH'
-        # organ_where_clause = f", organ: '{param_dict['organ'].upper()}'"
         organ_where_clause = f" WHERE toUpper(organ.organ) = '{param_dict['organ'].upper()}'"
     if 'has_rui_info' in param_dict:
         rui_info_query_string = 'MATCH (ds)<-[*]-(ruiSample:Sample)'
@@ -960,6 +960,7 @@ def get_prov_info(neo4j_driver, param_dict, published_only):
         dataset_status_query_string = f" AND toUpper(ds.status) = '{param_dict['dataset_status'].upper()}'"
     if published_only:
         published_only_query_string = f" AND toUpper(ds.status) = 'PUBLISHED'"
+        published_only_revisions_string = f" AND toUpper(rev.status) = 'PUBLISHED'"
     query = (f"MATCH (ds:Dataset)<-[:ACTIVITY_OUTPUT]-(a)<-[:ACTIVITY_INPUT]-(firstSample:Sample)<-[*]-(donor:Donor)"
              f"WHERE not (ds)-[:REVISION_OF]->(:Dataset)"
              f"{group_uuid_query_string}"
@@ -967,6 +968,7 @@ def get_prov_info(neo4j_driver, param_dict, published_only):
              f"{published_only_query_string}"
              f" WITH ds, COLLECT(distinct donor) AS DONOR, COLLECT(distinct firstSample) AS FIRSTSAMPLE"
              f" OPTIONAL MATCH (ds)<-[:REVISION_OF]-(rev:Dataset)"
+             f"{published_only_revisions_string}"
              f" WITH ds, DONOR, FIRSTSAMPLE, COLLECT(rev.hubmap_id) as REVISIONS"
              f" OPTIONAL MATCH (ds)<-[*]-(metaSample:Sample)"
              f" WHERE NOT metaSample.metadata IS NULL AND NOT TRIM(metaSample.metadata) = ''"
@@ -1191,14 +1193,22 @@ neo4j_driver : neo4j.Driver object
     The neo4j database connection pool
 param_dict : dictionary
     dictionary containing any filters to be applied in the samples-prov-info query
+public_only : boolean
+    This value indicates whether the query should return all samples, or only samples where data_access_level = 'Public'
 """
-def get_sample_prov_info(neo4j_driver, param_dict):
+def get_sample_prov_info(neo4j_driver, param_dict, public_only):
     group_uuid_query_string = ''
+    public_only_query_string = ''
+    clause_modifier = "WHERE"
     if 'group_uuid' in param_dict:
         group_uuid_query_string = f" WHERE toUpper(s.group_uuid) = '{param_dict['group_uuid'].upper()}'"
+        clause_modifier = "AND"
+    if public_only:
+        public_only_query_string = f" {clause_modifier} toUpper(s.data_access_level) = 'PUBLIC'"
     query = (
         f" MATCH (s:Sample)<-[*]-(d:Donor)"
         f" {group_uuid_query_string}"
+        f" {public_only_query_string}"
         f" WITH s, d"
         f" OPTIONAL MATCH (s)<-[*]-(organ:Sample{{specimen_type: 'organ'}})"
         f" WITH s, organ, d"
