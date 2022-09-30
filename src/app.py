@@ -28,7 +28,6 @@ from schema.schema_constants import SchemaConstants
 from hubmap_commons import string_helper
 from hubmap_commons import file_helper as hm_file_helper
 from hubmap_commons import neo4j_driver
-from hubmap_commons import globus_groups
 from hubmap_commons.hm_auth import AuthHelper
 from hubmap_commons.exceptions import HTTPException
 
@@ -562,7 +561,7 @@ def get_entity_provenance(id):
             # Skip Entity Lab nodes
             normalized_provenance_dict['nodes'].append(node_dict)
 
-    provenance_json = provenance.get_provenance_history(uuid, normalized_provenance_dict)
+    provenance_json = provenance.get_provenance_history(uuid, normalized_provenance_dict, auth_helper_instance)
 
     # Response with the provenance details
     return Response(response = provenance_json, mimetype = "application/json")
@@ -1943,7 +1942,7 @@ def get_globus_url(id):
         entity_data_access_level = entity_dict['data_access_level']
 
     # Get the globus groups info based on the groups json file in commons package
-    globus_groups_info = globus_groups.get_globus_groups_info()
+    globus_groups_info = auth_helper_instance.get_globus_groups_info()
     groups_by_id_dict = globus_groups_info['by_id']
 
     if not 'group_uuid' in entity_dict or string_helper.isBlank(entity_dict['group_uuid']):
@@ -2528,7 +2527,7 @@ def get_prov_info():
                 return_json = True
         group_uuid = request.args.get('group_uuid')
         if group_uuid is not None:
-            groups_by_id_dict = globus_groups.get_globus_groups_info()['by_id']
+            groups_by_id_dict = auth_helper_instance.get_globus_groups_info()['by_id']
             if group_uuid not in groups_by_id_dict:
                 bad_request_error(
                     f"Invalid Group UUID.")
@@ -3153,7 +3152,7 @@ Get the complete provenance info for all samples
 
 Authentication
 -------
-Token that is part of the HuBMAP Read-Group is required.
+Allow no-token/public access
 
 Query Parameters
 -------
@@ -3189,6 +3188,17 @@ def get_sample_prov_info():
     HEADER_ORGAN_SUBMISSION_ID = "organ_submission_id"
     ORGAN_TYPES_URL = SchemaConstants.ORGAN_TYPES_YAML
 
+    public_only = True
+
+    # Token is not required, but if an invalid token is provided,
+    # we need to tell the client with a 401 error
+    validate_token_if_auth_header_exists(request)
+
+    if user_in_hubmap_read_group(request):
+        public_only = False
+
+    # Parsing the organ types yaml has to be done here rather than calling schema.schema_triggers.get_organ_description
+    # because that would require using a urllib request for each dataset
     response = requests.get(url=ORGAN_TYPES_URL, verify=False)
 
     if response.status_code == 200:
@@ -3207,7 +3217,7 @@ def get_sample_prov_info():
                 bad_request_error(f"{argument} is an unrecognized argument.")
         group_uuid = request.args.get('group_uuid')
         if group_uuid is not None:
-            groups_by_id_dict = globus_groups.get_globus_groups_info()['by_id']
+            groups_by_id_dict = auth_helper_instance.get_globus_groups_info()['by_id']
             if group_uuid not in groups_by_id_dict:
                 bad_request_error(f"Invalid Group UUID.")
             if not groups_by_id_dict[group_uuid]['data_provider']:
@@ -3218,7 +3228,7 @@ def get_sample_prov_info():
     sample_prov_list = []
 
     # Call to app_neo4j_queries to prepare and execute database query
-    prov_info = app_neo4j_queries.get_sample_prov_info(neo4j_driver_instance, param_dict)
+    prov_info = app_neo4j_queries.get_sample_prov_info(neo4j_driver_instance, param_dict, public_only)
 
     for sample in prov_info:
 
