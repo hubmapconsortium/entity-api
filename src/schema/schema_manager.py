@@ -16,7 +16,6 @@ from schema.schema_constants import SchemaConstants
 
 # HuBMAP commons
 from hubmap_commons.hm_auth import AuthHelper
-from hubmap_commons import globus_groups
 
 logger = logging.getLogger(__name__)
 
@@ -1296,6 +1295,8 @@ dict
     The group info (group_uuid and group_name)
 """
 def get_entity_group_info(user_hmgroupids_list, default_group = None):
+    global _auth_helper
+
     # Default
     group_info = {
         'uuid': '',
@@ -1303,7 +1304,7 @@ def get_entity_group_info(user_hmgroupids_list, default_group = None):
     }
 
     # Get the globus groups info based on the groups json file in commons package
-    globus_groups_info = globus_groups.get_globus_groups_info()
+    globus_groups_info = _auth_helper.get_globus_groups_info()
     groups_by_id_dict = globus_groups_info['by_id']
 
     # A list of data provider uuids
@@ -1351,8 +1352,10 @@ user_group_uuids: list
     An optional list of group uuids to check against, a subset of all the data provider group uuids
 """
 def validate_entity_group_uuid(group_uuid, user_group_uuids = None):
+    global _auth_helper
+
     # Get the globus groups info based on the groups json file in commons package
-    globus_groups_info = globus_groups.get_globus_groups_info()
+    globus_groups_info = _auth_helper.get_globus_groups_info()
     groups_by_id_dict = globus_groups_info['by_id']
 
     # First make sure the group_uuid is one of the valid group UUIDs defiend in the json
@@ -1386,8 +1389,10 @@ str
     The group_name corresponding to this group_uuid
 """
 def get_entity_group_name(group_uuid):
+    global _auth_helper
+    
     # Get the globus groups info based on the groups json file in commons package
-    globus_groups_info = globus_groups.get_globus_groups_info()
+    globus_groups_info = _auth_helper.get_globus_groups_info()
     groups_by_id_dict = globus_groups_info['by_id']
     group_dict = groups_by_id_dict[group_uuid]
     group_name = group_dict['displayname']

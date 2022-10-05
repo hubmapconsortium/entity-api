@@ -28,7 +28,6 @@ from schema.schema_constants import SchemaConstants
 from hubmap_commons import string_helper
 from hubmap_commons import file_helper as hm_file_helper
 from hubmap_commons import neo4j_driver
-from hubmap_commons import globus_groups
 from hubmap_commons.hm_auth import AuthHelper
 from hubmap_commons.exceptions import HTTPException
 
@@ -58,6 +57,10 @@ app.config.from_pyfile('app.cfg')
 app.config['UUID_API_URL'] = app.config['UUID_API_URL'].strip('/')
 app.config['INGEST_API_URL'] = app.config['INGEST_API_URL'].strip('/')
 app.config['SEARCH_API_URL_LIST'] = [url.strip('/') for url in app.config['SEARCH_API_URL_LIST']]
+
+# This mode when set True disables the PUT and POST calls, used on STAGE to make entity-api READ-ONLY 
+# to prevent developers from creating new UUIDs and new entities or updating existing entities
+READ_ONLY_MODE = app.config['READ_ONLY_MODE']
 
 # Suppress InsecureRequestWarning warning when requesting status on https with ssl cert verify disabled
 requests.packages.urllib3.disable_warnings(category = InsecureRequestWarning)
@@ -558,7 +561,7 @@ def get_entity_provenance(id):
             # Skip Entity Lab nodes
             normalized_provenance_dict['nodes'].append(node_dict)
 
-    provenance_json = provenance.get_provenance_history(uuid, normalized_provenance_dict)
+    provenance_json = provenance.get_provenance_history(uuid, normalized_provenance_dict, auth_helper_instance)
 
     # Response with the provenance details
     return Response(response = provenance_json, mimetype = "application/json")
@@ -841,6 +844,9 @@ json
 """
 @app.route('/entities/<entity_type>', methods = ['POST'])
 def create_entity(entity_type):
+    if READ_ONLY_MODE:
+        forbidden_error("Access not granted when entity-api in READ-ONLY mode")
+
     # Get user token from Authorization header
     user_token = get_user_token(request)
 
@@ -1013,6 +1019,9 @@ json
 """
 @app.route('/entities/multiple-samples/<count>', methods = ['POST'])
 def create_multiple_samples(count):
+    if READ_ONLY_MODE:
+        forbidden_error("Access not granted when entity-api in READ-ONLY mode")
+
     # Get user token from Authorization header
     user_token = get_user_token(request)
 
@@ -1079,6 +1088,9 @@ json
 """
 @app.route('/entities/<id>', methods = ['PUT'])
 def update_entity(id):
+    if READ_ONLY_MODE:
+        forbidden_error("Access not granted when entity-api in READ-ONLY mode")
+
     # Get user token from Authorization header
     user_token = get_user_token(request)
 
@@ -1753,6 +1765,9 @@ json
 """
 @app.route('/collections/<collection_uuid>/add-datasets', methods = ['PUT'])
 def add_datasets_to_collection(collection_uuid):
+    if READ_ONLY_MODE:
+        forbidden_error("Access not granted when entity-api in READ-ONLY mode")
+
     # Get user token from Authorization header
     user_token = get_user_token(request)
 
@@ -1927,7 +1942,7 @@ def get_globus_url(id):
         entity_data_access_level = entity_dict['data_access_level']
 
     # Get the globus groups info based on the groups json file in commons package
-    globus_groups_info = globus_groups.get_globus_groups_info()
+    globus_groups_info = auth_helper_instance.get_globus_groups_info()
     groups_by_id_dict = globus_groups_info['by_id']
 
     if not 'group_uuid' in entity_dict or string_helper.isBlank(entity_dict['group_uuid']):
@@ -2153,6 +2168,9 @@ dict
 """
 @app.route('/datasets/<id>/retract', methods=['PUT'])
 def retract_dataset(id):
+    if READ_ONLY_MODE:
+        forbidden_error("Access not granted when entity-api in READ-ONLY mode")
+        
     # Always expect a json body
     require_json(request)
 
@@ -2509,7 +2527,7 @@ def get_prov_info():
                 return_json = True
         group_uuid = request.args.get('group_uuid')
         if group_uuid is not None:
-            groups_by_id_dict = globus_groups.get_globus_groups_info()['by_id']
+            groups_by_id_dict = auth_helper_instance.get_globus_groups_info()['by_id']
             if group_uuid not in groups_by_id_dict:
                 bad_request_error(
                     f"Invalid Group UUID.")
@@ -3134,7 +3152,7 @@ Get the complete provenance info for all samples
 
 Authentication
 -------
-Token that is part of the HuBMAP Read-Group is required.
+Allow no-token/public access
 
 Query Parameters
 -------
@@ -3199,7 +3217,7 @@ def get_sample_prov_info():
                 bad_request_error(f"{argument} is an unrecognized argument.")
         group_uuid = request.args.get('group_uuid')
         if group_uuid is not None:
-            groups_by_id_dict = globus_groups.get_globus_groups_info()['by_id']
+            groups_by_id_dict = auth_helper_instance.get_globus_groups_info()['by_id']
             if group_uuid not in groups_by_id_dict:
                 bad_request_error(f"Invalid Group UUID.")
             if not groups_by_id_dict[group_uuid]['data_provider']:
