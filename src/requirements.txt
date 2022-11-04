@@ -13,7 +13,7 @@ PyYAML==5.4.1
 # Use the branch name of commons from github for testing new changes made in commons from different branch
 # Default is main branch specified in docker-compose.development.yml if not set
 # git+https://github.com/hubmapconsortium/commons.git@${COMMONS_BRANCH}#egg=hubmap-commons
-hubmap-commons==2.1.2
+hubmap-commons==2.1.3
 
 # For unit test
 nose2==0.10.0
