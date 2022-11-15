@@ -1068,7 +1068,7 @@ dict
 def get_hubmap_ids(id):
     global _uuid_api_url
 
-    target_url = _uuid_api_url + '/' + id
+    target_url = _uuid_api_url + '/uuid/' + id
 
     # Function cache to improve performance
     response = make_request_get(target_url, internal_token_used = True)

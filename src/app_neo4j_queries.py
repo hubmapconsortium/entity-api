@@ -919,7 +919,6 @@ def get_associated_organs_from_dataset(neo4j_driver, dataset_uuid):
 
     return results
 
-
 """
 Retrieve all the provenance information about each dataset. Each dataset's prov-info is given by a dictionary. 
 Certain fields such as first sample where there can be multiple nearest datasets in the provenance above a given
@@ -1081,7 +1080,6 @@ def get_individual_prov_info(neo4j_driver, dataset_uuid):
              f" RETURN ds.uuid, FIRSTSAMPLE, DONOR, RUISAMPLE, ORGAN, ds.hubmap_id, ds.status, ds.group_name,"
              f" ds.group_uuid, ds.created_timestamp, ds.created_by_user_email, ds.last_modified_timestamp, "
              f" ds.last_modified_user_email, ds.lab_dataset_id, ds.data_types, METASAMPLE, PROCESSED_DATASET")
-
     logger.info("======get_prov_info() query======")
     logger.info(query)
 
@@ -1140,6 +1138,37 @@ def get_individual_prov_info(neo4j_driver, dataset_uuid):
             record_dict['processed_dataset'] = content_sixteen
     return record_dict
 
+
+"""
+Returns all of the Sample information associated with a Dataset, back to each Donor. Returns a dictionary
+containing all of the provenance info for a given dataset. Each Sample is in its own dictionary, converted
+from its neo4j node and placed into a list. 
+
+Parameters
+----------
+neo4j_driver : neo4j.Driver object
+    The neo4j database connection pool
+dataset_uuid : string
+    the uuid of the desired dataset
+"""
+def get_all_dataset_samples(neo4j_driver, dataset_uuid):
+    query = f"MATCH p = (ds:Dataset {{uuid: '{dataset_uuid}'}})<-[*]-(dn:Donor) return p"
+    logger.info("======get_all_dataset_samples() query======")
+    logger.info(query)
+
+    # Dictionary of Dictionaries, keyed by UUID, containing each Sample returned in the Neo4j Path
+    dataset_sample_list = {}
+    with neo4j_driver.session() as session:
+        result = session.run(query)
+        if result.peek() is None:
+            return
+        for record in result:
+            for item in record:
+                for node in item.nodes:
+                    if node["entity_type"] == 'Sample':
+                        if not node["uuid"] in dataset_sample_list:
+                            dataset_sample_list[node["uuid"]] = {'specimen_type': node["specimen_type"]}
+    return dataset_sample_list
 
 """
 Returns group_name, data_types, and status for every primary dataset. Also returns the organ type for the closest 
