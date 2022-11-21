@@ -943,7 +943,7 @@ def get_dataset_title(property_key, normalized_type, user_token, existing_data_d
         # It's not stored in Neo4j as a json string! And we can't store it as a json string 
         # due to the way that Cypher handles single/double quotes.
         data_types_list = schema_manager.convert_str_to_data(existing_data_dict['data_types'])
-        assay_type_desc = _get_assay_type_description(data_types_list)
+        assay_type_desc = _get_combined_assay_type_description(data_types_list)
     except requests.exceptions.RequestException as e:
         raise requests.exceptions.RequestException(e)
 
@@ -1982,7 +1982,55 @@ def _delete_files(target_property_key, property_key, normalized_type, user_token
 
 
 """
-Compose the assay type description
+Get the assay type description based on the given assay type
+
+Parameters
+----------
+assay_type : str
+    The assay type name
+
+Returns
+-------
+str: The corresponding assay type description
+"""
+def _get_assay_type_description(assay_type):
+    yaml_file_url = SchemaConstants.ASSAY_TYPES_YAML
+
+    # Function cache to improve performance
+    response = schema_manager.make_request_get(yaml_file_url)
+
+    if response.status_code == 200:
+        yaml_file = response.text
+
+        try:
+            assay_types_dict = yaml.safe_load(response.text)
+
+            if assay_type in assay_types_dict:
+                return assay_types_dict[assay_type]['description'].lower()
+            else:
+                # Check the 'alt-names' list if not found in the top-level keys
+                for key in assay_types_dict:
+                    if assay_type in assay_types_dict[key]['alt-names']:
+                        return assay_types_dict[key]['description'].lower()
+        except yaml.YAMLError as e:
+            raise yaml.YAMLError(e)
+    else:
+        msg = f"Unable to fetch the: {yaml_file_url}"
+        # Log the full stack trace, prepend a line with our message
+        logger.exception(msg)
+
+        logger.debug("======_get_assay_type_description() status code======")
+        logger.debug(response.status_code)
+
+        logger.debug("======_get_assay_type_description() response text======")
+        logger.debug(response.text)
+
+        # Also bubble up the error message
+        raise requests.exceptions.RequestException(response.text)
+
+
+"""
+Compose the assay type description based on the given assay types
 
 Parameters
 ----------
@@ -1991,36 +2039,14 @@ data_types : list
 
 Returns
 -------
-str: The formatted assay type description
+str: The combined and formatted assay type description
 """
-def _get_assay_type_description(data_types):
+def _get_combined_assay_type_description(data_types):
     assay_types = []
     assay_type_desc = ''
 
     for data_type in data_types:
-        # The assaytype endpoint in search-api is public accessible, no token needed
-        search_api_target_url = schema_manager.get_search_api_url() + f"/assaytype/{data_type}"
-
-        # Function cache to improve performance
-        response = schema_manager.make_request_get(search_api_target_url)
-
-        if response.status_code == 200:
-            assay_type_info = response.json()
-            # Add to the list
-            assay_types.append(assay_type_info['description'])
-        else:
-            msg = f"Unable to query the assay type details of: {data_type} via search-api"
-
-            # Log the full stack trace, prepend a line with our message
-            logger.exception(msg)
-
-            logger.debug("======status code from search-api======")
-            logger.debug(response.status_code)
-
-            logger.debug("======response text from search-api======")
-            logger.debug(response.text)
-
-            raise requests.exceptions.RequestException(response.text)
+        assay_types.append(_get_assay_type_description(data_type))
 
     # Formatting based on the number of items in the list
     if assay_types:

@@ -16,7 +16,6 @@ from schema.schema_constants import SchemaConstants
 
 # HuBMAP commons
 from hubmap_commons.hm_auth import AuthHelper
-from hubmap_commons import globus_groups
 
 logger = logging.getLogger(__name__)
 
@@ -28,7 +27,6 @@ requests.packages.urllib3.disable_warnings(category = InsecureRequestWarning)
 _schema = None
 _uuid_api_url = None
 _ingest_api_url = None
-_search_api_url = None
 _auth_helper = None
 _neo4j_driver = None
 
@@ -54,21 +52,18 @@ neo4j_session_context : neo4j.Session object
 def initialize(valid_yaml_file, 
                uuid_api_url,
                ingest_api_url,
-               search_api_url,
                auth_helper_instance,
                neo4j_driver_instance):
     # Specify as module-scope variables
     global _schema
     global _uuid_api_url
     global _ingest_api_url
-    global _search_api_url
     global _auth_helper
     global _neo4j_driver
 
     _schema = load_provenance_schema(valid_yaml_file)
     _uuid_api_url = uuid_api_url
     _ingest_api_url = ingest_api_url
-    _search_api_url = search_api_url
 
     # Get the helper instances
     _auth_helper = auth_helper_instance
@@ -1300,6 +1295,8 @@ dict
     The group info (group_uuid and group_name)
 """
 def get_entity_group_info(user_hmgroupids_list, default_group = None):
+    global _auth_helper
+
     # Default
     group_info = {
         'uuid': '',
@@ -1307,7 +1304,7 @@ def get_entity_group_info(user_hmgroupids_list, default_group = None):
     }
 
     # Get the globus groups info based on the groups json file in commons package
-    globus_groups_info = globus_groups.get_globus_groups_info()
+    globus_groups_info = _auth_helper.get_globus_groups_info()
     groups_by_id_dict = globus_groups_info['by_id']
 
     # A list of data provider uuids
@@ -1355,8 +1352,10 @@ user_group_uuids: list
     An optional list of group uuids to check against, a subset of all the data provider group uuids
 """
 def validate_entity_group_uuid(group_uuid, user_group_uuids = None):
+    global _auth_helper
+
     # Get the globus groups info based on the groups json file in commons package
-    globus_groups_info = globus_groups.get_globus_groups_info()
+    globus_groups_info = _auth_helper.get_globus_groups_info()
     groups_by_id_dict = globus_groups_info['by_id']
 
     # First make sure the group_uuid is one of the valid group UUIDs defiend in the json
@@ -1390,8 +1389,10 @@ str
     The group_name corresponding to this group_uuid
 """
 def get_entity_group_name(group_uuid):
+    global _auth_helper
+    
     # Get the globus groups info based on the groups json file in commons package
-    globus_groups_info = globus_groups.get_globus_groups_info()
+    globus_groups_info = _auth_helper.get_globus_groups_info()
     groups_by_id_dict = globus_groups_info['by_id']
     group_dict = groups_by_id_dict[group_uuid]
     group_name = group_dict['displayname']
@@ -1448,20 +1449,6 @@ def get_ingest_api_url():
     global _ingest_api_url
     
     return _ingest_api_url
-
-
-"""
-Get the search-api URL to be used by trigger methods
-
-Returns
--------
-str
-    The search-api URL
-"""
-def get_search_api_url():
-    global _search_api_url
-    
-    return _search_api_url
 
 
 """
@@ -1572,12 +1559,18 @@ def make_request_get(target_url, internal_token_used = False):
     current_datetime = datetime.now()
     current_timestamp = int(round(current_datetime.timestamp()))
 
-    # Use the cached response of the given url if exists and valid
-    # Otherwise make a fresh request and add the response to the cache pool
-    if (target_url in request_cache) and (current_timestamp <= request_cache[target_url]['created_timestamp'] + SchemaConstants.REQUEST_CACHE_TTL):
-        logger.info(f'Useing the cached HTTP response of GET {target_url} at time {current_datetime}')
+    # Check if the cached response is found and still valid based on TTL upon request, delete if expired
+    if (target_url in request_cache) and (current_timestamp > request_cache[target_url]['created_timestamp'] + SchemaConstants.REQUEST_CACHE_TTL):
+        del request_cache[target_url]
 
+        logger.info(f'Deleted the expired HTTP response cache of GET {target_url} at time {current_datetime}')
+
+    # Use the cached data if found and still valid
+    # Otherwise, make a fresh query and add to cache
+    if (target_url in request_cache) and (current_timestamp <= request_cache[target_url]['created_timestamp'] + SchemaConstants.REQUEST_CACHE_TTL):
         response = request_cache[target_url]['response']
+
+        logger.info(f'Using the cached HTTP response of GET {target_url} at time {current_datetime}')
     else:
         logger.info(f'Cache not found or expired. Making a new HTTP request of GET {target_url} at time {current_datetime}')
         
@@ -1591,7 +1584,7 @@ def make_request_get(target_url, internal_token_used = False):
         else:
             response = requests.get(url = target_url, verify = False)
 
-        # Add or update cache
+        # Add to cache
         new_datetime = datetime.now()
         new_timestamp = int(round(new_datetime.timestamp()))
 

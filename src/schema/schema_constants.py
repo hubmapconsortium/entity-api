@@ -1,6 +1,6 @@
 class SchemaConstants(object):
-    # Expire the request cache after the time-to-live (seconds), default 4 hours
-    REQUEST_CACHE_TTL = 14400
+    # Expire the request cache after the time-to-live (seconds), default 15 minutes
+    REQUEST_CACHE_TTL = 900
 
     # Constants used by validators
     INGEST_API_APP = 'ingest-api'
