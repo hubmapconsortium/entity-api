@@ -38,7 +38,7 @@ global logger
 # Use `getLogger()` instead of `getLogger(__name__)` to apply the config to the root logger
 # will be inherited by the sub-module loggers
 logger = logging.getLogger()
-logger.setLevel(logging.INFO)
+logger.setLevel(logging.DEBUG) # logger.setLevel(logging.INFO)
 
 # All the API logging is gets written into the same log file
 # The uWSGI logging for each deployment disables the request logging
@@ -752,7 +752,7 @@ def get_collection(id):
 
 
 """
-Retrive all the public collections
+Retrieve all the public collections
 
 The gateway treats this endpoint as public accessible
 
@@ -2749,7 +2749,6 @@ def get_prov_info():
         output.headers['Content-Disposition'] = 'attachment; filename=prov-info.tsv'
         return output
 
-
 """
 Get the complete provenance info for a given dataset
 
@@ -2801,10 +2800,14 @@ def get_prov_info_for_dataset(id):
 
     return_json = False
     dataset_prov_list = []
+    include_samples = []
     if bool(request.args):
         return_format = request.args.get('format')
         if (return_format is not None) and (return_format.lower() == 'json'):
             return_json = True
+        include_samples_req = request.args.get('include_samples')
+        if (include_samples_req is not None):
+            include_samples = include_samples_req.lower().split(',')
 
     HEADER_DATASET_UUID = 'dataset_uuid'
     HEADER_DATASET_HUBMAP_ID = 'dataset_hubmap_id'
@@ -2818,6 +2821,7 @@ def get_prov_info_for_dataset(id):
     HEADER_DATASET_LAB_ID = 'lab_id_or_name'
     HEADER_DATASET_DATA_TYPES = 'dataset_data_types'
     HEADER_DATASET_PORTAL_URL = 'dataset_portal_url'
+    HEADER_DATASET_SAMPLES = 'dataset_samples'
     HEADER_FIRST_SAMPLE_HUBMAP_ID = 'first_sample_hubmap_id'
     HEADER_FIRST_SAMPLE_SUBMISSION_ID = 'first_sample_submission_id'
     HEADER_FIRST_SAMPLE_UUID = 'first_sample_uuid'
@@ -2855,7 +2859,7 @@ def get_prov_info_for_dataset(id):
         HEADER_DONOR_GROUP_NAME, HEADER_RUI_LOCATION_HUBMAP_ID, HEADER_RUI_LOCATION_SUBMISSION_ID,
         HEADER_RUI_LOCATION_UUID, HEADER_SAMPLE_METADATA_HUBMAP_ID, HEADER_SAMPLE_METADATA_SUBMISSION_ID,
         HEADER_SAMPLE_METADATA_UUID, HEADER_PROCESSED_DATASET_UUID, HEADER_PROCESSED_DATASET_HUBMAP_ID,
-        HEADER_PROCESSED_DATASET_STATUS, HEADER_PROCESSED_DATASET_PORTAL_URL
+        HEADER_PROCESSED_DATASET_STATUS, HEADER_PROCESSED_DATASET_PORTAL_URL, HEADER_DATASET_SAMPLES
     ]
 
     # Parsing the organ types yaml has to be done here rather than calling schema.schema_triggers.get_organ_description
@@ -3038,8 +3042,21 @@ def get_prov_info_for_dataset(id):
             internal_dict[HEADER_PROCESSED_DATASET_UUID] = ",".join(processed_dataset_status_list)
             internal_dict[HEADER_PROCESSED_DATASET_UUID] = ",".join(processed_dataset_portal_url_list)
 
-    dataset_prov_list.append(internal_dict)
+    if include_samples:
+        # Get provenance non-organ Samples for the Dataset all the way back to each Donor, to supplement
+        # the "first sample" data stashed in internal_dict in the previous section.
+        dataset_samples = app_neo4j_queries.get_all_dataset_samples(neo4j_driver_instance, uuid)
+        logger.debug(f"dataset_samples={str(dataset_samples)}")
+        if 'all' in include_samples:
+            internal_dict[HEADER_DATASET_SAMPLES] = dataset_samples
+        else:
+            requested_samples = {}
+            for uuid in dataset_samples.keys():
+                if dataset_samples[uuid]['specimen_type'] in include_samples:
+                    requested_samples[uuid] = dataset_samples[uuid]
+            internal_dict[HEADER_DATASET_SAMPLES] = requested_samples
 
+    dataset_prov_list.append(internal_dict)
 
     if return_json:
         return jsonify(dataset_prov_list[0])
