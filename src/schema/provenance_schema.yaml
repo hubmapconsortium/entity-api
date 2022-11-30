@@ -257,7 +257,7 @@ ENTITIES:
           - validate_no_duplicates_in_list
         type: list
         required_on_create: true # Only required for create via POST, not update via PUT
-        description: "The data or assay types contained in this dataset as a json array of strings.  Each is an assay code from [assay types](https://github.com/hubmapconsortium/search-api/blob/master/src/search-schema/data/definitions/enums/assay_types.yaml)."
+        description: "The data or assay types contained in this dataset as a json array of strings.  Each is an assay code from [assay types](https://github.com/hubmapconsortium/search-api/blob/main/src/search-schema/data/definitions/enums/assay_types.yaml)."
       collections:
         type: list
         transient: true
@@ -533,8 +533,8 @@ ENTITIES:
       specimen_type:
         type: string
         required_on_create: true # Only required for create via POST, not update via PUT
-        description: "A code representing the type of specimen.  Must be one of the codes specified in: [tissue sample types](https://github.com/hubmapconsortium/search-api/blob/master/src/search-schema/data/definitions/enums/tissue_sample_types.yaml)"
-        # Validate the given value against the definitions: https://github.com/hubmapconsortium/search-api/blob/master/src/search-schema/data/definitions/enums/tissue_sample_types.yaml
+        description: "A code representing the type of specimen.  Must be one of the codes specified in: [tissue sample types](https://github.com/hubmapconsortium/search-api/blob/main/src/search-schema/data/definitions/enums/tissue_sample_types.yaml)"
+        # Validate the given value against the definitions: https://github.com/hubmapconsortium/search-api/blob/main/src/search-schema/data/definitions/enums/tissue_sample_types.yaml
         before_property_create_validators:
           - validate_specimen_type
         before_property_update_validators:
@@ -577,7 +577,7 @@ ENTITIES:
       # Should be required on create only when specimen_type==organ
       organ:
         type: string
-        description: "Organ code specifier, only set if sample_type == organ.  Valid values found in: [organ types](https://github.com/hubmapconsortium/search-api/blob/master/src/search-schema/data/definitions/enums/organ_types.yaml)"
+        description: "Organ code specifier, only set if sample_type == organ.  Valid values found in: [organ types](https://github.com/hubmapconsortium/search-api/blob/main/src/search-schema/data/definitions/enums/organ_types.yaml)"
       organ_other:
         type: string
         description: The organ type provided by the user if "other" organ type is selected
