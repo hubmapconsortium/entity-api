@@ -1149,7 +1149,7 @@ def create_hubmap_ids(normalized_class, json_data_dict, user_token, user_info_di
                from multiple SAMPLEs or DATASETs.) 
     organ_code - required only in the case where an id is being generated for a SAMPLE that
                has a DONOR as a direct ancestor.  Must be one of the codes from:
-               https://github.com/hubmapconsortium/search-api/blob/test-release/src/search-schema/data/definitions/enums/organ_types.yaml
+               https://github.com/hubmapconsortium/search-api/blob/main/src/search-schema/data/definitions/enums/organ_types.yaml
     
     Query string (in url) arguments:
         entity_count - optional, the number of ids to generate. If omitted, defaults to 1 

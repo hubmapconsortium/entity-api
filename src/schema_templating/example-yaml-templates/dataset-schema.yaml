@@ -101,8 +101,8 @@ Dataset:
         type: string
         enum:
           X-replace-enum-list:
-            enum-file-ref: https://raw.githubusercontent.com/hubmapconsortium/search-api/test-release/src/search-schema/data/definitions/enums/assay_types.yaml
-      description: "The data or assay types contained in this dataset as a json array of strings.  Each is an assay code from [assay types](https://github.com/hubmapconsortium/search-api/blob/master/src/search-schema/data/definitions/enums/assay_types.yaml)."
+            enum-file-ref: https://raw.githubusercontent.com/hubmapconsortium/search-api/main/src/search-schema/data/definitions/enums/assay_types.yaml
+      description: "The data or assay types contained in this dataset as a json array of strings.  Each is an assay code from [assay types](https://github.com/hubmapconsortium/search-api/blob/main/src/search-schema/data/definitions/enums/assay_types.yaml)."
     collections:
       readOnly: true
       type: array

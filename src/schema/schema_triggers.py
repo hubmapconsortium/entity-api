@@ -1465,7 +1465,7 @@ This method applies to both the create and update triggers
 
 Rererence:
     - https://docs.google.com/spreadsheets/d/1OODo8QK852txSNSmfIe0ua4A7nPFSgKq6h46grmrpto/edit#gid=0
-    - https://github.com/hubmapconsortium/search-api/blob/master/src/search-schema/data/definitions/enums/tissue_sample_types.yaml
+    - https://github.com/hubmapconsortium/search-api/blob/main/src/search-schema/data/definitions/enums/tissue_sample_types.yaml
 
 Parameters
 ----------

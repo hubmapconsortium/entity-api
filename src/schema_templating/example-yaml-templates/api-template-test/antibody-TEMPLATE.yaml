@@ -1,6 +1,6 @@
 x-ref-openapi: 3.0.0
 x-ref-info:
-  x-ref-description: 'The HuBMAP Antibody API is a standard RESTful web service with create operations.<br><br>'
+  x-ref-description: 'The HuBMAP Antibody API is a standard RESTful web service with create operations.'
   x-ref-version: 1.0.0
   x-ref-title: HuBMAP Antibody API
   x-ref-contact:
@@ -8,7 +8,7 @@ x-ref-info:
     x-ref-email: api-developers@hubmapconsortium.org
   x-ref-license:
    x-ref-name: MIT License
-    x-ref-url: 'https://github.com/hubmapconsortium/antibody-api/blob/master/license.txt'
+    x-ref-url: 'https://github.com/hubmapconsortium/antibody-api/blob/main/license.txt'
 x-ref-servers:
   - x-ref-url: 'https://antibody.api.hubmapconsortium.org'
 x-ref-components:
