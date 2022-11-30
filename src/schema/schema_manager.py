@@ -1068,7 +1068,7 @@ dict
 def get_hubmap_ids(id):
     global _uuid_api_url
 
-    target_url = _uuid_api_url + '/' + id
+    target_url = _uuid_api_url + '/uuid/' + id
 
     # Function cache to improve performance
     response = make_request_get(target_url, internal_token_used = True)
@@ -1229,7 +1229,8 @@ def create_hubmap_ids(normalized_class, json_data_dict, user_token, user_info_di
     logger.info(json_to_post)
 
     # Disable ssl certificate verification
-    response = requests.post(url = _uuid_api_url, headers = request_headers, json = json_to_post, verify = False, params = query_parms) 
+    target_url = _uuid_api_url + '/uuid'
+    response = requests.post(url = target_url, headers = request_headers, json = json_to_post, verify = False, params = query_parms)
     
     # Invoke .raise_for_status(), an HTTPError will be raised with certain status codes
     response.raise_for_status()
