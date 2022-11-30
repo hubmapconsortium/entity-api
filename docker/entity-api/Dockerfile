@@ -4,7 +4,7 @@ FROM hubmap/api-base-image:1.0.0
 LABEL description="HuBMAP Entity API Service"
 
 # The commons branch to be used in requirements.txt during image build
-# Default is master branch specified in docker-compose.yml if not set before the build
+# Default is main branch specified in docker-compose.yml if not set before the build
 ARG COMMONS_BRANCH
 
 # Change to directory that contains the Dockerfile

@@ -8,7 +8,7 @@ x-ref-info:
     x-ref-email: help@hubmapconsortium.org
   x-ref-license:
     x-ref-name: MIT License
-    x-ref-url: 'https://github.com/hubmapconsortium/entity-api/blob/master/license.txt'
+    x-ref-url: 'https://github.com/hubmapconsortium/entity-api/blob/main/license.txt'
 x-ref-servers:
   - x-ref-url: 'https://entity.api.hubmapconsortium.org'
 x-ref-components:
@@ -448,7 +448,7 @@ x-ref-components:
             - snrnaseq
             - tissue_lysate
             - wgs
-          description: "A code representing the type of specimen.  Must be one of the codes specified in: [tissue sample types](https://github.com/hubmapconsortium/search-api/blob/master/src/search-schema/data/definitions/enums/tissue_sample_types.yaml)"
+          description: "A code representing the type of specimen.  Must be one of the codes specified in: [tissue sample types](https://github.com/hubmapconsortium/search-api/blob/main/src/search-schema/data/definitions/enums/tissue_sample_types.yaml)"
         specimen_type_other:
           type: string
           description: "The user provided sample type if the 'other' sample_type is chosen."
@@ -497,7 +497,7 @@ x-ref-components:
             - TR
             - UR
             - UT
-          description: "Organ code specifier, only set if sample_type == organ.  Valid values found in: [organ types](https://github.com/hubmapconsortium/search-api/blob/master/src/search-schema/data/definitions/enums/organ_types.yaml)"
+          description: "Organ code specifier, only set if sample_type == organ.  Valid values found in: [organ types](https://github.com/hubmapconsortium/search-api/blob/main/src/search-schema/data/definitions/enums/organ_types.yaml)"
         organ_other:
           type: string
           description: The organ type provided by the user if "other" organ type is selected
@@ -706,7 +706,7 @@ x-ref-components:
               - Targeted-Shotgun-LC-MS
               - TMT-LC-MS
               - WGS
-          description: "The data or assay types contained in this dataset as a json array of strings.  Each is an assay code from [assay types](https://github.com/hubmapconsortium/search-api/blob/master/src/search-schema/data/definitions/enums/assay_types.yaml)."
+          description: "The data or assay types contained in this dataset as a json array of strings.  Each is an assay code from [assay types](https://github.com/hubmapconsortium/search-api/blob/main/src/search-schema/data/definitions/enums/assay_types.yaml)."
         collections:
           readOnly: true
           type: array

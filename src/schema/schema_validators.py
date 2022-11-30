@@ -317,7 +317,6 @@ def _validate_application_header(applications_allowed, request_headers):
 
 """
 Get the complete list of defined tissue types
-https://github.com/hubmapconsortium/search-api/blob/master/src/search-schema/data/definitions/enums/tissue_sample_types.yaml
 
 Returns
 -------
