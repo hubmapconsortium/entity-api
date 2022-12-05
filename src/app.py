@@ -3376,6 +3376,42 @@ def unpublished():
         return jsonify(unpublished_info)
 
 """
+Retrieve uuids for associated dataset of given data_type which 
+shares a sample ancestor of given dataset id
+
+Returns
+--------
+json array
+    List of uuids of all datasets (if any) of the specified data_type
+     who share a sample ancestor with the dataset with the given id
+
+Authorization
+-------------
+This endpoint is publicly accessible, however if a token is provided, 
+it must be valid. If the given dataset uuid is for an unpublished dataset,
+the user must be part of the HuBMAP-Read-Group. If not, a 403 will be raised.
+
+Path Parameters
+---------------
+id : str
+    The HuBMAP ID (e.g. HBM123.ABCD.456) or UUID of target dataset
+
+Required Query Paramters
+------------------------
+data_type : str
+    The data type to be searched for.
+    
+Optional Query Paramters
+------------------------
+search_depth : int
+    The max number of generations of datasets to search for associated paired 
+    dataset. This number is the number of generations between the shared sample
+    ancestor and the target dataset (if any) rather than the starting dataset. 
+    This number counts dataset generations and not activity nodes or any other 
+    intermediate steps between 2 datasets. If no search_depth is given, the 
+    search will traverse all descendants of the sample ancestor.  
+
+If the associated datasets (if any exist) returned are unpublished, they    
 """
 @app.route('/datasets/<id>/paired-dataset', methods=['GET'])
 def paired_dataset(id):

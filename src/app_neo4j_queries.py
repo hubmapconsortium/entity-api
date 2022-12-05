@@ -1314,6 +1314,30 @@ def get_unpublished(neo4j_driver):
         return rval
 
 """
+Returns a list of dictionaries corresponding to matches to the neo4j query
+containing uuid of matched datasets (if any) and their status
+
+Paramters
+---------
+neo4j_driver : neo4j.Driver object
+    The neo4j database connection pool
+
+uuid
+----
+The id of the dataset who's paired datasets will be returned
+
+data_type
+---------
+The datatype of the paired datasets being searched for
+
+search_depth (optional)
+----------------------
+The max number of generations that will be searched beneath the 
+sample ancestor of the given dataset uuid. The value given will be
+doubled in the query so that it only counts dataset nodes, not 
+activity nodes between datasets. For example, a value of "2" will search
+(s:Sample)-[r1]->(a1:Activity)-[r2]->(d1:Dataset)-[r3]->(a2:Activity)-[r4]->(d2:Dataset)
+or 2*2 nodes beyond the sample
 """
 def get_paired_dataset(neo4j_driver, uuid, data_type, search_depth):
     # search depth is doubled because there is an activity node between each entity node
