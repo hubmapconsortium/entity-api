@@ -1313,6 +1313,25 @@ def get_unpublished(neo4j_driver):
         rval = session.run(query).data()
         return rval
 
+"""
+"""
+def get_paired_dataset(neo4j_driver, uuid, data_type, search_depth):
+    # search depth is doubled because there is an activity node between each entity node
+    number_of_jumps = f"*"
+    if search_depth is not None:
+        search_depth = 2 * search_depth
+        number_of_jumps = f":*..{search_depth}"
+    data_type = f"['{data_type}']"
+    query = (
+        f'MATCH (ds:Dataset)<-[*]-(s:Sample) WHERE ds.uuid = "{uuid}" AND (:Dataset)<-[]-()<-[]-(s)'
+        f'MATCH (ods)<-[{number_of_jumps}]-(s) WHERE ods.data_types = "{data_type}"'
+        f'return ods.uuid'
+    )
+
+    with neo4j_driver.session() as session:
+        rval = session.run(query).data()
+        return rval
+
 ####################################################################################################
 ## Internal Functions
 ####################################################################################################

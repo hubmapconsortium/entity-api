@@ -3375,6 +3375,68 @@ def unpublished():
     else:
         return jsonify(unpublished_info)
 
+"""
+"""
+@app.route('/datasets/<id>/paired-dataset', methods=['GET'])
+def paired_dataset(id):
+    if request.headers.get('Authorization') is not None:
+        try:
+            user_token = auth_helper_instance.getAuthorizationTokens(request.headers)
+        except Exception:
+            msg = "Failed to parse the Authorization token by calling commons.auth_helper.getAuthorizationTokens()"
+            # Log the full stack trace, prepend a line with our message
+            logger.exception(msg)
+            internal_server_error(msg)
+        # When the Authoriztion header provided but the user_token is a flask.Response instance,
+        # it MUST be a 401 error with message.
+        # That's how commons.auth_helper.getAuthorizationTokens() was designed
+        if isinstance(user_token, Response):
+            # We wrap the message in a json and send back to requester as 401 too
+            # The Response.data returns binary string, need to decode
+            unauthorized_error(user_token.get_data().decode())
+        # Also check if the parased token is invalid or expired
+        # Set the second paremeter as False to skip group check
+        user_info = auth_helper_instance.getUserInfo(user_token, False)
+        if isinstance(user_info, Response):
+            unauthorized_error(user_info.get_data().decode())
+
+    accepted_arguments = ['data_type', 'search_depth']
+    if not bool(request.args):
+        bad_request_error(f"'data_type' is a required argument")
+    else:
+        for argument in request.args:
+            if argument not in accepted_arguments:
+                bad_request_error(f"{argument} is an unrecognized argument.")
+        if 'data_type' not in request.args:
+            bad_request_error(f"'data_type' is a required argument")
+        else:
+            data_type = request.args.get('data_type')
+        try:
+            search_depth = int(request.args.get('search_depth'))
+        except ValueError:
+            bad_request_error(f"'search_depth' must be an integer")
+    # Use the internal token to query the target entity
+    # since public entities don't require user token
+    token = get_internal_token()
+
+    # Query target entity against uuid-api and neo4j and return as a dict if exists
+    # Then retrieve the allowable data access level (public, protected or consortium)
+    # for the dataset and HuBMAP Component ID that the dataset belongs to
+    entity_dict = query_target_entity(id, token)
+    uuid = entity_dict['uuid']
+    normalized_entity_type = entity_dict['entity_type']
+
+    # Only for Dataset and Upload
+    if normalized_entity_type != 'Dataset':
+        bad_request_error("The target entity of the specified id is not a Dataset")
+
+    if entity_dict['status'].lower() != DATASET_STATUS_PUBLISHED:
+        if not user_in_hubmap_read_group(request):
+            forbidden_error("Access not granted")
+
+    paired_dataset = app_neo4j_queries.get_paired_dataset(neo4j_driver_instance, uuid, data_type, search_depth)
+    return paired_dataset
+
 
 ####################################################################################################
 ## Internal Functions
