@@ -1320,7 +1320,7 @@ def get_paired_dataset(neo4j_driver, uuid, data_type, search_depth):
     number_of_jumps = f"*"
     if search_depth is not None:
         search_depth = 2 * search_depth
-        number_of_jumps = f":*..{search_depth}"
+        number_of_jumps = f"*..{search_depth}"
     data_type = f"['{data_type}']"
     query = (
         f'MATCH (ds:Dataset)<-[*]-(s:Sample) WHERE ds.uuid = "{uuid}" AND (:Dataset)<-[]-()<-[]-(s)'
