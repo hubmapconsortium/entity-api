@@ -3435,7 +3435,14 @@ def paired_dataset(id):
             forbidden_error("Access not granted")
 
     paired_dataset = app_neo4j_queries.get_paired_dataset(neo4j_driver_instance, uuid, data_type, search_depth)
-    return paired_dataset
+    out_list = []
+    for result in paired_dataset:
+        if user_in_hubmap_read_group(request) or result['status'].lower() == 'published':
+            out_list.append(result['uuid'])
+    if len(out_list) < 1:
+        not_found_error(f"Search for paired datasets of type {data_type} for dataset with id {uuid} returned no results")
+    else:
+        return jsonify(out_list), 200
 
 
 ####################################################################################################
@@ -4176,7 +4183,7 @@ def query_target_entity(id, user_token):
                 not_found_error(e.response.text)
             else:
                 internal_server_error(e.response.text)
-    
+
     # Final return
     return entity_dict
 

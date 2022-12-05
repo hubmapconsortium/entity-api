@@ -1325,9 +1325,9 @@ def get_paired_dataset(neo4j_driver, uuid, data_type, search_depth):
     query = (
         f'MATCH (ds:Dataset)<-[*]-(s:Sample) WHERE ds.uuid = "{uuid}" AND (:Dataset)<-[]-()<-[]-(s)'
         f'MATCH (ods)<-[{number_of_jumps}]-(s) WHERE ods.data_types = "{data_type}"'
-        f'return ods.uuid'
+        f'return ods.uuid as uuid, ods.status as status'
     )
-
+    paired_datasets = []
     with neo4j_driver.session() as session:
         rval = session.run(query).data()
         return rval
