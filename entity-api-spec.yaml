@@ -2000,7 +2000,7 @@ paths:
           description: THe user is not authorized to use this method
         '500':
           description: Internal error
-  '/datasets/paired_dataset':
+  '/datasets/{id}/paired_dataset':
     get:
       summary: Retrieve uuids for associated dataset of given data_type which shares a sample ancestor of given dataset id
       parameters:

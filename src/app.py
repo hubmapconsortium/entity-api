@@ -3447,10 +3447,13 @@ def paired_dataset(id):
             bad_request_error(f"'data_type' is a required argument")
         else:
             data_type = request.args.get('data_type')
-        try:
-            search_depth = int(request.args.get('search_depth'))
-        except ValueError:
-            bad_request_error(f"'search_depth' must be an integer")
+        if 'search_depth' in request.args:
+            try:
+                search_depth = int(request.args.get('search_depth'))
+            except ValueError:
+                bad_request_error(f"'search_depth' must be an integer")
+        else:
+            search_depth = None
     # Use the internal token to query the target entity
     # since public entities don't require user token
     token = get_internal_token()
