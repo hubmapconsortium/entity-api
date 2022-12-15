@@ -530,7 +530,15 @@ ENTITIES:
         generated: true
         description: "One of the values: public, consortium, protected. Only Dataset may have protected value"
         before_create_trigger: set_data_access_level
-      
+      sample_category:
+        type: string
+        required_on_create: true # Only require for cerate via POST, not update via PUT
+        description: "A code representing the type of specimen. Must be an organ, block, section, or suspension"
+        before_property_create_validators:
+          - validate_sample_category
+        before_property_update_validators:
+          - validate_sample_category
+
       # No logner required on create, specimen_type -> sample_category 12/15/2022
       specimen_type:
         type: string
