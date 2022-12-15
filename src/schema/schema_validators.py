@@ -262,6 +262,8 @@ def validate_upload_status_value(property_key, normalized_entity_type, request, 
 
 
 """
+NOTE: TO BE REMOVED when we remove specimen_type field
+
 Validate the provided value of Sample.specimen_type on create via POST and update via PUT
 
 Parameters

@@ -1486,74 +1486,75 @@ str: The target property key
 str: The type of the tissue
 """
 def set_tissue_type(property_key, normalized_type, user_token, existing_data_dict, new_data_dict):
+    # specimen_type is no logner required on create 12/15/2022, set to Unknown
     # Default to use 'Unknown'
     tissue_type = 'Unknown'
 
-    # The `specimen_type` field is required on entity creation via POST
-    # thus should be available on existing entity update via PUT
-    # We do a double check here just in case
-    if ('specimen_type' not in new_data_dict) and ('specimen_type' not in existing_data_dict):
-        raise KeyError("Missing 'specimen_type' key in both 'new_data_dict' and 'existing_data_dict' during calling 'set_tissue_type()' trigger method.")
+    # # The `specimen_type` field is required on entity creation via POST
+    # # thus should be available on existing entity update via PUT
+    # # We do a double check here just in case
+    # if ('specimen_type' not in new_data_dict) and ('specimen_type' not in existing_data_dict):
+    #     raise KeyError("Missing 'specimen_type' key in both 'new_data_dict' and 'existing_data_dict' during calling 'set_tissue_type()' trigger method.")
 
-    # Always calculate the tissue_type value no matter new creation or update existing
-    # The `specimen_type` field can be used in a PUT
-    # But if it's not in the request JSON of a PUT, it must be in the existing data
-    if 'specimen_type' in new_data_dict:
-        # The `specimen_type` value validation is handled in the `schema_validators.validate_specimen_type()`
-        # and that gets called before this trigger method
-        specimen_type = new_data_dict['specimen_type'].lower()
-    else:
-        # Use lowercase in case someone manually updated the neo4j filed with incorrect case
-        specimen_type = existing_data_dict['specimen_type'].lower()
+    # # Always calculate the tissue_type value no matter new creation or update existing
+    # # The `specimen_type` field can be used in a PUT
+    # # But if it's not in the request JSON of a PUT, it must be in the existing data
+    # if 'specimen_type' in new_data_dict:
+    #     # The `specimen_type` value validation is handled in the `schema_validators.validate_specimen_type()`
+    #     # and that gets called before this trigger method
+    #     specimen_type = new_data_dict['specimen_type'].lower()
+    # else:
+    #     # Use lowercase in case someone manually updated the neo4j filed with incorrect case
+    #     specimen_type = existing_data_dict['specimen_type'].lower()
 
-    # Categories: Block, Section, Suspension 
-    block_category = [
-        'pbmc',
-        'biopsy',
-        'segment',
-        'ffpe_block',
-        'organ_piece',
-        'fresh_tissue',
-        'clarity_hydrogel',
-        'fixed_tissue_piece',
-        'fresh_frozen_tissue',
-        'fresh_frozen_oct_block',
-        'formalin_fixed_oct_block',
-        'pfa_fixed_frozen_oct_block',
-        'flash_frozen_liquid_nitrogen',
-        'frozen_cell_pellet_buffy_coat'
-    ]
+    # # Categories: Block, Section, Suspension 
+    # block_category = [
+    #     'pbmc',
+    #     'biopsy',
+    #     'segment',
+    #     'ffpe_block',
+    #     'organ_piece',
+    #     'fresh_tissue',
+    #     'clarity_hydrogel',
+    #     'fixed_tissue_piece',
+    #     'fresh_frozen_tissue',
+    #     'fresh_frozen_oct_block',
+    #     'formalin_fixed_oct_block',
+    #     'pfa_fixed_frozen_oct_block',
+    #     'flash_frozen_liquid_nitrogen',
+    #     'frozen_cell_pellet_buffy_coat'
+    # ]
 
-    section_category = [
-        'ffpe_slide',
-        'fixed_frozen_section_slide',
-        'fresh_frozen_section_slide',
-        'fresh_frozen_tissue_section',
-        'cryosections_curls_rnalater',
-        'cryosections_curls_from_fresh_frozen_oct'
-    ]
+    # section_category = [
+    #     'ffpe_slide',
+    #     'fixed_frozen_section_slide',
+    #     'fresh_frozen_section_slide',
+    #     'fresh_frozen_tissue_section',
+    #     'cryosections_curls_rnalater',
+    #     'cryosections_curls_from_fresh_frozen_oct'
+    # ]
 
-    suspension_category = [
-        'gdna',
-        'serum',
-        'plasma',
-        'nuclei',
-        'protein',
-        'rna_total',
-        'cell_lysate',
-        'tissue_lysate',
-        'sequence_library',
-        'ran_poly_a_enriched',
-        'single_cell_cryopreserved'
-    ]
+    # suspension_category = [
+    #     'gdna',
+    #     'serum',
+    #     'plasma',
+    #     'nuclei',
+    #     'protein',
+    #     'rna_total',
+    #     'cell_lysate',
+    #     'tissue_lysate',
+    #     'sequence_library',
+    #     'ran_poly_a_enriched',
+    #     'single_cell_cryopreserved'
+    # ]
 
-    # Capitalized type, default is 'Unknown' if no match
-    if specimen_type in block_category:
-        tissue_type = 'Block'
-    elif specimen_type in section_category:
-        tissue_type = 'Section'
-    elif specimen_type in suspension_category:
-        tissue_type = 'Suspension'
+    # # Capitalized type, default is 'Unknown' if no match
+    # if specimen_type in block_category:
+    #     tissue_type = 'Block'
+    # elif specimen_type in section_category:
+    #     tissue_type = 'Section'
+    # elif specimen_type in suspension_category:
+    #     tissue_type = 'Suspension'
 
     return property_key, tissue_type
 
