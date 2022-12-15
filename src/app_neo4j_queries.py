@@ -1276,7 +1276,10 @@ def get_sample_prov_info(neo4j_driver, param_dict, public_only):
             record_dict['organ_metadata'] = record_contents[10]
             record_dict['sample_ancestor_id'] = record_contents[11]
             record_dict['sample_ancestor_entity'] = record_contents[12]
-            record_dict['sample_specimen_type'] = record_contents[13]
+
+            # sample_specimen_type -> sample_category 12/15/2022
+            record_dict['sample_category'] = record_contents[13]
+
             record_dict['organ_organ_type'] = record_contents[14]
             record_dict['sample_organ'] = record_contents[15]
             record_dict['sample_hubmap_id'] = record_contents[16]
