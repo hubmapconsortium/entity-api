@@ -531,7 +531,7 @@ ENTITIES:
         description: "One of the values: public, consortium, protected. Only Dataset may have protected value"
         before_create_trigger: set_data_access_level
       
-      # Not logner required on create, specimen_type -> sample_category 12/15/2022
+      # No logner required on create, specimen_type -> sample_category 12/15/2022
       specimen_type:
         type: string
         #required_on_create: true # Only required for create via POST, not update via PUT
@@ -546,13 +546,17 @@ ENTITIES:
         type: string
         description: "The user provided sample type if the 'other' sample_type is chosen."
       
+
+      # specimen_type no logner required on create, will remove this field when removing specimen_type
+      # Simply always set to 'Unknown' and no need to update 12/15/2022
       tissue_type:
         type: string
         generated: true # Can not be updated via the PUT
-        auto_update: true # Will always update automatically if the entity gets updated
+        #auto_update: true # Will always update automatically if the entity gets updated
         description: 'The type of the tissue based on the mapping between type (Block/Section/Suspension) and the specimen_type, default is Unknown'
         before_create_trigger: set_tissue_type
-        before_update_trigger: set_tissue_type
+        #before_update_trigger: set_tissue_type
+
       portal_metadata_upload_files:
         type: json_string
         description: "A list of relative paths to metadata files"
