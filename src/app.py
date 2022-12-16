@@ -893,33 +893,42 @@ def create_entity(entity_type):
     # Sample and Dataset: additional validation, create entity, after_create_trigger
     # Collection and Donor: create entity
     if normalized_entity_type == 'Sample':
-        # specimen_type -> sample_category 12/15/2022
-        # A bit more validation to ensure if `organ` code is set, the `sample_category` must be set to "organ"
-        # Vise versa, if `sample_category` is set to "organ", `organ` code is required
-        if ('sample_category' in json_data_dict) and (json_data_dict['sample_category'].lower() == 'organ'):
-            if ('organ' not in json_data_dict) or (json_data_dict['organ'].strip() == ''):
-                bad_request_error("A valid organ code is required when the sample_category is organ")
-        else:
-            if 'organ' in json_data_dict:
-                bad_request_error("The sample_category must be organ when an organ code is provided")
-
-        # A bit more validation for new sample to be linked to existing source entity
         direct_ancestor_uuid = json_data_dict['direct_ancestor_uuid']
         # Check existence of the direct ancestor (either another Sample or Donor)
         direct_ancestor_dict = query_target_entity(direct_ancestor_uuid, user_token)
 
+        # specimen_type -> sample_category 12/15/2022
+        # `sample_category` is required on create
+        sample_category = json_data_dict['sample_category'].lower()
+        
+        # Validations on regiserting an organ
+        if sample_category == 'organ':
+            # To register an organ, the source has to be a Donor
+            # It doesn't make sense to register an organ with some other sample type as the parent
+            if direct_ancestor_dict['entity_type'] != 'Donor':
+                bad_request_error("To register an organ, the source has to be a Donor")
+
+            # A valid organ code must be present in the `organ` field
+            if ('organ' not in json_data_dict) or (json_data_dict['organ'].strip() == ''):
+                bad_request_error("A valid organ code is required when registering an organ associated with a Donor")
+
+            # Must be one of the defined organ codes
+            # https://github.com/hubmapconsortium/search-api/blob/main/src/search-schema/data/definitions/enums/organ_types.yaml
+            validate_organ_code(json_data_dict['organ'])
+        else:
+            if 'organ' in json_data_dict:
+                bad_request_error("The sample category must be organ when an organ code is provided")
+
         # Creating the ids require organ code to be specified for the samples to be created when the
         # sample's direct ancestor is a Donor.
-        # Must be one of the codes from: https://github.com/hubmapconsortium/search-api/blob/main/src/search-schema/data/definitions/enums/organ_types.yaml
         if direct_ancestor_dict['entity_type'] == 'Donor':
-            # specimen_type -> sample_category 12/15/2022
-            # `sample_category` is required on create
-            if json_data_dict['sample_category'].lower() != 'organ':
-                bad_request_error("The sample_category must be organ since the direct ancestor is a Donor")
+            if sample_category != 'organ':
+                bad_request_error("The sample category must be organ when the direct ancestor is a Donor")
 
-            # Currently we don't validate the provided organ code though
             if ('organ' not in json_data_dict) or (json_data_dict['organ'].strip() == ''):
-                bad_request_error("A valid organ code is required when the direct ancestor is a Donor")
+                bad_request_error("A valid organ code is required when registering an organ associated with a Donor")
+
+            validate_organ_code(json_data_dict['organ'])
 
         # Generate 'before_create_triiger' data and create the entity details in Neo4j
         merged_dict = create_entity_details(request, normalized_entity_type, user_token, json_data_dict)
@@ -4200,6 +4209,8 @@ def create_request_headers(user_token):
 """
 Ensure the access level dir with leading and trailing slashes
 
+Parameters
+----------
 dir_name : str
     The name of the sub directory corresponding to each access level
 
@@ -4218,8 +4229,12 @@ def access_level_prefix_dir(dir_name):
 """
 Ensures that a given organ code matches what is found on the organ_types yaml document
 
+Parameters
+----------
 organ_code : str
 
+Returns
+-------
 Returns nothing. Raises bad_request_error is organ code not found on organ_types.yaml 
 """
 def validate_organ_code(organ_code):
@@ -4235,7 +4250,7 @@ def validate_organ_code(organ_code):
             organ_types_dict = yaml.safe_load(response.text)
             
             if organ_code.upper() not in organ_types_dict:
-                bad_request_error(f"Invalid Organ. Organ must be 2 digit code, case-insensitive located at {yaml_file_url}")
+                bad_request_error(f"Invalid organ code. Must be 2 digit code specified {yaml_file_url}")
         except yaml.YAMLError as e:
             raise yaml.YAMLError(e)
     else:
