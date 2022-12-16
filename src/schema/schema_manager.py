@@ -1216,7 +1216,8 @@ def create_hubmap_ids(normalized_class, json_data_dict, user_token, user_info_di
             # specimen_type -> sample_category 12/15/2022
             # 'Sample.sample_category' is marked as `required_on_create` in the schema yaml
             if json_data_dict['sample_category'].lower() == 'organ':
-                # The 'organ' field containing the organ code is required in this case
+                # The 'organ' field containing the 2 digit organ code is required in this case
+                # The organ code has been validated in app.py before reaching here
                 json_to_post['organ_code'] = json_data_dict['organ']
         else:
             # `Dataset.direct_ancestor_uuids` is `required_on_create` in yaml
