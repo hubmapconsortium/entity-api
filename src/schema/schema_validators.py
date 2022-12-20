@@ -262,6 +262,8 @@ def validate_upload_status_value(property_key, normalized_entity_type, request, 
 
 
 """
+NOTE: TO BE REMOVED when we remove specimen_type field
+
 Validate the provided value of Sample.specimen_type on create via POST and update via PUT
 
 Parameters
@@ -285,6 +287,29 @@ def validate_specimen_type(property_key, normalized_entity_type, request, existi
     if specimen_type not in defined_tissue_types:
         raise ValueError(f"Invalid specimen_type value: {specimen_type}")
 
+"""
+Validate the provided value of Sample.sample_category on create via POST and update via PUT
+
+Parameters
+----------
+property_key : str
+    The target property key
+normalized_type : str
+    Submission
+request: Flask request object
+    The instance of Flask request passed in from application request
+existing_data_dict : dict
+    A dictionary that contains all existing entity properties
+new_data_dict : dict
+    The json data in request body, already after the regular validations
+"""
+
+def validate_sample_category(property_key, normalized_entity_type, request, existing_data_dict, new_data_dict):
+    defined_tissue_types = ["organ", "block", "section", "suspension"]
+    sample_category = new_data_dict[property_key]
+
+    if sample_category not in defined_tissue_types:
+        raise ValueError(f"Invalid sample_category: {sample_category}")
 
 ####################################################################################################
 ## Internal Functions

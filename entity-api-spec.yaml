@@ -398,6 +398,14 @@ components:
             - consortium
             - public
           description: "One of the values: public, consortium."
+        sample_category:
+          type: string
+          enum:
+            - organ
+            - block
+            - section
+            - suspension
+          description: "A code representing the type of specimen. Must be an organ, block, section, or suspension"
         specimen_type:
           type: string
           enum:

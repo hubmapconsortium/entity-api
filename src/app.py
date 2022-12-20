@@ -322,7 +322,8 @@ def get_ancestor_organs(id):
     if normalized_entity_type not in supported_entity_types:
         bad_request_error(f"Unable to get the ancestor organs for this: {normalized_entity_type}, supported entity types: {COMMA_SEPARATOR.join(supported_entity_types)}")
 
-    if normalized_entity_type == 'Sample' and entity_dict['specimen_type'].lower() == 'organ':
+    # specimen_type -> sample_category 12/15/2022
+    if normalized_entity_type == 'Sample' and entity_dict['sample_category'].lower() == 'organ':
         bad_request_error("Unable to get the ancestor organ of an organ.")
 
     if normalized_entity_type == 'Dataset':
@@ -892,31 +893,42 @@ def create_entity(entity_type):
     # Sample and Dataset: additional validation, create entity, after_create_trigger
     # Collection and Donor: create entity
     if normalized_entity_type == 'Sample':
-        # A bit more validation to ensure if `organ` code is set, the `specimen_type` must be set to "organ"
-        # Vise versa, if `specimen_type` is set to "organ", `organ` code is required
-        if ('specimen_type' in json_data_dict) and (json_data_dict['specimen_type'].lower() == 'organ'):
-            if ('organ' not in json_data_dict) or (json_data_dict['organ'].strip() == ''):
-                bad_request_error("A valid organ code is required when the specimen_type is organ")
-        else:
-            if 'organ' in json_data_dict:
-                bad_request_error("The specimen_type must be organ when an organ code is provided")
-
-        # A bit more validation for new sample to be linked to existing source entity
         direct_ancestor_uuid = json_data_dict['direct_ancestor_uuid']
         # Check existence of the direct ancestor (either another Sample or Donor)
         direct_ancestor_dict = query_target_entity(direct_ancestor_uuid, user_token)
 
+        # specimen_type -> sample_category 12/15/2022
+        # `sample_category` is required on create
+        sample_category = json_data_dict['sample_category'].lower()
+        
+        # Validations on regiserting an organ
+        if sample_category == 'organ':
+            # To register an organ, the source has to be a Donor
+            # It doesn't make sense to register an organ with some other sample type as the parent
+            if direct_ancestor_dict['entity_type'] != 'Donor':
+                bad_request_error("To register an organ, the source has to be a Donor")
+
+            # A valid organ code must be present in the `organ` field
+            if ('organ' not in json_data_dict) or (json_data_dict['organ'].strip() == ''):
+                bad_request_error("A valid organ code is required when registering an organ associated with a Donor")
+
+            # Must be one of the defined organ codes
+            # https://github.com/hubmapconsortium/search-api/blob/main/src/search-schema/data/definitions/enums/organ_types.yaml
+            validate_organ_code(json_data_dict['organ'])
+        else:
+            if 'organ' in json_data_dict:
+                bad_request_error("The sample category must be organ when an organ code is provided")
+
         # Creating the ids require organ code to be specified for the samples to be created when the
         # sample's direct ancestor is a Donor.
-        # Must be one of the codes from: https://github.com/hubmapconsortium/search-api/blob/main/src/search-schema/data/definitions/enums/organ_types.yaml
         if direct_ancestor_dict['entity_type'] == 'Donor':
-            # `specimen_type` is required on create
-            if json_data_dict['specimen_type'].lower() != 'organ':
-                bad_request_error("The specimen_type must be organ since the direct ancestor is a Donor")
+            if sample_category != 'organ':
+                bad_request_error("The sample category must be organ when the direct ancestor is a Donor")
 
-            # Currently we don't validate the provided organ code though
             if ('organ' not in json_data_dict) or (json_data_dict['organ'].strip() == ''):
-                bad_request_error("A valid organ code is required when the direct ancestor is a Donor")
+                bad_request_error("A valid organ code is required when registering an organ associated with a Donor")
+
+            validate_organ_code(json_data_dict['organ'])
 
         # Generate 'before_create_triiger' data and create the entity details in Neo4j
         merged_dict = create_entity_details(request, normalized_entity_type, user_token, json_data_dict)
@@ -1049,9 +1061,10 @@ def create_multiple_samples(count):
     # sample's direct ancestor is a Donor.
     # Must be one of the codes from: https://github.com/hubmapconsortium/search-api/blob/main/src/search-schema/data/definitions/enums/organ_types.yaml
     if direct_ancestor_dict['entity_type'] == 'Donor':
-        # `specimen_type` is required on create
-        if json_data_dict['specimen_type'].lower() != 'organ':
-            bad_request_error("The specimen_type must be organ since the direct ancestor is a Donor")
+        # specimen_type -> sample_category 12/15/2022
+        # `sample_category` is required on create
+        if json_data_dict['sample_category'].lower() != 'organ':
+            bad_request_error("The sample_category must be organ since the direct ancestor is a Donor")
 
         # Currently we don't validate the provided organ code though
         if ('organ' not in json_data_dict) or (not json_data_dict['organ']):
@@ -2611,7 +2624,10 @@ def get_prov_info():
                 first_sample_hubmap_id_list.append(item['hubmap_id'])
                 first_sample_submission_id_list.append(item['submission_id'])
                 first_sample_uuid_list.append(item['uuid'])
-                first_sample_type_list.append(item['specimen_type'])
+
+                # specimen_type -> sample_category 12/15/2022
+                first_sample_type_list.append(item['sample_category'])
+
                 first_sample_portal_url_list.append(app.config['DOI_REDIRECT_URL'].replace('<entity_type>', 'sample').replace('<identifier>', item['uuid']))
             internal_dict[HEADER_FIRST_SAMPLE_HUBMAP_ID] = first_sample_hubmap_id_list
             internal_dict[HEADER_FIRST_SAMPLE_SUBMISSION_ID] = first_sample_submission_id_list
@@ -2936,7 +2952,10 @@ def get_prov_info_for_dataset(id):
             first_sample_hubmap_id_list.append(item['hubmap_id'])
             first_sample_submission_id_list.append(item['submission_id'])
             first_sample_uuid_list.append(item['uuid'])
-            first_sample_type_list.append(item['specimen_type'])
+
+            # specimen_type -> sample_category 12/15/2022
+            first_sample_type_list.append(item['sample_category'])
+
             first_sample_portal_url_list.append(
                 app.config['DOI_REDIRECT_URL'].replace('<entity_type>', 'sample').replace('<identifier>', item['uuid']))
         internal_dict[HEADER_FIRST_SAMPLE_HUBMAP_ID] = first_sample_hubmap_id_list
@@ -3052,7 +3071,8 @@ def get_prov_info_for_dataset(id):
         else:
             requested_samples = {}
             for uuid in dataset_samples.keys():
-                if dataset_samples[uuid]['specimen_type'] in include_samples:
+                # specimen_type -> sample_category 12/15/2022
+                if dataset_samples[uuid]['sample_category'] in include_samples:
                     requested_samples[uuid] = dataset_samples[uuid]
             internal_dict[HEADER_DATASET_SAMPLES] = requested_samples
 
@@ -3261,7 +3281,8 @@ def get_sample_prov_info():
             organ_hubmap_id = sample['organ_hubmap_id']
             organ_submission_id = sample['organ_submission_id']
         else:
-            if sample['sample_specimen_type'] == "organ":
+            # sample_specimen_type -> sample_category 12/15/2022
+            if sample['sample_category'] == "organ":
                 organ_uuid = sample['sample_uuid']
                 organ_type = organ_types_dict[sample['sample_organ']]['description'].lower()
                 organ_hubmap_id = sample['sample_hubmap_id']
@@ -3288,7 +3309,10 @@ def get_sample_prov_info():
         internal_dict[HEADER_SAMPLE_HAS_METADATA] = sample_has_metadata
         internal_dict[HEADER_SAMPLE_HAS_RUI_INFO] = sample_has_rui_info
         internal_dict[HEADER_SAMPLE_DIRECT_ANCESTOR_ID] = sample['sample_ancestor_id']
-        internal_dict[HEADER_SAMPLE_TYPE] = sample['sample_specimen_type']
+
+        # sample_specimen_type -> sample_category 12/15/2022
+        internal_dict[HEADER_SAMPLE_TYPE] = sample['sample_category']
+
         internal_dict[HEADER_SAMPLE_HUBMAP_ID] = sample['sample_hubmap_id']
         internal_dict[HEADER_SAMPLE_SUBMISSION_ID] = sample['sample_submission_id']
         internal_dict[HEADER_SAMPLE_DIRECT_ANCESTOR_ENTITY_TYPE] = sample['sample_ancestor_entity']
@@ -4185,6 +4209,8 @@ def create_request_headers(user_token):
 """
 Ensure the access level dir with leading and trailing slashes
 
+Parameters
+----------
 dir_name : str
     The name of the sub directory corresponding to each access level
 
@@ -4203,8 +4229,12 @@ def access_level_prefix_dir(dir_name):
 """
 Ensures that a given organ code matches what is found on the organ_types yaml document
 
+Parameters
+----------
 organ_code : str
 
+Returns
+-------
 Returns nothing. Raises bad_request_error is organ code not found on organ_types.yaml 
 """
 def validate_organ_code(organ_code):
@@ -4220,7 +4250,7 @@ def validate_organ_code(organ_code):
             organ_types_dict = yaml.safe_load(response.text)
             
             if organ_code.upper() not in organ_types_dict:
-                bad_request_error(f"Invalid Organ. Organ must be 2 digit code, case-insensitive located at {yaml_file_url}")
+                bad_request_error(f"Invalid organ code. Must be 2 digit code specified {yaml_file_url}")
         except yaml.YAMLError as e:
             raise yaml.YAMLError(e)
     else:
