@@ -4,6 +4,9 @@ src/instance/app.cfg
 
 venv-entity-api
 
+#Mac DS Store files
+.DS_Store
+
 # Ignore copied files
 docker/entity-api/src
 docker/entity-api/VERSION

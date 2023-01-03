@@ -455,10 +455,18 @@ components:
             - snrnaseq
             - tissue_lysate
             - wgs
-          description: "A code representing the type of specimen.  Must be one of the codes specified in: [tissue sample types](https://github.com/hubmapconsortium/search-api/blob/main/src/search-schema/data/definitions/enums/tissue_sample_types.yaml)"
+          description: "DEPRECATED:  No longer a required field. A code representing the type of specimen.  Must be one of the codes specified in: [tissue sample types](https://github.com/hubmapconsortium/search-api/blob/main/src/search-schema/data/definitions/enums/tissue_sample_types.yaml)"
         specimen_type_other:
           type: string
           description: "The user provided sample type if the 'other' sample_type is chosen."
+        sample_category:
+          type: string
+          enum:
+            - organ
+            - block
+            - section
+            - suspension
+          description: "A code representing the category of the specimen.  Must be one of organ|block|section|suspension. This is a required field. If set to `organ`, the organ property must be provided as well."
         protocol_url:
           type: string
           description: "The protocols.io doi url pointing the protocol under wich the sample was obtained and/or prepared."
@@ -506,7 +514,7 @@ components:
             - TR
             - UR
             - UT
-          description: "Organ code specifier, only set if sample_type == organ.  Valid values found in: [organ types](https://github.com/hubmapconsortium/search-api/blob/main/src/search-schema/data/definitions/enums/organ_types.yaml)"
+          description: "Organ code specifier, only set if sample_category == organ.  Valid values found in: [organ types](https://github.com/hubmapconsortium/search-api/blob/main/src/search-schema/data/definitions/enums/organ_types.yaml)"
         organ_other:
           type: string
           description: The organ type provided by the user if "other" organ type is selected
@@ -1989,7 +1997,7 @@ paths:
                     description: the hubmap_id of the unpublished dataset
                   organ:
                     type: string
-                    description: the organ type of the sample with specimen_type organ above the unpublished dataset if applicable
+                    description: the organ type of the sample with sample_category organ above the unpublished dataset if applicable
                   organization:
                     type: string
                     description: the group_name of the unpublished dataset
