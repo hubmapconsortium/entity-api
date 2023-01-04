@@ -2016,3 +2016,45 @@ paths:
           description: THe user is not authorized to use this method
         '500':
           description: Internal error
+  '/datasets/{id}/paired-dataset':
+    get:
+      summary: Retrieve uuids for associated dataset of given data_type which shares a sample ancestor of given dataset id
+      parameters:
+        - name: id
+          in: path
+          description: The unique identifier of entity.  This identifier can be either an HuBMAP ID (e.g. HBM123.ABCD.456) or UUID (32 digit hexadecimal number)
+          required: true
+          schema:
+            type: string
+        - name: data_type
+          in: query
+          description: The desired data_type to be searched for
+          required: true
+          schema:
+            type: string
+        - name: search_depth
+          in: query
+          description: The maximum number of generations of datasets beneath the sample to search for the paired dataset
+          required: false
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: returns a list (json array) of the uuids (if any) of the matching paired datasets.
+          content:
+            application/json:
+              schema:
+                type: array
+                properties:
+                  uuid:
+                    type: string
+                    description: The unique identifier for the  unpublisheddataset
+
+        '404':
+          description: Not found. No matching datasets were found, or the none were found that the user is authorized to see.
+        '401':
+          description: The user's token has expired or the user did not supply a valid token
+        '403':
+          description: The given dataset is unpublished and the user does not have the authorization to view it.
+        '500':
+          description: Internal error

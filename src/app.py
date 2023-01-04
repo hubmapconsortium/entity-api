@@ -3399,6 +3399,114 @@ def unpublished():
     else:
         return jsonify(unpublished_info)
 
+"""
+Retrieve uuids for associated dataset of given data_type which 
+shares a sample ancestor of given dataset id
+
+Returns
+--------
+json array
+    List of uuids of all datasets (if any) of the specified data_type
+     who share a sample ancestor with the dataset with the given id
+
+Authorization
+-------------
+This endpoint is publicly accessible, however if a token is provided, 
+it must be valid. If the given dataset uuid is for an unpublished dataset,
+the user must be part of the HuBMAP-Read-Group. If not, a 403 will be raised.
+
+Path Parameters
+---------------
+id : str
+    The HuBMAP ID (e.g. HBM123.ABCD.456) or UUID of target dataset
+
+Required Query Paramters
+------------------------
+data_type : str
+    The data type to be searched for.
+    
+Optional Query Paramters
+------------------------
+search_depth : int
+    The max number of generations of datasets to search for associated paired 
+    dataset. This number is the number of generations between the shared sample
+    ancestor and the target dataset (if any) rather than the starting dataset. 
+    This number counts dataset generations and not activity nodes or any other 
+    intermediate steps between 2 datasets. If no search_depth is given, the 
+    search will traverse all descendants of the sample ancestor.  
+
+If the associated datasets (if any exist) returned are unpublished, they    
+"""
+@app.route('/datasets/<id>/paired-dataset', methods=['GET'])
+def paired_dataset(id):
+    if request.headers.get('Authorization') is not None:
+        try:
+            user_token = auth_helper_instance.getAuthorizationTokens(request.headers)
+        except Exception:
+            msg = "Failed to parse the Authorization token by calling commons.auth_helper.getAuthorizationTokens()"
+            # Log the full stack trace, prepend a line with our message
+            logger.exception(msg)
+            internal_server_error(msg)
+        # When the Authoriztion header provided but the user_token is a flask.Response instance,
+        # it MUST be a 401 error with message.
+        # That's how commons.auth_helper.getAuthorizationTokens() was designed
+        if isinstance(user_token, Response):
+            # We wrap the message in a json and send back to requester as 401 too
+            # The Response.data returns binary string, need to decode
+            unauthorized_error(user_token.get_data().decode())
+        # Also check if the parased token is invalid or expired
+        # Set the second paremeter as False to skip group check
+        user_info = auth_helper_instance.getUserInfo(user_token, False)
+        if isinstance(user_info, Response):
+            unauthorized_error(user_info.get_data().decode())
+
+    accepted_arguments = ['data_type', 'search_depth']
+    if not bool(request.args):
+        bad_request_error(f"'data_type' is a required argument")
+    else:
+        for argument in request.args:
+            if argument not in accepted_arguments:
+                bad_request_error(f"{argument} is an unrecognized argument.")
+        if 'data_type' not in request.args:
+            bad_request_error(f"'data_type' is a required argument")
+        else:
+            data_type = request.args.get('data_type')
+        if 'search_depth' in request.args:
+            try:
+                search_depth = int(request.args.get('search_depth'))
+            except ValueError:
+                bad_request_error(f"'search_depth' must be an integer")
+        else:
+            search_depth = None
+    # Use the internal token to query the target entity
+    # since public entities don't require user token
+    token = get_internal_token()
+
+    # Query target entity against uuid-api and neo4j and return as a dict if exists
+    # Then retrieve the allowable data access level (public, protected or consortium)
+    # for the dataset and HuBMAP Component ID that the dataset belongs to
+    entity_dict = query_target_entity(id, token)
+    uuid = entity_dict['uuid']
+    normalized_entity_type = entity_dict['entity_type']
+
+    # Only for Dataset and Upload
+    if normalized_entity_type != 'Dataset':
+        bad_request_error("The target entity of the specified id is not a Dataset")
+
+    if entity_dict['status'].lower() != DATASET_STATUS_PUBLISHED:
+        if not user_in_hubmap_read_group(request):
+            forbidden_error("Access not granted")
+
+    paired_dataset = app_neo4j_queries.get_paired_dataset(neo4j_driver_instance, uuid, data_type, search_depth)
+    out_list = []
+    for result in paired_dataset:
+        if user_in_hubmap_read_group(request) or result['status'].lower() == 'published':
+            out_list.append(result['uuid'])
+    if len(out_list) < 1:
+        not_found_error(f"Search for paired datasets of type {data_type} for dataset with id {uuid} returned no results")
+    else:
+        return jsonify(out_list), 200
+
 
 ####################################################################################################
 ## Internal Functions
@@ -4138,7 +4246,7 @@ def query_target_entity(id, user_token):
                 not_found_error(e.response.text)
             else:
                 internal_server_error(e.response.text)
-    
+
     # Final return
     return entity_dict
 
