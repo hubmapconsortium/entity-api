@@ -16,6 +16,10 @@ import logging
 import json
 import time
 
+# pymemcache.client.base.PooledClient is a thread-safe client pool 
+# that provides the same API as pymemcache.client.base.Client
+from pymemcache.client.base import PooledClient
+
 # Local modules
 import app_neo4j_queries
 import provenance
@@ -101,6 +105,21 @@ def http_not_found(e):
 @app.errorhandler(500)
 def http_internal_server_error(e):
     return jsonify(error = str(e)), 500
+
+
+####################################################################################################
+## Memcached connection
+####################################################################################################
+
+# Connect to Memcached server using tuple
+# Use client pool to maintain a pool of already-connected clients for improved performance
+try:
+    cache_client = PooledClient((app.config['MEMCACHED_HOST'], 
+                                 app.config['MEMCACHED_PORT']))
+except Exception:
+    msg = "Failed to connect to the Memcached host"
+    # Log the full stack trace, prepend a line with our message
+    logger.exception(msg)
 
 
 ####################################################################################################
