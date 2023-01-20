@@ -350,7 +350,7 @@ list: The list of defined tissue types
 def _get_tissue_types():
     yaml_file_url = SchemaConstants.TISSUE_TYPES_YAML
 
-    # Function cache to improve performance
+    # Use Memcached to improve performance
     response = schema_manager.make_request_get(yaml_file_url)
     
     if response.status_code == 200:
