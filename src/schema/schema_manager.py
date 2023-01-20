@@ -1568,7 +1568,7 @@ def make_request_get(target_url, internal_token_used = False):
 
         if _memcached_client:
             # Cache the result
-            cache_client_instance.set(cache_key, response, expire = SchemaConstants.MEMCACHED_TTL)
+            _memcached_client.set(cache_key, response, expire = SchemaConstants.MEMCACHED_TTL)
     else:
         logger.info(f'Using the cached HTTP response of GET {target_url} at time {current_datetime}')
 

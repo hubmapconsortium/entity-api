@@ -19,6 +19,7 @@ import time
 # pymemcache.client.base.PooledClient is a thread-safe client pool 
 # that provides the same API as pymemcache.client.base.Client
 from pymemcache.client.base import PooledClient
+from pymemcache import serde
 
 # Local modules
 import app_neo4j_queries
@@ -108,27 +109,6 @@ def http_internal_server_error(e):
 
 
 ####################################################################################################
-## Memcached client initialization
-####################################################################################################
-
-memcached_client_instance = None
-
-if MEMCACHED_ON:
-    # Use client pool to maintain a pool of already-connected clients for improved performance
-    try:
-        # The uwsgi config launches the app across multiple threads (2) inside each process (4), making essentially 8 processes
-        # Set the connect_timeout and timeout to avoid blocking the process when memcached is slow
-        memcached_client_instance = PooledClient(app.config['MEMCACHED_SERVER'], 
-                                    max_pool_size=8,
-                                    connect_timeout=60,
-                                    timeout=60)
-    except Exception:
-        msg = "Failed to connect to the Memcached host and initialize the PooledClient class"
-        # Log the full stack trace, prepend a line with our message
-        logger.exception(msg)
-
-
-####################################################################################################
 ## AuthHelper initialization
 ####################################################################################################
 
@@ -163,6 +143,40 @@ except Exception:
     msg = "Failed to initialize the neo4j_driver module"
     # Log the full stack trace, prepend a line with our message
     logger.exception(msg)
+
+
+####################################################################################################
+## Memcached client initialization
+####################################################################################################
+
+memcached_client_instance = None
+
+if MEMCACHED_ON:
+    try:
+        # Use client pool to maintain a pool of already-connected clients for improved performance
+        # The uwsgi config launches the app across multiple threads (2) inside each process (4), making essentially 8 processes
+        # Set the connect_timeout and timeout to avoid blocking the process when memcached is slow
+        # Use the ignore_exc flag to treat memcache/network errors as cache misses on calls to the get* methods. This
+        # prevents failures in memcache, or network errors, from killing your web requests. Do not use this flag if you
+        # need to know about errors from memcache, and make sure you have some other way to detect memcache server failures.
+        # When the no_delay flag is set, the TCP_NODELAY socket option will also be set. This only applies to TCP-based connections.
+        # If you intend to use anything but str as a value, it is a good idea to use a serializer.
+        memcached_client_instance = PooledClient(app.config['MEMCACHED_SERVER'], 
+                                    max_pool_size = 8,
+                                    connect_timeout = 1,
+                                    timeout = 30,
+                                    ignore_exc = True, 
+                                    no_delay = True,
+                                    serde = serde.pickle_serde)
+
+        logger.info("Initialized Memcached client successfully :)")
+    except Exception:
+        msg = "Failed to connect to the Memcached servr and initialize the client"
+        # Log the full stack trace, prepend a line with our message
+        logger.exception(msg)
+
+        # Turn off the caching
+        MEMCACHED_ON = False
 
 
 """
