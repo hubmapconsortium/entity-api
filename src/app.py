@@ -1327,7 +1327,8 @@ def update_entity(id):
 
         # Also delete the cache of all the direct descendants (children)
         # Otherwise they'll have old cached data for the `direct_ancestor` (Sample) `direct_ancestors` (Dataset) fields
-        children_uuid_list = app_neo4j_queries.get_children(neo4j_driver_instance, uuid, 'uuid')
+        # Note: must use uuid in the Neo4j query
+        children_uuid_list = app_neo4j_queries.get_children(neo4j_driver_instance, entity_dict['uuid'] , 'uuid')
 
         for child_uuid in children_uuid_list:
             cache_key = f'{SchemaConstants.MEMCACHED_PREFIX}{child_uuid}'
