@@ -171,7 +171,8 @@ if MEMCACHED_ON:
 
         # memcached_client_instance can be instantiated without connecting to the Memcached server
         # A version() call will throw error (e.g., timeout) when failed to connect to server
-        logger.info(f'Connected to Memcached server {memcached_client_instance.version()} successfully :)')
+        # Need to convert the version in bytes to string
+        logger.info(f'Connected to Memcached server {memcached_client_instance.version().decode()} successfully :)')
     except Exception:
         msg = 'Failed to connect to the Memcached server :('
         # Log the full stack trace, prepend a line with our message
