@@ -2557,8 +2557,6 @@ def get_prov_info():
     HEADER_PROCESSED_DATASET_HUBMAP_ID = 'processed_dataset_hubmap_id'
     HEADER_PROCESSED_DATASET_STATUS = 'processed_dataset_status'
     HEADER_PROCESSED_DATASET_PORTAL_URL = 'processed_dataset_portal_url'
-    ASSAY_TYPES_URL = SchemaConstants.ASSAY_TYPES_YAML
-    ORGAN_TYPES_URL = SchemaConstants.ORGAN_TYPES_YAML
     HEADER_PREVIOUS_VERSION_HUBMAP_IDS = 'previous_version_hubmap_ids'
 
     headers = [
@@ -2585,7 +2583,7 @@ def get_prov_info():
 
     # Parsing the organ types yaml has to be done here rather than calling schema.schema_triggers.get_organ_description
     # because that would require using a urllib request for each dataset
-    response = requests.get(url=ORGAN_TYPES_URL, verify=False)
+    response = schema_manager.make_request_get(SchemaConstants.ORGAN_TYPES_YAML)
 
     if response.status_code == 200:
         yaml_file = response.text
@@ -2596,7 +2594,7 @@ def get_prov_info():
 
     # As above, we parse te assay type yaml here rather than calling the special method for it because this avoids
     # having to access the resource for every dataset.
-    response = requests.get(url=ASSAY_TYPES_URL, verify=False)
+    response = schema_manager.make_request_get(SchemaConstants.ASSAY_TYPES_YAML)
 
     if response.status_code == 200:
         yaml_file = response.text
@@ -2943,8 +2941,6 @@ def get_prov_info_for_dataset(id):
     HEADER_PROCESSED_DATASET_HUBMAP_ID = 'processed_dataset_hubmap_id'
     HEADER_PROCESSED_DATASET_STATUS = 'processed_dataset_status'
     HEADER_PROCESSED_DATASET_PORTAL_URL = 'processed_dataset_portal_url'
-    ASSAY_TYPES_URL = SchemaConstants.ASSAY_TYPES_YAML
-    ORGAN_TYPES_URL = SchemaConstants.ORGAN_TYPES_YAML
 
     headers = [
         HEADER_DATASET_UUID, HEADER_DATASET_HUBMAP_ID, HEADER_DATASET_STATUS, HEADER_DATASET_GROUP_NAME,
@@ -2962,7 +2958,7 @@ def get_prov_info_for_dataset(id):
 
     # Parsing the organ types yaml has to be done here rather than calling schema.schema_triggers.get_organ_description
     # because that would require using a urllib request for each dataset
-    response = requests.get(url=ORGAN_TYPES_URL, verify=False)
+    response = schema_manager.make_request_get(SchemaConstants.ORGAN_TYPES_YAML)
 
     if response.status_code == 200:
         yaml_file = response.text
@@ -2973,7 +2969,7 @@ def get_prov_info_for_dataset(id):
 
     # As above, we parse te assay type yaml here rather than calling the special method for it because this avoids
     # having to access the resource for every dataset.
-    response = requests.get(url=ASSAY_TYPES_URL, verify=False)
+    response = schema_manager.make_request_get(SchemaConstants.ASSAY_TYPES_YAML)
 
     if response.status_code == 200:
         yaml_file = response.text
@@ -3202,13 +3198,12 @@ def sankey_data():
     HEADER_ORGAN_TYPE = 'organ_type'
     HEADER_DATASET_DATA_TYPES = 'dataset_data_types'
     HEADER_DATASET_STATUS = 'dataset_status'
-    ASSAY_TYPES_URL = SchemaConstants.ASSAY_TYPES_YAML
-    ORGAN_TYPES_URL = SchemaConstants.ORGAN_TYPES_YAML
+
     with open('sankey_mapping.json') as f:
         mapping_dict = json.load(f)
     # Parsing the organ types yaml has to be done here rather than calling schema.schema_triggers.get_organ_description
     # because that would require using a urllib request for each dataset
-    response = requests.get(url=ORGAN_TYPES_URL, verify=False)
+    response = schema_manager.make_request_get(SchemaConstants.ORGAN_TYPES_YAML)
 
     if response.status_code == 200:
         yaml_file = response.text
@@ -3219,7 +3214,7 @@ def sankey_data():
 
     # As above, we parse te assay type yaml here rather than calling the special method for it because this avoids
     # having to access the resource for every dataset.
-    response = requests.get(url=ASSAY_TYPES_URL, verify=False)
+    response = schema_manager.make_request_get(SchemaConstants.ASSAY_TYPES_YAML)
 
     if response.status_code == 200:
         yaml_file = response.text
@@ -3324,7 +3319,6 @@ def get_sample_prov_info():
     HEADER_ORGAN_TYPE = "organ_type"
     HEADER_ORGAN_HUBMAP_ID = "organ_hubmap_id"
     HEADER_ORGAN_SUBMISSION_ID = "organ_submission_id"
-    ORGAN_TYPES_URL = SchemaConstants.ORGAN_TYPES_YAML
 
     public_only = True
 
@@ -3337,7 +3331,7 @@ def get_sample_prov_info():
 
     # Parsing the organ types yaml has to be done here rather than calling schema.schema_triggers.get_organ_description
     # because that would require using a urllib request for each dataset
-    response = requests.get(url=ORGAN_TYPES_URL, verify=False)
+    response = schema_manager.make_request_get(SchemaConstants.ORGAN_TYPES_YAML)
 
     if response.status_code == 200:
         yaml_file = response.text
