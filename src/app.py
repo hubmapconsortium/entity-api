@@ -3228,41 +3228,60 @@ def sankey_data():
         except yaml.YAMLError as e:
             raise yaml.YAMLError(e)
 
-    # Instantiation of the list dataset_prov_list
+    # Instantiation of the list dataset_sankey_list
     dataset_sankey_list = []
 
-    # Call to app_neo4j_queries to prepare and execute the database query
-    sankey_info = app_neo4j_queries.get_sankey_info(neo4j_driver_instance)
-    for dataset in sankey_info:
-        internal_dict = collections.OrderedDict()
-        internal_dict[HEADER_DATASET_GROUP_NAME] = dataset[HEADER_DATASET_GROUP_NAME]
-        internal_dict[HEADER_ORGAN_TYPE] = organ_types_dict[dataset[HEADER_ORGAN_TYPE]]['description'].lower()
-        # Data type codes are replaced with data type descriptions
-        assay_description = ""
-        try:
-            assay_description = assay_types_dict[dataset[HEADER_DATASET_DATA_TYPES]]['description']
-        # Some data types aren't given by their code in the assay types yaml and are instead given as an alt name.
-        # In these cases, we have to search each assay type and see if the given code matches any alternate names.
-        except KeyError:
-            valid_key = False
-            for each in assay_types_dict:
+    cache_key = f'{SchemaConstants.MEMCACHED_PREFIX}sankey'
+
+    if MEMCACHED_MODE:
+        if memcached_client_instance.get(cache_key) is not None:
+            dataset_sankey_list = memcached_client_instance.get(cache_key)
+
+    current_datetime = datetime.now()
+
+    if not dataset_sankey_list:
+        if MEMCACHED_MODE:
+            logger.info(f'Sankey data cache not found or expired. Making a new data fetch at time {current_datetime}')
+
+        # Call to app_neo4j_queries to prepare and execute the database query
+        sankey_info = app_neo4j_queries.get_sankey_info(neo4j_driver_instance)
+        for dataset in sankey_info:
+            internal_dict = collections.OrderedDict()
+            internal_dict[HEADER_DATASET_GROUP_NAME] = dataset[HEADER_DATASET_GROUP_NAME]
+            internal_dict[HEADER_ORGAN_TYPE] = organ_types_dict[dataset[HEADER_ORGAN_TYPE]]['description'].lower()
+            # Data type codes are replaced with data type descriptions
+            assay_description = ""
+            try:
+                assay_description = assay_types_dict[dataset[HEADER_DATASET_DATA_TYPES]]['description']
+            # Some data types aren't given by their code in the assay types yaml and are instead given as an alt name.
+            # In these cases, we have to search each assay type and see if the given code matches any alternate names.
+            except KeyError:
+                valid_key = False
+                for each in assay_types_dict:
+                    if valid_key is False:
+                        if dataset[HEADER_DATASET_DATA_TYPES] in assay_types_dict[each]['alt-names']:
+                            assay_description = assay_types_dict[each]['description']
+                            valid_key = True
                 if valid_key is False:
-                    if dataset[HEADER_DATASET_DATA_TYPES] in assay_types_dict[each]['alt-names']:
-                        assay_description = assay_types_dict[each]['description']
-                        valid_key = True
-            if valid_key is False:
-                assay_description = dataset[HEADER_DATASET_DATA_TYPES]
-        internal_dict[HEADER_DATASET_DATA_TYPES] = assay_description
+                    assay_description = dataset[HEADER_DATASET_DATA_TYPES]
+            internal_dict[HEADER_DATASET_DATA_TYPES] = assay_description
 
-        # Replace applicable Group Name and Data type with the value needed for the sankey via the mapping_dict
-        internal_dict[HEADER_DATASET_STATUS] = dataset['dataset_status']
-        if internal_dict[HEADER_DATASET_GROUP_NAME] in mapping_dict.keys():
-            internal_dict[HEADER_DATASET_GROUP_NAME] = mapping_dict[internal_dict[HEADER_DATASET_GROUP_NAME]]
-        if internal_dict[HEADER_DATASET_DATA_TYPES] in mapping_dict.keys():
-            internal_dict[HEADER_DATASET_DATA_TYPES] = mapping_dict[internal_dict[HEADER_DATASET_DATA_TYPES]]
+            # Replace applicable Group Name and Data type with the value needed for the sankey via the mapping_dict
+            internal_dict[HEADER_DATASET_STATUS] = dataset['dataset_status']
+            if internal_dict[HEADER_DATASET_GROUP_NAME] in mapping_dict.keys():
+                internal_dict[HEADER_DATASET_GROUP_NAME] = mapping_dict[internal_dict[HEADER_DATASET_GROUP_NAME]]
+            if internal_dict[HEADER_DATASET_DATA_TYPES] in mapping_dict.keys():
+                internal_dict[HEADER_DATASET_DATA_TYPES] = mapping_dict[internal_dict[HEADER_DATASET_DATA_TYPES]]
 
-        # Each dataset's dictionary is added to the list to be returned
-        dataset_sankey_list.append(internal_dict)
+            # Each dataset's dictionary is added to the list to be returned
+            dataset_sankey_list.append(internal_dict)
+        
+        if MEMCACHED_MODE:
+            # Cache the result
+            memcached_client_instance.set(cache_key, dataset_sankey_list, expire = SchemaConstants.MEMCACHED_TTL)
+    else:
+        logger.info(f'Using the cached sankey data at time {current_datetime}')
+        
     return jsonify(dataset_sankey_list)
 
 
@@ -3346,69 +3365,87 @@ def get_sample_prov_info():
     # Instantiation of the list sample_prov_list
     sample_prov_list = []
 
-    # Call to app_neo4j_queries to prepare and execute database query
-    prov_info = app_neo4j_queries.get_sample_prov_info(neo4j_driver_instance, param_dict, public_only)
+    cache_key = f'{SchemaConstants.MEMCACHED_PREFIX}prov-info'
 
-    for sample in prov_info:
+    if MEMCACHED_MODE:
+        if memcached_client_instance.get(cache_key) is not None:
+            sample_prov_list = memcached_client_instance.get(cache_key)
 
-        # For cases where there is no sample of type organ above a given sample in the provenance, we check to see if
-        # the given sample is itself an organ.
-        organ_uuid = None
-        organ_type = None
-        organ_hubmap_id = None
-        organ_submission_id = None
-        if sample['organ_uuid'] is not None:
-            organ_uuid = sample['organ_uuid']
-            organ_type = organ_types_dict[sample['organ_organ_type']]['description'].lower()
-            organ_hubmap_id = sample['organ_hubmap_id']
-            organ_submission_id = sample['organ_submission_id']
-        else:
+    current_datetime = datetime.now()
+
+    if not sample_prov_list:
+        if MEMCACHED_MODE:
+            logger.info(f'Samples prov-info cache not found or expired. Making a new data fetch at time {current_datetime}')
+
+        # Call to app_neo4j_queries to prepare and execute database query
+        prov_info = app_neo4j_queries.get_sample_prov_info(neo4j_driver_instance, param_dict, public_only)
+
+        for sample in prov_info:
+            # For cases where there is no sample of type organ above a given sample in the provenance, we check to see if
+            # the given sample is itself an organ.
+            organ_uuid = None
+            organ_type = None
+            organ_hubmap_id = None
+            organ_submission_id = None
+            if sample['organ_uuid'] is not None:
+                organ_uuid = sample['organ_uuid']
+                organ_type = organ_types_dict[sample['organ_organ_type']]['description'].lower()
+                organ_hubmap_id = sample['organ_hubmap_id']
+                organ_submission_id = sample['organ_submission_id']
+            else:
+                # sample_specimen_type -> sample_category 12/15/2022
+                if sample['sample_category'] == "organ":
+                    organ_uuid = sample['sample_uuid']
+                    organ_type = organ_types_dict[sample['sample_organ']]['description'].lower()
+                    organ_hubmap_id = sample['sample_hubmap_id']
+                    organ_submission_id = sample['sample_submission_id']
+
+
+            sample_has_metadata = False
+            if sample['sample_metadata'] is not None:
+                sample_has_metadata = True
+
+            sample_has_rui_info = False
+            if sample['sample_rui_info'] is not None:
+                sample_has_rui_info = True
+
+            donor_has_metadata = False
+            if sample['donor_metadata'] is not None:
+                donor_has_metadata = True
+
+            internal_dict = collections.OrderedDict()
+            internal_dict[HEADER_SAMPLE_UUID] = sample['sample_uuid']
+            internal_dict[HEADER_SAMPLE_LAB_ID] = sample['lab_sample_id']
+            internal_dict[HEADER_SAMPLE_GROUP_NAME] = sample['sample_group_name']
+            internal_dict[HEADER_SAMPLE_CREATED_BY_EMAIL] = sample['sample_created_by_email']
+            internal_dict[HEADER_SAMPLE_HAS_METADATA] = sample_has_metadata
+            internal_dict[HEADER_SAMPLE_HAS_RUI_INFO] = sample_has_rui_info
+            internal_dict[HEADER_SAMPLE_DIRECT_ANCESTOR_ID] = sample['sample_ancestor_id']
+
             # sample_specimen_type -> sample_category 12/15/2022
-            if sample['sample_category'] == "organ":
-                organ_uuid = sample['sample_uuid']
-                organ_type = organ_types_dict[sample['sample_organ']]['description'].lower()
-                organ_hubmap_id = sample['sample_hubmap_id']
-                organ_submission_id = sample['sample_submission_id']
+            internal_dict[HEADER_SAMPLE_TYPE] = sample['sample_category']
 
+            internal_dict[HEADER_SAMPLE_HUBMAP_ID] = sample['sample_hubmap_id']
+            internal_dict[HEADER_SAMPLE_SUBMISSION_ID] = sample['sample_submission_id']
+            internal_dict[HEADER_SAMPLE_DIRECT_ANCESTOR_ENTITY_TYPE] = sample['sample_ancestor_entity']
+            internal_dict[HEADER_DONOR_UUID] = sample['donor_uuid']
+            internal_dict[HEADER_DONOR_HAS_METADATA] = donor_has_metadata
+            internal_dict[HEADER_DONOR_HUBMAP_ID] = sample['donor_hubmap_id']
+            internal_dict[HEADER_DONOR_SUBMISSION_ID] = sample['donor_submission_id']
+            internal_dict[HEADER_ORGAN_UUID] = organ_uuid
+            internal_dict[HEADER_ORGAN_TYPE] = organ_type
+            internal_dict[HEADER_ORGAN_HUBMAP_ID] = organ_hubmap_id
+            internal_dict[HEADER_ORGAN_SUBMISSION_ID] = organ_submission_id
 
-        sample_has_metadata = False
-        if sample['sample_metadata'] is not None:
-            sample_has_metadata = True
-
-        sample_has_rui_info = False
-        if sample['sample_rui_info'] is not None:
-            sample_has_rui_info = True
-
-        donor_has_metadata = False
-        if sample['donor_metadata'] is not None:
-            donor_has_metadata = True
-
-        internal_dict = collections.OrderedDict()
-        internal_dict[HEADER_SAMPLE_UUID] = sample['sample_uuid']
-        internal_dict[HEADER_SAMPLE_LAB_ID] = sample['lab_sample_id']
-        internal_dict[HEADER_SAMPLE_GROUP_NAME] = sample['sample_group_name']
-        internal_dict[HEADER_SAMPLE_CREATED_BY_EMAIL] = sample['sample_created_by_email']
-        internal_dict[HEADER_SAMPLE_HAS_METADATA] = sample_has_metadata
-        internal_dict[HEADER_SAMPLE_HAS_RUI_INFO] = sample_has_rui_info
-        internal_dict[HEADER_SAMPLE_DIRECT_ANCESTOR_ID] = sample['sample_ancestor_id']
-
-        # sample_specimen_type -> sample_category 12/15/2022
-        internal_dict[HEADER_SAMPLE_TYPE] = sample['sample_category']
-
-        internal_dict[HEADER_SAMPLE_HUBMAP_ID] = sample['sample_hubmap_id']
-        internal_dict[HEADER_SAMPLE_SUBMISSION_ID] = sample['sample_submission_id']
-        internal_dict[HEADER_SAMPLE_DIRECT_ANCESTOR_ENTITY_TYPE] = sample['sample_ancestor_entity']
-        internal_dict[HEADER_DONOR_UUID] = sample['donor_uuid']
-        internal_dict[HEADER_DONOR_HAS_METADATA] = donor_has_metadata
-        internal_dict[HEADER_DONOR_HUBMAP_ID] = sample['donor_hubmap_id']
-        internal_dict[HEADER_DONOR_SUBMISSION_ID] = sample['donor_submission_id']
-        internal_dict[HEADER_ORGAN_UUID] = organ_uuid
-        internal_dict[HEADER_ORGAN_TYPE] = organ_type
-        internal_dict[HEADER_ORGAN_HUBMAP_ID] = organ_hubmap_id
-        internal_dict[HEADER_ORGAN_SUBMISSION_ID] = organ_submission_id
-
-        # Each sample's dictionary is added to the list to be returned
-        sample_prov_list.append(internal_dict)
+            # Each sample's dictionary is added to the list to be returned
+            sample_prov_list.append(internal_dict)
+        
+        if MEMCACHED_MODE:
+            # Cache the result
+            memcached_client_instance.set(cache_key, sample_prov_list, expire = SchemaConstants.MEMCACHED_TTL)
+    else:
+        logger.info(f'Using the cached samples prov-info data at time {current_datetime}')
+        
     return jsonify(sample_prov_list)
 
 
