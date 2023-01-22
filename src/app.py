@@ -118,11 +118,11 @@ try:
         auth_helper_instance = AuthHelper.create(app.config['APP_CLIENT_ID'],
                                                  app.config['APP_CLIENT_SECRET'])
 
-        logger.info("Initialized AuthHelper class successfully :)")
+        logger.info('Initialized AuthHelper class successfully :)')
     else:
         auth_helper_instance = AuthHelper.instance()
 except Exception:
-    msg = "Failed to initialize the AuthHelper class"
+    msg = 'Failed to initialize the AuthHelper class :('
     # Log the full stack trace, prepend a line with our message
     logger.exception(msg)
 
@@ -138,9 +138,9 @@ try:
     neo4j_driver_instance = neo4j_driver.instance(app.config['NEO4J_URI'],
                                                   app.config['NEO4J_USERNAME'],
                                                   app.config['NEO4J_PASSWORD'])
-    logger.info("Initialized neo4j_driver module successfully :)")
+    logger.info('Initialized neo4j_driver module successfully :)')
 except Exception:
-    msg = "Failed to initialize the neo4j_driver module"
+    msg = 'Failed to initialize the neo4j_driver module :('
     # Log the full stack trace, prepend a line with our message
     logger.exception(msg)
 
@@ -169,9 +169,11 @@ if MEMCACHED_ON:
                                     no_delay = True,
                                     serde = serde.pickle_serde)
 
-        logger.info("Initialized Memcached client successfully :)")
+        # memcached_client_instance can be instantiated without connecting to the Memcached server
+        # A version() call will throw error (e.g., timeout) when failed to connect to server
+        logger.info(f'Connected to Memcached server {memcached_client_instance.version()} successfully :)')
     except Exception:
-        msg = "Failed to connect to the Memcached servr and initialize the client"
+        msg = 'Failed to connect to the Memcached server :('
         # Log the full stack trace, prepend a line with our message
         logger.exception(msg)
 
@@ -205,10 +207,10 @@ try:
                               neo4j_driver_instance,
                               memcached_client_instance)
 
-    logger.info("Initialized schema_manager module successfully :)")
+    logger.info('Initialized schema_manager module successfully :)')
 # Use a broad catch-all here
 except Exception:
-    msg = "Failed to initialize the schema_manager module"
+    msg = 'Failed to initialize the schema_manager module :('
     # Log the full stack trace, prepend a line with our message
     logger.exception(msg)
 
@@ -280,7 +282,7 @@ def index():
 
 
 """
-Show status of neo4j connection with the current VERSION and BUILD
+Show status of Neo4j connection and Memcached connection (if enabled) with the current VERSION and BUILD
 
 Returns
 -------
@@ -297,10 +299,21 @@ def get_status():
     }
 
     # Don't use try/except here
-    is_connected = app_neo4j_queries.check_connection(neo4j_driver_instance)
+    is_neo4j_connected = app_neo4j_queries.check_connection(neo4j_driver_instance)
 
-    if is_connected:
+    if is_neo4j_connected:
         status_data['neo4j_connection'] = True
+
+    # Only show the Memcached connection status when the caching is enabled
+    if MEMCACHED_ON:
+        status_data['memcached_connection'] = False
+
+        try:
+            # If can't connect, won't be able to get the Memcached version
+            memcached_client_instance.version()
+            status_data['memcached_connection'] = True
+        except Exception:
+            logger.error('Failed to connect to Memcached server')
 
     return jsonify(status_data)
 
