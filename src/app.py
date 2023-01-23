@@ -337,7 +337,10 @@ def get_user_groups():
 
 
 """
-Delete all the cached data from Memcached, Data Admin access is required in AWS API Gateway
+Delete ALL the following cached data from Memcached, Data Admin access is required in AWS API Gateway:
+    - cached individual entity dict
+    - cached uuid dict
+    - cached yaml content from github raw URLs
 
 Returns
 -------
@@ -346,11 +349,46 @@ str
 """
 @app.route('/flush-all-cache', methods = ['DELETE'])
 def flush_all_cache():
+    msg = ''
+
     if MEMCACHED_MODE:
         memcached_client_instance.flush_all()
-        return "All cached data has been deleted from Memcached"
+        msg = 'All cached data (entities, IDs, yamls) has been deleted from Memcached'
     else:
-        return "Memcached is not being used at all"
+        msg = 'No caching is being used because Memcached mode is not enabled at all'
+
+    return msg
+
+
+"""
+Delete the cached data from Memcached for a given entity, Data Admin access is required in AWS API Gateway
+
+Parameters
+----------
+id : str
+    The HuBMAP ID (e.g. HBM123.ABCD.456) or UUID of target entity (Donor/Dataset/Sample/Upload)
+
+Returns
+-------
+str
+    A confirmation message
+"""
+@app.route('/flush-cache/<id>', methods = ['DELETE'])
+def flush_cache(id):
+    msg = ''
+
+    if MEMCACHED_MODE:
+        msg = f'No cache found from Memcached for entity {id}'
+        cache_key = f'{SchemaConstants.MEMCACHED_PREFIX}{id}'
+
+        if memcached_client_instance.get(cache_key) is not None:
+            memcached_client_instance.delete(cache_key)
+            msg = f'The cached data has been deleted from Memcached for entity {id}'
+    else:
+        msg = 'No caching is being used because Memcached mode is not enabled at all'
+
+    return msg
+
 
 """
 Retrieve the ancestor organ(s) of a given entity
