@@ -353,7 +353,7 @@ def flush_all_cache():
 
     if MEMCACHED_MODE:
         memcached_client_instance.flush_all()
-        msg = 'All cached data (entities, IDs, yamls) has been deleted from Memcached'
+        msg = 'All cached data (entities, IDs, yamls, tsv) has been deleted from Memcached'
     else:
         msg = 'No caching is being used because Memcached mode is not enabled at all'
 
