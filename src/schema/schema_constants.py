@@ -1,6 +1,8 @@
 class SchemaConstants(object):
-    # Expire the request cache after the time-to-live (seconds), default 15 minutes
-    REQUEST_CACHE_TTL = 900
+    # Use application-specific prefix for Memcached key
+    # Expire the cache after the time-to-live (seconds), default 2 hours
+    MEMCACHED_PREFIX = 'hm_entity_'
+    MEMCACHED_TTL = 7200
 
     # Constants used by validators
     INGEST_API_APP = 'ingest-api'

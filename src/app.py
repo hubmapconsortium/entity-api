@@ -16,6 +16,11 @@ import logging
 import json
 import time
 
+# pymemcache.client.base.PooledClient is a thread-safe client pool 
+# that provides the same API as pymemcache.client.base.Client
+from pymemcache.client.base import PooledClient
+from pymemcache import serde
+
 # Local modules
 import app_neo4j_queries
 import provenance
@@ -62,11 +67,11 @@ app.config['SEARCH_API_URL_LIST'] = [url.strip('/') for url in app.config['SEARC
 # to prevent developers from creating new UUIDs and new entities or updating existing entities
 READ_ONLY_MODE = app.config['READ_ONLY_MODE']
 
+# Whether Memcached is being used or not
+MEMCACHED_MODE = app.config['MEMCACHED_MODE']
+
 # Suppress InsecureRequestWarning warning when requesting status on https with ssl cert verify disabled
 requests.packages.urllib3.disable_warnings(category = InsecureRequestWarning)
-
-# For performance improvement and not overloading the server, especially helpful during Elasticsearch index/reindex
-entity_cache = {}
 
 
 ####################################################################################################
@@ -113,11 +118,11 @@ try:
         auth_helper_instance = AuthHelper.create(app.config['APP_CLIENT_ID'],
                                                  app.config['APP_CLIENT_SECRET'])
 
-        logger.info("Initialized AuthHelper class successfully :)")
+        logger.info('Initialized AuthHelper class successfully :)')
     else:
         auth_helper_instance = AuthHelper.instance()
 except Exception:
-    msg = "Failed to initialize the AuthHelper class"
+    msg = 'Failed to initialize the AuthHelper class :('
     # Log the full stack trace, prepend a line with our message
     logger.exception(msg)
 
@@ -133,11 +138,46 @@ try:
     neo4j_driver_instance = neo4j_driver.instance(app.config['NEO4J_URI'],
                                                   app.config['NEO4J_USERNAME'],
                                                   app.config['NEO4J_PASSWORD'])
-    logger.info("Initialized neo4j_driver module successfully :)")
+    logger.info('Initialized neo4j_driver module successfully :)')
 except Exception:
-    msg = "Failed to initialize the neo4j_driver module"
+    msg = 'Failed to initialize the neo4j_driver module :('
     # Log the full stack trace, prepend a line with our message
     logger.exception(msg)
+
+
+####################################################################################################
+## Memcached client initialization
+####################################################################################################
+
+memcached_client_instance = None
+
+if MEMCACHED_MODE:
+    try:
+        # Use client pool to maintain a pool of already-connected clients for improved performance
+        # The uwsgi config launches the app across multiple threads (2) inside each process (4), making essentially 8 processes
+        # Set the connect_timeout and timeout to avoid blocking the process when memcached is slow
+        # Use the ignore_exc flag to treat memcache/network errors as cache misses on calls to the get* methods. 
+        # When the no_delay flag is set, the TCP_NODELAY socket option will also be set. This only applies to TCP-based connections.
+        # If you intend to use anything but str as a value, it is a good idea to use a serializer.
+        memcached_client_instance = PooledClient(app.config['MEMCACHED_SERVER'], 
+                                                 max_pool_size = 8,
+                                                 connect_timeout = 1,
+                                                 timeout = 30,
+                                                 ignore_exc = True, 
+                                                 no_delay = True,
+                                                 serde = serde.pickle_serde)
+
+        # memcached_client_instance can be instantiated without connecting to the Memcached server
+        # A version() call will throw error (e.g., timeout) when failed to connect to server
+        # Need to convert the version in bytes to string
+        logger.info(f'Connected to Memcached server {memcached_client_instance.version().decode()} successfully :)')
+    except Exception:
+        msg = 'Failed to connect to the Memcached server :('
+        # Log the full stack trace, prepend a line with our message
+        logger.exception(msg)
+
+        # Turn off the caching
+        MEMCACHED_MODE = False
 
 
 """
@@ -158,17 +198,18 @@ def close_neo4j_driver(error):
 
 try:
     # The schema_manager is a singleton module
-    # Pass in auth_helper_instance, neo4j_driver instance, and file_upload_helper instance
+    # Pass in auth_helper_instance, neo4j_driver instance, and memcached_client_instance
     schema_manager.initialize(app.config['SCHEMA_YAML_FILE'],
                               app.config['UUID_API_URL'],
                               app.config['INGEST_API_URL'],
                               auth_helper_instance,
-                              neo4j_driver_instance)
+                              neo4j_driver_instance,
+                              memcached_client_instance)
 
-    logger.info("Initialized schema_manager module successfully :)")
+    logger.info('Initialized schema_manager module successfully :)')
 # Use a broad catch-all here
 except Exception:
-    msg = "Failed to initialize the schema_manager module"
+    msg = 'Failed to initialize the schema_manager module :('
     # Log the full stack trace, prepend a line with our message
     logger.exception(msg)
 
@@ -183,7 +224,8 @@ except Exception:
 try:
     reference_redirects = {}
     url = app.config['REDIRECTION_INFO_URL']
-    response = requests.get(url)
+    # Use Memcached to improve performance
+    response = schema_manager.make_request_get(url)
     resp_txt = response.content.decode('utf-8')
     cr = csv.reader(resp_txt.splitlines(), delimiter='\t')
 
@@ -240,7 +282,7 @@ def index():
 
 
 """
-Show status of neo4j connection with the current VERSION and BUILD
+Show status of Neo4j connection and Memcached connection (if enabled) with the current VERSION and BUILD
 
 Returns
 -------
@@ -257,10 +299,21 @@ def get_status():
     }
 
     # Don't use try/except here
-    is_connected = app_neo4j_queries.check_connection(neo4j_driver_instance)
+    is_neo4j_connected = app_neo4j_queries.check_connection(neo4j_driver_instance)
 
-    if is_connected:
+    if is_neo4j_connected:
         status_data['neo4j_connection'] = True
+
+    # Only show the Memcached connection status when the caching is enabled
+    if MEMCACHED_MODE:
+        status_data['memcached_connection'] = False
+
+        try:
+            # If can't connect, won't be able to get the Memcached version
+            memcached_client_instance.version()
+            status_data['memcached_connection'] = True
+        except Exception:
+            logger.error('Failed to connect to Memcached server')
 
     return jsonify(status_data)
 
@@ -280,6 +333,61 @@ def get_user_groups():
     token = get_user_token(request)
     groups_list = auth_helper_instance.get_user_groups_deprecated(token)
     return jsonify(groups_list)
+
+
+"""
+Delete ALL the following cached data from Memcached, Data Admin access is required in AWS API Gateway:
+    - cached individual entity dict
+    - cached IDs dict from uuid-api
+    - cached yaml content from github raw URLs
+    - cached TSV file content for reference DOIs redirect
+
+Returns
+-------
+str
+    A confirmation message
+"""
+@app.route('/flush-all-cache', methods = ['DELETE'])
+def flush_all_cache():
+    msg = ''
+
+    if MEMCACHED_MODE:
+        memcached_client_instance.flush_all()
+        msg = 'All cached data (entities, IDs, yamls) has been deleted from Memcached'
+    else:
+        msg = 'No caching is being used because Memcached mode is not enabled at all'
+
+    return msg
+
+
+"""
+Delete the cached data from Memcached for a given entity, Data Admin access is required in AWS API Gateway
+
+Parameters
+----------
+id : str
+    The HuBMAP ID (e.g. HBM123.ABCD.456) or UUID of target entity (Donor/Dataset/Sample/Upload)
+
+Returns
+-------
+str
+    A confirmation message
+"""
+@app.route('/flush-cache/<id>', methods = ['DELETE'])
+def flush_cache(id):
+    msg = ''
+
+    if MEMCACHED_MODE:
+        msg = f'No cache found from Memcached for entity {id}'
+        cache_key = f'{SchemaConstants.MEMCACHED_PREFIX}{id}'
+
+        if memcached_client_instance.get(cache_key) is not None:
+            memcached_client_instance.delete(cache_key)
+            msg = f'The cached data has been deleted from Memcached for entity {id}'
+    else:
+        msg = 'No caching is being used because Memcached mode is not enabled at all'
+
+    return msg
 
 
 """
@@ -1261,10 +1369,22 @@ def update_entity(id):
     # Will also filter the result based on schema
     normalized_complete_dict = schema_manager.normalize_entity_result_for_response(complete_dict)
 
-    # Remove the old entity from cache
-    # DO NOT update the cache with new entity dict because the returned dict from PUT (some properties maybe skipped)
-    # can be different from the one generated by GET call 
-    entity_cache.pop(id, None)
+    # Remove the cached entities if Memcached is being used
+    if MEMCACHED_MODE:
+        # Delete the old cache data of this entity
+        # DO NOT update the cache with new entity dict because the returned dict from PUT (some properties maybe skipped)
+        # can be different from the one generated by GET call
+        cache_key = f'{SchemaConstants.MEMCACHED_PREFIX}{id}'
+        memcached_client_instance.delete(cache_key)
+
+        # Also delete the cache of all the direct descendants (children)
+        # Otherwise they'll have old cached data for the `direct_ancestor` (Sample) `direct_ancestors` (Dataset) fields
+        # Note: must use uuid in the Neo4j query
+        children_uuid_list = app_neo4j_queries.get_children(neo4j_driver_instance, entity_dict['uuid'] , 'uuid')
+
+        for child_uuid in children_uuid_list:
+            cache_key = f'{SchemaConstants.MEMCACHED_PREFIX}{child_uuid}'
+            memcached_client_instance.delete(cache_key)
 
     # Also reindex the updated entity node in elasticsearch via search-api
     reindex_entity(entity_dict['uuid'], user_token)
@@ -2475,8 +2595,6 @@ def get_prov_info():
     HEADER_PROCESSED_DATASET_HUBMAP_ID = 'processed_dataset_hubmap_id'
     HEADER_PROCESSED_DATASET_STATUS = 'processed_dataset_status'
     HEADER_PROCESSED_DATASET_PORTAL_URL = 'processed_dataset_portal_url'
-    ASSAY_TYPES_URL = SchemaConstants.ASSAY_TYPES_YAML
-    ORGAN_TYPES_URL = SchemaConstants.ORGAN_TYPES_YAML
     HEADER_PREVIOUS_VERSION_HUBMAP_IDS = 'previous_version_hubmap_ids'
 
     headers = [
@@ -2503,7 +2621,7 @@ def get_prov_info():
 
     # Parsing the organ types yaml has to be done here rather than calling schema.schema_triggers.get_organ_description
     # because that would require using a urllib request for each dataset
-    response = requests.get(url=ORGAN_TYPES_URL, verify=False)
+    response = schema_manager.make_request_get(SchemaConstants.ORGAN_TYPES_YAML)
 
     if response.status_code == 200:
         yaml_file = response.text
@@ -2514,7 +2632,7 @@ def get_prov_info():
 
     # As above, we parse te assay type yaml here rather than calling the special method for it because this avoids
     # having to access the resource for every dataset.
-    response = requests.get(url=ASSAY_TYPES_URL, verify=False)
+    response = schema_manager.make_request_get(SchemaConstants.ASSAY_TYPES_YAML)
 
     if response.status_code == 200:
         yaml_file = response.text
@@ -2861,8 +2979,6 @@ def get_prov_info_for_dataset(id):
     HEADER_PROCESSED_DATASET_HUBMAP_ID = 'processed_dataset_hubmap_id'
     HEADER_PROCESSED_DATASET_STATUS = 'processed_dataset_status'
     HEADER_PROCESSED_DATASET_PORTAL_URL = 'processed_dataset_portal_url'
-    ASSAY_TYPES_URL = SchemaConstants.ASSAY_TYPES_YAML
-    ORGAN_TYPES_URL = SchemaConstants.ORGAN_TYPES_YAML
 
     headers = [
         HEADER_DATASET_UUID, HEADER_DATASET_HUBMAP_ID, HEADER_DATASET_STATUS, HEADER_DATASET_GROUP_NAME,
@@ -2880,7 +2996,7 @@ def get_prov_info_for_dataset(id):
 
     # Parsing the organ types yaml has to be done here rather than calling schema.schema_triggers.get_organ_description
     # because that would require using a urllib request for each dataset
-    response = requests.get(url=ORGAN_TYPES_URL, verify=False)
+    response = schema_manager.make_request_get(SchemaConstants.ORGAN_TYPES_YAML)
 
     if response.status_code == 200:
         yaml_file = response.text
@@ -2891,7 +3007,7 @@ def get_prov_info_for_dataset(id):
 
     # As above, we parse te assay type yaml here rather than calling the special method for it because this avoids
     # having to access the resource for every dataset.
-    response = requests.get(url=ASSAY_TYPES_URL, verify=False)
+    response = schema_manager.make_request_get(SchemaConstants.ASSAY_TYPES_YAML)
 
     if response.status_code == 200:
         yaml_file = response.text
@@ -3120,13 +3236,12 @@ def sankey_data():
     HEADER_ORGAN_TYPE = 'organ_type'
     HEADER_DATASET_DATA_TYPES = 'dataset_data_types'
     HEADER_DATASET_STATUS = 'dataset_status'
-    ASSAY_TYPES_URL = SchemaConstants.ASSAY_TYPES_YAML
-    ORGAN_TYPES_URL = SchemaConstants.ORGAN_TYPES_YAML
+
     with open('sankey_mapping.json') as f:
         mapping_dict = json.load(f)
     # Parsing the organ types yaml has to be done here rather than calling schema.schema_triggers.get_organ_description
     # because that would require using a urllib request for each dataset
-    response = requests.get(url=ORGAN_TYPES_URL, verify=False)
+    response = schema_manager.make_request_get(SchemaConstants.ORGAN_TYPES_YAML)
 
     if response.status_code == 200:
         yaml_file = response.text
@@ -3137,7 +3252,7 @@ def sankey_data():
 
     # As above, we parse te assay type yaml here rather than calling the special method for it because this avoids
     # having to access the resource for every dataset.
-    response = requests.get(url=ASSAY_TYPES_URL, verify=False)
+    response = schema_manager.make_request_get(SchemaConstants.ASSAY_TYPES_YAML)
 
     if response.status_code == 200:
         yaml_file = response.text
@@ -3146,41 +3261,60 @@ def sankey_data():
         except yaml.YAMLError as e:
             raise yaml.YAMLError(e)
 
-    # Instantiation of the list dataset_prov_list
+    # Instantiation of the list dataset_sankey_list
     dataset_sankey_list = []
 
-    # Call to app_neo4j_queries to prepare and execute the database query
-    sankey_info = app_neo4j_queries.get_sankey_info(neo4j_driver_instance)
-    for dataset in sankey_info:
-        internal_dict = collections.OrderedDict()
-        internal_dict[HEADER_DATASET_GROUP_NAME] = dataset[HEADER_DATASET_GROUP_NAME]
-        internal_dict[HEADER_ORGAN_TYPE] = organ_types_dict[dataset[HEADER_ORGAN_TYPE]]['description'].lower()
-        # Data type codes are replaced with data type descriptions
-        assay_description = ""
-        try:
-            assay_description = assay_types_dict[dataset[HEADER_DATASET_DATA_TYPES]]['description']
-        # Some data types aren't given by their code in the assay types yaml and are instead given as an alt name.
-        # In these cases, we have to search each assay type and see if the given code matches any alternate names.
-        except KeyError:
-            valid_key = False
-            for each in assay_types_dict:
+    cache_key = f'{SchemaConstants.MEMCACHED_PREFIX}sankey'
+
+    if MEMCACHED_MODE:
+        if memcached_client_instance.get(cache_key) is not None:
+            dataset_sankey_list = memcached_client_instance.get(cache_key)
+
+    current_datetime = datetime.now()
+
+    if not dataset_sankey_list:
+        if MEMCACHED_MODE:
+            logger.info(f'Sankey data cache not found or expired. Making a new data fetch at time {current_datetime}')
+
+        # Call to app_neo4j_queries to prepare and execute the database query
+        sankey_info = app_neo4j_queries.get_sankey_info(neo4j_driver_instance)
+        for dataset in sankey_info:
+            internal_dict = collections.OrderedDict()
+            internal_dict[HEADER_DATASET_GROUP_NAME] = dataset[HEADER_DATASET_GROUP_NAME]
+            internal_dict[HEADER_ORGAN_TYPE] = organ_types_dict[dataset[HEADER_ORGAN_TYPE]]['description'].lower()
+            # Data type codes are replaced with data type descriptions
+            assay_description = ""
+            try:
+                assay_description = assay_types_dict[dataset[HEADER_DATASET_DATA_TYPES]]['description']
+            # Some data types aren't given by their code in the assay types yaml and are instead given as an alt name.
+            # In these cases, we have to search each assay type and see if the given code matches any alternate names.
+            except KeyError:
+                valid_key = False
+                for each in assay_types_dict:
+                    if valid_key is False:
+                        if dataset[HEADER_DATASET_DATA_TYPES] in assay_types_dict[each]['alt-names']:
+                            assay_description = assay_types_dict[each]['description']
+                            valid_key = True
                 if valid_key is False:
-                    if dataset[HEADER_DATASET_DATA_TYPES] in assay_types_dict[each]['alt-names']:
-                        assay_description = assay_types_dict[each]['description']
-                        valid_key = True
-            if valid_key is False:
-                assay_description = dataset[HEADER_DATASET_DATA_TYPES]
-        internal_dict[HEADER_DATASET_DATA_TYPES] = assay_description
+                    assay_description = dataset[HEADER_DATASET_DATA_TYPES]
+            internal_dict[HEADER_DATASET_DATA_TYPES] = assay_description
 
-        # Replace applicable Group Name and Data type with the value needed for the sankey via the mapping_dict
-        internal_dict[HEADER_DATASET_STATUS] = dataset['dataset_status']
-        if internal_dict[HEADER_DATASET_GROUP_NAME] in mapping_dict.keys():
-            internal_dict[HEADER_DATASET_GROUP_NAME] = mapping_dict[internal_dict[HEADER_DATASET_GROUP_NAME]]
-        if internal_dict[HEADER_DATASET_DATA_TYPES] in mapping_dict.keys():
-            internal_dict[HEADER_DATASET_DATA_TYPES] = mapping_dict[internal_dict[HEADER_DATASET_DATA_TYPES]]
+            # Replace applicable Group Name and Data type with the value needed for the sankey via the mapping_dict
+            internal_dict[HEADER_DATASET_STATUS] = dataset['dataset_status']
+            if internal_dict[HEADER_DATASET_GROUP_NAME] in mapping_dict.keys():
+                internal_dict[HEADER_DATASET_GROUP_NAME] = mapping_dict[internal_dict[HEADER_DATASET_GROUP_NAME]]
+            if internal_dict[HEADER_DATASET_DATA_TYPES] in mapping_dict.keys():
+                internal_dict[HEADER_DATASET_DATA_TYPES] = mapping_dict[internal_dict[HEADER_DATASET_DATA_TYPES]]
 
-        # Each dataset's dictionary is added to the list to be returned
-        dataset_sankey_list.append(internal_dict)
+            # Each dataset's dictionary is added to the list to be returned
+            dataset_sankey_list.append(internal_dict)
+        
+        if MEMCACHED_MODE:
+            # Cache the result
+            memcached_client_instance.set(cache_key, dataset_sankey_list, expire = SchemaConstants.MEMCACHED_TTL)
+    else:
+        logger.info(f'Using the cached sankey data at time {current_datetime}')
+        
     return jsonify(dataset_sankey_list)
 
 
@@ -3223,7 +3357,6 @@ def get_sample_prov_info():
     HEADER_ORGAN_TYPE = "organ_type"
     HEADER_ORGAN_HUBMAP_ID = "organ_hubmap_id"
     HEADER_ORGAN_SUBMISSION_ID = "organ_submission_id"
-    ORGAN_TYPES_URL = SchemaConstants.ORGAN_TYPES_YAML
 
     public_only = True
 
@@ -3236,7 +3369,7 @@ def get_sample_prov_info():
 
     # Parsing the organ types yaml has to be done here rather than calling schema.schema_triggers.get_organ_description
     # because that would require using a urllib request for each dataset
-    response = requests.get(url=ORGAN_TYPES_URL, verify=False)
+    response = schema_manager.make_request_get(SchemaConstants.ORGAN_TYPES_YAML)
 
     if response.status_code == 200:
         yaml_file = response.text
@@ -3264,69 +3397,87 @@ def get_sample_prov_info():
     # Instantiation of the list sample_prov_list
     sample_prov_list = []
 
-    # Call to app_neo4j_queries to prepare and execute database query
-    prov_info = app_neo4j_queries.get_sample_prov_info(neo4j_driver_instance, param_dict, public_only)
+    cache_key = f'{SchemaConstants.MEMCACHED_PREFIX}prov-info'
 
-    for sample in prov_info:
+    if MEMCACHED_MODE:
+        if memcached_client_instance.get(cache_key) is not None:
+            sample_prov_list = memcached_client_instance.get(cache_key)
 
-        # For cases where there is no sample of type organ above a given sample in the provenance, we check to see if
-        # the given sample is itself an organ.
-        organ_uuid = None
-        organ_type = None
-        organ_hubmap_id = None
-        organ_submission_id = None
-        if sample['organ_uuid'] is not None:
-            organ_uuid = sample['organ_uuid']
-            organ_type = organ_types_dict[sample['organ_organ_type']]['description'].lower()
-            organ_hubmap_id = sample['organ_hubmap_id']
-            organ_submission_id = sample['organ_submission_id']
-        else:
+    current_datetime = datetime.now()
+
+    if not sample_prov_list:
+        if MEMCACHED_MODE:
+            logger.info(f'Samples prov-info cache not found or expired. Making a new data fetch at time {current_datetime}')
+
+        # Call to app_neo4j_queries to prepare and execute database query
+        prov_info = app_neo4j_queries.get_sample_prov_info(neo4j_driver_instance, param_dict, public_only)
+
+        for sample in prov_info:
+            # For cases where there is no sample of type organ above a given sample in the provenance, we check to see if
+            # the given sample is itself an organ.
+            organ_uuid = None
+            organ_type = None
+            organ_hubmap_id = None
+            organ_submission_id = None
+            if sample['organ_uuid'] is not None:
+                organ_uuid = sample['organ_uuid']
+                organ_type = organ_types_dict[sample['organ_organ_type']]['description'].lower()
+                organ_hubmap_id = sample['organ_hubmap_id']
+                organ_submission_id = sample['organ_submission_id']
+            else:
+                # sample_specimen_type -> sample_category 12/15/2022
+                if sample['sample_category'] == "organ":
+                    organ_uuid = sample['sample_uuid']
+                    organ_type = organ_types_dict[sample['sample_organ']]['description'].lower()
+                    organ_hubmap_id = sample['sample_hubmap_id']
+                    organ_submission_id = sample['sample_submission_id']
+
+
+            sample_has_metadata = False
+            if sample['sample_metadata'] is not None:
+                sample_has_metadata = True
+
+            sample_has_rui_info = False
+            if sample['sample_rui_info'] is not None:
+                sample_has_rui_info = True
+
+            donor_has_metadata = False
+            if sample['donor_metadata'] is not None:
+                donor_has_metadata = True
+
+            internal_dict = collections.OrderedDict()
+            internal_dict[HEADER_SAMPLE_UUID] = sample['sample_uuid']
+            internal_dict[HEADER_SAMPLE_LAB_ID] = sample['lab_sample_id']
+            internal_dict[HEADER_SAMPLE_GROUP_NAME] = sample['sample_group_name']
+            internal_dict[HEADER_SAMPLE_CREATED_BY_EMAIL] = sample['sample_created_by_email']
+            internal_dict[HEADER_SAMPLE_HAS_METADATA] = sample_has_metadata
+            internal_dict[HEADER_SAMPLE_HAS_RUI_INFO] = sample_has_rui_info
+            internal_dict[HEADER_SAMPLE_DIRECT_ANCESTOR_ID] = sample['sample_ancestor_id']
+
             # sample_specimen_type -> sample_category 12/15/2022
-            if sample['sample_category'] == "organ":
-                organ_uuid = sample['sample_uuid']
-                organ_type = organ_types_dict[sample['sample_organ']]['description'].lower()
-                organ_hubmap_id = sample['sample_hubmap_id']
-                organ_submission_id = sample['sample_submission_id']
+            internal_dict[HEADER_SAMPLE_TYPE] = sample['sample_category']
 
+            internal_dict[HEADER_SAMPLE_HUBMAP_ID] = sample['sample_hubmap_id']
+            internal_dict[HEADER_SAMPLE_SUBMISSION_ID] = sample['sample_submission_id']
+            internal_dict[HEADER_SAMPLE_DIRECT_ANCESTOR_ENTITY_TYPE] = sample['sample_ancestor_entity']
+            internal_dict[HEADER_DONOR_UUID] = sample['donor_uuid']
+            internal_dict[HEADER_DONOR_HAS_METADATA] = donor_has_metadata
+            internal_dict[HEADER_DONOR_HUBMAP_ID] = sample['donor_hubmap_id']
+            internal_dict[HEADER_DONOR_SUBMISSION_ID] = sample['donor_submission_id']
+            internal_dict[HEADER_ORGAN_UUID] = organ_uuid
+            internal_dict[HEADER_ORGAN_TYPE] = organ_type
+            internal_dict[HEADER_ORGAN_HUBMAP_ID] = organ_hubmap_id
+            internal_dict[HEADER_ORGAN_SUBMISSION_ID] = organ_submission_id
 
-        sample_has_metadata = False
-        if sample['sample_metadata'] is not None:
-            sample_has_metadata = True
-
-        sample_has_rui_info = False
-        if sample['sample_rui_info'] is not None:
-            sample_has_rui_info = True
-
-        donor_has_metadata = False
-        if sample['donor_metadata'] is not None:
-            donor_has_metadata = True
-
-        internal_dict = collections.OrderedDict()
-        internal_dict[HEADER_SAMPLE_UUID] = sample['sample_uuid']
-        internal_dict[HEADER_SAMPLE_LAB_ID] = sample['lab_sample_id']
-        internal_dict[HEADER_SAMPLE_GROUP_NAME] = sample['sample_group_name']
-        internal_dict[HEADER_SAMPLE_CREATED_BY_EMAIL] = sample['sample_created_by_email']
-        internal_dict[HEADER_SAMPLE_HAS_METADATA] = sample_has_metadata
-        internal_dict[HEADER_SAMPLE_HAS_RUI_INFO] = sample_has_rui_info
-        internal_dict[HEADER_SAMPLE_DIRECT_ANCESTOR_ID] = sample['sample_ancestor_id']
-
-        # sample_specimen_type -> sample_category 12/15/2022
-        internal_dict[HEADER_SAMPLE_TYPE] = sample['sample_category']
-
-        internal_dict[HEADER_SAMPLE_HUBMAP_ID] = sample['sample_hubmap_id']
-        internal_dict[HEADER_SAMPLE_SUBMISSION_ID] = sample['sample_submission_id']
-        internal_dict[HEADER_SAMPLE_DIRECT_ANCESTOR_ENTITY_TYPE] = sample['sample_ancestor_entity']
-        internal_dict[HEADER_DONOR_UUID] = sample['donor_uuid']
-        internal_dict[HEADER_DONOR_HAS_METADATA] = donor_has_metadata
-        internal_dict[HEADER_DONOR_HUBMAP_ID] = sample['donor_hubmap_id']
-        internal_dict[HEADER_DONOR_SUBMISSION_ID] = sample['donor_submission_id']
-        internal_dict[HEADER_ORGAN_UUID] = organ_uuid
-        internal_dict[HEADER_ORGAN_TYPE] = organ_type
-        internal_dict[HEADER_ORGAN_HUBMAP_ID] = organ_hubmap_id
-        internal_dict[HEADER_ORGAN_SUBMISSION_ID] = organ_submission_id
-
-        # Each sample's dictionary is added to the list to be returned
-        sample_prov_list.append(internal_dict)
+            # Each sample's dictionary is added to the list to be returned
+            sample_prov_list.append(internal_dict)
+        
+        if MEMCACHED_MODE:
+            # Cache the result
+            memcached_client_instance.set(cache_key, sample_prov_list, expire = SchemaConstants.MEMCACHED_TTL)
+    else:
+        logger.info(f'Using the cached samples prov-info data at time {current_datetime}')
+        
     return jsonify(sample_prov_list)
 
 
@@ -4181,24 +4332,20 @@ dict
 def query_target_entity(id, user_token):
     entity_dict = None
 
+    cache_key = f'{SchemaConstants.MEMCACHED_PREFIX}{id}'
+    
+    if MEMCACHED_MODE:
+        # Memcached returns None if no cached data or expired
+        entity_dict = memcached_client_instance.get(cache_key)
+    
     current_datetime = datetime.now()
-    current_timestamp = int(round(current_datetime.timestamp()))
-
-    # Check if the cached entity is found and still valid based on TTL upon request, delete if expired
-    if (id in entity_cache) and (current_timestamp > entity_cache[id]['created_timestamp'] + SchemaConstants.REQUEST_CACHE_TTL):
-        del entity_cache[id]
-
-        logger.info(f'Deleted the expired entity cache of {id} at time {current_datetime}')
 
     # Use the cached data if found and still valid
     # Otherwise, make a fresh query and add to cache
-    if (id in entity_cache) and (current_timestamp <= entity_cache[id]['created_timestamp'] + SchemaConstants.REQUEST_CACHE_TTL):
-        entity_dict = entity_cache[id]['entity']
+    if entity_dict is None:
+        if MEMCACHED_MODE:
+            logger.info(f'Cache not found or expired. Making a new query to retrieve {id} at time {current_datetime}')
 
-        logger.info(f'Using the valid cache data of entity {id} at time {current_datetime}')
-    else:
-        logger.info(f'Cache not found or expired. Making a new query to retrieve {id} at time {current_datetime}')
-        
         try:
             """
             The dict returned by uuid-api that contains all the associated ids, e.g.:
@@ -4216,7 +4363,7 @@ def query_target_entity(id, user_token):
                 "user_id": "83ae233d-6d1d-40eb-baa7-b6f636ab579a"
             }
             """
-            # get_hubmap_ids() uses function cache to improve performance
+            # Get cached ids if exist otherwise retrieve from UUID-API
             hubmap_ids = schema_manager.get_hubmap_ids(id)
 
             # Get the target uuid if all good
@@ -4226,15 +4373,10 @@ def query_target_entity(id, user_token):
             # The uuid exists via uuid-api doesn't mean it's also in Neo4j
             if not entity_dict:
                 not_found_error(f"Entity of id: {id} not found in Neo4j")
-
-            # Add to cache
-            new_datetime = datetime.now()
-            new_timestamp = int(round(new_datetime.timestamp()))
-
-            entity_cache[id] = {
-                'created_timestamp': new_timestamp,
-                'entity': entity_dict
-            }
+            
+            if MEMCACHED_MODE:
+                # Cache the result
+                memcached_client_instance.set(cache_key, entity_dict, expire = SchemaConstants.MEMCACHED_TTL)
         except requests.exceptions.RequestException as e:
             # Due to the use of response.raise_for_status() in schema_manager.get_hubmap_ids()
             # we can access the status codes from the exception
@@ -4246,6 +4388,8 @@ def query_target_entity(id, user_token):
                 not_found_error(e.response.text)
             else:
                 internal_server_error(e.response.text)
+    else:
+        logger.info(f'Using the cache data of entity {id} at time {current_datetime}')
 
     # Final return
     return entity_dict
@@ -4348,7 +4492,7 @@ Returns nothing. Raises bad_request_error is organ code not found on organ_types
 def validate_organ_code(organ_code):
     yaml_file_url = SchemaConstants.ORGAN_TYPES_YAML
 
-    # Function cache to improve performance
+    # Use Memcached to improve performance
     response = schema_manager.make_request_get(yaml_file_url)
 
     if response.status_code == 200:
