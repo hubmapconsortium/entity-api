@@ -156,18 +156,16 @@ if MEMCACHED_MODE:
         # Use client pool to maintain a pool of already-connected clients for improved performance
         # The uwsgi config launches the app across multiple threads (2) inside each process (4), making essentially 8 processes
         # Set the connect_timeout and timeout to avoid blocking the process when memcached is slow
-        # Use the ignore_exc flag to treat memcache/network errors as cache misses on calls to the get* methods. This
-        # prevents failures in memcache, or network errors, from killing your web requests. Do not use this flag if you
-        # need to know about errors from memcache, and make sure you have some other way to detect memcache server failures.
+        # Use the ignore_exc flag to treat memcache/network errors as cache misses on calls to the get* methods. 
         # When the no_delay flag is set, the TCP_NODELAY socket option will also be set. This only applies to TCP-based connections.
         # If you intend to use anything but str as a value, it is a good idea to use a serializer.
         memcached_client_instance = PooledClient(app.config['MEMCACHED_SERVER'], 
-                                    max_pool_size = 8,
-                                    connect_timeout = 1,
-                                    timeout = 30,
-                                    ignore_exc = True, 
-                                    no_delay = True,
-                                    serde = serde.pickle_serde)
+                                                 max_pool_size = 8,
+                                                 connect_timeout = 1,
+                                                 timeout = 30,
+                                                 ignore_exc = True, 
+                                                 no_delay = True,
+                                                 serde = serde.pickle_serde)
 
         # memcached_client_instance can be instantiated without connecting to the Memcached server
         # A version() call will throw error (e.g., timeout) when failed to connect to server
@@ -226,7 +224,8 @@ except Exception:
 try:
     reference_redirects = {}
     url = app.config['REDIRECTION_INFO_URL']
-    response = requests.get(url)
+    # Use Memcached to improve performance
+    response = schema_manager.make_request_get(url)
     resp_txt = response.content.decode('utf-8')
     cr = csv.reader(resp_txt.splitlines(), delimiter='\t')
 
@@ -339,8 +338,9 @@ def get_user_groups():
 """
 Delete ALL the following cached data from Memcached, Data Admin access is required in AWS API Gateway:
     - cached individual entity dict
-    - cached uuid dict
+    - cached IDs dict from uuid-api
     - cached yaml content from github raw URLs
+    - cached TSV file content for reference DOIs redirect
 
 Returns
 -------
@@ -4492,7 +4492,7 @@ Returns nothing. Raises bad_request_error is organ code not found on organ_types
 def validate_organ_code(organ_code):
     yaml_file_url = SchemaConstants.ORGAN_TYPES_YAML
 
-    # Function cache to improve performance
+    # Use Memcached to improve performance
     response = schema_manager.make_request_get(yaml_file_url)
 
     if response.status_code == 200:

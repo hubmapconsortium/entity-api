@@ -1526,17 +1526,17 @@ def convert_str_to_data(data_str):
 
 
 """
-Get the response of target URL
+Get the response to an HTTP request of the target URL
 
 Parameters
 ----------
 target_url: str
-    The target URL
+    The target HTTP request URL
 
 Returns
 -------
-flask.Response
-    The response object
+requests.Response
+    The Response object, which contains a server's response to an HTTP request
 """
 def make_request_get(target_url, internal_token_used = False):
     global _memcached_client
