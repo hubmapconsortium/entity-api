@@ -406,6 +406,9 @@ ENTITIES:
       dbgap_url:
         type: string
         description: 'A URL linking the dataset to the associated uploaded data at dbGaP.'
+      dbgap_study_url:
+        type: string
+        description: 'A URL linking the dataset to the particular study on dbGap it belongs to'
 
   ############################################# Donor #############################################
   Donor:
