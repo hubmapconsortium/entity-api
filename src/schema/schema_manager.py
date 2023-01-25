@@ -29,9 +29,7 @@ _uuid_api_url = None
 _ingest_api_url = None
 _auth_helper = None
 _neo4j_driver = None
-
-# For handling cached requests to uuid-api and external static resources (github raw yaml files)
-request_cache = {}
+_memcached_client = None
 
 
 ####################################################################################################
@@ -46,20 +44,30 @@ Parameters
 ----------
 valid_yaml_file : file
     A valid yaml file
-neo4j_session_context : neo4j.Session object
-    The neo4j database session
+uuid_api_url : str
+    The uuid-api URL
+ingest_api_url : str
+    The ingest-api URL
+auth_helper_instance : AuthHelper
+    The auth helper instance
+neo4j_driver_instance : neo4j_driver
+    The Neo4j driver instance
+memcached_client_instance : PooledClient
+    The polled client from Memcached connection
 """
 def initialize(valid_yaml_file, 
                uuid_api_url,
                ingest_api_url,
                auth_helper_instance,
-               neo4j_driver_instance):
+               neo4j_driver_instance,
+               memcached_client_instance):
     # Specify as module-scope variables
     global _schema
     global _uuid_api_url
     global _ingest_api_url
     global _auth_helper
     global _neo4j_driver
+    global _memcached_client
 
     _schema = load_provenance_schema(valid_yaml_file)
     _uuid_api_url = uuid_api_url
@@ -68,6 +76,7 @@ def initialize(valid_yaml_file,
     # Get the helper instances
     _auth_helper = auth_helper_instance
     _neo4j_driver = neo4j_driver_instance
+    _memcached_client = memcached_client_instance
 
 
 ####################################################################################################
@@ -1070,7 +1079,7 @@ def get_hubmap_ids(id):
 
     target_url = _uuid_api_url + '/uuid/' + id
 
-    # Function cache to improve performance
+    # Use Memcached to improve performance
     response = make_request_get(target_url, internal_token_used = True)
 
     # Invoke .raise_for_status(), an HTTPError will be raised with certain status codes
@@ -1481,6 +1490,7 @@ def get_neo4j_driver_instance():
     
     return _neo4j_driver
 
+
 """
 Convert a string representation of the Python list/dict (either nested or not) to a Python list/dict
 
@@ -1514,6 +1524,57 @@ def convert_str_to_data(data_str):
         return data_str
 
 
+
+"""
+Get the response to an HTTP request of the target URL
+
+Parameters
+----------
+target_url: str
+    The target HTTP request URL
+
+Returns
+-------
+requests.Response
+    The Response object, which contains a server's response to an HTTP request
+"""
+def make_request_get(target_url, internal_token_used = False):
+    global _memcached_client
+
+    response = None
+
+    cache_key = f'{SchemaConstants.MEMCACHED_PREFIX}{target_url}'
+ 
+    if _memcached_client:
+        response = _memcached_client.get(cache_key)
+
+    current_datetime = datetime.now()
+
+    # Use the cached data if found and still valid
+    # Otherwise, make a fresh query and add to cache
+    if response is None:
+        if _memcached_client:
+            logger.info(f'Cache not found or expired. Making a new HTTP request of GET {target_url} at time {current_datetime}')
+        
+        if internal_token_used:
+            # Use modified version of globus app secret from configuration as the internal token
+            auth_helper_instance = get_auth_helper_instance()
+            request_headers = _create_request_headers(auth_helper_instance.getProcessSecret())
+
+            # Disable ssl certificate verification
+            response = requests.get(url = target_url, headers = request_headers, verify = False)
+        else:
+            response = requests.get(url = target_url, verify = False)
+
+        if _memcached_client:
+            # Cache the result
+            _memcached_client.set(cache_key, response, expire = SchemaConstants.MEMCACHED_TTL)
+    else:
+        logger.info(f'Using the cached HTTP response of GET {target_url} at time {current_datetime}')
+
+    return response
+
+
 ####################################################################################################
 ## Internal functions
 ####################################################################################################
@@ -1542,58 +1603,3 @@ def _create_request_headers(user_token):
 
     return headers_dict
 
-
-"""
-Cache the request response for the given URL with using function cache (memoization)
-
-Parameters
-----------
-target_url: str
-    The target URL
-
-Returns
--------
-flask.Response
-    The response object
-"""
-def make_request_get(target_url, internal_token_used = False):
-    response = None
-
-    current_datetime = datetime.now()
-    current_timestamp = int(round(current_datetime.timestamp()))
-
-    # Check if the cached response is found and still valid based on TTL upon request, delete if expired
-    if (target_url in request_cache) and (current_timestamp > request_cache[target_url]['created_timestamp'] + SchemaConstants.REQUEST_CACHE_TTL):
-        del request_cache[target_url]
-
-        logger.info(f'Deleted the expired HTTP response cache of GET {target_url} at time {current_datetime}')
-
-    # Use the cached data if found and still valid
-    # Otherwise, make a fresh query and add to cache
-    if (target_url in request_cache) and (current_timestamp <= request_cache[target_url]['created_timestamp'] + SchemaConstants.REQUEST_CACHE_TTL):
-        response = request_cache[target_url]['response']
-
-        logger.info(f'Using the cached HTTP response of GET {target_url} at time {current_datetime}')
-    else:
-        logger.info(f'Cache not found or expired. Making a new HTTP request of GET {target_url} at time {current_datetime}')
-        
-        if internal_token_used:
-            # Use modified version of globus app secret from configuration as the internal token
-            auth_helper_instance = get_auth_helper_instance()
-            request_headers = _create_request_headers(auth_helper_instance.getProcessSecret())
-
-            # Disable ssl certificate verification
-            response = requests.get(url = target_url, headers = request_headers, verify = False)
-        else:
-            response = requests.get(url = target_url, verify = False)
-
-        # Add to cache
-        new_datetime = datetime.now()
-        new_timestamp = int(round(new_datetime.timestamp()))
-
-        request_cache[target_url] = {
-            'created_timestamp': new_timestamp,
-            'response': response
-        }
-
-    return response
