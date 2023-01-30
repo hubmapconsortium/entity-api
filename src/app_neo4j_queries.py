@@ -1048,8 +1048,7 @@ def get_prov_info(neo4j_driver, param_dict, published_only):
             record_dict['processed_dataset'] = content_sixteen
             content_seventeen = []
             for entry in record_contents[17]:
-                node_dict = _node_to_dict(entry)
-                content_seventeen.append(node_dict)
+                content_seventeen.append(entry)
             record_dict['previous_version_hubmap_ids'] = content_seventeen
             list_of_dictionaries.append(record_dict)
     return list_of_dictionaries
