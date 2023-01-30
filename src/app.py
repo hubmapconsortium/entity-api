@@ -3385,7 +3385,13 @@ def get_sample_prov_info():
     # Instantiation of the list sample_prov_list
     sample_prov_list = []
 
-    cache_key = f'{SchemaConstants.MEMCACHED_PREFIX}prov-info'
+    # Keep two versions of the cache
+    # one for no token (public)
+    # the other consortium (with HuBMAP-READ group token)
+    cache_key = f'{SchemaConstants.MEMCACHED_PREFIX}samples-prov-info-consortium'
+
+    if public_only:
+        cache_key = f'{SchemaConstants.MEMCACHED_PREFIX}samples-prov-info-public'
 
     if MEMCACHED_MODE:
         if memcached_client_instance.get(cache_key) is not None:
