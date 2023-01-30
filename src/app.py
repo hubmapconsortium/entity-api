@@ -156,9 +156,9 @@ if MEMCACHED_MODE:
         # Use client pool to maintain a pool of already-connected clients for improved performance
         # The uwsgi config launches the app across multiple threads (2) inside each process (4), making essentially 8 processes
         # Set the connect_timeout and timeout to avoid blocking the process when memcached is slow
-        # Use the ignore_exc flag to treat memcache/network errors as cache misses on calls to the get* methods. 
-        # When the no_delay flag is set, the TCP_NODELAY socket option will also be set. This only applies to TCP-based connections.
-        # If you intend to use anything but str as a value, it is a good idea to use a serializer.
+        # Use the ignore_exc flag to treat memcache/network errors as cache misses on calls to the get* methods
+        # Set the no_delay flag to sent TCP_NODELAY (disable Nagle's algorithm to improve TCP/IP networks and decrease the number of packets)
+        # If you intend to use anything but str as a value, it is a good idea to use a serializer
         memcached_client_instance = PooledClient(app.config['MEMCACHED_SERVER'], 
                                                  max_pool_size = 8,
                                                  connect_timeout = 1,
@@ -178,18 +178,6 @@ if MEMCACHED_MODE:
 
         # Turn off the caching
         MEMCACHED_MODE = False
-
-
-"""
-Close the current neo4j connection at the end of every request
-"""
-@app.teardown_appcontext
-def close_neo4j_driver(error):
-    if hasattr(g, 'neo4j_driver_instance'):
-        # Close the driver instance
-        neo4j_driver.close()
-        # Also remove neo4j_driver_instance from Flask's application context
-        g.neo4j_driver_instance = None
 
 
 ####################################################################################################
