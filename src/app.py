@@ -2688,9 +2688,9 @@ def get_prov_info():
         internal_dict[HEADER_DATASET_STATUS] = dataset['status']
         internal_dict[HEADER_DATASET_GROUP_NAME] = dataset['group_name']
         internal_dict[HEADER_DATASET_GROUP_UUID] = dataset['group_uuid']
-        internal_dict[HEADER_DATASET_DATE_TIME_CREATED] = datetime.fromtimestamp(int(dataset['created_timestamp']/1000.0))
+        internal_dict[HEADER_DATASET_DATE_TIME_CREATED] = str(datetime.fromtimestamp(int(dataset['created_timestamp'] / 1000.0)))
         internal_dict[HEADER_DATASET_CREATED_BY_EMAIL] = dataset['created_by_user_email']
-        internal_dict[HEADER_DATASET_DATE_TIME_MODIFIED] = datetime.fromtimestamp(int(dataset['last_modified_timestamp']/1000.0))
+        internal_dict[HEADER_DATASET_DATE_TIME_MODIFIED] = str(datetime.fromtimestamp(int(dataset['last_modified_timestamp'] / 1000.0)))
         internal_dict[HEADER_DATASET_MODIFIED_BY_EMAIL] = dataset['last_modified_user_email']
         internal_dict[HEADER_DATASET_LAB_ID] = dataset['lab_dataset_id']
 
@@ -2856,6 +2856,14 @@ def get_prov_info():
         # Each dataset's dictionary is added to the list to be returned
         dataset_prov_list.append(internal_dict)
 
+    # Determine whether the size of the returned data exceeds or nearly exceeds the AWS Gateway 10MB maximum size. If it
+    # is greater than 9437184 bytes Return a 400 and prompt the user to reduce the size of the output by applying optional
+    # argument filters.
+    dataset_prov_json_encode = json.dumps(dataset_prov_list).encode('utf-8')
+    if len(dataset_prov_json_encode) > 9437184:
+        bad_request_error(
+            "Request generated a response over the 10MB limit.  Sub-select the results using a query parameter.")
+
     # if return_json is true, this dictionary is ready to be returned already
     if return_json:
         return jsonify(dataset_prov_list)
@@ -3018,10 +3026,9 @@ def get_prov_info_for_dataset(id):
     internal_dict[HEADER_DATASET_STATUS] = dataset['status']
     internal_dict[HEADER_DATASET_GROUP_NAME] = dataset['group_name']
     internal_dict[HEADER_DATASET_GROUP_UUID] = dataset['group_uuid']
-    internal_dict[HEADER_DATASET_DATE_TIME_CREATED] = datetime.fromtimestamp(int(dataset['created_timestamp'] / 1000.0))
+    internal_dict[HEADER_DATASET_DATE_TIME_CREATED] = str(datetime.fromtimestamp(int(dataset['created_timestamp'] / 1000.0)))
     internal_dict[HEADER_DATASET_CREATED_BY_EMAIL] = dataset['created_by_user_email']
-    internal_dict[HEADER_DATASET_DATE_TIME_MODIFIED] = datetime.fromtimestamp(
-        int(dataset['last_modified_timestamp'] / 1000.0))
+    internal_dict[HEADER_DATASET_DATE_TIME_MODIFIED] = str(datetime.fromtimestamp(int(dataset['last_modified_timestamp'] / 1000.0)))
     internal_dict[HEADER_DATASET_MODIFIED_BY_EMAIL] = dataset['last_modified_user_email']
     internal_dict[HEADER_DATASET_LAB_ID] = dataset['lab_dataset_id']
 
@@ -3448,7 +3455,14 @@ def get_sample_prov_info():
 
         # Each sample's dictionary is added to the list to be returned
         sample_prov_list.append(internal_dict)
-        
+
+    # Determine whether the size of the returned data exceeds or nearly exceeds the AWS Gateway 10MB maximum size. If it
+    # is greater than 9437184 bytes Return a 400 and prompt the user to reduce the size of the output by applying optional
+    # argument filters.
+    sample_prov_json_encode = json.dumps(sample_prov_list).encode('utf-8')
+    if len(sample_prov_json_encode) > 9437184:
+        bad_request_error(
+            "Request generated a response over the 10MB limit.  Sub-select the results using a query parameter.")
     return jsonify(sample_prov_list)
 
 
