@@ -2,8 +2,10 @@ import ast
 import yaml
 import logging
 import requests
+import unicodedata
 from flask import Response
 from datetime import datetime
+
 
 # Don't confuse urllib (Python native library) with urllib3 (3rd-party library, requests also uses urllib3)
 from requests.packages.urllib3.exceptions import InsecureRequestWarning
@@ -1508,6 +1510,10 @@ list or dict
 """
 def convert_str_to_data(data_str):
     if isinstance(data_str, str):
+        # First remove those non-printable control characters that cause SyntaxError
+        # Use unicodedata.category(), we can check each character starting with "C" is the control character
+        data_str = "".join(char for char in data_str if unicodedata.category(char)[0] != "C")
+
         # ast uses compile to compile the source string (which must be an expression) into an AST
         # If the source string is not a valid expression (like an empty string), a SyntaxError will be raised by compile
         # If, on the other hand, the source string would be a valid expression (e.g. a variable name like foo), 
@@ -1520,9 +1526,8 @@ def convert_str_to_data(data_str):
             msg = f"Invalid expression (string value): {data_str} to be evaluated by ast.literal_eval()"
             logger.exception(msg)
     else:
-        # Just return the input data string
+        # Just return the input data
         return data_str
-
 
 
 """
