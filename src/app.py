@@ -2857,10 +2857,10 @@ def get_prov_info():
         dataset_prov_list.append(internal_dict)
 
     # Determine whether the size of the returned data exceeds or nearly exceeds the AWS Gateway 10MB maximum size. If it
-    # is greater than 9MB Return a 400 and prompt the user to reduce the size of the output by applying optional
+    # is greater than 9437184 bytes Return a 400 and prompt the user to reduce the size of the output by applying optional
     # argument filters.
     dataset_prov_json_encode = json.dumps(dataset_prov_list).encode('utf-8')
-    if len(dataset_prov_json_encode) > 9000000:
+    if len(dataset_prov_json_encode) > 9437184:
         bad_request_error(
             "Request generated a response over the 10MB limit.  Sub-select the results using a query parameter.")
 
@@ -3457,10 +3457,10 @@ def get_sample_prov_info():
         sample_prov_list.append(internal_dict)
 
     # Determine whether the size of the returned data exceeds or nearly exceeds the AWS Gateway 10MB maximum size. If it
-    # is greater than 9MB Return a 400 and prompt the user to reduce the size of the output by applying optional
+    # is greater than 9437184 bytes Return a 400 and prompt the user to reduce the size of the output by applying optional
     # argument filters.
     sample_prov_json_encode = json.dumps(sample_prov_list).encode('utf-8')
-    if len(sample_prov_json_encode) > 9000000:
+    if len(sample_prov_json_encode) > 9437184:
         bad_request_error(
             "Request generated a response over the 10MB limit.  Sub-select the results using a query parameter.")
     return jsonify(sample_prov_list)
