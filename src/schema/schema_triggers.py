@@ -527,7 +527,7 @@ def update_file_descriptions(property_key, normalized_type, user_token, existing
             # Note: The property, name specified by `target_property_key`, is stored in Neo4j as a string representation of the Python list
             # It's not stored in Neo4j as a json string! And we can't store it as a json string 
             # due to the way that Cypher handles single/double quotes.
-            existing_files_list = schema_manager.convert_str_to_data(existing_data_dict[property_key])
+            existing_files_list = schema_manager.convert_str_literal(existing_data_dict[property_key])
     else:
         if not property_key in generated_dict:
             raise KeyError(f"Missing '{property_key}' key in 'generated_dict' during calling 'update_file_descriptions()' trigger method.")            
@@ -954,7 +954,7 @@ def get_dataset_title(property_key, normalized_type, user_token, existing_data_d
         # Note: The existing_data_dict['data_types'] is stored in Neo4j as a string representation of the Python list
         # It's not stored in Neo4j as a json string! And we can't store it as a json string 
         # due to the way that Cypher handles single/double quotes.
-        data_types_list = schema_manager.convert_str_to_data(existing_data_dict['data_types'])
+        data_types_list = schema_manager.convert_str_literal(existing_data_dict['data_types'])
         assay_type_desc = _get_combined_assay_type_description(data_types_list)
     except requests.exceptions.RequestException as e:
         raise requests.exceptions.RequestException(e)
@@ -977,7 +977,7 @@ def get_dataset_title(property_key, normalized_type, user_token, existing_data_d
         # Note: The donor_metadata is stored in Neo4j as a string representation of the Python dict
         # It's not stored in Neo4j as a json string! And we can't store it as a json string 
         # due to the way that Cypher handles single/double quotes.
-        ancestor_metadata_dict = schema_manager.convert_str_to_data(donor_metadata)
+        ancestor_metadata_dict = schema_manager.convert_str_literal(donor_metadata)
         
         data_list = []
 
@@ -1233,7 +1233,7 @@ def delete_thumbnail_file(property_key, normalized_type, user_token, existing_da
             # is stored in Neo4j as a string representation of the Python dict
             # It's not stored in Neo4j as a json string! And we can't store it as a json string 
             # due to the way that Cypher handles single/double quotes.
-            file_info_dict = schema_manager.convert_str_to_data(existing_data_dict[target_property_key])
+            file_info_dict = schema_manager.convert_str_literal(existing_data_dict[target_property_key])
     else:
         file_info_dict = generated_dict[target_property_key]
     
@@ -1857,7 +1857,7 @@ def _commit_files(target_property_key, property_key, normalized_type, user_token
             # Note: The property, name specified by `target_property_key`, is stored in Neo4j as a string representation of the Python list
             # It's not stored in Neo4j as a json string! And we can't store it as a json string 
             # due to the way that Cypher handles single/double quotes.
-            files_info_list = schema_manager.convert_str_to_data(existing_data_dict[target_property_key])
+            files_info_list = schema_manager.convert_str_literal(existing_data_dict[target_property_key])
     else:
         files_info_list = generated_dict[target_property_key]
 
@@ -1967,7 +1967,7 @@ def _delete_files(target_property_key, property_key, normalized_type, user_token
             # Note: The property, name specified by `target_property_key`, is stored in Neo4j as a string representation of the Python list
             # It's not stored in Neo4j as a json string! And we can't store it as a json string 
             # due to the way that Cypher handles single/double quotes.
-            files_info_list = schema_manager.convert_str_to_data(existing_data_dict[target_property_key])
+            files_info_list = schema_manager.convert_str_literal(existing_data_dict[target_property_key])
     else:
         files_info_list = generated_dict[target_property_key]
     
