@@ -583,6 +583,8 @@ def get_collection_datasets(property_key, normalized_type, user_token, existing_
     if 'uuid' not in existing_data_dict:
         raise KeyError("Missing 'uuid' key in 'existing_data_dict' during calling 'get_collection_datasets()' trigger method.")
 
+    logger.info(f"Executing 'get_collection_datasets()' trigger method on uuid: {existing_data_dict['uuid']}")
+
     datasets_list = schema_neo4j_queries.get_collection_datasets(schema_manager.get_neo4j_driver_instance(), existing_data_dict['uuid'])
 
     # Additional properties of the datasets to exclude 
@@ -692,6 +694,8 @@ def get_dataset_collections(property_key, normalized_type, user_token, existing_
     if 'uuid' not in existing_data_dict:
         raise KeyError("Missing 'uuid' key in 'existing_data_dict' during calling 'get_dataset_collections()' trigger method.")
 
+    logger.info(f"Executing 'get_dataset_collections()' trigger method on uuid: {existing_data_dict['uuid']}")
+
     # No property key needs to filter the result
     # Get back the list of collection dicts
     collections_list = schema_neo4j_queries.get_dataset_collections(schema_manager.get_neo4j_driver_instance(), existing_data_dict['uuid'])
@@ -729,6 +733,8 @@ def get_dataset_upload(property_key, normalized_type, user_token, existing_data_
     
     if 'uuid' not in existing_data_dict:
         raise KeyError("Missing 'uuid' key in 'existing_data_dict' during calling 'get_dataset_upload()' trigger method.")
+
+    logger.info(f"Executing 'get_dataset_upload()' trigger method on uuid: {existing_data_dict['uuid']}")
 
     # It could be None if the dataset doesn't in any Upload
     upload_dict = schema_neo4j_queries.get_dataset_upload(schema_manager.get_neo4j_driver_instance(), existing_data_dict['uuid'])
@@ -809,6 +815,8 @@ def get_dataset_direct_ancestors(property_key, normalized_type, user_token, exis
     if 'uuid' not in existing_data_dict:
         raise KeyError("Missing 'uuid' key in 'existing_data_dict' during calling 'get_dataset_direct_ancestors()' trigger method.")
 
+    logger.info(f"Executing 'get_dataset_direct_ancestors()' trigger method on uuid: {existing_data_dict['uuid']}")
+
     # No property key needs to filter the result
     # Get back the list of ancestor dicts
     direct_ancestors_list = schema_neo4j_queries.get_dataset_direct_ancestors(schema_manager.get_neo4j_driver_instance(), existing_data_dict['uuid'])
@@ -848,6 +856,8 @@ def get_local_directory_rel_path(property_key, normalized_type, user_token, exis
     if 'uuid' not in existing_data_dict:
         raise KeyError("Missing 'uuid' key in 'existing_data_dict' during calling 'get_local_directory_rel_path()' trigger method.")
     
+    logger.info(f"Executing 'get_local_directory_rel_path()' trigger method on uuid: {existing_data_dict['uuid']}")
+
     if 'data_access_level' not in existing_data_dict:
         raise KeyError("Missing 'data_access_level' key in 'existing_data_dict' during calling 'get_local_directory_rel_path()' trigger method.")
     
@@ -929,6 +939,8 @@ str: The generated dataset title
 def get_dataset_title(property_key, normalized_type, user_token, existing_data_dict, new_data_dict):
     if 'uuid' not in existing_data_dict:
         raise KeyError("Missing 'uuid' key in 'existing_data_dict' during calling 'get_dataset_title()' trigger method.")
+
+    logger.info(f"Executing 'get_dataset_title()' trigger method on uuid: {existing_data_dict['uuid']}")
 
     # Assume organ_desc is always available, otherwise will throw parsing error
     organ_desc = '<organ_desc>'
@@ -1038,6 +1050,8 @@ def get_previous_revision_uuid(property_key, normalized_type, user_token, existi
     if 'uuid' not in existing_data_dict:
         raise KeyError("Missing 'uuid' key in 'existing_data_dict' during calling 'get_previous_revision_uuid()' trigger method.")
 
+    logger.info(f"Executing 'get_previous_revision_uuid()' trigger method on uuid: {existing_data_dict['uuid']}")
+
     previous_revision_uuid = schema_neo4j_queries.get_previous_revision_uuid(schema_manager.get_neo4j_driver_instance(), existing_data_dict['uuid'])
     
     # previous_revision_uuid can be None, but will be filtered out by 
@@ -1070,6 +1084,8 @@ def get_next_revision_uuid(property_key, normalized_type, user_token, existing_d
     if 'uuid' not in existing_data_dict:
         raise KeyError("Missing 'uuid' key in 'existing_data_dict' during calling 'get_next_revision_uuid()' trigger method.")
 
+    logger.info(f"Executing 'get_next_revision_uuid()' trigger method on uuid: {existing_data_dict['uuid']}")
+    
     next_revision_uuid = schema_neo4j_queries.get_next_revision_uuid(schema_manager.get_neo4j_driver_instance(), existing_data_dict['uuid'])
     
     # next_revision_uuid can be None, but will be filtered out by 
@@ -1444,6 +1460,8 @@ dict: The direct ancestor entity (either another Sample or a Donor) with all the
 def get_sample_direct_ancestor(property_key, normalized_type, user_token, existing_data_dict, new_data_dict):
     if 'uuid' not in existing_data_dict:
         raise KeyError("Missing 'uuid' key in 'existing_data_dict' during calling 'get_sample_direct_ancestor()' trigger method.")
+    
+    logger.info(f"Executing 'get_sample_direct_ancestor()' trigger method on uuid: {existing_data_dict['uuid']}")
 
     direct_ancestor_dict = schema_neo4j_queries.get_sample_direct_ancestor(schema_manager.get_neo4j_driver_instance(), existing_data_dict['uuid'])
 
@@ -1710,6 +1728,8 @@ list: A list of associated dataset dicts with all the normalized information
 def get_upload_datasets(property_key, normalized_type, user_token, existing_data_dict, new_data_dict):
     if 'uuid' not in existing_data_dict:
         raise KeyError("Missing 'uuid' key in 'existing_data_dict' during calling 'get_upload_datasets()' trigger method.")
+
+    logger.info(f"Executing 'get_upload_datasets()' trigger method on uuid: {existing_data_dict['uuid']}")
 
     datasets_list = schema_neo4j_queries.get_upload_datasets(schema_manager.get_neo4j_driver_instance(), existing_data_dict['uuid'])
 
