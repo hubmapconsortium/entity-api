@@ -155,7 +155,9 @@ if MEMCACHED_MODE:
     try:
         # Use client pool to maintain a pool of already-connected clients for improved performance
         # The uwsgi config launches the app across multiple threads (2) inside each process (4), making essentially 8 processes
-        # Set the connect_timeout and timeout to avoid blocking the process when memcached is slow
+        # Set the connect_timeout and timeout to avoid blocking the process when memcached is slow, defaults to "forever"
+        # connect_timeout: seconds to wait for a connection to the memcached server
+        # timeout: seconds to wait for send or reveive calls on the socket connected to memcached
         # Use the ignore_exc flag to treat memcache/network errors as cache misses on calls to the get* methods
         # Set the no_delay flag to sent TCP_NODELAY (disable Nagle's algorithm to improve TCP/IP networks and decrease the number of packets)
         # If you intend to use anything but str as a value, it is a good idea to use a serializer
