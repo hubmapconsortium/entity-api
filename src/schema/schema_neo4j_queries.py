@@ -697,7 +697,9 @@ def _build_properties_map(entity_data_dict):
                 # Quote the value
                 key_value_pair = f"{key}: '{escaped_str}'"
         else:
-            # Convert list and dict to string
+            # Convert list and dict to string, retain the original data without removing any control characters
+            # Will need to call schema_manager.convert_str_literal() to convert the list/dict literal back to object
+            # Note that schema_manager.convert_str_literal() removes any control characters to avoid SyntaxError 
             # Must also escape single quotes in the string to build a valid Cypher query
             escaped_str = str(value).replace("'", r"\'")
             # Also need to quote the string value

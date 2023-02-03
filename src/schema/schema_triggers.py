@@ -516,14 +516,16 @@ def update_file_descriptions(property_key, normalized_type, user_token, existing
     if property_key not in new_data_dict:
         raise KeyError(f"Missing '{property_key}' key in 'new_data_dict' during calling 'update_file_descriptions()' trigger method.")
 
-    #If POST or PUT where the target doesn't exist create the file info array
-    #if generated_dict doesn't contain the property yet, copy it from the existing_data_dict 
-    #or if it doesn't exist in existing_data_dict create it
+    # If POST or PUT where the target doesn't exist create the file info array
+    # if generated_dict doesn't contain the property yet, copy it from the existing_data_dict 
+    # or if it doesn't exist in existing_data_dict create it
     if not property_key in generated_dict:
         if not property_key in existing_data_dict:
-            raise KeyError(f"Missing '{property_key}' key in 'existing_data_dict' during call to 'update_file_descriptions()' trigger method.")            
+            raise KeyError(f"Missing '{property_key}' key in 'existing_data_dict' during call to 'update_file_descriptions()' trigger method.")
         # Otherwise this is a PUT where the target array exists already
         else:
+            logger.info(f"Executing convert_str_literal() on {normalized_type}.{property_key} during calling 'update_file_descriptions()' trigger method.")
+
             # Note: The property, name specified by `target_property_key`, is stored in Neo4j as a string representation of the Python list
             # It's not stored in Neo4j as a json string! And we can't store it as a json string 
             # due to the way that Cypher handles single/double quotes.
@@ -951,6 +953,8 @@ def get_dataset_title(property_key, normalized_type, user_token, existing_data_d
 
     # Parse assay_type from the Dataset
     try:
+        logger.info(f"Executing convert_str_literal() on 'data_types' of uuid: {existing_data_dict['uuid']} during calling 'get_dataset_title()' trigger method.")
+
         # Note: The existing_data_dict['data_types'] is stored in Neo4j as a string representation of the Python list
         # It's not stored in Neo4j as a json string! And we can't store it as a json string 
         # due to the way that Cypher handles single/double quotes.
@@ -974,6 +978,8 @@ def get_dataset_title(property_key, normalized_type, user_token, existing_data_d
 
     # Parse age, race, and sex
     if donor_metadata is not None:
+        logger.info(f"Executing convert_str_literal() on 'donor_metadata' of uuid: {existing_data_dict['uuid']} during calling 'get_dataset_title()' trigger method.")
+
         # Note: The donor_metadata is stored in Neo4j as a string representation of the Python dict
         # It's not stored in Neo4j as a json string! And we can't store it as a json string 
         # due to the way that Cypher handles single/double quotes.
@@ -1229,6 +1235,8 @@ def delete_thumbnail_file(property_key, normalized_type, user_token, existing_da
             raise KeyError(f"Missing '{target_property_key}' key missing during calling 'delete_thumbnail_file()' trigger method on entity {entity_uuid}.")
         # Otherwise this is a PUT where the target thumbnail file exists already
         else:
+            logger.info(f"Executing convert_str_literal() on {normalized_type}.{target_property_key} of uuid: {entity_uuid} during calling 'delete_thumbnail_file()' trigger method.")
+
             # Note: The property, name specified by `target_property_key`, 
             # is stored in Neo4j as a string representation of the Python dict
             # It's not stored in Neo4j as a json string! And we can't store it as a json string 
@@ -1854,6 +1862,8 @@ def _commit_files(target_property_key, property_key, normalized_type, user_token
             files_info_list = []
         # Otherwise this is a PUT where the target array exists already
         else:
+            logger.info(f"Executing convert_str_literal() during calling internal trigger method: '_commit_files()'")
+
             # Note: The property, name specified by `target_property_key`, is stored in Neo4j as a string representation of the Python list
             # It's not stored in Neo4j as a json string! And we can't store it as a json string 
             # due to the way that Cypher handles single/double quotes.
@@ -1964,6 +1974,8 @@ def _delete_files(target_property_key, property_key, normalized_type, user_token
             raise KeyError(f"Missing '{target_property_key}' key missing during calling '_delete_files()' trigger method on entity {entity_uuid}.")
         # Otherwise this is a PUT where the target array exists already
         else:
+            logger.info(f"Executing convert_str_literal() on {normalized_type}.{target_property_key} of uuid: {entity_uuid} during calling internal  trigger method: '_delete_files()'")
+
             # Note: The property, name specified by `target_property_key`, is stored in Neo4j as a string representation of the Python list
             # It's not stored in Neo4j as a json string! And we can't store it as a json string 
             # due to the way that Cypher handles single/double quotes.
