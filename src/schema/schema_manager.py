@@ -2,8 +2,10 @@ import ast
 import yaml
 import logging
 import requests
+import unicodedata
 from flask import Response
 from datetime import datetime
+
 
 # Don't confuse urllib (Python native library) with urllib3 (3rd-party library, requests also uses urllib3)
 from requests.packages.urllib3.exceptions import InsecureRequestWarning
@@ -216,7 +218,7 @@ def generate_triggered_data(trigger_type, normalized_class, user_token, existing
                         # Use {} since no incoming new_data_dict 
                         trigger_method_to_call(key, normalized_class, user_token, existing_data_dict, {})
                     except Exception:
-                        msg = "Failed to call the " + trigger_type + " method: " + trigger_method_name
+                        msg = f"Failed to call the {trigger_type} method: {trigger_method_name}"
                         # Log the full stack trace, prepend a line with our message
                         logger.exception(msg)
 
@@ -286,15 +288,15 @@ def generate_triggered_data(trigger_type, normalized_class, user_token, existing
                     # Will set the trigger return value as the property value by default
                     # Unless the return value is to be assigned to another property different target key
                     
-                    #the updated_peripherally tag is a temporary measure to correctly handle any attributes
-                    #which are potentially updated by multiple triggers
-                    #we keep the state of the attribute(s) directly in the trigger_generated_data_dict
-                    #dictionary, which is used to track and save all changes from triggers in general
-                    #the trigger methods for the 'updated_peripherally' attributes take an extra argument,
-                    #the trigger_generated_data_dict, and must initialize this dictionary with the value for
-                    #the attribute from the existing_data_dict as well as make any updates to this attribute
-                    #within this dictionary and return it so it can be saved in the scope of this loop and
-                    #passed to other 'updated_peripherally' triggers                    
+                    # the updated_peripherally tag is a temporary measure to correctly handle any attributes
+                    # which are potentially updated by multiple triggers
+                    # we keep the state of the attribute(s) directly in the trigger_generated_data_dict
+                    # dictionary, which is used to track and save all changes from triggers in general
+                    # the trigger methods for the 'updated_peripherally' attributes take an extra argument,
+                    # the trigger_generated_data_dict, and must initialize this dictionary with the value for
+                    # the attribute from the existing_data_dict as well as make any updates to this attribute
+                    # within this dictionary and return it so it can be saved in the scope of this loop and
+                    # passed to other 'updated_peripherally' triggers                    
                     if 'updated_peripherally' in properties[key] and properties[key]['updated_peripherally']:
                         trigger_generated_data_dict = trigger_method_to_call(key, normalized_class, user_token, existing_data_dict, new_data_dict, trigger_generated_data_dict)
                     else:  
@@ -533,11 +535,16 @@ def normalize_entity_result_for_response(entity_dict, properties_to_exclude = []
                 # By default, all properties are exposed if not marked as `exposed: false`
                 # It's still possible to see `exposed: true` marked explictly
                 if (entity_dict[key] is not None) and ('exposed' not in properties[key]) or (('exposed' in properties[key]) and properties[key]['exposed']): 
+                    # Only run convert_str_literal() on string representation of Python dict and list with removing control characters
+                    # No convertion for string representation of Python string, meaning that can still contain control characters
                     if entity_dict[key] and (properties[key]['type'] in ['list', 'json_string']):
+                        logger.info(f"Executing convert_str_literal() on {normalized_entity_type}.{key} of uuid: {entity_dict['uuid']}")
+
                         # Safely evaluate a string containing a Python dict or list literal
                         # Only convert to Python list/dict when the string literal is not empty
                         # instead of returning the json-as-string or array-as-string
-                        entity_dict[key] = convert_str_to_data(entity_dict[key])
+                        # convert_str_literal() also removes those control chars to avoid SyntaxError
+                        entity_dict[key] = convert_str_literal(entity_dict[key])
                     
                     # Add the target key with correct value of data type to the normalized_entity dict
                     normalized_entity[key] = entity_dict[key]
@@ -1492,7 +1499,11 @@ def get_neo4j_driver_instance():
 
 
 """
-Convert a string representation of the Python list/dict (either nested or not) to a Python list/dict
+Convert a string representation of the Python list/dict (either nested or not) to a Python list/dict object
+with removing any non-printable control characters if presents.
+
+Note: string representation of Python string can still contain control characters and should not be used by this method
+But if a string representation of Python string is used as input by mistake, control characters gets removed as a result. 
 
 Parameters
 ----------
@@ -1503,11 +1514,15 @@ data_str: str
 
 Returns
 -------
-list or dict
-    The real Python list or dict after evaluation
+list or dict or str
+    The desired Python list or dict object after evaluation or the original string input
 """
-def convert_str_to_data(data_str):
+def convert_str_literal(data_str):
     if isinstance(data_str, str):
+        # First remove those non-printable control characters that will cause SyntaxError
+        # Use unicodedata.category(), we can check each character starting with "C" is the control character
+        data_str = "".join(char for char in data_str if unicodedata.category(char)[0] != "C")
+
         # ast uses compile to compile the source string (which must be an expression) into an AST
         # If the source string is not a valid expression (like an empty string), a SyntaxError will be raised by compile
         # If, on the other hand, the source string would be a valid expression (e.g. a variable name like foo), 
@@ -1515,14 +1530,19 @@ def convert_str_to_data(data_str):
         # Also this fails with a TypeError: literal_eval("{{}: 'value'}")
         try:
             data = ast.literal_eval(data_str)
-            return data
+
+            if isinstance(data, (list, dict)):
+                logger.info(f"The input string literal has been converted to {type(data)} successfully")
+                return data
+            else:
+                logger.info(f"The input string literal is not list or dict after evaluation, return the original string input")
+                return data_str
         except (SyntaxError, ValueError, TypeError) as e:
             msg = f"Invalid expression (string value): {data_str} to be evaluated by ast.literal_eval()"
             logger.exception(msg)
     else:
-        # Just return the input data string
+        # Skip any non-string data types
         return data_str
-
 
 
 """

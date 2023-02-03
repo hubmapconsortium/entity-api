@@ -516,18 +516,20 @@ def update_file_descriptions(property_key, normalized_type, user_token, existing
     if property_key not in new_data_dict:
         raise KeyError(f"Missing '{property_key}' key in 'new_data_dict' during calling 'update_file_descriptions()' trigger method.")
 
-    #If POST or PUT where the target doesn't exist create the file info array
-    #if generated_dict doesn't contain the property yet, copy it from the existing_data_dict 
-    #or if it doesn't exist in existing_data_dict create it
+    # If POST or PUT where the target doesn't exist create the file info array
+    # if generated_dict doesn't contain the property yet, copy it from the existing_data_dict 
+    # or if it doesn't exist in existing_data_dict create it
     if not property_key in generated_dict:
         if not property_key in existing_data_dict:
-            raise KeyError(f"Missing '{property_key}' key in 'existing_data_dict' during call to 'update_file_descriptions()' trigger method.")            
+            raise KeyError(f"Missing '{property_key}' key in 'existing_data_dict' during call to 'update_file_descriptions()' trigger method.")
         # Otherwise this is a PUT where the target array exists already
         else:
+            logger.info(f"Executing convert_str_literal() on {normalized_type}.{property_key} during calling 'update_file_descriptions()' trigger method.")
+
             # Note: The property, name specified by `target_property_key`, is stored in Neo4j as a string representation of the Python list
             # It's not stored in Neo4j as a json string! And we can't store it as a json string 
             # due to the way that Cypher handles single/double quotes.
-            existing_files_list = schema_manager.convert_str_to_data(existing_data_dict[property_key])
+            existing_files_list = schema_manager.convert_str_literal(existing_data_dict[property_key])
     else:
         if not property_key in generated_dict:
             raise KeyError(f"Missing '{property_key}' key in 'generated_dict' during calling 'update_file_descriptions()' trigger method.")            
@@ -582,6 +584,8 @@ list: A list of associated dataset dicts with all the normalized information
 def get_collection_datasets(property_key, normalized_type, user_token, existing_data_dict, new_data_dict):
     if 'uuid' not in existing_data_dict:
         raise KeyError("Missing 'uuid' key in 'existing_data_dict' during calling 'get_collection_datasets()' trigger method.")
+
+    logger.info(f"Executing 'get_collection_datasets()' trigger method on uuid: {existing_data_dict['uuid']}")
 
     datasets_list = schema_neo4j_queries.get_collection_datasets(schema_manager.get_neo4j_driver_instance(), existing_data_dict['uuid'])
 
@@ -692,6 +696,8 @@ def get_dataset_collections(property_key, normalized_type, user_token, existing_
     if 'uuid' not in existing_data_dict:
         raise KeyError("Missing 'uuid' key in 'existing_data_dict' during calling 'get_dataset_collections()' trigger method.")
 
+    logger.info(f"Executing 'get_dataset_collections()' trigger method on uuid: {existing_data_dict['uuid']}")
+
     # No property key needs to filter the result
     # Get back the list of collection dicts
     collections_list = schema_neo4j_queries.get_dataset_collections(schema_manager.get_neo4j_driver_instance(), existing_data_dict['uuid'])
@@ -729,6 +735,8 @@ def get_dataset_upload(property_key, normalized_type, user_token, existing_data_
     
     if 'uuid' not in existing_data_dict:
         raise KeyError("Missing 'uuid' key in 'existing_data_dict' during calling 'get_dataset_upload()' trigger method.")
+
+    logger.info(f"Executing 'get_dataset_upload()' trigger method on uuid: {existing_data_dict['uuid']}")
 
     # It could be None if the dataset doesn't in any Upload
     upload_dict = schema_neo4j_queries.get_dataset_upload(schema_manager.get_neo4j_driver_instance(), existing_data_dict['uuid'])
@@ -809,6 +817,8 @@ def get_dataset_direct_ancestors(property_key, normalized_type, user_token, exis
     if 'uuid' not in existing_data_dict:
         raise KeyError("Missing 'uuid' key in 'existing_data_dict' during calling 'get_dataset_direct_ancestors()' trigger method.")
 
+    logger.info(f"Executing 'get_dataset_direct_ancestors()' trigger method on uuid: {existing_data_dict['uuid']}")
+
     # No property key needs to filter the result
     # Get back the list of ancestor dicts
     direct_ancestors_list = schema_neo4j_queries.get_dataset_direct_ancestors(schema_manager.get_neo4j_driver_instance(), existing_data_dict['uuid'])
@@ -848,6 +858,8 @@ def get_local_directory_rel_path(property_key, normalized_type, user_token, exis
     if 'uuid' not in existing_data_dict:
         raise KeyError("Missing 'uuid' key in 'existing_data_dict' during calling 'get_local_directory_rel_path()' trigger method.")
     
+    logger.info(f"Executing 'get_local_directory_rel_path()' trigger method on uuid: {existing_data_dict['uuid']}")
+
     if 'data_access_level' not in existing_data_dict:
         raise KeyError("Missing 'data_access_level' key in 'existing_data_dict' during calling 'get_local_directory_rel_path()' trigger method.")
     
@@ -930,6 +942,8 @@ def get_dataset_title(property_key, normalized_type, user_token, existing_data_d
     if 'uuid' not in existing_data_dict:
         raise KeyError("Missing 'uuid' key in 'existing_data_dict' during calling 'get_dataset_title()' trigger method.")
 
+    logger.info(f"Executing 'get_dataset_title()' trigger method on uuid: {existing_data_dict['uuid']}")
+
     # Assume organ_desc is always available, otherwise will throw parsing error
     organ_desc = '<organ_desc>'
 
@@ -939,10 +953,12 @@ def get_dataset_title(property_key, normalized_type, user_token, existing_data_d
 
     # Parse assay_type from the Dataset
     try:
+        logger.info(f"Executing convert_str_literal() on 'data_types' of uuid: {existing_data_dict['uuid']} during calling 'get_dataset_title()' trigger method.")
+
         # Note: The existing_data_dict['data_types'] is stored in Neo4j as a string representation of the Python list
         # It's not stored in Neo4j as a json string! And we can't store it as a json string 
         # due to the way that Cypher handles single/double quotes.
-        data_types_list = schema_manager.convert_str_to_data(existing_data_dict['data_types'])
+        data_types_list = schema_manager.convert_str_literal(existing_data_dict['data_types'])
         assay_type_desc = _get_combined_assay_type_description(data_types_list)
     except requests.exceptions.RequestException as e:
         raise requests.exceptions.RequestException(e)
@@ -962,10 +978,12 @@ def get_dataset_title(property_key, normalized_type, user_token, existing_data_d
 
     # Parse age, race, and sex
     if donor_metadata is not None:
+        logger.info(f"Executing convert_str_literal() on 'donor_metadata' of uuid: {existing_data_dict['uuid']} during calling 'get_dataset_title()' trigger method.")
+
         # Note: The donor_metadata is stored in Neo4j as a string representation of the Python dict
         # It's not stored in Neo4j as a json string! And we can't store it as a json string 
         # due to the way that Cypher handles single/double quotes.
-        ancestor_metadata_dict = schema_manager.convert_str_to_data(donor_metadata)
+        ancestor_metadata_dict = schema_manager.convert_str_literal(donor_metadata)
         
         data_list = []
 
@@ -1038,6 +1056,8 @@ def get_previous_revision_uuid(property_key, normalized_type, user_token, existi
     if 'uuid' not in existing_data_dict:
         raise KeyError("Missing 'uuid' key in 'existing_data_dict' during calling 'get_previous_revision_uuid()' trigger method.")
 
+    logger.info(f"Executing 'get_previous_revision_uuid()' trigger method on uuid: {existing_data_dict['uuid']}")
+
     previous_revision_uuid = schema_neo4j_queries.get_previous_revision_uuid(schema_manager.get_neo4j_driver_instance(), existing_data_dict['uuid'])
     
     # previous_revision_uuid can be None, but will be filtered out by 
@@ -1070,6 +1090,8 @@ def get_next_revision_uuid(property_key, normalized_type, user_token, existing_d
     if 'uuid' not in existing_data_dict:
         raise KeyError("Missing 'uuid' key in 'existing_data_dict' during calling 'get_next_revision_uuid()' trigger method.")
 
+    logger.info(f"Executing 'get_next_revision_uuid()' trigger method on uuid: {existing_data_dict['uuid']}")
+    
     next_revision_uuid = schema_neo4j_queries.get_next_revision_uuid(schema_manager.get_neo4j_driver_instance(), existing_data_dict['uuid'])
     
     # next_revision_uuid can be None, but will be filtered out by 
@@ -1213,11 +1235,13 @@ def delete_thumbnail_file(property_key, normalized_type, user_token, existing_da
             raise KeyError(f"Missing '{target_property_key}' key missing during calling 'delete_thumbnail_file()' trigger method on entity {entity_uuid}.")
         # Otherwise this is a PUT where the target thumbnail file exists already
         else:
+            logger.info(f"Executing convert_str_literal() on {normalized_type}.{target_property_key} of uuid: {entity_uuid} during calling 'delete_thumbnail_file()' trigger method.")
+
             # Note: The property, name specified by `target_property_key`, 
             # is stored in Neo4j as a string representation of the Python dict
             # It's not stored in Neo4j as a json string! And we can't store it as a json string 
             # due to the way that Cypher handles single/double quotes.
-            file_info_dict = schema_manager.convert_str_to_data(existing_data_dict[target_property_key])
+            file_info_dict = schema_manager.convert_str_literal(existing_data_dict[target_property_key])
     else:
         file_info_dict = generated_dict[target_property_key]
     
@@ -1444,6 +1468,8 @@ dict: The direct ancestor entity (either another Sample or a Donor) with all the
 def get_sample_direct_ancestor(property_key, normalized_type, user_token, existing_data_dict, new_data_dict):
     if 'uuid' not in existing_data_dict:
         raise KeyError("Missing 'uuid' key in 'existing_data_dict' during calling 'get_sample_direct_ancestor()' trigger method.")
+    
+    logger.info(f"Executing 'get_sample_direct_ancestor()' trigger method on uuid: {existing_data_dict['uuid']}")
 
     direct_ancestor_dict = schema_neo4j_queries.get_sample_direct_ancestor(schema_manager.get_neo4j_driver_instance(), existing_data_dict['uuid'])
 
@@ -1711,6 +1737,8 @@ def get_upload_datasets(property_key, normalized_type, user_token, existing_data
     if 'uuid' not in existing_data_dict:
         raise KeyError("Missing 'uuid' key in 'existing_data_dict' during calling 'get_upload_datasets()' trigger method.")
 
+    logger.info(f"Executing 'get_upload_datasets()' trigger method on uuid: {existing_data_dict['uuid']}")
+
     datasets_list = schema_neo4j_queries.get_upload_datasets(schema_manager.get_neo4j_driver_instance(), existing_data_dict['uuid'])
 
     # Additional properties of the datasets to exclude 
@@ -1834,10 +1862,12 @@ def _commit_files(target_property_key, property_key, normalized_type, user_token
             files_info_list = []
         # Otherwise this is a PUT where the target array exists already
         else:
+            logger.info(f"Executing convert_str_literal() during calling internal trigger method: '_commit_files()'")
+
             # Note: The property, name specified by `target_property_key`, is stored in Neo4j as a string representation of the Python list
             # It's not stored in Neo4j as a json string! And we can't store it as a json string 
             # due to the way that Cypher handles single/double quotes.
-            files_info_list = schema_manager.convert_str_to_data(existing_data_dict[target_property_key])
+            files_info_list = schema_manager.convert_str_literal(existing_data_dict[target_property_key])
     else:
         files_info_list = generated_dict[target_property_key]
 
@@ -1944,10 +1974,12 @@ def _delete_files(target_property_key, property_key, normalized_type, user_token
             raise KeyError(f"Missing '{target_property_key}' key missing during calling '_delete_files()' trigger method on entity {entity_uuid}.")
         # Otherwise this is a PUT where the target array exists already
         else:
+            logger.info(f"Executing convert_str_literal() on {normalized_type}.{target_property_key} of uuid: {entity_uuid} during calling internal  trigger method: '_delete_files()'")
+
             # Note: The property, name specified by `target_property_key`, is stored in Neo4j as a string representation of the Python list
             # It's not stored in Neo4j as a json string! And we can't store it as a json string 
             # due to the way that Cypher handles single/double quotes.
-            files_info_list = schema_manager.convert_str_to_data(existing_data_dict[target_property_key])
+            files_info_list = schema_manager.convert_str_literal(existing_data_dict[target_property_key])
     else:
         files_info_list = generated_dict[target_property_key]
     
