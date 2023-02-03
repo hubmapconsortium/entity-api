@@ -1518,8 +1518,6 @@ list or dict or str
     The desired Python list or dict object after evaluation or the original string input
 """
 def convert_str_literal(data_str):
-    logger.info(f"Executing convert_str_literal() on {data_str}")
-
     if isinstance(data_str, str):
         # First remove those non-printable control characters that will cause SyntaxError
         # Use unicodedata.category(), we can check each character starting with "C" is the control character
