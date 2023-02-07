@@ -2,6 +2,10 @@ from neo4j.exceptions import TransactionError
 import logging
 import json
 
+# Local modules
+from schema import schema_neo4j_queries
+
+
 logger = logging.getLogger(__name__)
 
 # The filed name of the single result record
@@ -31,7 +35,7 @@ def check_connection(neo4j_driver):
     # Sessions will often be created and destroyed using a with block context
     with neo4j_driver.session() as session:
         # Returned type is a Record object
-        record = session.read_transaction(_execute_readonly_tx, query)
+        record = session.read_transaction(schema_neo4j_queries.execute_readonly_tx, query)
 
         # When record[record_field_name] is not None (namely the cypher result is not null)
         # and the value equals 1
@@ -44,39 +48,7 @@ def check_connection(neo4j_driver):
     return False
 
 
-"""
-Get target entity dict
 
-Parameters
-----------
-neo4j_driver : neo4j.Driver object
-    The neo4j database connection pool
-uuid : str
-    The uuid of target entity 
-
-Returns
--------
-dict
-    A dictionary of entity details returned from the Cypher query
-"""
-def get_entity(neo4j_driver, uuid):
-    result = {}
-
-    query = (f"MATCH (e:Entity) "
-             f"WHERE e.uuid = '{uuid}' "
-             f"RETURN e AS {record_field_name}")
-
-    logger.info("======get_entity() query======")
-    logger.info(query)
-
-    with neo4j_driver.session() as session:
-        record = session.read_transaction(_execute_readonly_tx, query)
-
-        if record and record[record_field_name]:
-            # Convert the neo4j node into Python dict
-            result = _node_to_dict(record[record_field_name])
-
-    return result
 
 """
 Get all the entity nodes for the given entity type
@@ -113,7 +85,7 @@ def get_entities_by_type(neo4j_driver, entity_type, property_key = None):
     logger.info(query)
 
     with neo4j_driver.session() as session:
-        record = session.read_transaction(_execute_readonly_tx, query)
+        record = session.read_transaction(schema_neo4j_queries.execute_readonly_tx, query)
 
         if record and record[record_field_name]:
             if property_key:
@@ -121,7 +93,7 @@ def get_entities_by_type(neo4j_driver, entity_type, property_key = None):
                 results = record[record_field_name]
             else:
                 # Convert the list of nodes to a list of dicts
-                results = _nodes_to_dicts(record[record_field_name])
+                results = schema_neo4j_queries.nodes_to_dicts(record[record_field_name])
 
     return results
 
@@ -160,7 +132,7 @@ def get_public_collections(neo4j_driver, property_key = None):
     logger.info(query)
 
     with neo4j_driver.session() as session:
-        record = session.read_transaction(_execute_readonly_tx, query)
+        record = session.read_transaction(schema_neo4j_queries.execute_readonly_tx, query)
 
         if record and record[record_field_name]:
             if property_key:
@@ -168,7 +140,7 @@ def get_public_collections(neo4j_driver, property_key = None):
                 results = record[record_field_name]
             else:
                 # Convert the list of nodes to a list of dicts
-                results = _nodes_to_dicts(record[record_field_name])
+                results = schema_neo4j_queries.nodes_to_dicts(record[record_field_name])
 
     return results
 
@@ -201,71 +173,12 @@ def get_ancestor_organs(neo4j_driver, entity_uuid):
     logger.info(query)
 
     with neo4j_driver.session() as session:
-        record = session.read_transaction(_execute_readonly_tx, query)
+        record = session.read_transaction(schema_neo4j_queries.execute_readonly_tx, query)
 
         if record and record[record_field_name]:
-            results = _nodes_to_dicts(record[record_field_name])
+            results = schema_neo4j_queries.nodes_to_dicts(record[record_field_name])
 
     return results
-
-
-"""
-Create a new entity node in neo4j
-
-Parameters
-----------
-neo4j_driver : neo4j.Driver object
-    The neo4j database connection pool
-entity_type : str
-    One of the normalized entity types: Dataset, Collection, Sample, Donor
-entity_data_dict : dict
-    The target Entity node to be created
-
-Returns
--------
-dict
-    A dictionary of newly created entity details returned from the Cypher query
-"""
-def create_entity(neo4j_driver, entity_type, entity_data_dict):
-    node_properties_map = _build_properties_map(entity_data_dict)
-
-    query = (# Always define the Entity label in addition to the target `entity_type` label
-             f"CREATE (e:Entity:{entity_type}) "
-             f"SET e = {node_properties_map} "
-             f"RETURN e AS {record_field_name}")
-
-    logger.info("======create_entity() query======")
-    logger.info(query)
-
-    try:
-        with neo4j_driver.session() as session:
-            entity_dict = {}
-
-            tx = session.begin_transaction()
-
-            result = tx.run(query)
-            record = result.single()
-            entity_node = record[record_field_name]
-
-            entity_dict = _node_to_dict(entity_node)
-
-            # logger.info("======create_entity() resulting entity_dict======")
-            # logger.info(entity_dict)
-
-            tx.commit()
-
-            return entity_dict
-    except TransactionError as te:
-        msg = f"TransactionError from calling create_entity(): {te.value}"
-        # Log the full stack trace, prepend a line with our message
-        logger.exception(msg)
-
-        if tx.closed() == False:
-            logger.info("Failed to commit create_entity() transaction, rollback")
-
-            tx.rollback()
-
-        raise TransactionError(msg)
 
 
 """
@@ -292,14 +205,14 @@ def create_multiple_samples(neo4j_driver, samples_dict_list, activity_data_dict,
             activity_uuid = activity_data_dict['uuid']
 
             # Step 1: create the Activity node
-            _create_activity_tx(tx, activity_data_dict)
+            schema_neo4j_queries.create_activity_tx(tx, activity_data_dict)
 
             # Step 2: create relationship from source entity node to this Activity node
-            _create_relationship_tx(tx, direct_ancestor_uuid, activity_uuid, 'ACTIVITY_INPUT', '->')
+            schema_neo4j_queries.create_relationship_tx(tx, direct_ancestor_uuid, activity_uuid, 'ACTIVITY_INPUT', '->')
 
             # Step 3: create each new sample node and link to the Activity node at the same time
             for sample_dict in samples_dict_list:
-                node_properties_map = _build_properties_map(sample_dict)
+                node_properties_map = schema_neo4j_queries.build_properties_map(sample_dict)
 
                 query = (f"MATCH (a:Activity) "
                          f"WHERE a.uuid = '{activity_uuid}' "
@@ -325,272 +238,6 @@ def create_multiple_samples(neo4j_driver, samples_dict_list, activity_data_dict,
             tx.rollback()
 
         raise TransactionError(msg)
-
-
-"""
-Update the properties of an existing entity node in neo4j
-
-Parameters
-----------
-neo4j_driver : neo4j.Driver object
-    The neo4j database connection pool
-entity_type : str
-    One of the normalized entity types: Dataset, Collection, Sample, Donor
-entity_data_dict : dict
-    The target entity with properties to be updated
-uuid : str
-    The uuid of target entity 
-
-Returns
--------
-dict
-    A dictionary of updated entity details returned from the Cypher query
-"""
-def update_entity(neo4j_driver, entity_type, entity_data_dict, uuid):
-    node_properties_map = _build_properties_map(entity_data_dict)
-
-    query = (f"MATCH (e:{entity_type}) "
-             f"WHERE e.uuid = '{uuid}' "
-             f"SET e += {node_properties_map} "
-             f"RETURN e AS {record_field_name}")
-
-    logger.info("======update_entity() query======")
-    logger.info(query)
-
-    try:
-        with neo4j_driver.session() as session:
-            entity_dict = {}
-
-            tx = session.begin_transaction()
-
-            result = tx.run(query)
-            record = result.single()
-            entity_node = record[record_field_name]
-
-            tx.commit()
-
-            entity_dict = _node_to_dict(entity_node)
-
-            # logger.info("======update_entity() resulting entity_dict======")
-            # logger.info(entity_dict)
-
-            return entity_dict
-    except TransactionError as te:
-        msg = f"TransactionError from calling create_entity(): {te.value}"
-        # Log the full stack trace, prepend a line with our message
-        logger.exception(msg)
-
-        if tx.closed() == False:
-            logger.info("Failed to commit update_entity() transaction, rollback")
-
-            tx.rollback()
-
-        raise TransactionError(msg)
-
-
-"""
-Get all ancestors by uuid
-
-Parameters
-----------
-neo4j_driver : neo4j.Driver object
-    The neo4j database connection pool
-uuid : str
-    The uuid of target entity 
-property_key : str
-    A target property key for result filtering
-
-Returns
--------
-list
-    A list of unique ancestor dictionaries returned from the Cypher query
-"""
-def get_ancestors(neo4j_driver, uuid, property_key = None):
-    results = []
-
-    if property_key:
-        query = (f"MATCH (e:Entity)<-[:ACTIVITY_INPUT|ACTIVITY_OUTPUT*]-(ancestor:Entity) "
-                 # Filter out the Lab entities
-                 f"WHERE e.uuid='{uuid}' AND ancestor.entity_type <> 'Lab' "
-                 # COLLECT() returns a list
-                 # apoc.coll.toSet() reruns a set containing unique nodes
-                 f"RETURN apoc.coll.toSet(COLLECT(ancestor.{property_key})) AS {record_field_name}")
-    else:
-        query = (f"MATCH (e:Entity)<-[:ACTIVITY_INPUT|ACTIVITY_OUTPUT*]-(ancestor:Entity) "
-                 # Filter out the Lab entities
-                 f"WHERE e.uuid='{uuid}' AND ancestor.entity_type <> 'Lab' "
-                 # COLLECT() returns a list
-                 # apoc.coll.toSet() reruns a set containing unique nodes
-                 f"RETURN apoc.coll.toSet(COLLECT(ancestor)) AS {record_field_name}")
-
-    logger.info("======get_ancestors() query======")
-    logger.info(query)
-
-    with neo4j_driver.session() as session:
-        record = session.read_transaction(_execute_readonly_tx, query)
-
-        if record and record[record_field_name]:
-            if property_key:
-                # Just return the list of property values from each entity node
-                results = record[record_field_name]
-            else:
-                # Convert the list of nodes to a list of dicts
-                results = _nodes_to_dicts(record[record_field_name])
-
-    return results
-
-"""
-Get all descendants by uuid
-
-Parameters
-----------
-neo4j_driver : neo4j.Driver object
-    The neo4j database connection pool
-uuid : str
-    The uuid of target entity 
-property_key : str
-    A target property key for result filtering
-
-Returns
--------
-dict
-    A list of unique desendant dictionaries returned from the Cypher query
-"""
-def get_descendants(neo4j_driver, uuid, property_key = None):
-    results = []
-
-    if property_key:
-        query = (f"MATCH (e:Entity)-[:ACTIVITY_INPUT|ACTIVITY_OUTPUT*]->(descendant:Entity) "
-                 # The target entity can't be a Lab
-                 f"WHERE e.uuid='{uuid}' AND e.entity_type <> 'Lab' "
-                 # COLLECT() returns a list
-                 # apoc.coll.toSet() reruns a set containing unique nodes
-                 f"RETURN apoc.coll.toSet(COLLECT(descendant.{property_key})) AS {record_field_name}")
-    else:
-        query = (f"MATCH (e:Entity)-[:ACTIVITY_INPUT|ACTIVITY_OUTPUT*]->(descendant:Entity) "
-                 # The target entity can't be a Lab
-                 f"WHERE e.uuid='{uuid}' AND e.entity_type <> 'Lab' "
-                 # COLLECT() returns a list
-                 # apoc.coll.toSet() reruns a set containing unique nodes
-                 f"RETURN apoc.coll.toSet(COLLECT(descendant)) AS {record_field_name}")
-
-    logger.info("======get_descendants() query======")
-    logger.info(query)
-
-    with neo4j_driver.session() as session:
-        record = session.read_transaction(_execute_readonly_tx, query)
-
-        if record and record[record_field_name]:
-            if property_key:
-                # Just return the list of property values from each entity node
-                results = record[record_field_name]
-            else:
-                # Convert the list of nodes to a list of dicts
-                results = _nodes_to_dicts(record[record_field_name])
-
-    return results
-
-"""
-Get all parents by uuid
-
-Parameters
-----------
-neo4j_driver : neo4j.Driver object
-    The neo4j database connection pool
-uuid : str
-    The uuid of target entity 
-property_key : str
-    A target property key for result filtering
-
-Returns
--------
-dict
-    A list of unique parent dictionaries returned from the Cypher query
-"""
-def get_parents(neo4j_driver, uuid, property_key = None):
-    results = []
-
-    if property_key:
-        query = (f"MATCH (e:Entity)<-[:ACTIVITY_OUTPUT]-(:Activity)<-[:ACTIVITY_INPUT]-(parent:Entity) "
-                 # Filter out the Lab entities
-                 f"WHERE e.uuid='{uuid}' AND parent.entity_type <> 'Lab' "
-                 # COLLECT() returns a list
-                 # apoc.coll.toSet() reruns a set containing unique nodes
-                 f"RETURN apoc.coll.toSet(COLLECT(parent.{property_key})) AS {record_field_name}")
-    else:
-        query = (f"MATCH (e:Entity)<-[:ACTIVITY_OUTPUT]-(:Activity)<-[:ACTIVITY_INPUT]-(parent:Entity) "
-                 # Filter out the Lab entities
-                 f"WHERE e.uuid='{uuid}' AND parent.entity_type <> 'Lab' "
-                 # COLLECT() returns a list
-                 # apoc.coll.toSet() reruns a set containing unique nodes
-                 f"RETURN apoc.coll.toSet(COLLECT(parent)) AS {record_field_name}")
-
-    logger.info("======get_parents() query======")
-    logger.info(query)
-
-    with neo4j_driver.session() as session:
-        record = session.read_transaction(_execute_readonly_tx, query)
-
-        if record and record[record_field_name]:
-            if property_key:
-                # Just return the list of property values from each entity node
-                results = record[record_field_name]
-            else:
-                # Convert the list of nodes to a list of dicts
-                results = _nodes_to_dicts(record[record_field_name])
-
-    return results
-
-"""
-Get all children by uuid
-
-Parameters
-----------
-neo4j_driver : neo4j.Driver object
-    The neo4j database connection pool
-uuid : str
-    The uuid of target entity 
-property_key : str
-    A target property key for result filtering
-
-Returns
--------
-dict
-    A list of unique child dictionaries returned from the Cypher query
-"""
-def get_children(neo4j_driver, uuid, property_key = None):
-    results = []
-
-    if property_key:
-        query = (f"MATCH (e:Entity)-[:ACTIVITY_INPUT]->(:Activity)-[:ACTIVITY_OUTPUT]->(child:Entity) "
-                 # The target entity can't be a Lab
-                 f"WHERE e.uuid='{uuid}' AND e.entity_type <> 'Lab' "
-                 # COLLECT() returns a list
-                 # apoc.coll.toSet() reruns a set containing unique nodes
-                 f"RETURN apoc.coll.toSet(COLLECT(child.{property_key})) AS {record_field_name}")
-    else:
-        query = (f"MATCH (e:Entity)-[:ACTIVITY_INPUT]->(:Activity)-[:ACTIVITY_OUTPUT]->(child:Entity) "
-                 # The target entity can't be a Lab
-                 f"WHERE e.uuid='{uuid}' AND e.entity_type <> 'Lab' "
-                 # COLLECT() returns a list
-                 # apoc.coll.toSet() reruns a set containing unique nodes
-                 f"RETURN apoc.coll.toSet(COLLECT(child)) AS {record_field_name}")
-
-    logger.info("======get_children() query======")
-    logger.info(query)
-
-    with neo4j_driver.session() as session:
-        record = session.read_transaction(_execute_readonly_tx, query)
-
-        if record and record[record_field_name]:
-            if property_key:
-                # Just return the list of property values from each entity node
-                results = record[record_field_name]
-            else:
-                # Convert the list of nodes to a list of dicts
-                results = _nodes_to_dicts(record[record_field_name])
-
-    return results
 
 
 
@@ -625,11 +272,11 @@ def get_sorted_revisions(neo4j_driver, uuid):
     logger.info(query)
 
     with neo4j_driver.session() as session:
-        record = session.read_transaction(_execute_readonly_tx, query)
+        record = session.read_transaction(schema_neo4j_queries.execute_readonly_tx, query)
 
         if record and record[record_field_name]:
             # Convert the list of nodes to a list of dicts
-            results = _nodes_to_dicts(record[record_field_name])
+            results = schema_neo4j_queries.nodes_to_dicts(record[record_field_name])
 
     return results
 
@@ -671,7 +318,7 @@ def get_previous_revisions(neo4j_driver, uuid, property_key = None):
     logger.info(query)
 
     with neo4j_driver.session() as session:
-        record = session.read_transaction(_execute_readonly_tx, query)
+        record = session.read_transaction(schema_neo4j_queries.execute_readonly_tx, query)
 
         if record and record[record_field_name]:
             if property_key:
@@ -679,7 +326,7 @@ def get_previous_revisions(neo4j_driver, uuid, property_key = None):
                 results = record[record_field_name]
             else:
                 # Convert the list of nodes to a list of dicts
-                results = _nodes_to_dicts(record[record_field_name])
+                results = schema_neo4j_queries.nodes_to_dicts(record[record_field_name])
 
     return results
 
@@ -721,7 +368,7 @@ def get_next_revisions(neo4j_driver, uuid, property_key = None):
     logger.info(query)
 
     with neo4j_driver.session() as session:
-        record = session.read_transaction(_execute_readonly_tx, query)
+        record = session.read_transaction(schema_neo4j_queries.execute_readonly_tx, query)
 
         if record and record[record_field_name]:
             if property_key:
@@ -729,7 +376,7 @@ def get_next_revisions(neo4j_driver, uuid, property_key = None):
                 results = record[record_field_name]
             else:
                 # Convert the list of nodes to a list of dicts
-                results = _nodes_to_dicts(record[record_field_name])
+                results = schema_neo4j_queries.nodes_to_dicts(record[record_field_name])
 
     return results
 
@@ -815,7 +462,7 @@ def get_provenance(neo4j_driver, uuid, depth):
     logger.info(query)
 
     with neo4j_driver.session() as session:
-        return session.read_transaction(_execute_readonly_tx, query)
+        return session.read_transaction(schema_neo4j_queries.execute_readonly_tx, query)
 
 
 """
@@ -851,12 +498,12 @@ def get_dataset_latest_revision(neo4j_driver, uuid, public = False):
     logger.info(query)
 
     with neo4j_driver.session() as session:
-        record = session.read_transaction(_execute_readonly_tx, query)
+        record = session.read_transaction(schema_neo4j_queries.execute_readonly_tx, query)
 
         # Only convert when record[record_field_name] is not None (namely the cypher result is not null)
         if record and record[record_field_name]:
             # Convert the neo4j node into Python dict
-            result = _node_to_dict(record[record_field_name])
+            result = schema_neo4j_queries.node_to_dict(record[record_field_name])
 
     return result
 
@@ -884,7 +531,7 @@ def get_dataset_revision_number(neo4j_driver, uuid):
     logger.info(query)
 
     with neo4j_driver.session() as session:
-        record = session.read_transaction(_execute_readonly_tx, query)
+        record = session.read_transaction(schema_neo4j_queries.execute_readonly_tx, query)
 
         if record and record[record_field_name]:
             # The revision number is the count of previous revisions plus 1
@@ -915,10 +562,10 @@ def get_associated_organs_from_dataset(neo4j_driver, dataset_uuid):
     logger.info(query)
 
     with neo4j_driver.session() as session:
-        record = session.read_transaction(_execute_readonly_tx, query)
+        record = session.read_transaction(schema_neo4j_queries.execute_readonly_tx, query)
 
         if record and record[record_field_name]:
-            results = _nodes_to_dicts(record[record_field_name])
+            results = schema_neo4j_queries.nodes_to_dicts(record[record_field_name])
 
     return results
 
@@ -1005,22 +652,22 @@ def get_prov_info(neo4j_driver, param_dict, published_only):
             record_dict['uuid'] = record_contents[0]
             content_one = []
             for entry in record_contents[1]:
-                node_dict = _node_to_dict(entry)
+                node_dict = schema_neo4j_queries.node_to_dict(entry)
                 content_one.append(node_dict)
             record_dict['first_sample'] = content_one
             content_two = []
             for entry in record_contents[2]:
-                node_dict = _node_to_dict(entry)
+                node_dict = schema_neo4j_queries.node_to_dict(entry)
                 content_two.append(node_dict)
             record_dict['distinct_donor'] = content_two
             content_three = []
             for entry in record_contents[3]:
-                node_dict = _node_to_dict(entry)
+                node_dict = schema_neo4j_queries.node_to_dict(entry)
                 content_three.append(node_dict)
             record_dict['distinct_rui_sample'] = content_three
             content_four = []
             for entry in record_contents[4]:
-                node_dict = _node_to_dict(entry)
+                node_dict = schema_neo4j_queries.node_to_dict(entry)
                 content_four.append(node_dict)
             record_dict['distinct_organ'] = content_four
             record_dict['hubmap_id'] = record_contents[5]
@@ -1038,12 +685,12 @@ def get_prov_info(neo4j_driver, param_dict, published_only):
             record_dict['data_types'] = data_types
             content_fifteen = []
             for entry in record_contents[15]:
-                node_dict = _node_to_dict(entry)
+                node_dict = schema_neo4j_queries.node_to_dict(entry)
                 content_fifteen.append(node_dict)
             record_dict['distinct_metasample'] = content_fifteen
             content_sixteen = []
             for entry in record_contents[16]:
-                node_dict = _node_to_dict(entry)
+                node_dict = schema_neo4j_queries.node_to_dict(entry)
                 content_sixteen.append(node_dict)
             record_dict['processed_dataset'] = content_sixteen
             content_seventeen = []
@@ -1099,22 +746,22 @@ def get_individual_prov_info(neo4j_driver, dataset_uuid):
             record_dict['uuid'] = record_contents[0]
             content_one = []
             for entry in record_contents[1]:
-                node_dict = _node_to_dict(entry)
+                node_dict = schema_neo4j_queries.node_to_dict(entry)
                 content_one.append(node_dict)
             record_dict['first_sample'] = content_one
             content_two = []
             for entry in record_contents[2]:
-                node_dict = _node_to_dict(entry)
+                node_dict = schema_neo4j_queries.node_to_dict(entry)
                 content_two.append(node_dict)
             record_dict['distinct_donor'] = content_two
             content_three = []
             for entry in record_contents[3]:
-                node_dict = _node_to_dict(entry)
+                node_dict = schema_neo4j_queries.node_to_dict(entry)
                 content_three.append(node_dict)
             record_dict['distinct_rui_sample'] = content_three
             content_four = []
             for entry in record_contents[4]:
-                node_dict = _node_to_dict(entry)
+                node_dict = schema_neo4j_queries.node_to_dict(entry)
                 content_four.append(node_dict)
             record_dict['distinct_organ'] = content_four
             record_dict['hubmap_id'] = record_contents[5]
@@ -1132,12 +779,12 @@ def get_individual_prov_info(neo4j_driver, dataset_uuid):
             record_dict['data_types'] = data_types
             content_fifteen = []
             for entry in record_contents[15]:
-                node_dict = _node_to_dict(entry)
+                node_dict = schema_neo4j_queries.node_to_dict(entry)
                 content_fifteen.append(node_dict)
             record_dict['distinct_metasample'] = content_fifteen
             content_sixteen = []
             for entry in record_contents[16]:
-                node_dict = _node_to_dict(entry)
+                node_dict = schema_neo4j_queries.node_to_dict(entry)
                 content_sixteen.append(node_dict)
             record_dict['processed_dataset'] = content_sixteen
     return record_dict
@@ -1368,189 +1015,3 @@ def get_paired_dataset(neo4j_driver, uuid, data_type, search_depth):
     with neo4j_driver.session() as session:
         rval = session.run(query).data()
         return rval
-
-####################################################################################################
-## Internal Functions
-####################################################################################################
-
-"""
-Build the property key-value pairs to be used in the Cypher clause for node creation/update
-
-Parameters
-----------
-entity_data_dict : dict
-    The target Entity node to be created
-
-Returns
--------
-str
-    A string representation of the node properties map containing 
-    key-value pairs to be used in Cypher clause
-"""
-def _build_properties_map(entity_data_dict):
-    separator = ', '
-    node_properties_list = []
-
-    for key, value in entity_data_dict.items():
-        if isinstance(value, (int, bool)):
-            # Treat integer and boolean as is
-            key_value_pair = f"{key}: {value}"
-        elif isinstance(value, str):
-            # Special case is the value is 'TIMESTAMP()' string
-            # Remove the quotes since neo4j only takes TIMESTAMP() as a function
-            if value == 'TIMESTAMP()':
-                key_value_pair = f"{key}: {value}"
-            else:
-                # Escape single quote
-                escaped_str = value.replace("'", r"\'")
-                # Quote the value
-                key_value_pair = f"{key}: '{escaped_str}'"
-        else:
-            # Convert list and dict to string
-            # Must also escape single quotes in the string to build a valid Cypher query
-            escaped_str = str(value).replace("'", r"\'")
-            # Also need to quote the string value
-            key_value_pair = f"{key}: '{escaped_str}'"
-
-        # Add to the list
-        node_properties_list.append(key_value_pair)
-
-    # Example: {uuid: 'eab7fd6911029122d9bbd4d96116db9b', rui_location: 'Joe <info>', lab_tissue_sample_id: 'dadsadsd'}
-    # Note: all the keys are not quoted, otherwise Cypher syntax error
-    node_properties_map = f"{{ {separator.join(node_properties_list)} }}"
-
-    return node_properties_map
-
-
-"""
-Execute a unit of work in a managed read transaction
-
-Parameters
-----------
-tx : transaction_function
-    a function that takes a transaction as an argument and does work with the transaction
-query : str
-    The target cypher query to run
-
-Returns
--------
-neo4j.Record or None
-    A single record returned from the Cypher query
-"""
-def _execute_readonly_tx(tx, query):
-    result = tx.run(query)
-    record = result.single()
-    return record
-
-"""
-Create a relationship from the source node to the target node in neo4j
-
-Parameters
-----------
-tx : neo4j.Transaction object
-    The neo4j.Transaction object instance
-source_node_uuid : str
-    The uuid of source node
-target_node_uuid : str
-    The uuid of target node
-relationship : str
-    The relationship type to be created
-direction: str
-    The relationship direction from source node to target node: outgoing `->` or incoming `<-`
-    Neo4j CQL CREATE command supports only directional relationships
-"""
-def _create_relationship_tx(tx, source_node_uuid, target_node_uuid, relationship, direction):
-    incoming = "-"
-    outgoing = "-"
-
-    if direction == "<-":
-        incoming = direction
-
-    if direction == "->":
-        outgoing = direction
-
-    query = (f"MATCH (s), (t) " +
-             f"WHERE s.uuid = '{source_node_uuid}' AND t.uuid = '{target_node_uuid}' "
-             f"CREATE (s){incoming}[r:{relationship}]{outgoing}(t) "
-             f"RETURN type(r) AS {record_field_name}")
-
-    logger.info("======_create_relationship_tx() query======")
-    logger.info(query)
-
-    result = tx.run(query)
-
-
-"""
-Convert the neo4j node into Python dict
-
-Parameters
-----------
-entity_node : neo4j.node
-    The target neo4j node to be converted
-
-Returns
--------
-dict
-    A dictionary of target entity containing all property key/value pairs
-"""
-def _node_to_dict(entity_node):
-    entity_dict = {}
-
-    for key, value in entity_node._properties.items():
-        entity_dict.setdefault(key, value)
-
-    return entity_dict
-
-"""
-Convert the list of neo4j nodes into a list of Python dicts
-
-Parameters
-----------
-nodes : list
-    The list of neo4j node to be converted
-
-Returns
--------
-list
-    A list of target entity dicts containing all property key/value pairs
-"""
-def _nodes_to_dicts(nodes):
-    dicts = []
-
-    for node in nodes:
-        entity_dict = _node_to_dict(node)
-        dicts.append(entity_dict)
-
-    return dicts
-
-
-"""
-Create a new activity node in neo4j
-
-Parameters
-----------
-tx : neo4j.Transaction object
-    The neo4j.Transaction object instance
-activity_data_dict : dict
-    The dict containing properties of the Activity node to be created
-
-Returns
--------
-neo4j.node
-    A neo4j node instance of the newly created entity node
-"""
-def _create_activity_tx(tx, activity_data_dict):
-    node_properties_map = _build_properties_map(activity_data_dict)
-
-    query = (f"CREATE (e:Activity) "
-             f"SET e = {node_properties_map} "
-             f"RETURN e AS {record_field_name}")
-
-    logger.info("======_create_activity_tx() query======")
-    logger.info(query)
-
-    result = tx.run(query)
-    record = result.single()
-    node = record[record_field_name]
-
-    return node

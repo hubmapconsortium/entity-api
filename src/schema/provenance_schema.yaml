@@ -808,3 +808,24 @@ ENTITIES:
         description: "The datasets that are contained in this Upload."
         # A few time-consuming properties (with read triggers) of each dataset are excluded
         on_read_trigger: get_upload_datasets
+
+
+  ############################################# Paper #############################################
+  Paper:
+    superclass: Dataset
+    # Only allowed applications can create new Paper via POST
+    before_entity_create_validator: validate_application_header_before_entity_create
+    # Paper can be either derivation source or target
+    derivation:
+      source: true
+      target: true
+    properties:
+      <<: *shared_properties
+      <<: *shared_entity_properties
+      <<: *doi_properties
+      antibodies:
+        type: list
+        description: "A list of antibodies used in the assay that created the dataset"
+      description:
+        type: string
+        description: "Free text description of the dataset"
