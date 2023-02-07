@@ -20,6 +20,8 @@ neo4j_driver : neo4j.Driver object
     The neo4j database connection pool
 entity_type : str
     One of the normalized entity types: Dataset, Collection, Sample, Donor
+superclass : str
+    The normalized entity superclass type if defined, None by default
 entity_data_dict : dict
     The target Entity node to be created
 
@@ -28,11 +30,16 @@ Returns
 dict
     A dictionary of newly created entity details returned from the Cypher query
 """
-def create_entity(neo4j_driver, entity_type, entity_data_dict):
-    node_properties_map = build_properties_map(entity_data_dict)
+def create_entity(neo4j_driver, entity_type, entity_data_dict, superclass = None):
+    # Always define the Entity label in addition to the target `entity_type` label
+    labels = f':Entity:{entity_type}'
 
-    query = (# Always define the Entity label in addition to the target `entity_type` label
-             f"CREATE (e:Entity:{entity_type}) "
+    if superclass is not None:
+        labels = f':Entity:{entity_type}:{superclass}'
+
+    node_properties_map = build_properties_map(entity_data_dict)
+    
+    query = (f"CREATE (e{labels}) "
              f"SET e = {node_properties_map} "
              f"RETURN e AS {record_field_name}")
 

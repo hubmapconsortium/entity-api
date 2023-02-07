@@ -144,6 +144,41 @@ def get_all_entity_types():
     # Need convert the dict_keys object to a list
     return list(dict_keys)
 
+
+"""
+Get the superclass (if defined) of the given entity class
+
+Parameters
+----------
+normalized_entity_class : str
+    The normalized target entity class
+
+Returns
+-------
+string or None
+    One of the normalized entity classes if defined, None otherwise
+"""
+def get_entity_superclass(normalized_entity_class):
+    normalized_superclass = None
+
+    all_entity_types = get_all_entity_types()
+
+    if normalized_entity_class in all_entity_types:
+        if 'superclass' in _schema['ENTITIES'][normalized_entity_class]:
+            normalized_superclass = normalize_entity_type(_schema['ENTITIES'][normalized_entity_class]['superclass'])
+
+            if normalized_superclass not in all_entity_types:
+                msg = f"Invalid 'superclass' value defined for {normalized_entity_class}: {normalized_superclass}"
+                logger.error(msg)
+                raise ValueError(msg)
+        else:
+            # Since the 'superclass' property is optional, we just log the warning message, no need to bubble up
+            msg = f"The 'superclass' property is not defined for entity class: {normalized_entity_class}"
+            logger.warn(msg)
+
+    return normalized_superclass
+
+
 """
 Generating triggered data based on the target events and methods
 
@@ -346,6 +381,7 @@ def generate_triggered_data(trigger_type, normalized_class, user_token, existing
     # Return after for loop
     return trigger_generated_data_dict
     
+
 """
 Filter out the merged dict by getting rid of properties with None values
 This method is used by get_complete_entity_result() for the 'on_read_trigger'
@@ -937,7 +973,7 @@ Validate the normalized class
 Parameters
 ----------
 normalized_class : str
-    The normalized class: Activity|Collection|Donor|Sample|Dataset
+    The normalized class: Activity|Collection|Donor|Sample|Dataset|Paper
 """
 def validate_normalized_class(normalized_class):
     separator = ', '
@@ -965,6 +1001,7 @@ def validate_target_entity_type_for_derivation(normalized_target_entity_type):
 
     if normalized_target_entity_type not in accepted_target_entity_types:
         bad_request_error(f"Invalid target entity type specified for creating the derived entity. Accepted types: {separator.join(accepted_target_entity_types)}")
+
 
 """
 Validate the source and target entity types for creating derived entity

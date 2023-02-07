@@ -812,6 +812,7 @@ ENTITIES:
 
   ############################################# Paper #############################################
   Paper:
+    # This superclass property is optional
     superclass: Dataset
     # Only allowed applications can create new Paper via POST
     before_entity_create_validator: validate_application_header_before_entity_create
