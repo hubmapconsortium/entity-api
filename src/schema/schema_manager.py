@@ -156,7 +156,7 @@ normalized_entity_class : str
 Returns
 -------
 string or None
-    One of the normalized entity classes if defined, None otherwise
+    One of the normalized entity classes if defined (currently only Publucation has Dataset as superclass). None otherwise
 """
 def get_entity_superclass(normalized_entity_class):
     normalized_superclass = None
@@ -417,7 +417,7 @@ Parameters
 merged_dict : dict
     A merged dict that may contain properties with None values
 normalized_entity_type : str
-    One of the normalized entity types: Dataset, Collection, Sample, Donor
+    One of the normalized entity types: Dataset, Collection, Sample, Donor, Upload, Publication
 
 Returns
 -------
@@ -626,7 +626,7 @@ Parameters
 json_data_dict : dict
     The json data dict from user request
 normalized_entity_type : str
-    One of the normalized entity types: Dataset, Collection, Sample, Donor
+    One of the normalized entity types: Dataset, Collection, Sample, Donor, Upload, Publication
 existing_entity_dict : dict
     Entity dict for creating new entity, otherwise pass in the existing entity dict for update validation
 """
@@ -725,7 +725,7 @@ Parameters
 validator_type : str
     One of the validator types: before_entity_create_validator
 normalized_entity_type : str
-    One of the normalized entity types defined in the schema yaml: Donor, Sample, Dataset, Upload
+    One of the normalized entity types defined in the schema yaml: Donor, Sample, Dataset, Upload, Upload, Publication
 request: Flask request object
     The instance of Flask request passed in from application request
 """
@@ -768,7 +768,7 @@ Parameters
 validator_type : str
     before_property_create_validators|before_property_update_validators (support multiple validators)
 normalized_entity_type : str
-    One of the normalized entity types defined in the schema yaml: Donor, Sample, Dataset, Upload
+    One of the normalized entity types defined in the schema yaml: Donor, Sample, Dataset, Upload, Publication
 request: Flask request object
     The instance of Flask request passed in from application request
 existing_data_dict : dict
@@ -857,14 +857,14 @@ Lowercase and captalize the entity type string
 Parameters
 ----------
 normalized_entity_type : str
-    One of the normalized entity types: Dataset, Collection, Sample, Donor
+    One of the normalized entity types: Dataset, Collection, Sample, Donor, Upload, Publication
 id : str
     The uuid of target entity 
 
 Returns
 -------
 string
-    One of the normalized entity types: Dataset, Collection, Sample, Donor
+    One of the normalized entity types: Dataset, Collection, Sample, Donor, Upload, Publication
 """
 def normalize_entity_type(entity_type):
     normalized_entity_type = entity_type.lower().capitalize()
@@ -954,7 +954,7 @@ Validate the normalized entity class
 Parameters
 ----------
 normalized_entity_type : str
-    The normalized entity class: Collection|Donor|Sample|Dataset
+    One of the normalized entity types: Dataset, Collection, Sample, Donor, Upload, Publication
 """
 def validate_normalized_entity_type(normalized_entity_type):
     separator = ', '
@@ -973,7 +973,7 @@ Validate the normalized class
 Parameters
 ----------
 normalized_class : str
-    The normalized class: Activity|Collection|Donor|Sample|Dataset|Paper
+    The normalized class: Activity|Collection|Donor|Sample|Dataset|Publication
 """
 def validate_normalized_class(normalized_class):
     separator = ', '

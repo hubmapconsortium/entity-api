@@ -810,13 +810,13 @@ ENTITIES:
         on_read_trigger: get_upload_datasets
 
 
-  ############################################# Paper #############################################
-  Paper:
+  ############################################# Publication #############################################
+  Publication:
     # This superclass property is optional
     superclass: Dataset
-    # Only allowed applications can create new Paper via POST
+    # Only allowed applications can create new Publication via POST
     before_entity_create_validator: validate_application_header_before_entity_create
-    # Paper can be either derivation source or target
+    # Publication can be either derivation source or target
     derivation:
       source: true
       target: true
