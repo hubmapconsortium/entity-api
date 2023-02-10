@@ -3992,7 +3992,7 @@ def create_entity_details(request, normalized_entity_type, user_token, json_data
     # Create new entity
     try:
         # Check if the optional `superclass` property is defined, None otherwise
-        superclass = schema_manager.get_entity_superclass(normalized_entity_class)
+        superclass = schema_manager.get_entity_superclass(normalized_entity_type)
 
         # Important: `entity_dict` is the resulting neo4j dict, Python list and dicts are stored
         # as string expression literals in it. That's why properties like entity_dict['direct_ancestor_uuids']
