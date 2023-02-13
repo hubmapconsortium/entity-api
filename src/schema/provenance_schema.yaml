@@ -643,7 +643,7 @@ ENTITIES:
         description: 'The issue number of the journal that it was published in.'
       pages_or_article_num:
         type: string
-        description: 'The pages or the article number in the publication journal e.g., “23”, “23-49”, “e1003424”.'
+        description: 'The pages or the article number in the publication journal e.g., "23", "23-49", "e1003424".'
 
   ############################################# Donor #############################################
   Donor:
