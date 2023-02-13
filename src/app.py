@@ -27,6 +27,7 @@ import provenance
 from schema import schema_manager
 from schema import schema_errors
 from schema import schema_triggers
+from schema import schema_neo4j_queries
 from schema.schema_constants import SchemaConstants
 
 # HuBMAP commons
@@ -1370,7 +1371,7 @@ def update_entity(id):
         # Also delete the cache of all the direct descendants (children)
         # Otherwise they'll have old cached data for the `direct_ancestor` (Sample) `direct_ancestors` (Dataset) fields
         # Note: must use uuid in the Neo4j query
-        children_uuid_list = app_neo4j_queries.get_children(neo4j_driver_instance, entity_dict['uuid'] , 'uuid')
+        children_uuid_list = schema_neo4j_queries.get_children(neo4j_driver_instance, entity_dict['uuid'] , 'uuid')
 
         for child_uuid in children_uuid_list:
             cache_key = f'{SchemaConstants.MEMCACHED_PREFIX}{child_uuid}'
@@ -1450,7 +1451,7 @@ def get_ancestors(id):
                 bad_request_error(f"Only the following property keys are supported in the query string: {COMMA_SEPARATOR.join(result_filtering_accepted_property_keys)}")
 
             # Only return a list of the filtered property value of each entity
-            property_list = app_neo4j_queries.get_ancestors(neo4j_driver_instance, uuid, property_key)
+            property_list = schema_neo4j_queries.get_ancestors(neo4j_driver_instance, uuid, property_key)
 
             # Final result
             final_result = property_list
@@ -1458,7 +1459,7 @@ def get_ancestors(id):
             bad_request_error("The specified query string is not supported. Use '?property=<key>' to filter the result")
     # Return all the details if no property filtering
     else:
-        ancestors_list = app_neo4j_queries.get_ancestors(neo4j_driver_instance, uuid)
+        ancestors_list = schema_neo4j_queries.get_ancestors(neo4j_driver_instance, uuid)
 
         # Generate trigger data
         # Skip some of the properties that are time-consuming to generate via triggers
@@ -1526,7 +1527,7 @@ def get_descendants(id):
                 bad_request_error(f"Only the following property keys are supported in the query string: {COMMA_SEPARATOR.join(result_filtering_accepted_property_keys)}")
 
             # Only return a list of the filtered property value of each entity
-            property_list = app_neo4j_queries.get_descendants(neo4j_driver_instance, uuid, property_key)
+            property_list = schema_neo4j_queries.get_descendants(neo4j_driver_instance, uuid, property_key)
 
             # Final result
             final_result = property_list
@@ -1534,7 +1535,7 @@ def get_descendants(id):
             bad_request_error("The specified query string is not supported. Use '?property=<key>' to filter the result")
     # Return all the details if no property filtering
     else:
-        descendants_list = app_neo4j_queries.get_descendants(neo4j_driver_instance, uuid)
+        descendants_list = schema_neo4j_queries.get_descendants(neo4j_driver_instance, uuid)
 
         # Generate trigger data and merge into a big dict
         # and skip some of the properties that are time-consuming to generate via triggers
@@ -1626,7 +1627,7 @@ def get_parents(id):
                 bad_request_error(f"Only the following property keys are supported in the query string: {COMMA_SEPARATOR.join(result_filtering_accepted_property_keys)}")
 
             # Only return a list of the filtered property value of each entity
-            property_list = app_neo4j_queries.get_parents(neo4j_driver_instance, uuid, property_key)
+            property_list = schema_neo4j_queries.get_parents(neo4j_driver_instance, uuid, property_key)
 
             # Final result
             final_result = property_list
@@ -1634,7 +1635,7 @@ def get_parents(id):
             bad_request_error("The specified query string is not supported. Use '?property=<key>' to filter the result")
     # Return all the details if no property filtering
     else:
-        parents_list = app_neo4j_queries.get_parents(neo4j_driver_instance, uuid)
+        parents_list = schema_neo4j_queries.get_parents(neo4j_driver_instance, uuid)
 
         # Generate trigger data
         # Skip some of the properties that are time-consuming to generate via triggers
@@ -1702,7 +1703,7 @@ def get_children(id):
                 bad_request_error(f"Only the following property keys are supported in the query string: {COMMA_SEPARATOR.join(result_filtering_accepted_property_keys)}")
 
             # Only return a list of the filtered property value of each entity
-            property_list = app_neo4j_queries.get_children(neo4j_driver_instance, uuid, property_key)
+            property_list = schema_neo4j_queries.get_children(neo4j_driver_instance, uuid, property_key)
 
             # Final result
             final_result = property_list
@@ -1710,7 +1711,7 @@ def get_children(id):
             bad_request_error("The specified query string is not supported. Use '?property=<key>' to filter the result")
     # Return all the details if no property filtering
     else:
-        children_list = app_neo4j_queries.get_children(neo4j_driver_instance, uuid)
+        children_list = schema_neo4j_queries.get_children(neo4j_driver_instance, uuid)
 
         # Generate trigger data and merge into a big dict
         # and skip some of the properties that are time-consuming to generate via triggers
@@ -3990,11 +3991,14 @@ def create_entity_details(request, normalized_entity_type, user_token, json_data
 
     # Create new entity
     try:
+        # Check if the optional `superclass` property is defined, None otherwise
+        superclass = schema_manager.get_entity_superclass(normalized_entity_type)
+
         # Important: `entity_dict` is the resulting neo4j dict, Python list and dicts are stored
         # as string expression literals in it. That's why properties like entity_dict['direct_ancestor_uuids']
         # will need to use ast.literal_eval() in the schema_triggers.py
-        entity_dict = app_neo4j_queries.create_entity(neo4j_driver_instance, normalized_entity_type, filtered_merged_dict)
-    except TransactionError:
+        entity_dict = schema_neo4j_queries.create_entity(neo4j_driver_instance, normalized_entity_type, filtered_merged_dict, superclass)
+    except (TransactionError, ValueError):
         msg = "Failed to create the new " + normalized_entity_type
         # Log the full stack trace, prepend a line with our message
         logger.exception(msg)
@@ -4251,7 +4255,7 @@ def update_entity_details(request, normalized_entity_type, user_token, json_data
 
     # Update the exisiting entity
     try:
-        updated_entity_dict = app_neo4j_queries.update_entity(neo4j_driver_instance, normalized_entity_type, filtered_merged_dict, existing_entity_dict['uuid'])
+        updated_entity_dict = schema_neo4j_queries.update_entity(neo4j_driver_instance, normalized_entity_type, filtered_merged_dict, existing_entity_dict['uuid'])
     except TransactionError:
         msg = "Failed to update the entity with id " + id
         # Log the full stack trace, prepend a line with our message
@@ -4355,7 +4359,7 @@ def query_target_entity(id, user_token):
 
             # Get the target uuid if all good
             uuid = hubmap_ids['hm_uuid']
-            entity_dict = app_neo4j_queries.get_entity(neo4j_driver_instance, uuid)
+            entity_dict = schema_neo4j_queries.get_entity(neo4j_driver_instance, uuid)
 
             # The uuid exists via uuid-api doesn't mean it's also in Neo4j
             if not entity_dict:
