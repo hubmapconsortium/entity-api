@@ -1212,7 +1212,7 @@ def create_hubmap_ids(normalized_class, json_data_dict, user_token, user_info_di
     }
 
     # Activity and Collection don't require the `parent_ids` in request json
-    if normalized_class in ['Donor', 'Sample', 'Dataset', 'Upload']:
+    if normalized_class in ['Donor', 'Sample', 'Dataset', 'Upload', 'Publication']:
         # The direct ancestor of Donor and Upload must be Lab
         # The group_uuid is the Lab id in this case
         if normalized_class in ['Donor', 'Upload']:

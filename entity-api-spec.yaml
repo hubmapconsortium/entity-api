@@ -968,6 +968,344 @@ components:
           items:
             $ref: '#/components/schemas/Dataset'
           description: "The datasets that are contained in the Collection."
+    Publication:
+      type: object
+      properties:
+        created_timestamp:
+          type: integer
+          readOnly: true
+          description: "The timestamp of when the node was created.  The format is an integer representing milliseconds since midnight Jan 1, 1970"
+        created_by_user_displayname:
+          type: string
+          readOnly: true
+          description: "The name of the person or process authenticated when creating the object"
+        created_by_user_email:
+          type: string
+          readOnly: true
+          description: "The email address of the person or process authenticated when creating the object."
+        created_by_user_sub:
+          type: string
+          readOnly: true
+          description: "The subject id as provided by the authorization mechanism for the person or process authenticated when creating the object."
+        uuid:
+          type: string
+          readOnly: true
+          description: "The HuBMAP unique identifier, intended for internal software use only.  This is a 32 digit hexadecimal uuid e.g. 461bbfdc353a2673e381f632510b0f17"
+        hubmap_id:
+          type: string
+          readOnly: true
+          description: "A HuBMAP Consortium wide unique identifier randomly generated in the format HBM###.ABCD.### for every entity."
+        last_modified_timestamp:
+          type: integer
+          readOnly: true
+          description: "The timestamp of when the object was last modified.  The format is an integer representing milliseconds since midnight, Jan 1, 1970"
+        last_modified_user_sub:
+          type: string
+          readOnly: true
+          description: "The subject id of the user who last modified the entity as provided by the authorization mechanism for the person or process authenticated when the object was modified."
+        last_modified_user_email:
+          type: string
+          readOnly: true
+          description: "The email address of the person or process which authenticated when the object was last modified."
+        last_modified_user_displayname:
+          type: string
+          readOnly: true
+          description: "The name of the person or process which authenticated when the object was last modified."
+        entity_type:
+          type: string
+          readOnly: true
+          description: "One of the normalized entity types: Dataset, Collection, Sample, Donor"
+        registered_doi:
+          type: string
+          description: "The doi of a the registered entity. e.g. 10.35079/hbm289.pcbm.487.  This is set during the publication process and currently available for certain Collections and Datasets."
+        doi_url:
+          type: string
+          readOnly: true
+          description: "The url from the doi registry for this entity. e.g. https://doi.org/10.35079/hbm289.pcbm.487"
+        creators:
+          type: array
+          items:
+            $ref: '#/components/schemas/Person'
+          description: "A list of the people who created the entity with full name, email, ORCID iD, institution, etc.. This is analogus to the author list on a publication."
+        contacts:
+          type: array
+          items:
+            $ref: '#/components/schemas/Person'
+          description: "A list of the people who are the main contacts to get information about the entity."
+        antibodies:
+          type: array
+          items:
+            $ref: '#/components/schemas/Antibody'
+          description: "A list of antibodies used in the assay that created the dataset"
+        description:
+          type: string
+          description: "Free text description of the dataset"
+        data_access_level:
+          type: string
+          readOnly: true
+          enum:
+            - public
+            - consortium
+          description: "One of the values: public, consortium."
+        contains_human_genetic_sequences:
+          type: boolean
+          description: "True if the data contains any human genetic sequence information. Can only be set at CREATE/POST time"
+        status:
+          type: string
+          enum:
+            - New
+            - Processing
+            - QA
+            - Published
+            - Error
+            - Hold
+            - Invalid
+          description: "One of: New|Processing|QA|Published|Error|Hold|Invalid"
+        title:
+          type: string
+          description: "The Publication title."
+        data_types:
+          type: array
+          items:
+            type: string
+            enum:
+              - AF
+              - ATACseq-bulk
+              - bulk_atacseq
+              - cell-dive
+              - CODEX
+              - codex_cytokit
+              - DART-FISH
+              - image_pyramid
+              - IMC
+              - 3D-IMC
+              - lc-ms_label-free
+              - lc-ms_labeled
+              - lc-ms-ms_label-free
+              - lc-ms-ms_labeled
+              - LC-MS-untargeted
+              - Lightsheet
+              - MALDI-IMS-neg
+              - MALDI-IMS-pos
+              - MxIF
+              - PAS
+              - bulk-RNA
+              - salmon_rnaseq_bulk
+              - SNAREseq
+              - sc_atac_seq_snare_lab
+              - sc_atac_seq_snare
+              - scRNA-Seq-10x
+              - salmon_rnaseq_10x
+              - sc_rna_seq_snare_lab
+              - salmon_rnaseq_snareseq
+              - sciATACseq
+              - sc_atac_seq_sci
+              - sciRNAseq
+              - salmon_rnaseq_sciseq
+              - seqFish
+              - seqFish_lab_processed
+              - snATACseq
+              - sn_atac_seq
+              - snRNAseq
+              - salmon_sn_rnaseq_10x
+              - Slide-seq
+              - Targeted-Shotgun-LC-MS
+              - TMT-LC-MS
+              - WGS
+          description: "The data or assay types contained in this dataset as a json array of strings.  Each is an assay code from [assay types](https://github.com/hubmapconsortium/search-api/blob/main/src/search-schema/data/definitions/enums/assay_types.yaml)."
+        collections:
+          readOnly: true
+          type: array
+          items:
+            $ref: '#/components/schemas/Collection'
+          description: "A list of collections that this dataset belongs to."
+        upload:
+          readOnly: true
+          type: array
+          items:
+            $ref: '#/components/schemas/Upload'
+          description: "The Data Upload that this dataset is associated with."
+        contributors:
+          readOnly: true
+          type: array
+          items:
+            $ref: '#/components/schemas/Person'
+          description: "A list of people who contributed to the creation of this dataset.  Returned as an array of contributor where the structure of a contributor is"
+        direct_ancestors:
+          readOnly: true
+          type: array
+          items:
+            anyOf:
+              - $ref: '#/components/schemas/Sample'
+              - $ref: '#/components/schemas/Dataset'
+          description: "A list of direct parent ancensters (one level above) that the Dataset was derived from."
+        published_timestamp:
+          readOnly: true
+          type: integer
+          description: "The timestamp of when the dataset was published.  The format is an integer representing milliseconds since midnight, Jan 1, 1970."
+        published_user_displayname:
+          readOnly: true
+          type: string
+          description: "The name of the authenticated user or process that published the data."
+        published_user_sub:
+          readOnly: true
+          type: string
+          description: "The subject id for the user who published the data as provided by the authorization mechanism for the person or process authenticated when the dataset was publised."
+        published_user_email:
+          readOnly: true
+          type: string
+          description: "The email address of the user who published the provided by the authorization mechanism for the person or process authenticated when published."
+        ingest_metadata:
+          type: object
+          description: "The metadata returned from the ingest pipeline processing at data submission time.  Provided as json."
+        local_directory_rel_path:
+          type: string
+          readOnly: true
+          description: "The path on the local HIVE file system, relative to the base data directory, where the data is stored."
+        group_uuid:
+          type: string
+          description: "The uuid of globus group which the user who created this entity is a member of.  This is required on Create/POST if the user creating the Donor is a member of more than one write group.  This property cannot be set via PUT (only on Create/POST)."
+        group_name:
+          type: string
+          readOnly: true
+          description: "The displayname of globus group which the user who created this entity is a member of"
+        previous_revision_uuid:
+          type: string
+          description: "The uuid of previous revision dataset. Can only be set at Create/POST time."
+        next_revision_uuid:
+          type: string
+          readOnly: true
+          description: "The uuid of next revision dataset"
+        thumbnail_file:
+          readOnly: true
+          description: 'The dataset thumbnail file detail. Stored in db as a stringfied json, e.g., {"filename": "thumbnail.jpg", "file_uuid": "c35002f9c3d49f8b77e1e2cd4a01803d"}'
+        thumbnail_file_to_add:
+          writeOnly: true
+          type: string
+          format: temp_file_id
+          description: 'Just a temporary file id. Provide as a json object with an temp_file_id like {"temp_file_id":"dzevgd6xjs4d5grmcp4n"}'
+        thumbnail_file_to_remove:
+          writeOnly: true
+          type: string
+          format: file_uuid
+          description: 'The thumbnail image file previously uploaded to delete. Provide as a string of the file_uuid like: "c35002f9c3d49f8b77e1e2cd4a01803d"'
+        sub_status:
+          type: string
+          description: 'A sub-status provided to further define the status. The only current allowable value is "Retracted"'
+        retraction_reason:
+          type: string
+          description: 'Information recorded about why a the dataset was retracted.'
+        dbgap_url:
+          type: string
+          description: 'A URL linking the dataset to the associated uploaded data at dbGaP.'
+        dbgap_study_url:
+          type: string
+          description: 'A URL linking the dataset to the particular study on dbGap it belongs to'
+      Upload:
+        type: object
+        properties:
+          created_timestamp:
+            type: integer
+            readOnly: true
+            description: "The timestamp of when the node was created.  The format is an integer representing milliseconds since midnight Jan 1, 1970"
+          created_by_user_displayname:
+            type: string
+            readOnly: true
+            description: "The name of the person or process authenticated when creating the object"
+          created_by_user_email:
+            type: string
+            readOnly: true
+            description: "The email address of the person or process authenticated when creating the object."
+          created_by_user_sub:
+            type: string
+            readOnly: true
+            description: "The subject id as provided by the authorization mechanism for the person or process authenticated when creating the object."
+          uuid:
+            type: string
+            readOnly: true
+            description: "The HuBMAP unique identifier, intended for internal software use only.  This is a 32 digit hexadecimal uuid e.g. 461bbfdc353a2673e381f632510b0f17"
+          hubmap_id:
+            type: string
+            readOnly: true
+            description: "A HuBMAP Consortium wide unique identifier randomly generated in the format HBM###.ABCD.### for every entity."
+          last_modified_timestamp:
+            type: integer
+            readOnly: true
+            description: "The timestamp of when the object was last modified.  The format is an integer representing milliseconds since midnight, Jan 1, 1970"
+          last_modified_user_sub:
+            type: string
+            readOnly: true
+            description: "The subject id of the user who last modified the entity as provided by the authorization mechanism for the person or process authenticated when the object was modified."
+          last_modified_user_email:
+            type: string
+            readOnly: true
+            description: "The email address of the person or process which authenticated when the object was last modified."
+          last_modified_user_displayname:
+            type: string
+            readOnly: true
+            description: "The name of the person or process which authenticated when the object was last modified."
+          entity_type:
+            type: string
+            readOnly: true
+            description: "One of the normalized entity types: Dataset, Collection, Sample, Donor, Upload"
+          description:
+            type: string
+            description: "Free text description of the data being submitted."
+          title:
+            type: string
+            description: "Title of the datasets, a sentance or less"
+          status:
+            type: string
+            description: "One of: New|Valid|Invalid|Error|Submitted"
+          validation_message:
+            type: string
+            description: A message from the validataion tools describing what is invalid with the upload.
+          group_uuid:
+            type: string
+            description: "The uuid of globus group which the user who created this entity is a member of.  This is required on Create/POST if the user creating the Donor is a member of more than one write group.  This property cannot be set via PUT (only on Create/POST)."
+          group_name:
+            type: string
+            readOnly: true
+            description: "The displayname of globus group which the user who created this entity is a member of"
+          dataset_uuids_to_link:
+            type: array
+            items:
+              type: string
+            writeOnly: true
+            description: 'List of datasets to add to the Upload. Provide as a json array of the dataset uuids like: ["232934234234234234234270c0ea6c51d604a850558ef2247d0b4", "230948203482234234234a57bfe9c056d08a0f8e6cd612baa3bfa"]'
+          dataset_uuids_to_unlink:
+            type: array
+            items:
+              type: string
+            writeOnly: true
+            description: 'List of datasets to remove from a Upload. Provide as a json array of the dataset uuids like: ["232934234234234234234270c0ea6c51d604a850558ef2247d0b4", "230948203482234234234a57bfe9c056d08a0f8e6cd612baa3bfa"]'
+          datasets:
+            type: array
+            items:
+              $ref: '#/components/schemas/Dataset'
+            readOnly: true
+            description: "The datasets that are contained in this Upload."
+          publication_date:
+            type: string
+            description: 'The date of publication'
+          publication_doi:
+            type: string
+            description: 'The doi of the publication. (##.####/[alpha-numeric-string])'
+          publication_url:
+            type: string
+            description: 'he URL at the publishers server for print/pre-print (http(s)://[alpha-numeric-string].[alpha-numeric-string].[...])'
+          publication_venue:
+            type: string
+            description: 'The venue of the publication, journal, conference, preprint server, etc...'
+          volume:
+            type: integer
+            description: 'The volume number of a journal that it was published in.'
+          issue:
+            type: integer
+            description: 'The issue number of the journal that it was published in.'
+          pages_or_article_num:
+            type: string
+            description: 'The pages or the article number in the publication journal e.g., “23”, “23-49”, “e1003424”.'
 paths:
   '/entities/{id}':
     get:
