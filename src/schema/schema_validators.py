@@ -1,6 +1,7 @@
 import yaml
 import logging
 import requests
+from datetime import datetime
 
 # Local modules
 from schema import schema_manager
@@ -129,6 +130,7 @@ def validate_dataset_status_value(property_key, normalized_entity_type, request,
     if (new_status == SchemaConstants.DATASET_STATUS_PUBLISHED) and (app_header.lower() != SchemaConstants.INGEST_API_APP):
         raise ValueError(f"Dataset status change to 'Published' can only be made via {SchemaConstants.INGEST_API_APP}")
 
+
 """
 Validate the sub_status field is also provided when Dataset.retraction_reason is provided on update via PUT
 
@@ -192,6 +194,7 @@ def validate_sub_status_provided(property_key, normalized_entity_type, request, 
     if 'sub_status' not in new_data_dict:
         raise ValueError("Missing sub_status field when retraction_reason is provided")
 
+
 """
 Validate the reaction_reason field is also provided when Dataset.sub_status is provided on update via PUT
 
@@ -211,6 +214,7 @@ new_data_dict : dict
 def validate_retraction_reason_provided(property_key, normalized_entity_type, request, existing_data_dict, new_data_dict):
     if 'retraction_reason' not in new_data_dict:
         raise ValueError("Missing retraction_reason field when sub_status is provided")
+
 
 """
 Validate the provided value of Dataset.sub_status on update via PUT
@@ -235,6 +239,7 @@ def validate_retracted_dataset_sub_status_value(property_key, normalized_entity_
 
     if sub_status not in accepted_sub_status_values:
         raise ValueError("Invalid sub_status value of the Dataset to be retracted")
+
 
 """
 Validate the provided value of Upload.status on update via PUT
@@ -287,6 +292,7 @@ def validate_specimen_type(property_key, normalized_entity_type, request, existi
     if specimen_type not in defined_tissue_types:
         raise ValueError(f"Invalid specimen_type value: {specimen_type}")
 
+
 """
 Validate the provided value of Sample.sample_category on create via POST and update via PUT
 
@@ -303,13 +309,42 @@ existing_data_dict : dict
 new_data_dict : dict
     The json data in request body, already after the regular validations
 """
-
 def validate_sample_category(property_key, normalized_entity_type, request, existing_data_dict, new_data_dict):
     defined_tissue_types = ["organ", "block", "section", "suspension"]
     sample_category = new_data_dict[property_key]
 
     if sample_category not in defined_tissue_types:
         raise ValueError(f"Invalid sample_category: {sample_category}")
+
+
+"""
+Validate the provided value of Publication.publication_date is in the correct format against ISO 8601 Format: 
+'2022-10-31T09:00:00Z' for example, but we only care the date part 'YYYY-MM-DD'
+on create via POST and update via PUT
+
+Note: we allow users to use a future date value
+
+Parameters
+----------
+property_key : str
+    The target property key
+normalized_type : str
+    Submission
+request: Flask request object
+    The instance of Flask request passed in from application request
+existing_data_dict : dict
+    A dictionary that contains all existing entity properties
+new_data_dict : dict
+    The json data in request body, already after the regular validations
+"""
+def validate_publication_date(property_key, normalized_entity_type, request, existing_data_dict, new_data_dict):
+    try:
+        # The user provided date string is valid if we can convert it to a datetime object 
+        # base on the ISO 8601 format, 'YYYY-MM-DD', it's fine if the user entered the time part
+        date = datetime.fromisoformat(new_data_dict[property_key])
+    except ValueError:
+        raise ValueError(f"Invalid {property_key} format, must be YYYY-MM-DD")
+
 
 ####################################################################################################
 ## Internal Functions
