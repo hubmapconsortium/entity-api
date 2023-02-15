@@ -3,8 +3,8 @@ import ast
 import json
 import yaml
 import logging
-import datetime
 import requests
+from datetime import datetime
 from neo4j.exceptions import TransactionError
 
 # Use the current_app proxy, which points to the application handling the current activity
@@ -1583,6 +1583,37 @@ def set_tissue_type(property_key, normalized_type, user_token, existing_data_dic
     #     tissue_type = 'Suspension'
 
     return property_key, tissue_type
+
+
+####################################################################################################
+## Trigger methods specific to Publication - DO NOT RENAME
+####################################################################################################
+
+"""
+Trigger event method of truncating the time part of publication_date if provided by users
+
+Parameters
+----------
+property_key : str
+    The target property key of the value to be generated
+normalized_type : str
+    One of the types defined in the schema yaml: Publication
+user_token: str
+    The user's globus nexus token
+existing_data_dict : dict
+    A dictionary that contains all existing entity properties
+new_data_dict : dict
+    A merged dictionary that contains all possible input data to be used
+
+Returns
+-------
+str: The date part YYYY-MM-DD of ISO 8601
+"""
+def set_publication_date(property_key, normalized_type, user_token, existing_data_dict, new_data_dict):
+    # We only store the date part 'YYYY-MM-DD', base on the ISO 8601 format, it's fine if the user entered the time part
+    date_obj = datetime.fromisoformat(new_data_dict[property_key])
+
+    return property_key, date_obj.date().isoformat()
 
 
 ####################################################################################################

@@ -341,7 +341,7 @@ def validate_publication_date(property_key, normalized_entity_type, request, exi
     try:
         # The user provided date string is valid if we can convert it to a datetime object 
         # base on the ISO 8601 format, 'YYYY-MM-DD', it's fine if the user entered the time part
-        date = datetime.fromisoformat(new_data_dict[property_key])
+        date_obj = datetime.fromisoformat(new_data_dict[property_key])
     except ValueError:
         raise ValueError(f"Invalid {property_key} format, must be YYYY-MM-DD")
 
