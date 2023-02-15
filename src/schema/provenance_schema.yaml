@@ -626,8 +626,10 @@ ENTITIES:
         required_on_create: true # Only required for create via POST, not update via PUT
         before_property_create_validators:
           - validate_publication_date
+        before_create_trigger: set_publication_date
         before_property_update_validators:
           - validate_publication_date
+        before_update_trigger: set_publication_date
       publication_doi:
         type: string
         description: 'The doi of the publication. (##.####/[alpha-numeric-string])'
