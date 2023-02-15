@@ -635,7 +635,7 @@ ENTITIES:
         description: 'The doi of the publication. (##.####/[alpha-numeric-string])'
       publication_url:
         type: string
-        description: 'he URL at the publishers server for print/pre-print (http(s)://[alpha-numeric-string].[alpha-numeric-string].[...])'
+        description: 'The URL at the publishers server for print/pre-print (http(s)://[alpha-numeric-string].[alpha-numeric-string].[...])'
         required_on_create: true # Only required for create via POST, not update via PUT
       publication_venue:
         type: string
@@ -650,6 +650,10 @@ ENTITIES:
       pages_or_article_num:
         type: string
         description: 'The pages or the article number in the publication journal e.g., "23", "23-49", "e1003424".'
+      publication_status:
+        type: boolean
+        required_on_create: true
+        description: 'A boolean representing if the publication has been published yet or not.  (Published in the target/venue journal/proceeding/etc.. NOT published in the sense of Dataset publication)'
 
   ############################################# Donor #############################################
   Donor:
