@@ -1042,7 +1042,7 @@ def create_entity(entity_type):
             previous_version_dict = query_target_entity(json_data_dict['previous_revision_uuid'], user_token)
 
             # Make sure the previous version entity is either a Dataset or Sample (and publication 2/17/23)
-            if previous_version_dict['entity_type'] not in ['Dataset' 'Publication', 'Sample']:
+            if previous_version_dict['entity_type'] not in ['Dataset', 'Publication', 'Sample']:
                 bad_request_error(f"The previous_revision_uuid specified for this dataset must be either a Dataset or Sample or Publication")
 
             # Also need to validate if the given 'previous_revision_uuid' has already had
