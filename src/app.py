@@ -425,7 +425,7 @@ def get_ancestor_organs(id):
     if normalized_entity_type == 'Sample' and entity_dict['sample_category'].lower() == 'organ':
         bad_request_error("Unable to get the ancestor organ of an organ.")
 
-    if normalized_entity_type in ['Dataset', 'Publication]':
+    if normalized_entity_type in ['Dataset', 'Publication']:
         # Only published/public datasets don't require token
         if entity_dict['status'].lower() != DATASET_STATUS_PUBLISHED:
             # Token is required and the user must belong to HuBMAP-READ group
