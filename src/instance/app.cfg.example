@@ -17,6 +17,8 @@ NEO4J_PASSWORD = '123'
 # Set MEMCACHED_MODE to False to disable the caching for local development
 MEMCACHED_MODE = True
 MEMCACHED_SERVER = 'host:11211'
+# Change prefix based on deployment environment, default for DEV
+MEMCACHED_PREFIX = 'hm_entity_dev_'
 
 # URL for talking to UUID API (default value used for docker deployment, no token needed)
 # Works regardless of the trailing slash /
