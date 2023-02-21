@@ -1,7 +1,4 @@
 class SchemaConstants(object):
-    # Use application-specific prefix for Memcached key
-    # Expire the cache after the time-to-live (seconds), default 2 hours
-    MEMCACHED_PREFIX = 'hm_entity_'
     MEMCACHED_TTL = 7200
 
     # Constants used by validators
