@@ -3,8 +3,8 @@ import ast
 import json
 import yaml
 import logging
-import datetime
 import requests
+from datetime import datetime
 from neo4j.exceptions import TransactionError
 
 # Use the current_app proxy, which points to the application handling the current activity
@@ -31,7 +31,7 @@ Parameters
 property_key : str
     The target property key of the value to be generated
 normalized_type : str
-    One of the types defined in the schema yaml: Activity, Collection, Donor, Sample, Dataset
+    One of the types defined in the schema yaml: Activity, Collection, Donor, Sample, Dataset, Upload, Publication
 user_token: str
     The user's globus nexus token
 existing_data_dict : dict
@@ -58,7 +58,7 @@ Parameters
 property_key : str
     The target property key of the value to be generated
 normalized_type : str
-    One of the types defined in the schema yaml: Activity, Collection, Donor, Sample, Dataset
+    One of the types defined in the schema yaml: Activity, Collection, Donor, Sample, Dataset, Upload, Publication
 user_token: str
     The user's globus nexus token
 existing_data_dict : dict
@@ -83,7 +83,7 @@ Parameters
 property_key : str
     The target property key of the value to be generated
 normalized_type : str
-    One of the types defined in the schema yaml: Activity, Collection, Donor, Sample, Dataset
+    One of the types defined in the schema yaml: Activity, Collection, Donor, Sample, Dataset, Upload, Publication
 user_token: str
     The user's globus nexus token
 existing_data_dict : dict
@@ -110,7 +110,7 @@ Parameters
 property_key : str
     The target property key of the value to be generated
 normalized_type : str
-    One of the types defined in the schema yaml: Activity, Collection, Donor, Sample, Dataset
+    One of the types defined in the schema yaml: Activity, Collection, Donor, Sample, Dataset, Upload, Publication
 user_token: str
     The user's globus nexus token
 existing_data_dict : dict
@@ -137,7 +137,7 @@ Parameters
 property_key : str
     The target property key of the value to be generated
 normalized_type : str
-    One of the types defined in the schema yaml: Activity, Collection, Donor, Sample, Dataset
+    One of the types defined in the schema yaml: Activity, Collection, Donor, Sample, Dataset, Upload, Publication
 user_token: str
     The user's globus nexus token
 existing_data_dict : dict
@@ -164,7 +164,7 @@ Parameters
 property_key : str
     The target property key of the value to be generated
 normalized_type : str
-    One of the types defined in the schema yaml: Activity, Collection, Donor, Sample, Dataset
+    One of the types defined in the schema yaml: Activity, Collection, Donor, Sample, Dataset, Upload, Publication
 user_token: str
     The user's globus nexus token
 existing_data_dict : dict
@@ -191,7 +191,7 @@ Parameters
 property_key : str
     The target property key of the value to be generated
 normalized_type : str
-    One of the types defined in the schema yaml: Activity, Collection, Donor, Sample, Dataset
+    One of the types defined in the schema yaml: Activity, Collection, Donor, Sample, Dataset, Upload, Publication
 user_token: str
     The user's globus nexus token
 existing_data_dict : dict
@@ -279,7 +279,7 @@ Parameters
 property_key : str
     The target property key of the value to be generated
 normalized_type : str
-    One of the types defined in the schema yaml: Activity, Collection, Donor, Sample, Dataset
+    One of the types defined in the schema yaml: Donor, Sample, Dataset
 user_token: str
     The user's globus nexus token
 existing_data_dict : dict
@@ -338,7 +338,7 @@ Parameters
 property_key : str
     The target property key of the value to be generated
 normalized_type : str
-    One of the types defined in the schema yaml: Activity, Collection, Donor, Sample, Dataset
+    One of the types defined in the schema yaml: Donor, Sample, Dataset
 user_token: str
     The user's globus nexus token
 existing_data_dict : dict
@@ -389,7 +389,7 @@ Parameters
 property_key : str
     The target property key of the value to be generated
 normalized_type : str
-    One of the types defined in the schema yaml: Activity, Collection, Donor, Sample, Dataset
+    One of the types defined in the schema yaml: Donor, Sample
 user_token: str
     The user's globus nexus token
 existing_data_dict : dict
@@ -439,7 +439,7 @@ Parameters
 property_key : str
     The target property key of the value to be generated
 normalized_type : str
-    One of the types defined in the schema yaml: Activity, Collection, Donor, Sample, Dataset
+    One of the types defined in the schema yaml: Donor, Sample
 user_token: str
     The user's globus nexus token
 existing_data_dict : dict
@@ -568,7 +568,7 @@ Parameters
 property_key : str
     The target property key of the value to be generated
 normalized_type : str
-    One of the types defined in the schema yaml: Activity, Collection, Donor, Sample, Dataset
+    One of the types defined in the schema yaml: Collection
 user_token: str
     The user's globus nexus token
 existing_data_dict : dict
@@ -617,7 +617,7 @@ Parameters
 property_key : str
     The target property key
 normalized_type : str
-    One of the types defined in the schema yaml: Activity, Collection, Donor, Sample, Dataset
+    One of the types defined in the schema yaml: Dataset
 user_token: str
     The user's globus nexus token
 existing_data_dict : dict
@@ -644,7 +644,7 @@ Parameters
 property_key : str
     The target property key
 normalized_type : str
-    One of the types defined in the schema yaml: Activity, Collection, Donor, Sample, Dataset
+    One of the types defined in the schema yaml: Dataset
 user_token: str
     The user's globus nexus token
 existing_data_dict : dict
@@ -679,7 +679,7 @@ Parameters
 property_key : str
     The target property key
 normalized_type : str
-    One of the types defined in the schema yaml: Activity, Collection, Donor, Sample, Dataset
+    One of the types defined in the schema yaml: Dataset
 user_token: str
     The user's globus nexus token
 existing_data_dict : dict
@@ -717,7 +717,7 @@ Parameters
 property_key : str
     The target property key
 normalized_type : str
-    One of the types defined in the schema yaml: Activity, Collection, Donor, Sample, Dataset
+    One of the types defined in the schema yaml: Dataset
 user_token: str
     The user's globus nexus token
 existing_data_dict : dict
@@ -759,7 +759,7 @@ Parameters
 property_key : str
     The target property key
 normalized_type : str
-    One of the types defined in the schema yaml: Activity, Collection, Donor, Sample, Dataset
+    One of the types defined in the schema yaml: Dataset
 user_token: str
     The user's globus nexus token
 existing_data_dict : dict
@@ -800,7 +800,7 @@ Parameters
 property_key : str
     The target property key of the value to be generated
 normalized_type : str
-    One of the types defined in the schema yaml: Activity, Collection, Donor, Sample, Dataset
+    One of the types defined in the schema yaml: Dataset
 user_token: str
     The user's globus nexus token
 existing_data_dict : dict
@@ -841,7 +841,7 @@ Parameters
 property_key : str
     The target property key of the value to be generated
 normalized_type : str
-    One of the types defined in the schema yaml: Activity, Collection, Donor, Sample, Dataset
+    One of the types defined in the schema yaml: Dataset
 user_token: str
     The user's globus nexus token
 existing_data_dict : dict
@@ -890,7 +890,7 @@ Parameters
 property_key : str
     The target property key
 normalized_type : str
-    One of the types defined in the schema yaml: Activity, Collection, Donor, Sample, Dataset
+    One of the types defined in the schema yaml: Dataset
 user_token: str
     The user's globus nexus token
 existing_data_dict : dict
@@ -925,7 +925,7 @@ Parameters
 property_key : str
     The target property key
 normalized_type : str
-    One of the types defined in the schema yaml: Activity, Collection, Donor, Sample, Dataset
+    One of the types defined in the schema yaml: Dataset
 user_token: str
     The user's globus nexus token
 existing_data_dict : dict
@@ -1039,7 +1039,7 @@ Parameters
 property_key : str
     The target property key
 normalized_type : str
-    One of the types defined in the schema yaml: Activity, Collection, Donor, Sample, Dataset
+    One of the types defined in the schema yaml: Dataset
 user_token: str
     The user's globus nexus token
 existing_data_dict : dict
@@ -1073,7 +1073,7 @@ Parameters
 property_key : str
     The target property key
 normalized_type : str
-    One of the types defined in the schema yaml: Activity, Collection, Donor, Sample, Dataset
+    One of the types defined in the schema yaml: Dataset
 user_token: str
     The user's globus nexus token
 existing_data_dict : dict
@@ -1115,7 +1115,7 @@ Parameters
 property_key : str
     The property key for which the original trigger method is defined
 normalized_type : str
-    One of the types defined in the schema yaml: Donor, Sample
+    One of the types defined in the schema yaml: Dataset
 user_token: str
     The user's globus nexus token
 existing_data_dict : dict
@@ -1195,7 +1195,7 @@ Parameters
 property_key : str
     The property key for which the original trigger method is defined
 normalized_type : str
-    One of the types defined in the schema yaml: Donor, Sample
+    One of the types defined in the schema yaml: Dataset
 user_token: str
     The user's globus nexus token
 existing_data_dict : dict
@@ -1287,7 +1287,7 @@ Parameters
 property_key : str
     The target property key
 normalized_type : str
-    One of the types defined in the schema yaml: Activity, Collection, Donor, Sample, Dataset
+    One of the types defined in the schema yaml: Donor
 user_token: str
     The user's globus nexus token
 existing_data_dict : dict
@@ -1413,7 +1413,7 @@ Parameters
 property_key : str
     The target property key
 normalized_type : str
-    One of the types defined in the schema yaml: Activity, Collection, Donor, Sample, Dataset
+    One of the types defined in the schema yaml: Sample
 user_token: str
     The user's globus nexus token
 existing_data_dict : dict
@@ -1452,7 +1452,7 @@ Parameters
 property_key : str
     The target property key of the value to be generated
 normalized_type : str
-    One of the types defined in the schema yaml: Activity, Collection, Donor, Sample, Dataset
+    One of the types defined in the schema yaml: Sample
 user_token: str
     The user's globus nexus token
 existing_data_dict : dict
@@ -1498,7 +1498,7 @@ Parameters
 property_key : str
     The target property key of the value to be generated
 normalized_type : str
-    One of the types defined in the schema yaml: Activity, Collection, Donor, Sample, Dataset
+    One of the types defined in the schema yaml: Sample
 user_token: str
     The user's globus nexus token
 existing_data_dict : dict
@@ -1586,6 +1586,37 @@ def set_tissue_type(property_key, normalized_type, user_token, existing_data_dic
 
 
 ####################################################################################################
+## Trigger methods specific to Publication - DO NOT RENAME
+####################################################################################################
+
+"""
+Trigger event method of truncating the time part of publication_date if provided by users
+
+Parameters
+----------
+property_key : str
+    The target property key of the value to be generated
+normalized_type : str
+    One of the types defined in the schema yaml: Publication
+user_token: str
+    The user's globus nexus token
+existing_data_dict : dict
+    A dictionary that contains all existing entity properties
+new_data_dict : dict
+    A merged dictionary that contains all possible input data to be used
+
+Returns
+-------
+str: The date part YYYY-MM-DD of ISO 8601
+"""
+def set_publication_date(property_key, normalized_type, user_token, existing_data_dict, new_data_dict):
+    # We only store the date part 'YYYY-MM-DD', base on the ISO 8601 format, it's fine if the user entered the time part
+    date_obj = datetime.fromisoformat(new_data_dict[property_key])
+
+    return property_key, date_obj.date().isoformat()
+
+
+####################################################################################################
 ## Trigger methods specific to Upload - DO NOT RENAME
 ####################################################################################################
 
@@ -1597,7 +1628,7 @@ Parameters
 property_key : str
     The target property key of the value to be generated
 normalized_type : str
-    One of the types defined in the schema yaml: Activity, Collection, Donor, Sample, Dataset
+    One of the types defined in the schema yaml: Upload
 user_token: str
     The user's globus nexus token
 existing_data_dict : dict
@@ -1621,7 +1652,7 @@ Parameters
 property_key : str
     The target property key
 normalized_type : str
-    One of the types defined in the schema yaml: Activity, Collection, Donor, Sample, Dataset
+    One of the types defined in the schema yaml: Upload
 user_token: str
     The user's globus nexus token
 existing_data_dict : dict
@@ -1659,7 +1690,7 @@ Parameters
 property_key : str
     The target property key
 normalized_type : str
-    One of the types defined in the schema yaml: Activity, Collection, Donor, Sample, Dataset
+    One of the types defined in the schema yaml: Upload
 user_token: str
     The user's globus nexus token
 existing_data_dict : dict
@@ -1690,7 +1721,7 @@ Parameters
 property_key : str
     The target property key
 normalized_type : str
-    One of the types defined in the schema yaml: Activity, Collection, Donor, Sample, Dataset
+    One of the types defined in the schema yaml: Upload
 user_token: str
     The user's globus nexus token
 existing_data_dict : dict
@@ -1721,7 +1752,7 @@ Parameters
 property_key : str
     The target property key of the value to be generated
 normalized_type : str
-    One of the types defined in the schema yaml: Activity, Collection, Donor, Sample, Dataset
+    One of the types defined in the schema yaml: Upload
 user_token: str
     The user's globus nexus token
 existing_data_dict : dict
@@ -1776,7 +1807,7 @@ Parameters
 property_key : str
     The target property key of the value to be generated
 normalized_type : str
-    One of the types defined in the schema yaml: Activity, Collection, Donor, Sample, Dataset
+    One of the types defined in the schema yaml: Activity
 user_token: str
     The user's globus nexus token
 existing_data_dict : dict

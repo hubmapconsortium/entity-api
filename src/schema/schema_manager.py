@@ -55,14 +55,17 @@ auth_helper_instance : AuthHelper
 neo4j_driver_instance : neo4j_driver
     The Neo4j driver instance
 memcached_client_instance : PooledClient
-    The polled client from Memcached connection
+    The pooled client from Memcached connection
+memcached_prefix : str
+    The application-specifc prefix for Memcached data store
 """
 def initialize(valid_yaml_file, 
                uuid_api_url,
                ingest_api_url,
                auth_helper_instance,
                neo4j_driver_instance,
-               memcached_client_instance):
+               memcached_client_instance,
+               memcached_prefix):
     # Specify as module-scope variables
     global _schema
     global _uuid_api_url
@@ -70,6 +73,7 @@ def initialize(valid_yaml_file,
     global _auth_helper
     global _neo4j_driver
     global _memcached_client
+    global _memcached_prefix
 
     _schema = load_provenance_schema(valid_yaml_file)
     _uuid_api_url = uuid_api_url
@@ -79,6 +83,7 @@ def initialize(valid_yaml_file,
     _auth_helper = auth_helper_instance
     _neo4j_driver = neo4j_driver_instance
     _memcached_client = memcached_client_instance
+    _memcached_prefix = memcached_prefix
 
 
 ####################################################################################################
@@ -143,6 +148,41 @@ def get_all_entity_types():
     dict_keys = _schema['ENTITIES'].keys()
     # Need convert the dict_keys object to a list
     return list(dict_keys)
+
+
+"""
+Get the superclass (if defined) of the given entity class
+
+Parameters
+----------
+normalized_entity_class : str
+    The normalized target entity class
+
+Returns
+-------
+string or None
+    One of the normalized entity classes if defined (currently only Publucation has Dataset as superclass). None otherwise
+"""
+def get_entity_superclass(normalized_entity_class):
+    normalized_superclass = None
+
+    all_entity_types = get_all_entity_types()
+
+    if normalized_entity_class in all_entity_types:
+        if 'superclass' in _schema['ENTITIES'][normalized_entity_class]:
+            normalized_superclass = normalize_entity_type(_schema['ENTITIES'][normalized_entity_class]['superclass'])
+
+            if normalized_superclass not in all_entity_types:
+                msg = f"Invalid 'superclass' value defined for {normalized_entity_class}: {normalized_superclass}"
+                logger.error(msg)
+                raise ValueError(msg)
+        else:
+            # Since the 'superclass' property is optional, we just log the warning message, no need to bubble up
+            msg = f"The 'superclass' property is not defined for entity class: {normalized_entity_class}"
+            logger.warn(msg)
+
+    return normalized_superclass
+
 
 """
 Generating triggered data based on the target events and methods
@@ -346,6 +386,7 @@ def generate_triggered_data(trigger_type, normalized_class, user_token, existing
     # Return after for loop
     return trigger_generated_data_dict
     
+
 """
 Filter out the merged dict by getting rid of properties with None values
 This method is used by get_complete_entity_result() for the 'on_read_trigger'
@@ -381,7 +422,7 @@ Parameters
 merged_dict : dict
     A merged dict that may contain properties with None values
 normalized_entity_type : str
-    One of the normalized entity types: Dataset, Collection, Sample, Donor
+    One of the normalized entity types: Dataset, Collection, Sample, Donor, Upload, Publication
 
 Returns
 -------
@@ -590,7 +631,7 @@ Parameters
 json_data_dict : dict
     The json data dict from user request
 normalized_entity_type : str
-    One of the normalized entity types: Dataset, Collection, Sample, Donor
+    One of the normalized entity types: Dataset, Collection, Sample, Donor, Upload, Publication
 existing_entity_dict : dict
     Entity dict for creating new entity, otherwise pass in the existing entity dict for update validation
 """
@@ -689,7 +730,7 @@ Parameters
 validator_type : str
     One of the validator types: before_entity_create_validator
 normalized_entity_type : str
-    One of the normalized entity types defined in the schema yaml: Donor, Sample, Dataset, Upload
+    One of the normalized entity types defined in the schema yaml: Donor, Sample, Dataset, Upload, Upload, Publication
 request: Flask request object
     The instance of Flask request passed in from application request
 """
@@ -732,7 +773,7 @@ Parameters
 validator_type : str
     before_property_create_validators|before_property_update_validators (support multiple validators)
 normalized_entity_type : str
-    One of the normalized entity types defined in the schema yaml: Donor, Sample, Dataset, Upload
+    One of the normalized entity types defined in the schema yaml: Donor, Sample, Dataset, Upload, Publication
 request: Flask request object
     The instance of Flask request passed in from application request
 existing_data_dict : dict
@@ -821,14 +862,14 @@ Lowercase and captalize the entity type string
 Parameters
 ----------
 normalized_entity_type : str
-    One of the normalized entity types: Dataset, Collection, Sample, Donor
+    One of the normalized entity types: Dataset, Collection, Sample, Donor, Upload, Publication
 id : str
     The uuid of target entity 
 
 Returns
 -------
 string
-    One of the normalized entity types: Dataset, Collection, Sample, Donor
+    One of the normalized entity types: Dataset, Collection, Sample, Donor, Upload, Publication
 """
 def normalize_entity_type(entity_type):
     normalized_entity_type = entity_type.lower().capitalize()
@@ -918,7 +959,7 @@ Validate the normalized entity class
 Parameters
 ----------
 normalized_entity_type : str
-    The normalized entity class: Collection|Donor|Sample|Dataset
+    One of the normalized entity types: Dataset, Collection, Sample, Donor, Upload, Publication
 """
 def validate_normalized_entity_type(normalized_entity_type):
     separator = ', '
@@ -937,7 +978,7 @@ Validate the normalized class
 Parameters
 ----------
 normalized_class : str
-    The normalized class: Activity|Collection|Donor|Sample|Dataset
+    The normalized class: Activity|Collection|Donor|Sample|Dataset|Publication
 """
 def validate_normalized_class(normalized_class):
     separator = ', '
@@ -965,6 +1006,7 @@ def validate_target_entity_type_for_derivation(normalized_target_entity_type):
 
     if normalized_target_entity_type not in accepted_target_entity_types:
         bad_request_error(f"Invalid target entity type specified for creating the derived entity. Accepted types: {separator.join(accepted_target_entity_types)}")
+
 
 """
 Validate the source and target entity types for creating derived entity
@@ -1175,7 +1217,7 @@ def create_hubmap_ids(normalized_class, json_data_dict, user_token, user_info_di
     }
 
     # Activity and Collection don't require the `parent_ids` in request json
-    if normalized_class in ['Donor', 'Sample', 'Dataset', 'Upload']:
+    if normalized_class in ['Donor', 'Sample', 'Dataset', 'Upload', 'Publication']:
         # The direct ancestor of Donor and Upload must be Lab
         # The group_uuid is the Lab id in this case
         if normalized_class in ['Donor', 'Upload']:
@@ -1560,12 +1602,12 @@ requests.Response
 """
 def make_request_get(target_url, internal_token_used = False):
     global _memcached_client
+    global _memcached_prefix
 
     response = None
 
-    cache_key = f'{SchemaConstants.MEMCACHED_PREFIX}{target_url}'
- 
-    if _memcached_client:
+    if _memcached_client and _memcached_prefix:
+        cache_key = f'{_memcached_prefix}{target_url}'
         response = _memcached_client.get(cache_key)
 
     current_datetime = datetime.now()
@@ -1586,8 +1628,8 @@ def make_request_get(target_url, internal_token_used = False):
         else:
             response = requests.get(url = target_url, verify = False)
 
-        if _memcached_client:
-            # Cache the result
+        if _memcached_client and _memcached_prefix:
+            cache_key = f'{_memcached_prefix}{target_url}'
             _memcached_client.set(cache_key, response, expire = SchemaConstants.MEMCACHED_TTL)
     else:
         logger.info(f'Using the cached HTTP response of GET {target_url} at time {current_datetime}')
