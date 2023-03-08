@@ -805,7 +805,7 @@ components:
         retraction_reason:
           type: string
           description: 'Information recorded about why a the dataset was retracted.'
-        dbgap_url:
+        dbgap_sra_experiment_url:
           type: string
           description: 'A URL linking the dataset to the associated uploaded data at dbGaP.'
         dbgap_study_url:
@@ -1195,7 +1195,7 @@ components:
         retraction_reason:
           type: string
           description: 'Information recorded about why a the dataset was retracted.'
-        dbgap_url:
+        dbgap_sra_experiment_url:
           type: string
           description: 'A URL linking the dataset to the associated uploaded data at dbGaP.'
         dbgap_study_url:

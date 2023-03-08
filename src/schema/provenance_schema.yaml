@@ -403,7 +403,7 @@ ENTITIES:
       provider_info:
         type: string
         description: 'Information recorded about the data provider before an analysis pipeline is run on the data.'
-      dbgap_url:
+      dbgap_sra_experiment_url:
         type: string
         description: 'A URL linking the dataset to the associated uploaded data at dbGaP.'
       dbgap_study_url:
@@ -614,7 +614,7 @@ ENTITIES:
       provider_info:
         type: string
         description: 'Information recorded about the data provider before an analysis pipeline is run on the data.'
-      dbgap_url:
+      dbgap_sra_experiment_url:
         type: string
         description: 'A URL linking the dataset to the associated uploaded data at dbGaP.'
       dbgap_study_url:
