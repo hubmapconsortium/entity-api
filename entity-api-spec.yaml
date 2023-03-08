@@ -605,6 +605,10 @@ components:
           type: string
           readOnly: true
           description: "A HuBMAP Consortium wide unique identifier randomly generated in the format HBM###.ABCD.### for every entity."
+        error_message:
+          type: string
+          readOnly: false
+          description: "An open text field that holds the last error message that arose from pipeline validation or analysis."
         last_modified_timestamp:
           type: integer
           readOnly: true
@@ -805,7 +809,7 @@ components:
         retraction_reason:
           type: string
           description: 'Information recorded about why a the dataset was retracted.'
-        dbgap_url:
+        dbgap_sra_experiment_url:
           type: string
           description: 'A URL linking the dataset to the associated uploaded data at dbGaP.'
         dbgap_study_url:
@@ -1195,7 +1199,7 @@ components:
         retraction_reason:
           type: string
           description: 'Information recorded about why a the dataset was retracted.'
-        dbgap_url:
+        dbgap_sra_experiment_url:
           type: string
           description: 'A URL linking the dataset to the associated uploaded data at dbGaP.'
         dbgap_study_url:

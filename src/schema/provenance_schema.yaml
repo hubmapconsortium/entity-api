@@ -232,6 +232,9 @@ ENTITIES:
         type: boolean
         required_on_create: true # Only required for create via POST, not update via PUT
         description: "True if the data contains any human genetic sequence information."
+      error_message:
+        type: string
+        description: "An open text field that holds the last error message that arose from pipeline validation or analysis."
       status:
         type: string
         before_property_update_validators: 
@@ -403,7 +406,7 @@ ENTITIES:
       provider_info:
         type: string
         description: 'Information recorded about the data provider before an analysis pipeline is run on the data.'
-      dbgap_url:
+      dbgap_sra_experiment_url:
         type: string
         description: 'A URL linking the dataset to the associated uploaded data at dbGaP.'
       dbgap_study_url:
@@ -614,7 +617,7 @@ ENTITIES:
       provider_info:
         type: string
         description: 'Information recorded about the data provider before an analysis pipeline is run on the data.'
-      dbgap_url:
+      dbgap_sra_experiment_url:
         type: string
         description: 'A URL linking the dataset to the associated uploaded data at dbGaP.'
       dbgap_study_url:
