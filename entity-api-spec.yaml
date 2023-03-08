@@ -605,6 +605,10 @@ components:
           type: string
           readOnly: true
           description: "A HuBMAP Consortium wide unique identifier randomly generated in the format HBM###.ABCD.### for every entity."
+        error_message:
+          type: string
+          readOnly: false
+          description: "An open text field that holds the last error message that arose from pipeline validation or analysis."
         last_modified_timestamp:
           type: integer
           readOnly: true
