@@ -995,6 +995,10 @@ components:
           type: string
           readOnly: true
           description: "The HuBMAP unique identifier, intended for internal software use only.  This is a 32 digit hexadecimal uuid e.g. 461bbfdc353a2673e381f632510b0f17"
+        error_message:
+          type: string
+          readOnly: false
+          description: "An open text field that holds the last error message that arose from pipeline validation or analysis."
         hubmap_id:
           type: string
           readOnly: true
