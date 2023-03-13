@@ -447,6 +447,9 @@ ENTITIES:
         type: boolean
         required_on_create: true # Only required for create via POST, not update via PUT
         description: "True if the data contains any human genetic sequence information."
+      error_message:
+        type: string
+        description: "An open text field that holds the last error message that arose from pipeline validation or analysis."
       status:
         type: string
         before_property_update_validators:
