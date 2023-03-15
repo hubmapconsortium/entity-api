@@ -69,10 +69,15 @@ app.config['SEARCH_API_URL_LIST'] = [url.strip('/') for url in app.config['SEARC
 READ_ONLY_MODE = app.config['READ_ONLY_MODE']
 
 # Whether Memcached is being used or not
-MEMCACHED_MODE = app.config['MEMCACHED_MODE']
+# Default to false if the property is missing in the configuration file
 
-# Use prefix to distinguish the cached data of same source across different deployments
-MEMCACHED_PREFIX = app.config['MEMCACHED_PREFIX']
+if 'MEMCACHED_MODE' in app.config:
+    MEMCACHED_MODE = app.config['MEMCACHED_MODE']
+    # Use prefix to distinguish the cached data of same source across different deployments
+    MEMCACHED_PREFIX = app.config['MEMCACHED_PREFIX']
+else:
+    MEMCACHED_MODE = False
+    MEMCACHED_PREFIX = 'NONE'
 
 # Suppress InsecureRequestWarning warning when requesting status on https with ssl cert verify disabled
 requests.packages.urllib3.disable_warnings(category = InsecureRequestWarning)

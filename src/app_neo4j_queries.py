@@ -479,7 +479,7 @@ public : bool
 """
 def get_dataset_latest_revision(neo4j_driver, uuid, public = False):
     # Defaut the latest revision to this entity itself
-    result = get_entity(neo4j_driver, uuid)
+    result = schema_neo4j_queries.get_entity(neo4j_driver, uuid)
 
     if public:
         # Don't use [r:REVISION_OF] because
