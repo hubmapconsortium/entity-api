@@ -119,7 +119,7 @@ def validate_dataset_status_value(property_key, normalized_entity_type, request,
     # If status == 'Published' already in Neo4j, then fail for any changes at all
     # Because once published, the dataset should be read-only
     if existing_data_dict['status'].lower() == SchemaConstants.DATASET_STATUS_PUBLISHED:
-        raise ValueError("This dataset is already published, status change is not allowed")
+        raise ValueError(f"The status of this {normalized_entity_type} is already 'Published', status change is not allowed")
 
     # HTTP header names are case-insensitive
     # request.headers.get('X-Hubmap-Application') returns None if the header doesn't exist

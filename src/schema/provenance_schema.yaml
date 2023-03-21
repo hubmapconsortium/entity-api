@@ -461,7 +461,6 @@ ENTITIES:
         after_update_trigger: update_dataset_and_ancestors_data_access_level
       title:
         type: string
-        immutable: true # Disallow update via PUT
         description: "The title of the publication."
         required_on_create: true # Only required for create via POST, not update via PUT
       lab_dataset_id:
