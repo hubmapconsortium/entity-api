@@ -19,6 +19,8 @@ from schema.schema_constants import SchemaConstants
 # HuBMAP commons
 from hubmap_commons.hm_auth import AuthHelper
 
+from schema import schema_neo4j_queries
+
 logger = logging.getLogger(__name__)
 
 # Suppress InsecureRequestWarning warning when requesting status on https with ssl cert verify disabled
@@ -179,9 +181,23 @@ def get_entity_superclass(normalized_entity_class):
         else:
             # Since the 'superclass' property is optional, we just log the warning message, no need to bubble up
             msg = f"The 'superclass' property is not defined for entity class: {normalized_entity_class}"
-            logger.warn(msg)
+            logger.warning(msg)
 
     return normalized_superclass
+
+
+def entity_instanceof(entity_uuid: str, entity_class: str) -> bool:
+    entity_type: str =\
+        schema_neo4j_queries.get_entity_type(get_neo4j_driver_instance(), entity_uuid)
+
+    super_entity_type: str = entity_type
+    while True:
+        super_entity_type = get_entity_superclass(normalize_entity_type(super_entity_type))
+        if super_entity_type is None:
+            break
+        if super_entity_type == entity_class:
+            return True
+    return False
 
 
 """
@@ -1664,4 +1680,3 @@ def _create_request_headers(user_token):
     }
 
     return headers_dict
-
