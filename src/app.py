@@ -458,7 +458,7 @@ def get_ancestor_organs(id):
 
 
 @app.route('/entities/<id>/instanceof/<type>', methods=['GET'])
-def get_entity_instanceof(id, type):
+def get_entities_instanceof(id, type):
     try:
         instanceof: bool = schema_manager.entity_instanceof(id, type)
     except:
