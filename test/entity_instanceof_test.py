@@ -37,23 +37,28 @@ class TestEntityInstanceof(unittest.TestCase):
         assertion: bool = schema_manager.entity_instanceof('dummy uuid', 'E')
         self.assertFalse(assertion)
 
-    @patch('schema.schema_neo4j_queries.get_entity_type', return_value='E')
+    @patch('schema.schema_neo4j_queries.get_entity_type', return_value='A')
     def test_5(self, mock_get_entity_type):
         assertion: bool = schema_manager.entity_instanceof('dummy uuid', 'A')
         self.assertFalse(assertion)
 
-    @patch('schema.schema_neo4j_queries.get_entity_type', return_value='Z')
+    @patch('schema.schema_neo4j_queries.get_entity_type', return_value='E')
     def test_6(self, mock_get_entity_type):
         assertion: bool = schema_manager.entity_instanceof('dummy uuid', 'A')
         self.assertFalse(assertion)
 
-    @patch('schema.schema_neo4j_queries.get_entity_type', return_value='A')
+    @patch('schema.schema_neo4j_queries.get_entity_type', return_value='Z')
     def test_7(self, mock_get_entity_type):
+        assertion: bool = schema_manager.entity_instanceof('dummy uuid', 'A')
+        self.assertFalse(assertion)
+
+    @patch('schema.schema_neo4j_queries.get_entity_type', return_value='A')
+    def test_8(self, mock_get_entity_type):
         assertion: bool = schema_manager.entity_instanceof('dummy uuid', 'Z')
         self.assertFalse(assertion)
 
     @patch('schema.schema_neo4j_queries.get_entity_type', return_value=None)
-    def test_8(self, mock_get_entity_type):
+    def test_9(self, mock_get_entity_type):
         assertion: bool = schema_manager.entity_instanceof('dummy uuid', 'Z')
         self.assertFalse(assertion)
 
