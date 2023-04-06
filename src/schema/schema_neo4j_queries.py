@@ -438,10 +438,9 @@ def get_entity_type(neo4j_driver, entity_uuid: str) -> str:
     logger.info("======get_entity_type() query======")
     logger.info(query)
 
-    # Sessions will often be created and destroyed using a with block context
     with neo4j_driver.session() as session:
         record = session.read_transaction(execute_readonly_tx, query)
-        if record:
+        if record and len(record) == 1:
             return record[0]
 
     return None

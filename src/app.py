@@ -457,6 +457,15 @@ def get_ancestor_organs(id):
     return jsonify(final_result)
 
 
+@app.route('/entities/<id>/instanceof/<type>', methods=['GET'])
+def get_entity_instanceof(id, type):
+    try:
+        instanceof: bool = schema_manager.entity_instanceof(id, type)
+    except:
+        abort(400)
+    return make_response(str(instanceof).lower(), 200)
+
+
 """
 Retrive the metadata information of a given entity by id
 
