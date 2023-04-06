@@ -187,19 +187,27 @@ def get_entity_superclass(normalized_entity_class):
 
 
 def entity_instanceof(entity_uuid: str, entity_class: str) -> bool:
+    """
+    Determine if the Entity with 'entity_uuid' is an instance of 'entity_class'.
+
+    :param entity_uuid: from Entity
+    :param entity_class: found in .yaml file
+    :return: True or False
+    """
     entity_type: str =\
         schema_neo4j_queries.get_entity_type(get_neo4j_driver_instance(), entity_uuid)
     if entity_type is None:
         return False
 
     normalized_entry_class: str = normalize_entity_type(entity_class)
-    super_entity_type: str = entity_type
+    super_entity_type: str = normalize_entity_type(entity_type)
     while True:
-        super_entity_type = get_entity_superclass(normalize_entity_type(super_entity_type))
+        if normalized_entry_class == super_entity_type:
+            return True
+        super_entity_type =\
+            get_entity_superclass(normalize_entity_type(super_entity_type))
         if super_entity_type is None:
             break
-        if super_entity_type == normalized_entry_class:
-            return True
     return False
 
 
