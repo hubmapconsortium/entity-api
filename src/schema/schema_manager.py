@@ -201,12 +201,10 @@ def entity_instanceof(entity_uuid: str, entity_class: str) -> bool:
 
     normalized_entry_class: str = normalize_entity_type(entity_class)
     super_entity_type: str = normalize_entity_type(entity_type)
-    while True:
+    while super_entity_type is not None:
         if normalized_entry_class == super_entity_type:
             return True
         super_entity_type = get_entity_superclass(super_entity_type)
-        if super_entity_type is None:
-            break
     return False
 
 
