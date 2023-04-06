@@ -65,6 +65,11 @@ class TestEntityInstanceof(unittest.TestCase):
 
     @patch('schema.schema_neo4j_queries.get_entity_type', return_value=None)
     def test_9(self, mock_get_entity_type):
+        assertion: bool = schema_manager.entity_instanceof('dummy uuid', 'Aa')
+        self.assertFalse(assertion)
+
+    @patch('schema.schema_neo4j_queries.get_entity_type', return_value=None)
+    def test_10(self, mock_get_entity_type):
         assertion: bool = schema_manager.entity_instanceof('dummy uuid', 'Zz')
         self.assertFalse(assertion)
 
