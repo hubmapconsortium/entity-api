@@ -189,6 +189,8 @@ def get_entity_superclass(normalized_entity_class):
 def entity_instanceof(entity_uuid: str, entity_class: str) -> bool:
     entity_type: str =\
         schema_neo4j_queries.get_entity_type(get_neo4j_driver_instance(), entity_uuid)
+    if entity_type is None:
+        return False
 
     super_entity_type: str = entity_type
     while True:
