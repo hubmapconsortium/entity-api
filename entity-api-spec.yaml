@@ -1319,8 +1319,8 @@ components:
         description: "Returned by entities/<id>/instanceof/<type>"
         properties:
           instanceof:
-            type: string
-            description: "has value of 'true' or 'false'"
+            type: boolean
+            description: "True of False depending on whether the Entity id is an instance of the type"
 
 paths:
   '/entities/{id}':
