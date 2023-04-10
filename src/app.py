@@ -463,7 +463,7 @@ def get_entities_instanceof(id, type):
         instanceof: bool = schema_manager.entity_instanceof(id, type)
     except:
         abort(400)
-    return make_response(jsonify({'instanceof': str(instanceof).lower()}), 200)
+    return make_response(jsonify({'instanceof': instanceof}), 200)
 
 
 """
