@@ -73,6 +73,14 @@ class TestEntityInstanceof(unittest.TestCase):
         assertion: bool = schema_manager.entity_instanceof('dummy uuid', 'Zz')
         self.assertFalse(assertion)
 
+    def test_12(self):
+        assertion: bool = schema_manager.entity_type_instanceof('Aa', 'Dd')
+        self.assertTrue(assertion)
+
+    def test_13(self):
+        assertion: bool = schema_manager.entity_type_instanceof('Aa', 'Zz')
+        self.assertFalse(assertion)
+        
 
 if __name__ == '__main__':
     unittest.main()
