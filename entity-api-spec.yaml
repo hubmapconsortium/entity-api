@@ -1550,6 +1550,40 @@ paths:
           description: The target entity could not be found
         '500':
           description: Internal error
+  '/entities/{id}/instanceof/<type>':
+    get:
+      summary: Retrievea list of ancestor organ(s) of a given uuid
+      parameters:
+        - name: id
+          in: path
+          description: The unique identifier of entity.  This identifier can be either an HuBMAP ID (e.g. HBM123.ABCD.456) or UUID
+          required: true
+          schema:
+            type: string
+        - name: type
+          in: path
+          description: The Entity Type Class as defined in entity-api-spec.yaml (e.g. Published)
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: A string which is either 'true' of 'false'
+          content:
+            text/plain:
+              schema:
+                type: string
+                example: true
+        '400':
+          description: Invalid or misformatted entity identifier
+        '401':
+          description: The user's token has expired or the user did not supply a valid token
+        '403':
+          description: The user is not authorized to retrieve the entity
+        '404':
+          description: The target entity could not be found
+        '500':
+          description: Internal error
   '/entities/{id}/ancestor-organs':
     get:
       summary: Retrievea list of ancestor organ(s) of a given uuid
