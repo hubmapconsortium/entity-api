@@ -1558,19 +1558,52 @@ paths:
           description: The target entity could not be found
         '500':
           description: Internal error
-  '/entities/{id}/instanceof/<type>':
+  '/entities/{id}/instanceof/{type}':
     get:
-      summary: Retrievea list of ancestor organ(s) of a given uuid
+      summary: Determines if the Entity with id is an instance of type
       parameters:
         - name: id
           in: path
-          description: The unique identifier of entity.  This identifier can be either an HuBMAP ID (e.g. HBM123.ABCD.456) or UUID
+          description: The unique identifier of entity. This identifier can be either an HuBMAP ID (e.g. HBM123.ABCD.456) or UUID
           required: true
           schema:
             type: string
         - name: type
           in: path
           description: The Entity Type Class as defined in entity-api-spec.yaml (e.g. Published)
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: An object with the attribute 'instanceof' that has a value of either 'true' of 'false'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Instanceof'
+        '400':
+          description: Invalid or misformatted entity identifier
+        '401':
+          description: The user's token has expired or the user did not supply a valid token
+        '403':
+          description: The user is not authorized to retrieve the entity
+        '404':
+          description: The target entity could not be found
+        '500':
+          description: Internal error
+  '/entities/type/{type_a}/instanceof/{type_b}':
+    get:
+      summary: Determines if the Entity type type_a is an instance of type_b
+      parameters:
+        - name: type_a
+          in: path
+          description: The unique identifier of entity (e.g. Published)
+          required: true
+          schema:
+            type: string
+        - name: type_b
+          in: path
+          description: The Entity Type Class as defined in entity-api-spec.yaml (e.g. Dataset)
           required: true
           schema:
             type: string
