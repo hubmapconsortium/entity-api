@@ -186,16 +186,16 @@ def get_entity_superclass(normalized_entity_class):
     return normalized_superclass
 
 
-def entity_instanceof(entity_uuid: str, entity_class: str) -> bool:
+def entity_type_instanceof(entity_type: str, entity_class: str) -> bool:
     """
-    Determine if the Entity with 'entity_uuid' is an instance of 'entity_class'.
+    Determine if the Entity type with 'entity_type' is an instance of 'entity_class'.
+    Use this function if you already have the Entity type. Use entity_instanceof(uuid, class)
+    if you just have the Entity uuid.
 
-    :param entity_uuid: from Entity
+    :param entity_type: from Entity
     :param entity_class: found in .yaml file
-    :return: True or False
+    :return:  True or False
     """
-    entity_type: str =\
-        schema_neo4j_queries.get_entity_type(get_neo4j_driver_instance(), entity_uuid)
     if entity_type is None:
         return False
 
@@ -206,6 +206,19 @@ def entity_instanceof(entity_uuid: str, entity_class: str) -> bool:
             return True
         super_entity_type = get_entity_superclass(super_entity_type)
     return False
+
+
+def entity_instanceof(entity_uuid: str, entity_class: str) -> bool:
+    """
+    Determine if the Entity with 'entity_uuid' is an instance of 'entity_class'.
+
+    :param entity_uuid: from Entity
+    :param entity_class: found in .yaml file
+    :return: True or False
+    """
+    entity_type: str =\
+        schema_neo4j_queries.get_entity_type(get_neo4j_driver_instance(), entity_uuid)
+    return entity_type_instanceof(entity_type, entity_class)
 
 
 """
