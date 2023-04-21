@@ -1314,6 +1314,9 @@ components:
           pages_or_article_num:
             type: string
             description: 'The pages or the article number in the publication journal e.g., “23”, “23-49”, “e1003424”.'
+          omap_doi:
+            type: string
+            description: 'A DOI pointing to an Organ Mapping Antibody Panel relevant to this publication'
       Instanceof:
         type: object
         description: "Returned by entities/<id>/instanceof/<type>"
