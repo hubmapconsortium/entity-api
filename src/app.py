@@ -2015,7 +2015,7 @@ def doi_redirect(id):
     redirect_url = rep_identifier_pattern.sub(uuid, redirect_url)
 
     resp = Response("Page has moved", 307)
-    resp.headers['Location'] = redirect_url
+    resp.headers['Location'] = redirect_url.strip()
 
     return resp
 
@@ -2036,7 +2036,7 @@ def redirect(hmid):
     if cid in reference_redirects:
         redir_url = reference_redirects[cid]
         resp = Response("page has moved", 307)
-        resp.headers['Location'] = redir_url
+        resp.headers['Location'] = redir_url.strip()
         return resp
     else:
         return Response(f"{hmid} not found.", 404)
