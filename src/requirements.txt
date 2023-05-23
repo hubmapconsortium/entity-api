@@ -9,7 +9,7 @@ pymemcache==4.0.0
 nested-lookup==0.2.22
 
 # The commons package requires requests>=2.22.0 and PyYAML>=5.3.1
-requests==2.25.1
+requests==2.31.0
 PyYAML==5.4.1
 
 # Use the published package from PyPI as default
