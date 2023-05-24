@@ -1,3 +1,4 @@
+from enum import Enum
 class SchemaConstants(object):
     MEMCACHED_TTL = 7200
 
@@ -18,3 +19,13 @@ class SchemaConstants(object):
 
     # For generating Sample.tissue_type
     TISSUE_TYPES_YAML = 'https://raw.githubusercontent.com/hubmapconsortium/search-api/main/src/search-schema/data/definitions/enums/tissue_sample_types.yaml'
+
+    EXPECTED_DOI_PREFIX_WITH_SLASH = 'https://doi.org/'
+
+# Define an enumeration to classify an entity's visibility, which can be combined with
+# authorization info when verify operations on a request.
+class DataVisibilityEnum(Enum):
+    PUBLIC = SchemaConstants.ACCESS_LEVEL_PUBLIC
+    # Since initial release just requires public/non-public, add
+    # another entry indicating non-public.
+    NONPUBLIC = 'nonpublic'
