@@ -108,11 +108,9 @@ doi_properties: &doi_properties
     before_property_create_validators:
      - verify_DOI_pair
      - halt_update_if_DOI_exists
-     - halt_if_DOI_for_unpublished_dataset
     before_property_update_validators:
      - verify_DOI_pair
      - halt_update_if_DOI_exists
-     - halt_if_DOI_for_unpublished_dataset
   doi_url:
     # This property gets set via a PUT by ingest-api after the DOI is created via DataCite
     # So we can't define it as `immutable: true`
@@ -121,11 +119,9 @@ doi_properties: &doi_properties
     before_property_create_validators:
      - verify_DOI_pair
      - halt_update_if_DOI_exists
-     - halt_if_DOI_for_unpublished_dataset
     before_property_update_validators:
      - verify_DOI_pair
      - halt_update_if_DOI_exists
-     - halt_if_DOI_for_unpublished_dataset
   # Currently creators and contacts are only available for public Collections
   creators:
     type: list
@@ -200,6 +196,26 @@ ENTITIES:
       <<: *shared_properties
       <<: *shared_entity_properties
       <<: *doi_properties
+      ###### shared properties with entity-specific validations ######
+      registered_doi:
+        type: string
+        description: "See description in doi_properties section above"
+        before_property_create_validators:
+          - halt_DOI_if_collection_missing_elements
+          - halt_DOI_if_unpublished_dataset
+        before_property_update_validators:
+          - halt_DOI_if_collection_missing_elements
+          - halt_DOI_if_unpublished_dataset
+      doi_url:
+        type: string
+        description: "See description in doi_properties section above"
+        before_property_create_validators:
+          - halt_DOI_if_collection_missing_elements
+          - halt_DOI_if_unpublished_dataset
+        before_property_update_validators:
+          - halt_DOI_if_collection_missing_elements
+          - halt_if_DOI_for_unpublished_dataset
+      ###### entity-specific validations ######
       title:
         type: string
         description: "The title of the Collection."

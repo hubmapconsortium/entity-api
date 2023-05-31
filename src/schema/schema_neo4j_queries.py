@@ -499,23 +499,23 @@ def link_entity_to_direct_ancestors(neo4j_driver, entity_uuid, direct_ancestor_u
 
 
 """
-Create or recreate one or more linkages (via Activity nodes) 
-between the target entity node and the direct ancestor nodes in neo4j
+Link a Collection to all the Datasets it should contain per the provided
+argument.  First, all existing linkages are deleted, then a link between
+each entry of the dataset_uuid_list and collection_uuid is created in the
+correction direction with an IN_COLLECTION relationship.
 
-Note: the size of direct_ancestor_uuids equals to that of activity_data_dict_list
+No Activity nodes are created in the relationship between a Collection and
+its Datasets.
 
 Parameters
 ----------
 neo4j_driver : neo4j.Driver object
     The neo4j database connection pool
-entity_uuid : str
-    The uuid of target child entity
-direct_ancestor_uuids : list
-    A list of uuids of direct ancestors
-activity_data_dict : dict
-    A dict of activity properties to be created
+collection_uuid : str
+    The uuid of a Collection entity which is the target of an IN_COLLECTION relationship.
+dataset_uuid_list : list of str
+    A list of uuids of Dataset entities which are the source of an IN_COLLECTION relationship.
 """
-
 def link_collection_to_datasets(neo4j_driver, collection_uuid, dataset_uuid_list):
     try:
         with neo4j_driver.session() as session:
@@ -535,13 +535,13 @@ def link_collection_to_datasets(neo4j_driver, collection_uuid, dataset_uuid_list
 
             tx.commit()
     except TransactionError as te:
-        msg = "TransactionError from calling link_entity_to_direct_ancestors(): "
+        msg = "TransactionError from calling link_collection_to_datasets(): "
         # Log the full stack trace, prepend a line with our message
         logger.exception(msg)
 
         if tx.closed() == False:
             # Log the full stack trace, prepend a line with our message
-            logger.info("Failed to commit link_entity_to_direct_ancestors() transaction, rollback")
+            logger.info("Failed to commit link_collection_to_datasets() transaction, rollback")
             tx.rollback()
 
         raise TransactionError(msg)
@@ -790,7 +790,7 @@ dict
 def get_collection_datasets_data_access_levels(neo4j_driver, uuid):
     results = []
 
-    query = (f"MATCH (d: Dataset)-[:IN_COLLECTION]->(c:Collection) "
+    query = (f"MATCH (d:Dataset)-[:IN_COLLECTION]->(c:Collection) "
              f"WHERE c.uuid = '{uuid}' "
              f"RETURN COLLECT(DISTINCT d.data_access_level) AS {record_field_name}")
 
@@ -803,8 +803,6 @@ def get_collection_datasets_data_access_levels(neo4j_driver, uuid):
         if record and record[record_field_name]:
             # Just return the list of values
             results = record[record_field_name]
-        else:
-            results = []
 
     return results
 

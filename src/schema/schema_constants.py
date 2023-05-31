@@ -20,7 +20,7 @@ class SchemaConstants(object):
     # For generating Sample.tissue_type
     TISSUE_TYPES_YAML = 'https://raw.githubusercontent.com/hubmapconsortium/search-api/main/src/search-schema/data/definitions/enums/tissue_sample_types.yaml'
 
-    EXPECTED_DOI_PREFIX_WITH_SLASH = 'https://doi.org/'
+    DOI_BASE_URL = 'https://doi.org/'
 
 # Define an enumeration to classify an entity's visibility, which can be combined with
 # authorization info when verify operations on a request.

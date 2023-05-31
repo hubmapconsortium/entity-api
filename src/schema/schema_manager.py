@@ -847,12 +847,12 @@ def execute_property_level_validators(validator_type, normalized_entity_type, re
                     raise schema_errors.MissingApplicationHeaderException(e) 
                 except schema_errors.InvalidApplicationHeaderException as e: 
                     raise schema_errors.InvalidApplicationHeaderException(e)
-                except ValueError as e:
-                    raise ValueError(e)
-                except Exception:
-                    msg = f"Failed to call the {validator_type} method: {validator_method_name} defiend for entity {normalized_entity_type} on property {key}"
+                except ValueError as ve:
+                    raise ValueError(ve)
+                except Exception as e:
+                    msg = f"Failed to call the {validator_type} method: {validator_method_name} defined for entity {normalized_entity_type} on property {key}"
                     # Log the full stack trace, prepend a line with our message
-                    logger.exception(msg)
+                    logger.exception(f"{msg}. {str(e)}")
 
 
 """

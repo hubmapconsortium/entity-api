@@ -72,11 +72,24 @@ def halt_update_if_DOI_exists(property_key, normalized_entity_type, request, exi
                          f" {existing_data_dict['uuid']} due DOI.")
 
 """
+Do not allow a Collection to be created or updated with DOI information if it does not meet all the
+criteria of being a public entity.
+"""
+def halt_DOI_if_collection_missing_elements(property_key, normalized_entity_type, request, existing_data_dict, new_data_dict):
+    if 'contacts' not in existing_data_dict:
+        raise ValueError(f"Unable to modify existing {existing_data_dict['entity_type']}"
+                         f" {existing_data_dict['uuid']} for DOI because it has no contacts.")
+    if 'creators' not in existing_data_dict:
+        raise ValueError(f"Unable to modify existing {existing_data_dict['entity_type']}"
+                         f" {existing_data_dict['uuid']} for DOI because it has no creators.")
+    # Count up other validations to check 'datasets', since a transient property
+
+"""
 Do not allow a Collection to be created or updated with DOI information if any Dataset in the Collection is not public.
 """
-def halt_if_DOI_for_unpublished_dataset(property_key, normalized_entity_type, request, existing_data_dict, new_data_dict):
+def halt_DOI_if_unpublished_dataset(property_key, normalized_entity_type, request, existing_data_dict, new_data_dict):
     # If the request is not trying to create/update DOI, simply return so the request can proceed.
-    if 'doi_url' not in new_data_dict and 'registered_doi' not in new_data_dict:
+    if 'doi_url' not in new_data_dict or 'registered_doi' not in new_data_dict:
         return
 
     neo4j_driver_instance = schema_manager.get_neo4j_driver_instance()
@@ -101,10 +114,11 @@ def halt_if_DOI_for_unpublished_dataset(property_key, normalized_entity_type, re
         # For an Update PUT request without 'dataset_uuids' specified,
         # simply get the existing, distinct 'data_access_level' setting for all the Datasets in the Collection
         distinct_dataset_statuses = schema_neo4j_queries.get_collection_datasets_statuses(neo4j_driver_instance
-                                                                                        ,new_data_dict['uuid'])
-    if len(distinct_dataset_statuses) != 1 or distinct_dataset_statuses[0] != SchemaConstants.DATASET_STATUS_PUBLISHED:
-        raise ValueError(f"Unable to modify existing {new_data_dict['entity_type']}"
-                         f" {new_data_dict['uuid']} for DOI since it contains unpublished Datasets.")
+                                                                                          ,existing_data_dict['uuid'])
+    if len( distinct_dataset_statuses) != 1 or \
+            distinct_dataset_statuses[0].lower() != SchemaConstants.DATASET_STATUS_PUBLISHED:
+        raise ValueError(f"Unable to modify existing {existing_data_dict['entity_type']}"
+                         f" {existing_data_dict['uuid']} for DOI since it contains unpublished Datasets.")
 
 """
 Validate the DOI parameters are presented as a pair during creation or modification.
@@ -120,9 +134,9 @@ def verify_DOI_pair(property_key, normalized_entity_type, request, existing_data
     if new_data_dict['doi_url'] == '' or new_data_dict['registered_doi'] == '':
         raise ValueError(   f"The properties 'doi_url' and 'registered_doi' cannot be empty, when specified.")
     # Check if doi_url matches registered_doi with the expected prefix
-    if new_data_dict['doi_url'] != SchemaConstants.EXPECTED_DOI_PREFIX_WITH_SLASH + new_data_dict['registered_doi']:
+    if new_data_dict['doi_url'] != SchemaConstants.DOI_BASE_URL + new_data_dict['registered_doi']:
         raise ValueError(   f"The 'doi_url' property should match the 'registered_doi' property, after"
-                            f" the prefix {SchemaConstants.EXPECTED_DOI_PREFIX_WITH_SLASH}.")
+                            f" the prefix {SchemaConstants.DOI_BASE_URL}.")
 """
 Validate every entity in a list is of entity_type accepted
 

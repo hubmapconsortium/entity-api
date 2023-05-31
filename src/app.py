@@ -645,7 +645,7 @@ def get_entity_by_id(id):
         # Without token, the user can only access public collections, modify the collection result
         # by only returning public datasets attached to this collection
         if isinstance(user_token, Response):
-            forbidden_error(f"{normalized_entity_type} for {id} is not accessible with credentials presented.")
+            forbidden_error(f"{normalized_entity_type} for {id} is not accessible without presenting a token.")
         else:
             # When the groups token is valid, but the user doesn't belong to HuBMAP-READ group
             # Or the token is valid but doesn't contain group information (auth token or transfer token)
@@ -892,10 +892,9 @@ def get_entities_by_type(entity_type):
 
             # Get back a list of public collections dicts
             entities_list = app_neo4j_queries.get_public_collections(neo4j_driver_instance)
-
         else:
-            # Get user token from Authorization header
-            # Currently the Gateway requires a token for this endpoint
+            # Get user token from Authorization header.  Since this endpoint is not exposed through the
+            # AWS Gateway,
             token = get_user_token(request)
 
             # Get back a list of entity dicts for the given entity type
