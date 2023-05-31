@@ -497,6 +497,55 @@ def link_entity_to_direct_ancestors(neo4j_driver, entity_uuid, direct_ancestor_u
 
         raise TransactionError(msg)
 
+
+"""
+Link a Collection to all the Datasets it should contain per the provided
+argument.  First, all existing linkages are deleted, then a link between
+each entry of the dataset_uuid_list and collection_uuid is created in the
+correction direction with an IN_COLLECTION relationship.
+
+No Activity nodes are created in the relationship between a Collection and
+its Datasets.
+
+Parameters
+----------
+neo4j_driver : neo4j.Driver object
+    The neo4j database connection pool
+collection_uuid : str
+    The uuid of a Collection entity which is the target of an IN_COLLECTION relationship.
+dataset_uuid_list : list of str
+    A list of uuids of Dataset entities which are the source of an IN_COLLECTION relationship.
+"""
+def link_collection_to_datasets(neo4j_driver, collection_uuid, dataset_uuid_list):
+    try:
+        with neo4j_driver.session() as session:
+            tx = session.begin_transaction()
+
+            # First delete all the old linkages between this Collection and its member Datasets
+            _delete_collection_linkages_tx(tx=tx
+                                           , uuid=collection_uuid)
+
+            # Create relationship from each member Dataset node to this Collection node
+            for dataset_uuid in dataset_uuid_list:
+                create_relationship_tx(tx=tx
+                                       , source_node_uuid=dataset_uuid
+                                       , direction='->'
+                                       , target_node_uuid=collection_uuid
+                                       , relationship='IN_COLLECTION')
+
+            tx.commit()
+    except TransactionError as te:
+        msg = "TransactionError from calling link_collection_to_datasets(): "
+        # Log the full stack trace, prepend a line with our message
+        logger.exception(msg)
+
+        if tx.closed() == False:
+            # Log the full stack trace, prepend a line with our message
+            logger.info("Failed to commit link_collection_to_datasets() transaction, rollback")
+            tx.rollback()
+
+        raise TransactionError(msg)
+
 """
 Create a revision linkage from the target entity node to the entity node 
 of the previous revision in neo4j
@@ -721,6 +770,79 @@ def get_collection_datasets(neo4j_driver, uuid):
 
     return results
 
+"""
+Get a dictionary with an entry for each Dataset in a Collection. The dictionary is
+keyed by Dataset uuid and contains the Dataset data_access_level.
+
+Parameters
+----------
+neo4j_driver : neo4j.Driver object
+    The neo4j database connection pool
+uuid : str
+    The uuid of a Collection
+
+Returns
+-------
+dict
+     A dictionary with an entry for each Dataset in a Collection. The dictionary is
+     keyed by Dataset uuid and contains the Dataset data_access_level.
+"""
+def get_collection_datasets_data_access_levels(neo4j_driver, uuid):
+    results = []
+
+    query = (f"MATCH (d:Dataset)-[:IN_COLLECTION]->(c:Collection) "
+             f"WHERE c.uuid = '{uuid}' "
+             f"RETURN COLLECT(DISTINCT d.data_access_level) AS {record_field_name}")
+
+    logger.info("======get_collection_datasets_data_access_levels() query======")
+    logger.info(query)
+
+    with neo4j_driver.session() as session:
+        record = session.read_transaction(execute_readonly_tx, query)
+
+        if record and record[record_field_name]:
+            # Just return the list of values
+            results = record[record_field_name]
+
+    return results
+
+"""
+Get a dictionary with an entry for each Dataset in a Collection. The dictionary is
+keyed by Dataset uuid and contains the Dataset data_access_level.
+
+Parameters
+----------
+neo4j_driver : neo4j.Driver object
+    The neo4j database connection pool
+uuid : str
+    The uuid of a Collection
+
+Returns
+-------
+dict
+     A dictionary with an entry for each Dataset in a Collection. The dictionary is
+     keyed by Dataset uuid and contains the Dataset data_access_level.
+"""
+def get_collection_datasets_statuses(neo4j_driver, uuid):
+    results = []
+
+    query = (f"MATCH (d: Dataset)-[:IN_COLLECTION]->(c:Collection) "
+             f"WHERE c.uuid = '{uuid}' "
+             f"RETURN COLLECT(DISTINCT d.status) AS {record_field_name}")
+
+    logger.info("======get_collection_datasets_statuses() query======")
+    logger.info(query)
+
+    with neo4j_driver.session() as session:
+        record = session.read_transaction(execute_readonly_tx, query)
+
+        if record and record[record_field_name]:
+            # Just return the list of values
+            results = record[record_field_name]
+        else:
+            results = []
+
+    return results
 
 """
 Link the dataset nodes to the target Upload node
@@ -1240,7 +1362,6 @@ def execute_readonly_tx(tx, query):
 ## Internal Functions
 ####################################################################################################
 
-
 """
 Delete the Activity node and linkages between an entity and its direct ancestors
 
@@ -1261,4 +1382,23 @@ def _delete_activity_node_and_linkages_tx(tx, uuid):
 
     result = tx.run(query)
 
+"""
+Delete the linkages between a Collection and its member Datasets
+
+Parameters
+----------
+tx : neo4j.Transaction object
+    The neo4j.Transaction object instance
+uuid : str
+    The uuid of the Collection, related to Datasets by an IN_COLLECTION relationship
+"""
+def _delete_collection_linkages_tx(tx, uuid):
+    query = (f"MATCH (d:Dataset)-[in:IN_COLLECTION]->(c:Collection)"
+             f" WHERE c.uuid = '{uuid}' "
+             f" DELETE in")
+
+    logger.info("======_delete_collection_linkages_tx() query======")
+    logger.info(query)
+
+    result = tx.run(query)
 

@@ -6,6 +6,7 @@ from datetime import datetime
 # Local modules
 from schema import schema_manager
 from schema import schema_errors
+from schema import schema_neo4j_queries
 from schema.schema_constants import SchemaConstants
 
 logger = logging.getLogger(__name__)
@@ -57,11 +58,141 @@ new_data_dict : dict
     The json data in request body, already after the regular validations
 """
 def validate_no_duplicates_in_list(property_key, normalized_entity_type, request, existing_data_dict, new_data_dict):
-    # Use lowercase for comparision via list comprehensions
+    # Use lowercase for comparison via list comprehensions
     target_list = [v.lower() for v in new_data_dict[property_key]]
     if len(set(target_list)) != len(target_list):
         raise ValueError(f"The {property_key} field must only contain unique items")
 
+"""
+If an entity has a DOI, do not allow it to be updated 
+"""
+def halt_update_if_DOI_exists(property_key, normalized_entity_type, request, existing_data_dict, new_data_dict):
+    if 'doi_url' in existing_data_dict or 'registered_doi' in existing_data_dict:
+        raise ValueError(f"Unable to modify existing {existing_data_dict['entity_type']}"
+                         f" {existing_data_dict['uuid']} due DOI.")
+
+"""
+Do not allow a Collection to be created or updated with DOI information if it does not meet all the
+criteria of being a public entity.
+"""
+def halt_DOI_if_collection_missing_elements(property_key, normalized_entity_type, request, existing_data_dict, new_data_dict):
+    if 'contacts' not in existing_data_dict:
+        raise ValueError(f"Unable to modify existing {existing_data_dict['entity_type']}"
+                         f" {existing_data_dict['uuid']} for DOI because it has no contacts.")
+    if 'creators' not in existing_data_dict:
+        raise ValueError(f"Unable to modify existing {existing_data_dict['entity_type']}"
+                         f" {existing_data_dict['uuid']} for DOI because it has no creators.")
+    # Count up other validations to check 'datasets', since a transient property
+
+"""
+Do not allow a Collection to be created or updated with DOI information if any Dataset in the Collection is not public.
+"""
+def halt_DOI_if_unpublished_dataset(property_key, normalized_entity_type, request, existing_data_dict, new_data_dict):
+    # If the request is not trying to create/update DOI, simply return so the request can proceed.
+    if 'doi_url' not in new_data_dict or 'registered_doi' not in new_data_dict:
+        return
+
+    neo4j_driver_instance = schema_manager.get_neo4j_driver_instance()
+
+    distinct_dataset_levels = []
+    if 'dataset_uuids' in new_data_dict:
+        # For a Create POST request, or for an Update PUT request with 'dataset_uuids' specified,
+        # retrieve all the existing Datasets specified with the request.
+        dataset_uuids = existing_data_dict['dataset_uuids']
+        collection_datasets = []
+        for dataset_uuid in dataset_uuids:
+            try:
+                ds = schema_neo4j_queries.get_entity(neo4j_driver_instance
+                                                     ,dataset_uuid)
+                if ds['data_access_level'] not in distinct_dataset_levels:
+                    distinct_dataset_levels.append(ds['data_access_level'])
+            except Exception as nfe:
+                raise ValueError(f"Unable to modify existing {new_data_dict['entity_type']}"
+                                 f" {new_data_dict['uuid']} since"
+                                 f" Dataset {dataset_uuid} could not be found to verify.")
+    else:
+        # For an Update PUT request without 'dataset_uuids' specified,
+        # simply get the existing, distinct 'data_access_level' setting for all the Datasets in the Collection
+        distinct_dataset_statuses = schema_neo4j_queries.get_collection_datasets_statuses(neo4j_driver_instance
+                                                                                          ,existing_data_dict['uuid'])
+    if len( distinct_dataset_statuses) != 1 or \
+            distinct_dataset_statuses[0].lower() != SchemaConstants.DATASET_STATUS_PUBLISHED:
+        raise ValueError(f"Unable to modify existing {existing_data_dict['entity_type']}"
+                         f" {existing_data_dict['uuid']} for DOI since it contains unpublished Datasets.")
+
+"""
+Validate the DOI parameters are presented as a pair during creation or modification.
+Even if one is populated already, disallow setting the other, so the data is consciously synced.
+Verify the values are compatible with each other.
+"""
+def verify_DOI_pair(property_key, normalized_entity_type, request, existing_data_dict, new_data_dict):
+    # Disallow providing one DOI parameter but not the other
+    if ('doi_url' in new_data_dict and 'registered_doi' not in new_data_dict) or \
+       ('doi_url' not in new_data_dict and 'registered_doi' in new_data_dict):
+        raise ValueError(   f"The properties 'doi_url' and 'registered_doi' must both be set in the same operation.")
+    # Since both DOI parameters are present, make sure neither is the empty string
+    if new_data_dict['doi_url'] == '' or new_data_dict['registered_doi'] == '':
+        raise ValueError(   f"The properties 'doi_url' and 'registered_doi' cannot be empty, when specified.")
+    # Check if doi_url matches registered_doi with the expected prefix
+    if new_data_dict['doi_url'] != SchemaConstants.DOI_BASE_URL + new_data_dict['registered_doi']:
+        raise ValueError(   f"The 'doi_url' property should match the 'registered_doi' property, after"
+                            f" the prefix {SchemaConstants.DOI_BASE_URL}.")
+"""
+Validate every entity in a list is of entity_type accepted
+
+Parameters
+----------
+property_key : str
+    The target property key
+normalized_type : str
+    Submission
+request: Flask request object
+    The instance of Flask request passed in from application request
+existing_data_dict : dict
+    A dictionary that contains all existing entity properties
+new_data_dict : dict
+    The json data in request body, already after the regular validations
+"""
+def collection_entities_are_existing_datasets(property_key, normalized_entity_type, request, existing_data_dict, new_data_dict):
+    # `dataset_uuids` is required for creating a Collection
+    # Verify each UUID specified exists in the uuid-api, exists in Neo4j, and is for a Dataset before
+    # proceeding with creation of Collection.
+    bad_dataset_uuids = []
+    for dataset_uuid in new_data_dict['dataset_uuids']:
+        try:
+            ## The following code duplicates some functionality existing in app.py, in
+            ## query_target_entity(), which also deals with caching. In the future, the
+            ## validation logic shared by this file and app.py should become a utility
+            ## module, shared by validators as well as app.py.  But for now, the code
+            ## is repeated for the following.
+
+            # Get cached ids if exist otherwise retrieve from UUID-API. Expect an
+            # Exception to be raised if not found.
+            dataset_uuid_entity = schema_manager.get_hubmap_ids(id=dataset_uuid)
+
+            # If the uuid exists per the uuid-api, make sure it also exists as a Neo4j entity.
+            uuid = dataset_uuid_entity['uuid']
+            entity_dict = schema_neo4j_queries.get_entity(schema_manager.get_neo4j_driver_instance(), dataset_uuid)
+
+            # If dataset_uuid is not found in Neo4j or is not for a Dataset, fail the validation.
+            if not entity_dict:
+                logger.info(f"Request for {dataset_uuid} inclusion in Collection,"
+                            f" but not found in Neo4j.")
+                bad_dataset_uuids.append(dataset_uuid)
+            elif entity_dict['entity_type'] != 'Dataset':
+                logger.info(f"Request for {dataset_uuid} inclusion in Collection,"
+                            f" but entity_type={entity_dict['entity_type']}, not Dataset.")
+                bad_dataset_uuids.append(dataset_uuid)
+        except Exception as nfe:
+            # If the dataset_uuid is not found, fail the validation.
+            logger.info(f"Request for {dataset_uuid} inclusion in Collection"
+                        f" failed uuid-api retrieval.")
+            bad_dataset_uuids.append(dataset_uuid)
+    # If any uuids in the request dataset_uuids are not for an existing Dataset entity which
+    # exists in uuid-api and Neo4j, raise an Exception so the validation fails and the
+    # operation can be rejected.
+    if bad_dataset_uuids:
+        raise ValueError(f"Unable to find Datasets for {bad_dataset_uuids}.")
 
 """
 Validate the provided value of Dataset.status on update via PUT
@@ -157,7 +288,7 @@ def validate_if_retraction_permitted(property_key, normalized_entity_type, reque
 
     # Only token in HuBMAP-Data-Admin group can retract a published dataset
     try:
-        # The property 'hmgroupids' is ALWASYS in the output with using schema_manager.get_user_info()
+        # The property 'hmgroupids' is ALWAYS in the output with using schema_manager.get_user_info()
         # when the token in request is a nexus_token
         user_info = schema_manager.get_user_info(request)
         hubmap_read_group_uuid = schema_manager.get_auth_helper_instance().groupNameToId('HuBMAP-READ')['uuid']
@@ -366,7 +497,7 @@ def _validate_application_header(applications_allowed, request_headers):
     app_header = request_headers.get(SchemaConstants.HUBMAP_APP_HEADER)
 
     if not app_header:
-        msg = f"Unbale to proceed due to missing {SchemaConstants.HUBMAP_APP_HEADER} header from request"
+        msg = f"Unable to proceed due to missing {SchemaConstants.HUBMAP_APP_HEADER} header from request"
         raise schema_errors.MissingApplicationHeaderException(msg)
 
     # Use lowercase for comparing the application header value against the yaml
