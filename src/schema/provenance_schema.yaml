@@ -195,26 +195,38 @@ ENTITIES:
     properties:
       <<: *shared_properties
       <<: *shared_entity_properties
-      <<: *doi_properties
-      ###### shared properties with entity-specific validations ######
+      # Because Collection-specific validation is needed for some
+      # DOI fields, all validations from
+      # <<: *doi_properties
+      # are merged into this section
+      ###### DOI properties with entity-specific validations + copies of validations in doi_properties ######
       registered_doi:
         type: string
         description: "See description in doi_properties section above"
         before_property_create_validators:
+          - verify_DOI_pair
+          - halt_update_if_DOI_exists
           - halt_DOI_if_collection_missing_elements
           - halt_DOI_if_unpublished_dataset
         before_property_update_validators:
+          - verify_DOI_pair
+          - halt_update_if_DOI_exists
           - halt_DOI_if_collection_missing_elements
           - halt_DOI_if_unpublished_dataset
       doi_url:
         type: string
         description: "See description in doi_properties section above"
         before_property_create_validators:
+          - verify_DOI_pair
+          - halt_update_if_DOI_exists
           - halt_DOI_if_collection_missing_elements
           - halt_DOI_if_unpublished_dataset
         before_property_update_validators:
+          - verify_DOI_pair
+          - halt_update_if_DOI_exists
           - halt_DOI_if_collection_missing_elements
           - halt_if_DOI_for_unpublished_dataset
+
       ###### entity-specific validations ######
       title:
         type: string
