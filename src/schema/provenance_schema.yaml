@@ -205,7 +205,6 @@ ENTITIES:
         description: "See description in doi_properties section above"
         before_property_create_validators:
           - verify_DOI_pair
-          - halt_update_if_DOI_exists
           - halt_DOI_if_collection_missing_elements
           - halt_DOI_if_unpublished_dataset
         before_property_update_validators:
@@ -218,7 +217,6 @@ ENTITIES:
         description: "See description in doi_properties section above"
         before_property_create_validators:
           - verify_DOI_pair
-          - halt_update_if_DOI_exists
           - halt_DOI_if_collection_missing_elements
           - halt_DOI_if_unpublished_dataset
         before_property_update_validators:
