@@ -791,6 +791,44 @@ def link_dataset_to_direct_ancestors(property_key, normalized_type, user_token, 
         # No need to log
         raise
 
+"""
+Trigger event method for creating or recreating linkages between this new Collection and the Datasets it contains
+
+Parameters
+----------
+property_key : str
+    The target property key
+normalized_type : str
+    One of the types defined in the schema yaml: Dataset
+user_token: str
+    The user's globus nexus token
+existing_data_dict : dict
+    A dictionary that contains all existing entity properties
+new_data_dict : dict
+    A merged dictionary that contains all possible input data to be used
+
+Returns
+-------
+str: The target property key
+str: The uuid string of source entity
+"""
+def link_collection_to_datasets(property_key, normalized_type, user_token, existing_data_dict, new_data_dict):
+    if 'uuid' not in existing_data_dict:
+        raise KeyError("Missing 'uuid' key in 'existing_data_dict' during calling 'link_collection_to_datasets()' trigger method.")
+
+    if 'dataset_uuids' not in existing_data_dict:
+        raise KeyError("Missing 'dataset_uuids' key in 'existing_data_dict' during calling 'link_collection_to_datasets()' trigger method.")
+
+    dataset_uuids = existing_data_dict['dataset_uuids']
+
+    try:
+        # Create a linkage (without an Activity node) between the Collection node and each Dataset it contains.
+        schema_neo4j_queries.link_collection_to_datasets(neo4j_driver=schema_manager.get_neo4j_driver_instance()
+                                                         ,collection_uuid=existing_data_dict['uuid']
+                                                         ,dataset_uuid_list=dataset_uuids)
+    except TransactionError as te:
+        # No need to log
+        raise
 
 """
 Trigger event method of getting source uuid

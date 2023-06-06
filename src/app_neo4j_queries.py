@@ -144,7 +144,6 @@ def get_public_collections(neo4j_driver, property_key = None):
 
     return results
 
-
 """
 Retrieve the ancestor organ(s) of a given entity
 
