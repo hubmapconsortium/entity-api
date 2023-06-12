@@ -835,6 +835,9 @@ json
 @app.route('/<entity_type>/entities', methods = ['GET'])
 def get_entities_by_type(entity_type):
     final_result = []
+    
+    # Get user token from Authorization header.  Since this endpoint is not exposed through the AWS Gateway,
+    token = get_user_token(request)
 
     # Normalize user provided entity_type
     normalized_entity_type = schema_manager.normalize_entity_type(entity_type)
@@ -893,10 +896,6 @@ def get_entities_by_type(entity_type):
             # Get back a list of public collections dicts
             entities_list = app_neo4j_queries.get_public_collections(neo4j_driver_instance)
         else:
-            # Get user token from Authorization header.  Since this endpoint is not exposed through the
-            # AWS Gateway,
-            token = get_user_token(request)
-
             # Get back a list of entity dicts for the given entity type
             entities_list = app_neo4j_queries.get_entities_by_type(neo4j_driver_instance, normalized_entity_type)
 
