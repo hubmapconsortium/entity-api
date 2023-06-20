@@ -1440,14 +1440,20 @@ def update_entity(id):
         cache_key = f'{MEMCACHED_PREFIX}{id}'
         memcached_client_instance.delete(cache_key)
 
+        logger.info(f"Deleted cache of key: {cache_key} after entity update via PUT call")
+
         # Also delete the cache of all the direct descendants (children)
         # Otherwise they'll have old cached data for the `direct_ancestor` (Sample) `direct_ancestors` (Dataset) fields
         # Note: must use uuid in the Neo4j query
         children_uuid_list = schema_neo4j_queries.get_children(neo4j_driver_instance, entity_dict['uuid'] , 'uuid')
+        
+        logger.info(f"Also delete the cache of all the direct descendants (children) of {id} if exist")
 
         for child_uuid in children_uuid_list:
             cache_key = f'{MEMCACHED_PREFIX}{child_uuid}'
             memcached_client_instance.delete(cache_key)
+
+            logger.info(f"Deleted direct descendant cache of key: {cache_key}")
 
     # Also reindex the updated entity node in elasticsearch via search-api
     if entity_dict['entity_type'] in ['Collection']:
@@ -4463,6 +4469,7 @@ def query_target_entity(id, user_token):
                 internal_server_error(e.response.text)
     else:
         logger.info(f'Using the cache data of entity {id} at time {current_datetime}')
+        logger.debug(entity_dict)
 
     # Final return
     return entity_dict
