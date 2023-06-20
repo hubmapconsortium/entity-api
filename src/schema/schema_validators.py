@@ -133,10 +133,19 @@ def verify_DOI_pair(property_key, normalized_entity_type, request, existing_data
     # Since both DOI parameters are present, make sure neither is the empty string
     if new_data_dict['doi_url'] == '' or new_data_dict['registered_doi'] == '':
         raise ValueError(   f"The properties 'doi_url' and 'registered_doi' cannot be empty, when specified.")
+
     # Check if doi_url matches registered_doi with the expected prefix
-    if new_data_dict['doi_url'] != SchemaConstants.DOI_BASE_URL + new_data_dict['registered_doi']:
+    try:
+        expected_doi_url = SchemaConstants.DOI_BASE_URL + new_data_dict['registered_doi']
+    except Exception as e:
+        # If SchemaConstants.DOI_BASE_URL is not set, or there is some other
+        # problem, give up and fail this validation.
+        logger.error(f"During verify_DOI_pair schema validator, unexpected exception e={str(e)}")
+        raise ValueError(f"An unexpected error occurred during evaluation of DOI parameters.  See logs.")
+    if expected_doi_url and new_data_dict['doi_url'] != expected_doi_url:
         raise ValueError(   f"The 'doi_url' property should match the 'registered_doi' property, after"
                             f" the prefix {SchemaConstants.DOI_BASE_URL}.")
+
 """
 Validate every entity in a list is of entity_type accepted
 
