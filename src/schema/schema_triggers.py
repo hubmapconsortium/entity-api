@@ -600,7 +600,24 @@ def get_collection_datasets(property_key, normalized_type, user_token, existing_
         'next_revision_uuid'
     ]
 
-    complete_entities_list = schema_manager.get_complete_entities_list(user_token, datasets_list, properties_to_skip)
+    # This `properties_to_keep` support is added on 07/12/2023 by Zhou
+    # Only reuturn the following Dataset properties, this will make the properties_to_skip no longer relevant
+    # - collection.dataset.uuid
+    # - collection.dataset.hubmap_id
+    # - collection.dataset.data_types
+    # - collection.dataset.status
+    # - collection.dataset.last_modified_timestamp
+    # - collection.dataset.created_by_user_displayname
+    properties_to_keep = [
+        'uuid', 
+        'hubmap', 
+        'data_types',
+        'status', 
+        'last_modified_timestamp', 
+        'created_by_user_displayname'
+    ]
+
+    complete_entities_list = schema_manager.get_complete_entities_list(user_token, datasets_list, properties_to_skip, properties_to_keep)
 
     return property_key, schema_manager.normalize_entities_list_for_response(complete_entities_list)
 
