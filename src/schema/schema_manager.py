@@ -237,9 +237,9 @@ existing_data_dict : dict
 new_data_dict : dict
     A dictionary that contains incoming entity data
 properties_to_skip : list
-    Any properties to skip running triggers
+    Properties to skip running the triggers and won't be returned
 properties_to_keep : list
-    Ony properties to be returned
+    Properties to be returned. If set, the `properties_to_skip` will be ignored
 
 Returns
 -------
@@ -267,11 +267,15 @@ def generate_triggered_data(trigger_type, normalized_class, user_token, existing
     # decides the ordering of which trigger method gets to run first
     properties = schema_section[normalized_class]['properties']
 
+    # This `properties_to_keep` support is added on 07/12/2023 by Zhou
     # When properties_to_keep is specified, we'll skip the rest of the defined properties
-    # and force the properties_to_skip to an empty list if it's set (even though when it shouldn't)
+    # and force the properties_to_skip to be an empty list if it's set (even though when it shouldn't)
     if properties_to_keep:
-        properties = properties_to_keep
         properties_to_skip = []
+
+        for key in list(properties):
+            if key not in properties_to_keep:
+                properties.pop(key)
 
     # Set each property value and put all resulting data into a dictionary for:
     # before_create_trigger|before_update_trigger|on_read_trigger
@@ -499,9 +503,9 @@ token: str
 entity_dict : dict
     The entity dict based on neo4j record
 properties_to_skip : list
-    Any properties to skip running triggers when properties_to_keep is set to empty list
+    Properties to skip running the triggers and won't be returned
 properties_to_keep : list
-    Only properties to be returned when properties_to_skip is set to empty list
+    Properties to be returned. If set, the `properties_to_skip` will be ignored
 
 Returns
 -------
@@ -537,9 +541,9 @@ token: str
 entities_list : list
     A list of entity dictionaries 
 properties_to_skip : list
-    Any properties to skip running triggers when properties_to_keep is set to empty list
+    Properties to skip running the triggers and won't be returned
 properties_to_keep : list
-    Only properties to be returned when properties_to_skip is set to empty list
+    Properties to be returned. If set, the `properties_to_skip` will be ignored
 
 Returns
 -------

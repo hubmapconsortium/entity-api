@@ -601,7 +601,7 @@ def get_collection_datasets(property_key, normalized_type, user_token, existing_
     ]
 
     # This `properties_to_keep` support is added on 07/12/2023 by Zhou
-    # Only reuturn the following Dataset properties
+    # Only reuturn the following Dataset properties, this will make the properties_to_skip no longer relevant
     # - collection.dataset.uuid
     # - collection.dataset.hubmap_id
     # - collection.dataset.data_types
