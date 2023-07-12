@@ -710,6 +710,44 @@ def get_dataset_collections(property_key, normalized_type, user_token, existing_
     return property_key, schema_manager.normalize_entities_list_for_response(complete_entities_list)
 
 """
+Trigger event method of getting the associated collection for this publication
+
+Parameters
+----------
+property_key : str
+    The target property key
+normalized_type : str
+    One of the types defined in the schema yaml: Dataset
+user_token: str
+    The user's globus nexus token
+existing_data_dict : dict
+    A dictionary that contains all existing entity properties
+new_data_dict : dict
+    A merged dictionary that contains all possible input data to be used
+
+Returns
+-------
+str: The target property key
+dict: A dictionary representation of the associated collection with all the normalized information
+"""
+def get_publication_associated_collection(property_key, normalized_type, user_token, existing_data_dict, new_data_dict):
+    if 'uuid' not in existing_data_dict:
+        raise KeyError("Missing 'uuid' key in 'existing_data_dict' during calling 'get_publication_associated_collection()' trigger method.")
+
+    logger.info(f"Executing 'get_publication_associated_collection()' trigger method on uuid: {existing_data_dict['uuid']}")
+
+    # No property key needs to filter the result
+    # Get back the associated collection dict
+    collection = schema_neo4j_queries.get_publication_associated_collection(schema_manager.get_neo4j_driver_instance(), existing_data_dict['uuid'])
+
+    # Exclude datasets from the resulting collection
+    # We don't want to show too much nested information
+    properties_to_skip = ['datasets']
+    complete_entity = schema_manager.get_complete_entity_result(user_token, collection, properties_to_skip)
+
+    return property_key, schema_manager.normalize_entity_result_for_response(complete_entity)
+
+"""
 Trigger event method of getting the associated Upload for this Dataset
 
 Parameters

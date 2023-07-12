@@ -698,6 +698,41 @@ def get_dataset_collections(neo4j_driver, uuid, property_key = None):
 
     return results
 
+"""
+Get the associated collection for a given publication
+
+Parameters
+----------
+neo4j_driver : neo4j.Driver object
+    The neo4j database connection pool
+uuid : str
+    The uuid of publication
+property_key : str
+    A target property key for result filtering
+
+Returns
+-------
+dict
+    A dictionary representation of the collection
+"""
+def get_publication_associated_collection(neo4j_driver, uuid):
+    result = {}
+
+    query = (f"MATCH (p:Publication)-[:USES_DATA]->(c:Collection) "
+             f"WHERE p.uuid = '{uuid}' "
+             f"RETURN c as {record_field_name}")
+
+    logger.info("=====get_publication_associated_collection() query======")
+    logger.info(query)
+
+    with neo4j_driver.session() as session:
+        record = session.read_transaction(execute_readonly_tx, query)
+
+        if record and record[record_field_name]:
+            # Convert the neo4j node into Python dict
+            result = node_to_dict(record[record_field_name])
+
+    return result
 
 """
 Get the associated Upload for a given dataset
