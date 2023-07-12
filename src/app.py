@@ -492,6 +492,15 @@ only a public collection will be returned.  Public collections are defined as be
 (dataset.status == 'Published'). For public collections only connected datasets that are
 public are returned with it.
 
+By default we only reuturn the following Dataset properties:
+
+- collection.dataset.uuid
+- collection.dataset.hubmap_id
+- collection.dataset.data_types
+- collection.dataset.status
+- collection.dataset.last_modified_timestamp
+- collection.dataset.created_by_user_displayname
+
 Parameters
 ----------
 id : str
