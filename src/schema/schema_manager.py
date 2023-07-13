@@ -221,6 +221,20 @@ def entity_instanceof(entity_uuid: str, entity_class: str) -> bool:
     return entity_type_instanceof(entity_type, entity_class)
 
 
+def get_class_properties(normalized_class):
+    # Use validate_normalized_class instead of validate_normalized_entity_type() to allow "Activity"
+    validate_normalized_class(normalized_class)
+
+    # Determine the schema section based on class
+    if normalized_class == 'Activity':
+        schema_section = _schema['ACTIVITIES']
+    else:
+        schema_section = _schema['ENTITIES']
+
+    return schema_section[normalized_class]['properties']
+
+
+
 """
 Generating triggered data based on the target events and methods
 
@@ -237,45 +251,24 @@ existing_data_dict : dict
 new_data_dict : dict
     A dictionary that contains incoming entity data
 properties_to_skip : list
-    Properties to skip running the triggers and won't be returned
-properties_to_keep : list
-    Properties to be returned. If set, the `properties_to_skip` will be ignored
+    Any properties to skip running triggers
 
 Returns
 -------
 dict
     A dictionary of trigger event methods generated data
 """
-def generate_triggered_data(trigger_type, normalized_class, user_token, existing_data_dict, new_data_dict, properties_to_skip = [], properties_to_keep = []):
+def generate_triggered_data(trigger_type, normalized_class, user_token, existing_data_dict, new_data_dict, properties_to_skip = []):
     global _schema
 
     schema_section = None
 
     # A bit validation
     validate_trigger_type(trigger_type)
-    # Use validate_normalized_class instead of validate_normalized_entity_type()
-    # to allow "Activity"
-    validate_normalized_class(normalized_class)
-
-    # Determine the schema section based on class
-    if normalized_class == 'Activity':
-        schema_section = _schema['ACTIVITIES']
-    else:
-        schema_section = _schema['ENTITIES']
 
     # The ordering of properties of this entity class defined in the yaml schema
     # decides the ordering of which trigger method gets to run first
-    properties = schema_section[normalized_class]['properties']
-
-    # This `properties_to_keep` support is added on 07/12/2023 by Zhou
-    # When properties_to_keep is specified, we'll skip the rest of the defined properties
-    # and force the properties_to_skip to be an empty list if it's set (even though when it shouldn't)
-    if properties_to_keep:
-        properties_to_skip = []
-
-        for key in list(properties):
-            if key not in properties_to_keep:
-                properties.pop(key)
+    properties = get_class_properties(normalized_class)
 
     # Set each property value and put all resulting data into a dictionary for:
     # before_create_trigger|before_update_trigger|on_read_trigger
@@ -503,23 +496,21 @@ token: str
 entity_dict : dict
     The entity dict based on neo4j record
 properties_to_skip : list
-    Properties to skip running the triggers and won't be returned
-properties_to_keep : list
-    Properties to be returned. If set, the `properties_to_skip` will be ignored
+    Any properties to skip running triggers
 
 Returns
 -------
 dict
     A dictionary of complete entity with all the generated 'on_read_trigger' data
 """
-def get_complete_entity_result(token, entity_dict, properties_to_skip = [], properties_to_keep = []):
+def get_complete_entity_result(token, entity_dict, properties_to_skip = []):
     # In case entity_dict is None or 
     # an incorrectly created entity that doesn't have the `entity_type` property
     if entity_dict and ('entity_type' in entity_dict):
         # No error handling here since if a 'on_read_trigger' method failed, 
         # the property value will be the error message
         # Pass {} since no new_data_dict for 'on_read_trigger'
-        generated_on_read_trigger_data_dict = generate_triggered_data('on_read_trigger', entity_dict['entity_type'], token, entity_dict, {}, properties_to_skip, properties_to_keep)
+        generated_on_read_trigger_data_dict = generate_triggered_data('on_read_trigger', entity_dict['entity_type'], token, entity_dict, {}, properties_to_skip)
 
         # Merge the entity info and the generated on read data into one dictionary
         complete_entity_dict = {**entity_dict, **generated_on_read_trigger_data_dict}
@@ -541,20 +532,18 @@ token: str
 entities_list : list
     A list of entity dictionaries 
 properties_to_skip : list
-    Properties to skip running the triggers and won't be returned
-properties_to_keep : list
-    Properties to be returned. If set, the `properties_to_skip` will be ignored
+    Any properties to skip running triggers
 
 Returns
 -------
 list
     A list a complete entity dictionaries with all the normalized information
 """
-def get_complete_entities_list(token, entities_list, properties_to_skip = [], properties_to_keep = []):
+def get_complete_entities_list(token, entities_list, properties_to_skip = []):
     complete_entities_list = []
 
     for entity_dict in entities_list:
-        complete_entity_dict = get_complete_entity_result(token, entity_dict, properties_to_skip, properties_to_keep)
+        complete_entity_dict = get_complete_entity_result(token, entity_dict, properties_to_skip)
         complete_entities_list.append(complete_entity_dict)
 
     return complete_entities_list

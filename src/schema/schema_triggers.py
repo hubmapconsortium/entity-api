@@ -591,14 +591,14 @@ def get_collection_datasets(property_key, normalized_type, user_token, existing_
 
     # Additional properties of the datasets to exclude 
     # We don't want to show too much nested information
-    properties_to_skip = [
-        'direct_ancestors', 
-        'collections', 
-        'upload',
-        'title', 
-        'previous_revision_uuid', 
-        'next_revision_uuid'
-    ]
+    # properties_to_skip = [
+    #     'direct_ancestors', 
+    #     'collections', 
+    #     'upload',
+    #     'title', 
+    #     'previous_revision_uuid', 
+    #     'next_revision_uuid'
+    # ]
 
     # This `properties_to_keep` support is added on 07/12/2023 by Zhou
     # Only reuturn the following Dataset properties, this will make the properties_to_skip no longer relevant
@@ -608,16 +608,22 @@ def get_collection_datasets(property_key, normalized_type, user_token, existing_
     # - collection.dataset.status
     # - collection.dataset.last_modified_timestamp
     # - collection.dataset.created_by_user_displayname
+    properties_dict = schema_manager.get_class_properties('Dataset')
+    properties_list = list(properties_dict.keys())
     properties_to_keep = [
         'uuid', 
-        'hubmap', 
+        'hubmap_id', 
         'data_types',
         'status', 
         'last_modified_timestamp', 
         'created_by_user_displayname'
     ]
 
-    complete_entities_list = schema_manager.get_complete_entities_list(user_token, datasets_list, properties_to_skip, properties_to_keep)
+    properties_to_skip = [p for p in properties_list if p not in properties_to_keep]
+
+    logger.info(properties_to_skip)
+
+    complete_entities_list = schema_manager.get_complete_entities_list(user_token, datasets_list, properties_to_skip)
 
     return property_key, schema_manager.normalize_entities_list_for_response(complete_entities_list)
 
