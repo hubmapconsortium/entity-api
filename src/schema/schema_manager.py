@@ -221,20 +221,6 @@ def entity_instanceof(entity_uuid: str, entity_class: str) -> bool:
     return entity_type_instanceof(entity_type, entity_class)
 
 
-def get_class_properties(normalized_class):
-    # Use validate_normalized_class instead of validate_normalized_entity_type() to allow "Activity"
-    validate_normalized_class(normalized_class)
-
-    # Determine the schema section based on class
-    if normalized_class == 'Activity':
-        schema_section = _schema['ACTIVITIES']
-    else:
-        schema_section = _schema['ENTITIES']
-
-    return schema_section[normalized_class]['properties']
-
-
-
 """
 Generating triggered data based on the target events and methods
 
@@ -265,10 +251,19 @@ def generate_triggered_data(trigger_type, normalized_class, user_token, existing
 
     # A bit validation
     validate_trigger_type(trigger_type)
+    # Use validate_normalized_class instead of validate_normalized_entity_type()
+    # to allow "Activity"
+    validate_normalized_class(normalized_class)
+
+    # Determine the schema section based on class
+    if normalized_class == 'Activity':
+        schema_section = _schema['ACTIVITIES']
+    else:
+        schema_section = _schema['ENTITIES']
 
     # The ordering of properties of this entity class defined in the yaml schema
     # decides the ordering of which trigger method gets to run first
-    properties = get_class_properties(normalized_class)
+    properties = schema_section[normalized_class]['properties']
 
     # Set each property value and put all resulting data into a dictionary for:
     # before_create_trigger|before_update_trigger|on_read_trigger

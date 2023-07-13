@@ -754,7 +754,7 @@ list
 def get_collection_datasets(neo4j_driver, uuid):
     results = []
 
-    query = (f"MATCH (e:Entity)-[:IN_COLLECTION]->(c:Collection) "
+    query = (f"MATCH (e:Dataset)-[:IN_COLLECTION]->(c:Collection) "
              f"WHERE c.uuid = '{uuid}' "
              f"RETURN apoc.coll.toSet(COLLECT(e)) AS {record_field_name}")
 
