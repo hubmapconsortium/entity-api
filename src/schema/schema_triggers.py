@@ -589,28 +589,9 @@ def get_collection_datasets(property_key, normalized_type, user_token, existing_
 
     datasets_list = schema_neo4j_queries.get_collection_datasets(schema_manager.get_neo4j_driver_instance(), existing_data_dict['uuid'])
 
-    # Additional properties of the datasets to exclude 
-    # We don't want to show too much nested information
-    # properties_to_skip = [
-    #     'direct_ancestors', 
-    #     'collections', 
-    #     'upload',
-    #     'title', 
-    #     'previous_revision_uuid', 
-    #     'next_revision_uuid'
-    # ]
-
-    # This `properties_to_keep` support is added on 07/12/2023 by Zhou
-    # Only reuturn the following Dataset properties, this will make the properties_to_skip no longer relevant
-    # - collection.dataset.uuid
-    # - collection.dataset.hubmap_id
-    # - collection.dataset.data_types
-    # - collection.dataset.status
-    # - collection.dataset.last_modified_timestamp
-    # - collection.dataset.created_by_user_displayname
-    properties_dict = schema_manager.get_class_properties('Dataset')
-    properties_list = list(properties_dict.keys())
-    properties_to_keep = [
+    # These are the node properties stored in Neo4j
+    # None of them needs to be generated via a read trigger
+    properties_to_return = [
         'uuid', 
         'hubmap_id', 
         'data_types',
@@ -619,13 +600,12 @@ def get_collection_datasets(property_key, normalized_type, user_token, existing_
         'created_by_user_displayname'
     ]
 
-    properties_to_skip = [p for p in properties_list if p not in properties_to_keep]
+    for dataset_dict in datasets_list:
+        for key in list(dataset_dict):
+            if key not in properties_to_return:
+                dataset_dict.pop(key)
 
-    logger.info(properties_to_skip)
-
-    complete_entities_list = schema_manager.get_complete_entities_list(user_token, datasets_list, properties_to_skip)
-
-    return property_key, schema_manager.normalize_entities_list_for_response(complete_entities_list)
+    return property_key, datasets_list
 
 
 ####################################################################################################
@@ -2270,7 +2250,6 @@ def _get_organ_description(organ_code):
 
         # Also bubble up the error message
         raise requests.exceptions.RequestException(response.text)
-
 
 
 
