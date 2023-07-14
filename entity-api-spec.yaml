@@ -1233,6 +1233,10 @@ components:
         omap_doi:
           type: string
           description: 'A DOI pointing to an Organ Mapping Antibody Panel relevant to this publication'
+        associated_collection_uuid:
+          type: string
+          writeOnly: true
+          description: "The uuid of the associated collection for a given publication."
         associated_collection:
           type: object
           description: 'The associated collection for a given publication'

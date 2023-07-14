@@ -1522,6 +1522,40 @@ def link_sample_to_direct_ancestor(property_key, normalized_type, user_token, ex
         # No need to log
         raise
 
+"""
+Trigger event method of creating or recreating linkages between this new publication and its associated_collection
+
+Parameters
+----------
+property_key : str
+    The target property key
+normalized_type : str
+    One of the types defined in the schema yaml: Publication
+user_token: str
+    The user's globus nexus token
+existing_data_dict : dict
+    A dictionary that contains all existing entity properties
+new_data_dict : dict
+    A merged dictionary that contains all possible input data to be used
+"""
+def link_publication_to_associated_collection(property_key, normalized_type, user_token, existing_data_dict, new_data_dict):
+    if 'uuid' not in existing_data_dict:
+        raise KeyError("Missing 'uuid' key in 'existing_data_dict' during calling 'link_publication_to_associated_collection()' trigger method.")
+
+    if 'associated_collection_uuid' not in existing_data_dict:
+        raise KeyError("Missing 'associated_collection_uuid' key in 'existing_data_dict' during calling 'link_publication_to_associated_collection()' trigger method.")
+
+    associated_collection_uuid = existing_data_dict['associated_collection_uuid']
+
+    # No activity node. We are creating a direct link to the associated collection
+
+    try:
+        # Create a linkage
+        # between the Publication node and the Collection node in neo4j
+        schema_neo4j_queries.link_publication_to_associated_collection(schema_manager.get_neo4j_driver_instance(), existing_data_dict['uuid'], associated_collection_uuid)
+    except TransactionError:
+        # No need to log
+        raise
 
 """
 Trigger event method of getting the parent of a Sample
