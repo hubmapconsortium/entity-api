@@ -622,7 +622,8 @@ def normalize_entity_result_for_response(entity_dict, properties_to_exclude = []
     global _memcached_client
     global _memcached_prefix
 
-    normalized_entity = None
+    # Do NOT use None as initial value
+    normalized_entity = {}
 
     # In case entity_dict is None or 
     # an incorrectly created entity that doesn't have the `entity_type` property
@@ -638,7 +639,7 @@ def normalize_entity_result_for_response(entity_dict, properties_to_exclude = []
 
         # Use the cached data if found and still valid
         # Otherwise, calculate and add to cache
-        if normalized_entity is None:
+        if not normalized_entity:
             if _memcached_client:
                 logger.info(f'Cache of normalized entity result for response not found or expired. Generating a new one at time {current_datetime}')
 
