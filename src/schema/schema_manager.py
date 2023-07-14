@@ -625,63 +625,40 @@ dict
 """
 def normalize_entity_result_for_response(entity_dict, properties_to_exclude = []):
     global _schema
-    global _memcached_client
-    global _memcached_prefix
 
-    # Do NOT use None as initial value
     normalized_entity = {}
 
     # In case entity_dict is None or 
     # an incorrectly created entity that doesn't have the `entity_type` property
-    if entity_dict and ('entity_type' in entity_dict) and ('uuid' in entity_dict):
-        entity_uuid = entity_dict['uuid']
+    if entity_dict and ('entity_type' in entity_dict):
         normalized_entity_type = entity_dict['entity_type']
+        properties = _schema['ENTITIES'][normalized_entity_type]['properties']
 
-        if _memcached_client and _memcached_prefix:
-            cache_key = f'{_memcached_prefix}_normalized_entity_{entity_uuid}'
-            normalized_entity = _memcached_client.get(cache_key)
+        for key in entity_dict:
+            # Only return the properties defined in the schema yaml
+            # Exclude additional properties if specified
+            if (key in properties) and (key not in properties_to_exclude):
+                # Skip properties with None value and the ones that are marked as not to be exposed.
+                # By default, all properties are exposed if not marked as `exposed: false`
+                # It's still possible to see `exposed: true` marked explictly
+                if (entity_dict[key] is not None) and ('exposed' not in properties[key]) or (('exposed' in properties[key]) and properties[key]['exposed']): 
+                    # Only run convert_str_literal() on string representation of Python dict and list with removing control characters
+                    # No convertion for string representation of Python string, meaning that can still contain control characters
+                    if entity_dict[key] and (properties[key]['type'] in ['list', 'json_string']):
+                        logger.info(f"Executing convert_str_literal() on {normalized_entity_type}.{key} of uuid: {entity_dict['uuid']}")
 
-        current_datetime = datetime.now()
+                        # Safely evaluate a string containing a Python dict or list literal
+                        # Only convert to Python list/dict when the string literal is not empty
+                        # instead of returning the json-as-string or array-as-string
+                        # convert_str_literal() also removes those control chars to avoid SyntaxError
+                        entity_dict[key] = convert_str_literal(entity_dict[key])
+                    
+                    # Add the target key with correct value of data type to the normalized_entity dict
+                    normalized_entity[key] = entity_dict[key]
 
-        # Use the cached data if found and still valid
-        # Otherwise, calculate and add to cache
-        if not normalized_entity:
-            if _memcached_client:
-                logger.info(f'Cache of normalized entity result for response not found or expired. Generating a new one at time {current_datetime}')
-
-            properties = _schema['ENTITIES'][normalized_entity_type]['properties']
-
-            for key in entity_dict:
-                # Only return the properties defined in the schema yaml
-                # Exclude additional properties if specified
-                if (key in properties) and (key not in properties_to_exclude):
-                    # Skip properties with None value and the ones that are marked as not to be exposed.
-                    # By default, all properties are exposed if not marked as `exposed: false`
-                    # It's still possible to see `exposed: true` marked explictly
-                    if (entity_dict[key] is not None) and ('exposed' not in properties[key]) or (('exposed' in properties[key]) and properties[key]['exposed']): 
-                        # Only run convert_str_literal() on string representation of Python dict and list with removing control characters
-                        # No convertion for string representation of Python string, meaning that can still contain control characters
-                        if entity_dict[key] and (properties[key]['type'] in ['list', 'json_string']):
-                            logger.info(f"Executing convert_str_literal() on {normalized_entity_type}.{key} of uuid: {entity_uuid}")
-
-                            # Safely evaluate a string containing a Python dict or list literal
-                            # Only convert to Python list/dict when the string literal is not empty
-                            # instead of returning the json-as-string or array-as-string
-                            # convert_str_literal() also removes those control chars to avoid SyntaxError
-                            entity_dict[key] = convert_str_literal(entity_dict[key])
-                        
-                        # Add the target key with correct value of data type to the normalized_entity dict
-                        normalized_entity[key] = entity_dict[key]
-
-                        # Final step: remove properties with empty string value, empty dict {}, and empty list []
-                        if (isinstance(normalized_entity[key], (str, dict, list)) and (not normalized_entity[key])):
-                            normalized_entity.pop(key)
-            
-            if _memcached_client:
-                # Cache the result
-                _memcached_client.set(cache_key, normalized_entity, expire = SchemaConstants.MEMCACHED_TTL)
-        else:
-            logger.info(f'Using the cached normalized {normalized_entity_type} entity result of {entity_uuid} for response at time {current_datetime}')
+                    # Final step: remove properties with empty string value, empty dict {}, and empty list []
+                    if (isinstance(normalized_entity[key], (str, dict, list)) and (not normalized_entity[key])):
+                        normalized_entity.pop(key)
 
     return normalized_entity
 
