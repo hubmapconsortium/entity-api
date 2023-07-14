@@ -510,7 +510,7 @@ def get_complete_entity_result(token, entity_dict, properties_to_skip = []):
         entity_type = entity_dict['entity_type']
 
         if _memcached_client and _memcached_prefix:
-            cache_key = f'{_memcached_prefix}_complete_entity_result_{entity_uuid}'
+            cache_key = f'{_memcached_prefix}_complete_entity_result_{entity_uuid}{"_".join(properties_to_skip)}_skipped'
             result = _memcached_client.get(cache_key)
 
         current_datetime = datetime.now()
@@ -631,7 +631,7 @@ def normalize_entity_result_for_response(entity_dict, properties_to_exclude = []
         normalized_entity_type = entity_dict['entity_type']
 
         if _memcached_client and _memcached_prefix:
-            cache_key = f'{_memcached_prefix}_normalized_entity_result_for_response_{entity_uuid}'
+            cache_key = f'{_memcached_prefix}_normalized_entity_result_{entity_uuid}'
             normalized_entity = _memcached_client.get(cache_key)
 
         current_datetime = datetime.now()
