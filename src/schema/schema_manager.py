@@ -530,7 +530,13 @@ def get_complete_entity_result(token, entity_dict, properties_to_skip = []):
             complete_entity_dict = {**entity_dict, **generated_on_read_trigger_data_dict}
 
             # Remove properties of None value
-            return remove_none_values(complete_entity_dict)
+            complete_entity_dict_none_removed = remove_none_values(complete_entity_dict)
+
+            if _memcached_client:
+                # Cache the result
+                _memcached_client.set(cache_key, complete_entity_dict_none_removed, expire = SchemaConstants.MEMCACHED_TTL)
+
+            return complete_entity_dict_none_removed
         else:
             logger.info(f'Using the cached complete {entity_type} entity result of {entity_uuid} at time {current_datetime}')
 
@@ -632,7 +638,7 @@ def normalize_entity_result_for_response(entity_dict, properties_to_exclude = []
         normalized_entity_type = entity_dict['entity_type']
 
         if _memcached_client and _memcached_prefix:
-            cache_key = f'{_memcached_prefix}_normalized_entity_result_{entity_uuid}'
+            cache_key = f'{_memcached_prefix}_normalized_entity_{entity_uuid}'
             normalized_entity = _memcached_client.get(cache_key)
 
         current_datetime = datetime.now()
@@ -670,6 +676,10 @@ def normalize_entity_result_for_response(entity_dict, properties_to_exclude = []
                         # Final step: remove properties with empty string value, empty dict {}, and empty list []
                         if (isinstance(normalized_entity[key], (str, dict, list)) and (not normalized_entity[key])):
                             normalized_entity.pop(key)
+            
+            if _memcached_client:
+                # Cache the result
+                _memcached_client.set(cache_key, normalized_entity, expire = SchemaConstants.MEMCACHED_TTL)
         else:
             logger.info(f'Using the cached normalized {normalized_entity_type} entity result of {entity_uuid} for response at time {current_datetime}')
 
