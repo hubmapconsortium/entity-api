@@ -726,6 +726,19 @@ ENTITIES:
       omap_doi:
         type: string
         description: 'A DOI pointing to an Organ Mapping Antibody Panel relevant to this publication'
+      associated_collection:
+        type: json_string # dict
+        generated: true
+        transient: true
+        on_read_trigger: get_publication_associated_collection
+        description: "The collection from which this publication uses data"
+      associated_collection_uuid:
+        type: string
+        transient: true
+        exposed: false
+        description: "The uuid of the associated collection for a given publication"
+        after_create_trigger: link_publication_to_associated_collection
+        after_update_trigger: link_publication_to_associated_collection
 
   ############################################# Donor #############################################
   Donor:

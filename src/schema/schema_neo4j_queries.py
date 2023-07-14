@@ -499,6 +499,45 @@ def link_entity_to_direct_ancestors(neo4j_driver, entity_uuid, direct_ancestor_u
 
 
 """
+Create or recreate linkage 
+between the publication node and the associated collection node in neo4j
+
+Parameters
+----------
+neo4j_driver : neo4j.Driver object
+    The neo4j database connection pool
+entity_uuid : str
+    The uuid of the publication
+associated_collection_uuid : str
+    the uuid of the associated collection
+"""
+
+
+def link_publication_to_associated_collection(neo4j_driver, entity_uuid, associated_collection_uuid):
+    try:
+        with neo4j_driver.session() as session:
+            tx = session.begin_transaction()
+
+            # First delete any old linkage between this publication and any associated_collection
+            _delete_publication_associated_collection_linkages_tx(tx, entity_uuid)
+
+            # Create relationship from this publication node to the associated collection node
+            create_relationship_tx(tx, entity_uuid, associated_collection_uuid, 'USES_DATA', '->')
+
+            tx.commit()
+    except TransactionError as te:
+        msg = "TransactionError from calling link_publication_to_associated_collection(): "
+        # Log the full stack trace, prepend a line with our message
+        logger.exception(msg)
+
+        if tx.closed() == False:
+            # Log the full stack trace, prepend a line with our message
+            logger.info("Failed to commit link_publication_to_associated_collection() transaction, rollback")
+            tx.rollback()
+
+        raise TransactionError(msg)
+
+"""
 Link a Collection to all the Datasets it should contain per the provided
 argument.  First, all existing linkages are deleted, then a link between
 each entry of the dataset_uuid_list and collection_uuid is created in the
@@ -698,6 +737,41 @@ def get_dataset_collections(neo4j_driver, uuid, property_key = None):
 
     return results
 
+"""
+Get the associated collection for a given publication
+
+Parameters
+----------
+neo4j_driver : neo4j.Driver object
+    The neo4j database connection pool
+uuid : str
+    The uuid of publication
+property_key : str
+    A target property key for result filtering
+
+Returns
+-------
+dict
+    A dictionary representation of the collection
+"""
+def get_publication_associated_collection(neo4j_driver, uuid):
+    result = {}
+
+    query = (f"MATCH (p:Publication)-[:USES_DATA]->(c:Collection) "
+             f"WHERE p.uuid = '{uuid}' "
+             f"RETURN c as {record_field_name}")
+
+    logger.info("=====get_publication_associated_collection() query======")
+    logger.info(query)
+
+    with neo4j_driver.session() as session:
+        record = session.read_transaction(execute_readonly_tx, query)
+
+        if record and record[record_field_name]:
+            # Convert the neo4j node into Python dict
+            result = node_to_dict(record[record_field_name])
+
+    return result
 
 """
 Get the associated Upload for a given dataset
@@ -1378,6 +1452,26 @@ def _delete_activity_node_and_linkages_tx(tx, uuid):
              f"DELETE in, a, out")
 
     logger.info("======_delete_activity_node_and_linkages_tx() query======")
+    logger.info(query)
+
+    result = tx.run(query)
+
+"""
+Delete linkages between a publication and its associated collection
+
+Parameters
+----------
+tx : neo4j.Transaction object
+    The neo4j.Transaction object instance
+uuid : str
+    The uuid to target publication
+"""
+def _delete_publication_associated_collection_linkages_tx(tx, uuid):
+    query = (f"MATCH (p:Publication)-[r:USES_DATA]->(c:Collection) "
+             f"WHERE p.uuid = '{uuid}' "
+             f"DELETE r")
+
+    logger.info("======_delete_publication_associated_collection_linkages_tx() query======")
     logger.info(query)
 
     result = tx.run(query)
