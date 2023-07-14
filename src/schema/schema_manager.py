@@ -499,19 +499,42 @@ dict
     A dictionary of complete entity with all the generated 'on_read_trigger' data
 """
 def get_complete_entity_result(token, entity_dict, properties_to_skip = []):
+    global _memcached_client
+    global _memcached_prefix
+
     # In case entity_dict is None or 
     # an incorrectly created entity that doesn't have the `entity_type` property
-    if entity_dict and ('entity_type' in entity_dict):
-        # No error handling here since if a 'on_read_trigger' method failed, 
-        # the property value will be the error message
-        # Pass {} since no new_data_dict for 'on_read_trigger'
-        generated_on_read_trigger_data_dict = generate_triggered_data('on_read_trigger', entity_dict['entity_type'], token, entity_dict, {}, properties_to_skip)
+    if entity_dict and ('entity_type' in entity_dict) and ('uuid' in entity_dict):
+        result = None
+        entity_uuid = entity_dict['uuid']
+        entity_type = entity_dict['entity_type']
 
-        # Merge the entity info and the generated on read data into one dictionary
-        complete_entity_dict = {**entity_dict, **generated_on_read_trigger_data_dict}
+        if _memcached_client and _memcached_prefix:
+            cache_key = f'{_memcached_prefix}_complete_entity_result_{entity_uuid}'
+            result = _memcached_client.get(cache_key)
 
-        # Remove properties of None value
-        return remove_none_values(complete_entity_dict)
+        current_datetime = datetime.now()
+
+        # Use the cached data if found and still valid
+        # Otherwise, calculate and add to cache
+        if result is None:
+            if _memcached_client:
+                logger.info(f'Cache of complete entity result not found or expired. Generating a new one at time {current_datetime}')
+            
+            # No error handling here since if a 'on_read_trigger' method failed, 
+            # the property value will be the error message
+            # Pass {} since no new_data_dict for 'on_read_trigger'
+            generated_on_read_trigger_data_dict = generate_triggered_data('on_read_trigger', entity_type, token, entity_dict, {}, properties_to_skip)
+
+            # Merge the entity info and the generated on read data into one dictionary
+            complete_entity_dict = {**entity_dict, **generated_on_read_trigger_data_dict}
+
+            # Remove properties of None value
+            return remove_none_values(complete_entity_dict)
+        else:
+            logger.info(f'Using the cached complete {entity_type} entity result of {entity_uuid} at time {current_datetime}')
+
+            return result
     else:
         # Just return the original entity_dict otherwise
         return entity_dict
@@ -596,40 +619,58 @@ dict
 """
 def normalize_entity_result_for_response(entity_dict, properties_to_exclude = []):
     global _schema
+    global _memcached_client
+    global _memcached_prefix
 
-    normalized_entity = {}
+    normalized_entity = None
 
     # In case entity_dict is None or 
     # an incorrectly created entity that doesn't have the `entity_type` property
-    if entity_dict and ('entity_type' in entity_dict):
+    if entity_dict and ('entity_type' in entity_dict) and ('uuid' in entity_dict):
+        entity_uuid = entity_dict['uuid']
         normalized_entity_type = entity_dict['entity_type']
-        properties = _schema['ENTITIES'][normalized_entity_type]['properties']
 
-        for key in entity_dict:
-            # Only return the properties defined in the schema yaml
-            # Exclude additional properties if specified
-            if (key in properties) and (key not in properties_to_exclude):
-                # Skip properties with None value and the ones that are marked as not to be exposed.
-                # By default, all properties are exposed if not marked as `exposed: false`
-                # It's still possible to see `exposed: true` marked explictly
-                if (entity_dict[key] is not None) and ('exposed' not in properties[key]) or (('exposed' in properties[key]) and properties[key]['exposed']): 
-                    # Only run convert_str_literal() on string representation of Python dict and list with removing control characters
-                    # No convertion for string representation of Python string, meaning that can still contain control characters
-                    if entity_dict[key] and (properties[key]['type'] in ['list', 'json_string']):
-                        logger.info(f"Executing convert_str_literal() on {normalized_entity_type}.{key} of uuid: {entity_dict['uuid']}")
+        if _memcached_client and _memcached_prefix:
+            cache_key = f'{_memcached_prefix}_normalized_entity_result_for_response_{entity_uuid}'
+            normalized_entity = _memcached_client.get(cache_key)
 
-                        # Safely evaluate a string containing a Python dict or list literal
-                        # Only convert to Python list/dict when the string literal is not empty
-                        # instead of returning the json-as-string or array-as-string
-                        # convert_str_literal() also removes those control chars to avoid SyntaxError
-                        entity_dict[key] = convert_str_literal(entity_dict[key])
-                    
-                    # Add the target key with correct value of data type to the normalized_entity dict
-                    normalized_entity[key] = entity_dict[key]
+        current_datetime = datetime.now()
 
-                    # Final step: remove properties with empty string value, empty dict {}, and empty list []
-                    if (isinstance(normalized_entity[key], (str, dict, list)) and (not normalized_entity[key])):
-                        normalized_entity.pop(key)
+        # Use the cached data if found and still valid
+        # Otherwise, calculate and add to cache
+        if normalized_entity is None:
+            if _memcached_client:
+                logger.info(f'Cache of normalized entity result for response not found or expired. Generating a new one at time {current_datetime}')
+
+            properties = _schema['ENTITIES'][normalized_entity_type]['properties']
+
+            for key in entity_dict:
+                # Only return the properties defined in the schema yaml
+                # Exclude additional properties if specified
+                if (key in properties) and (key not in properties_to_exclude):
+                    # Skip properties with None value and the ones that are marked as not to be exposed.
+                    # By default, all properties are exposed if not marked as `exposed: false`
+                    # It's still possible to see `exposed: true` marked explictly
+                    if (entity_dict[key] is not None) and ('exposed' not in properties[key]) or (('exposed' in properties[key]) and properties[key]['exposed']): 
+                        # Only run convert_str_literal() on string representation of Python dict and list with removing control characters
+                        # No convertion for string representation of Python string, meaning that can still contain control characters
+                        if entity_dict[key] and (properties[key]['type'] in ['list', 'json_string']):
+                            logger.info(f"Executing convert_str_literal() on {normalized_entity_type}.{key} of uuid: {entity_uuid}")
+
+                            # Safely evaluate a string containing a Python dict or list literal
+                            # Only convert to Python list/dict when the string literal is not empty
+                            # instead of returning the json-as-string or array-as-string
+                            # convert_str_literal() also removes those control chars to avoid SyntaxError
+                            entity_dict[key] = convert_str_literal(entity_dict[key])
+                        
+                        # Add the target key with correct value of data type to the normalized_entity dict
+                        normalized_entity[key] = entity_dict[key]
+
+                        # Final step: remove properties with empty string value, empty dict {}, and empty list []
+                        if (isinstance(normalized_entity[key], (str, dict, list)) and (not normalized_entity[key])):
+                            normalized_entity.pop(key)
+        else:
+            logger.info(f'Using the cached normalized {normalized_entity_type} entity result of {entity_uuid} for response at time {current_datetime}')
 
     return normalized_entity
 
