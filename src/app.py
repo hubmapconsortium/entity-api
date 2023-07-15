@@ -3343,11 +3343,9 @@ def sankey_data():
         if memcached_client_instance.get(cache_key) is not None:
             dataset_sankey_list = memcached_client_instance.get(cache_key)
 
-    current_datetime = datetime.now()
-
     if not dataset_sankey_list:
         if MEMCACHED_MODE:
-            logger.info(f'Sankey data cache not found or expired. Making a new data fetch at time {current_datetime}')
+            logger.info(f'Sankey data cache not found or expired. Making a new data fetch at time {datetime.now()}')
 
         # Call to app_neo4j_queries to prepare and execute the database query
         sankey_info = app_neo4j_queries.get_sankey_info(neo4j_driver_instance)
@@ -3386,7 +3384,7 @@ def sankey_data():
             # Cache the result
             memcached_client_instance.set(cache_key, dataset_sankey_list, expire = SchemaConstants.MEMCACHED_TTL)
     else:
-        logger.info(f'Using the cached sankey data at time {current_datetime}')
+        logger.info(f'Using the cached sankey data at time {datetime.now()}')
         
     return jsonify(dataset_sankey_list)
 
@@ -4403,13 +4401,11 @@ def query_target_entity(id, user_token):
         # Memcached returns None if no cached data or expired
         cache_result = memcached_client_instance.get(cache_key)
     
-    current_datetime = datetime.now()
-
     # Use the cached data if found and still valid
     # Otherwise, make a fresh query and add to cache
     if cache_result is None:
         if MEMCACHED_MODE and MEMCACHED_PREFIX and memcached_client_instance:
-            logger.info(f'Neo4j entity cache of {id} not found or expired at time {current_datetime}')
+            logger.info(f'Neo4j entity cache of {id} not found or expired at time {datetime.now()}')
 
         try:
             """
@@ -4440,7 +4436,7 @@ def query_target_entity(id, user_token):
                 not_found_error(f"Entity of id: {id} not found in Neo4j")
             
             if MEMCACHED_MODE and MEMCACHED_PREFIX and memcached_client_instance:
-                logger.info(f'Creating neo4j entity result cache of {id} at time {current_datetime}')
+                logger.info(f'Creating neo4j entity result cache of {id} at time {datetime.now()}')
 
                 cache_key = f'{MEMCACHED_PREFIX}_neo4j_{id}'
                 memcached_client_instance.set(cache_key, entity_dict, expire = SchemaConstants.MEMCACHED_TTL)
@@ -4456,7 +4452,7 @@ def query_target_entity(id, user_token):
             else:
                 internal_server_error(e.response.text)
     else:
-        logger.info(f'Using neo4j entity cache of {id} at time {current_datetime}')
+        logger.info(f'Using neo4j entity cache of {id} at time {datetime.now()}')
         logger.debug(entity_dict)
 
         entity_dict = cache_result
