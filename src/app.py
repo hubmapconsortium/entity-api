@@ -4412,12 +4412,14 @@ def query_target_entity(id, user_token):
     cache_result = None
     
     if MEMCACHED_MODE and MEMCACHED_PREFIX and memcached_client_instance:
+        # If this id is hubmap_id rather than uuid, there won't be a cache
+        # Only uuid is used in the cache key
         cache_key = f'{MEMCACHED_PREFIX}_neo4j_{id}'
         # Memcached returns None if no cached data or expired
         cache_result = memcached_client_instance.get(cache_key)
     
-    # Use the cached data if found and still valid
-    # Otherwise, make a fresh query and add to cache
+    # Use the cached data if the id is an uuid and we found a valid cache
+    # Otherwise, either the id is a hubmap_id or we don't have a cache for it even if it's uuid
     if cache_result is None:
         if MEMCACHED_MODE and MEMCACHED_PREFIX and memcached_client_instance:
             logger.info(f'Neo4j entity cache of {id} not found or expired at time {datetime.now()}')
@@ -4444,17 +4446,31 @@ def query_target_entity(id, user_token):
 
             # Get the target uuid if all good
             uuid = hubmap_ids['hm_uuid']
-            entity_dict = schema_neo4j_queries.get_entity(neo4j_driver_instance, uuid)
 
-            # The uuid exists via uuid-api doesn't mean it's also in Neo4j
-            if not entity_dict:
-                not_found_error(f"Entity of id: {id} not found in Neo4j")
-            
+            # Look up the cache again by the uuid since we only use uuid in the cache key
             if MEMCACHED_MODE and MEMCACHED_PREFIX and memcached_client_instance:
-                logger.info(f'Creating neo4j entity result cache of {id} at time {datetime.now()}')
+                cache_key = f'{MEMCACHED_PREFIX}_neo4j_{uuid}'
+                cache_result = memcached_client_instance.get(cache_key)
 
-                cache_key = f'{MEMCACHED_PREFIX}_neo4j_{id}'
-                memcached_client_instance.set(cache_key, entity_dict, expire = SchemaConstants.MEMCACHED_TTL)
+                if cache_result is None:
+                    logger.info(f'Neo4j entity cache of {uuid} not found or expired at time {datetime.now()}')
+
+                    # Make a new query against neo4j
+                    entity_dict = schema_neo4j_queries.get_entity(neo4j_driver_instance, uuid)
+
+                    # The uuid exists via uuid-api doesn't mean it also exists in Neo4j
+                    if not entity_dict:
+                        not_found_error(f"Entity of id: {uuid} not found in Neo4j")
+                    
+                    logger.info(f'Creating neo4j entity result cache of {uuid} at time {datetime.now()}')
+
+                    cache_key = f'{MEMCACHED_PREFIX}_neo4j_{uuid}'
+                    memcached_client_instance.set(cache_key, entity_dict, expire = SchemaConstants.MEMCACHED_TTL)
+                else:
+                    logger.info(f'Using neo4j entity cache of {uuid} at time {datetime.now()}')
+                    logger.debug(entity_dict)
+
+                    entity_dict = cache_result
         except requests.exceptions.RequestException as e:
             # Due to the use of response.raise_for_status() in schema_manager.get_hubmap_ids()
             # we can access the status codes from the exception
@@ -4498,45 +4514,25 @@ id : str
 """
 def delete_cache(id):
     if MEMCACHED_MODE and memcached_client_instance and MEMCACHED_PREFIX:
-        # Use the internal token to query the target entity
-        # since public entities don't require user token
-        token = get_internal_token()
+        entity_dict = query_target_entity(id, get_internal_token())
 
-        # Get the entity dict from cache if exists
-        # Otherwise query against uuid-api and neo4j to get the entity dict if the id exists
-        entity_dict = query_target_entity(id, token)
-        uuid = entity_dict['uuid']
+        # Also delete the cache of all the direct descendants (children)
+        # Otherwise they'll have old cached data for the `direct_ancestor` (Sample) `direct_ancestors` (Dataset/Publication) fields
+        children_uuid_list = schema_neo4j_queries.get_children(neo4j_driver_instance, uuid , 'uuid')
 
-        # It's possible we may have neo4j cache keyed with either hubmap_id or uuid
-        # However, we only use uuid for the complete and normalized entity cache
-        cache_keys = [
-            f'{MEMCACHED_PREFIX}_neo4j_{id}',
-            f'{MEMCACHED_PREFIX}_neo4j_{uuid}',
-            f'{MEMCACHED_PREFIX}_complete_{uuid}',
-            f'{MEMCACHED_PREFIX}_normalized_{uuid}'
-        ]
+        # If the target entity is Collection, we'll delete the cache for each of its associated 
+        # Datasets (via [:IN_COLLECTION] relationship) and Publications (via [:USES_DATA] relationship)
+        collection_associated_uuid_list = schema_neo4j_queries.get_collection_associated_entities(neo4j_driver_instance, uuid , 'uuid')
+
+        # We only use uuid in the cache key acorss all the cache types
+        for uuid in ([entity_dict['uuid']] + children_uuid_list + collection_associated_uuid_list):
+            cache_keys.append(f'{MEMCACHED_PREFIX}_neo4j_{uuid}')
+            cache_keys.append(f'{MEMCACHED_PREFIX}_complete_{uuid}')
+            cache_keys.append(f'{MEMCACHED_PREFIX}_normalized_{uuid}')
 
         memcached_client_instance.delete_many(cache_keys)
 
         logger.info(f"Deleted cache of key: {', '.join(cache_keys)}")
-
-        # Also delete the cache of all the direct descendants (children)
-        # Otherwise they'll have old cached data for the `direct_ancestor` (Sample) `direct_ancestors` (Dataset/Publication) fields
-        # Note: must use uuid in the Neo4j query
-        children_uuid_list = schema_neo4j_queries.get_children(neo4j_driver_instance, uuid , 'uuid')
-        
-        logger.info(f"Also delete the cache of all the direct descendants (children) of {id} if exist")
-
-        for child_uuid in children_uuid_list:
-            cache_keys = [
-                f'{MEMCACHED_PREFIX}_neo4j_{child_uuid}',
-                f'{MEMCACHED_PREFIX}_complete_{child_uuid}',
-                f'{MEMCACHED_PREFIX}_normalized_{child_uuid}'
-            ]
-
-            memcached_client_instance.delete_many(cache_keys)
-
-            logger.info(f"Deleted direct descendant cache of key: {', '.join(cache_keys)}")
 
 
 """

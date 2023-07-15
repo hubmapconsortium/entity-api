@@ -511,8 +511,6 @@ entity_uuid : str
 associated_collection_uuid : str
     the uuid of the associated collection
 """
-
-
 def link_publication_to_associated_collection(neo4j_driver, entity_uuid, associated_collection_uuid):
     try:
         with neo4j_driver.session() as session:
@@ -691,7 +689,52 @@ def get_next_revision_uuid(neo4j_driver, uuid):
 
     return result
 
-    
+
+"""
+Get a list of associated dataset and publication uuids for a given collection
+
+Parameters
+----------
+neo4j_driver : neo4j.Driver object
+    The neo4j database connection pool
+uuid : str
+    The uuid of collection
+property_key : str
+    A target property key for result filtering
+
+Returns
+-------
+list
+    A list of datasets and publications
+"""
+def get_collection_associated_entities(neo4j_driver, uuid, property_key = None):
+    results = []
+
+    if property_key:
+        query = (f"MATCH (e:Entity)-[:IN_COLLECTION|:USES_DATA]->(c:Collection) "
+                 f"WHERE c.uuid = '{uuid}' "
+                 f"RETURN apoc.coll.toSet(COLLECT(e.{property_key})) AS {record_field_name}")
+    else:
+        query = (f"MATCH (e:Entity)-[:IN_COLLECTION|:USES_DATA]->(c:Collection) "
+                 f"WHERE c.uuid = '{uuid}' "
+                 f"RETURN apoc.coll.toSet(COLLECT(e)) AS {record_field_name}")
+
+    logger.info("======get_collection_associated_entities() query======")
+    logger.info(query)
+
+    with neo4j_driver.session() as session:
+        record = session.read_transaction(execute_readonly_tx, query)
+
+        if record and record[record_field_name]:
+            if property_key:
+                # Just return the list of property values from each entity node
+                results = record[record_field_name]
+            else:
+                # Convert the list of nodes to a list of dicts
+                results = nodes_to_dicts(record[record_field_name])
+
+    return results
+
 """
 Get a list of associated collection uuids for a given dataset
 
