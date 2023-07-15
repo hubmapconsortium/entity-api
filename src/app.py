@@ -4396,10 +4396,10 @@ dict
 """
 def query_target_entity(id, user_token):
     entity_dict = None
-    cache_key = f'{MEMCACHED_PREFIX}_neo4j_{id}'
     cache_result = None
     
-    if MEMCACHED_MODE:
+    if MEMCACHED_MODE and MEMCACHED_PREFIX and memcached_client_instance:
+        cache_key = f'{MEMCACHED_PREFIX}_neo4j_{id}'
         # Memcached returns None if no cached data or expired
         cache_result = memcached_client_instance.get(cache_key)
     
@@ -4408,8 +4408,8 @@ def query_target_entity(id, user_token):
     # Use the cached data if found and still valid
     # Otherwise, make a fresh query and add to cache
     if cache_result is None:
-        if MEMCACHED_MODE:
-            logger.info(f'Neo4j cache not found or expired. Making a new query to retrieve {id} at time {current_datetime}')
+        if MEMCACHED_MODE and MEMCACHED_PREFIX and memcached_client_instance:
+            logger.info(f'Neo4j entity cache of {id} not found or expired at time {current_datetime}')
 
         try:
             """
@@ -4439,8 +4439,10 @@ def query_target_entity(id, user_token):
             if not entity_dict:
                 not_found_error(f"Entity of id: {id} not found in Neo4j")
             
-            if MEMCACHED_MODE:
-                # Cache the result
+            if MEMCACHED_MODE and MEMCACHED_PREFIX and memcached_client_instance:
+                logger.info(f'Creating neo4j entity result cache of {id} at time {current_datetime}')
+
+                cache_key = f'{MEMCACHED_PREFIX}_neo4j_{id}'
                 memcached_client_instance.set(cache_key, entity_dict, expire = SchemaConstants.MEMCACHED_TTL)
         except requests.exceptions.RequestException as e:
             # Due to the use of response.raise_for_status() in schema_manager.get_hubmap_ids()
@@ -4454,7 +4456,7 @@ def query_target_entity(id, user_token):
             else:
                 internal_server_error(e.response.text)
     else:
-        logger.info(f'Using neo4j entity result cache of {id} at time {current_datetime}')
+        logger.info(f'Using neo4j entity cache of {id} at time {current_datetime}')
         logger.debug(entity_dict)
 
         entity_dict = cache_result

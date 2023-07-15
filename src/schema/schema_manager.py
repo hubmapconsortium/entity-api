@@ -34,6 +34,7 @@ _ingest_api_url = None
 _auth_helper = None
 _neo4j_driver = None
 _memcached_client = None
+_memcached_prefix = None
 
 
 ####################################################################################################
@@ -509,10 +510,11 @@ def get_complete_entity_result(token, entity_dict, properties_to_skip = []):
     if entity_dict and ('entity_type' in entity_dict) and ('uuid' in entity_dict):
         entity_uuid = entity_dict['uuid']
         entity_type = entity_dict['entity_type']
-        cache_key = f'{_memcached_prefix}_complete_{entity_uuid}'
         cache_result = None
 
+        # Need both client and prefix when fetching the cache
         if _memcached_client and _memcached_prefix:
+            cache_key = f'{_memcached_prefix}_complete_{entity_uuid}'
             cache_result = _memcached_client.get(cache_key)
 
         current_datetime = datetime.now()
@@ -520,8 +522,8 @@ def get_complete_entity_result(token, entity_dict, properties_to_skip = []):
         # Use the cached data if found and still valid
         # Otherwise, calculate and add to cache
         if cache_result is None:
-            if _memcached_client:
-                logger.info(f'Cache of complete entity result of {entity_type} {entity_uuid} not found or expired. Generating a new one at time {current_datetime}')
+            if _memcached_client and _memcached_prefix:
+                logger.info(f'Cache of complete entity of {entity_type} {entity_uuid} not found or expired at time {current_datetime}')
             
             # No error handling here since if a 'on_read_trigger' method failed, 
             # the property value will be the error message
@@ -532,15 +534,16 @@ def get_complete_entity_result(token, entity_dict, properties_to_skip = []):
             complete_entity_dict = {**entity_dict, **generated_on_read_trigger_data_dict}
 
             # Remove properties of None value
-            complete_entity_dict_none_removed = remove_none_values(complete_entity_dict)
+            complete_entity = remove_none_values(complete_entity_dict)
 
-            if _memcached_client:
-                # Cache the result
-                _memcached_client.set(cache_key, complete_entity_dict_none_removed, expire = SchemaConstants.MEMCACHED_TTL)
+            # Need both client and prefix when creating the cache
+            if _memcached_client and _memcached_prefix:
+                logger.info(f'Creating complete entity cache of {entity_type} {entity_uuid} at time {current_datetime}')
 
-            complete_entity = complete_entity_dict_none_removed
+                cache_key = f'{_memcached_prefix}_complete_{entity_uuid}'
+                _memcached_client.set(cache_key, complete_entity, expire = SchemaConstants.MEMCACHED_TTL)
         else:
-            logger.info(f'Using complete entity result cache of {entity_type} {entity_uuid} at time {current_datetime}')
+            logger.info(f'Using complete entity cache of {entity_type} {entity_uuid} at time {current_datetime}')
 
             complete_entity = cache_result
     else:
@@ -640,10 +643,11 @@ def normalize_entity_result_for_response(entity_dict, properties_to_exclude = []
     if entity_dict and ('entity_type' in entity_dict) and ('uuid' in entity_dict):
         entity_uuid = entity_dict['uuid']
         entity_type = entity_dict['entity_type']
-        cache_key = f'{_memcached_prefix}_normalized_{entity_uuid}'
         cache_result = None
 
+        # Need both client and prefix when fetching the cache
         if _memcached_client and _memcached_prefix:
+            cache_key = f'{_memcached_prefix}_normalized_{entity_uuid}'
             cache_result = _memcached_client.get(cache_key)
 
         current_datetime = datetime.now()
@@ -651,8 +655,8 @@ def normalize_entity_result_for_response(entity_dict, properties_to_exclude = []
         # Use the cached data if found and still valid
         # Otherwise, calculate and add to cache
         if cache_result is None:
-            if _memcached_client:
-                logger.info(f'Cache of normalized entity result of {entity_type} {entity_uuid} not found or expired. Generating a new one at time {current_datetime}')
+            if _memcached_client and _memcached_prefix:
+                logger.info(f'Cache of normalized entity of {entity_type} {entity_uuid} not found or expired at time {current_datetime}')
 
             properties = _schema['ENTITIES'][entity_type]['properties']
 
@@ -682,11 +686,14 @@ def normalize_entity_result_for_response(entity_dict, properties_to_exclude = []
                         if (isinstance(normalized_entity[key], (str, dict, list)) and (not normalized_entity[key])):
                             normalized_entity.pop(key)
 
-            if _memcached_client:
-                # Cache the result
+            # Need both client and prefix when creating the cache
+            if _memcached_client and _memcached_prefix:
+                logger.info(f'Creating normalized entity cache of {entity_type} {entity_uuid} at time {current_datetime}')
+
+                cache_key = f'{_memcached_prefix}_normalized_{entity_uuid}'
                 _memcached_client.set(cache_key, normalized_entity, expire = SchemaConstants.MEMCACHED_TTL)
         else:
-            logger.info(f'Using normalized entity result cache of {entity_type} {entity_uuid} at time {current_datetime}')
+            logger.info(f'Using normalized entity cache of {entity_type} {entity_uuid} at time {current_datetime}')
 
             normalized_entity = cache_result
 
@@ -1713,7 +1720,7 @@ def make_request_get(target_url, internal_token_used = False):
     # Otherwise, make a fresh query and add to cache
     if response is None:
         if _memcached_client:
-            logger.info(f'Cache not found or expired. Making a new HTTP request of GET {target_url} at time {current_datetime}')
+            logger.info(f'HTTP response cache not found or expired. Making a new HTTP request of GET {target_url} at time {current_datetime}')
         
         if internal_token_used:
             # Use modified version of globus app secret from configuration as the internal token
@@ -1729,7 +1736,7 @@ def make_request_get(target_url, internal_token_used = False):
             cache_key = f'{_memcached_prefix}{target_url}'
             _memcached_client.set(cache_key, response, expire = SchemaConstants.MEMCACHED_TTL)
     else:
-        logger.info(f'Using the cached HTTP response of GET {target_url} at time {current_datetime}')
+        logger.info(f'Using HTTP response cache of GET {target_url} at time {current_datetime}')
 
     return response
 
