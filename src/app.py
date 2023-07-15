@@ -4380,7 +4380,7 @@ def after_update(normalized_entity_type, user_token, entity_dict):
 
 
 """
-Get target entity dict for the given id
+Get target entity dict from Neo4j query for the given id
 
 Parameters
 ----------
@@ -4457,7 +4457,7 @@ def query_target_entity(id, user_token):
         logger.info(f'Using the cache neo4j data of entity {id} at time {current_datetime}')
         logger.debug(entity_dict)
 
-    # Final return
+    # One final return
     return entity_dict
 
 
@@ -4485,7 +4485,8 @@ def delete_cache(id):
     if MEMCACHED_MODE:
         cache_keys = [
             f'{MEMCACHED_PREFIX}_neo4j_{id}',
-            f'{MEMCACHED_PREFIX}_complete_{id}'
+            f'{MEMCACHED_PREFIX}_complete_{id}',
+            f'{MEMCACHED_PREFIX}_normalized_{id}'
         ]
 
         memcached_client_instance.delete_many(cache_keys)
@@ -4502,7 +4503,8 @@ def delete_cache(id):
         for child_uuid in children_uuid_list:
             cache_keys = [
                 f'{MEMCACHED_PREFIX}_neo4j_{child_uuid}',
-                f'{MEMCACHED_PREFIX}_complete_{child_uuid}'
+                f'{MEMCACHED_PREFIX}_complete_{child_uuid}',
+                f'{MEMCACHED_PREFIX}_normalized_{child_uuid}'
             ]
 
             memcached_client_instance.delete_many(cache_keys)
