@@ -4397,7 +4397,7 @@ dict
 def query_target_entity(id, user_token):
     entity_dict = None
 
-    cache_key = f'{MEMCACHED_PREFIX}{id}'
+    cache_key = f'{MEMCACHED_PREFIX}_neo4j_{id}'
     
     if MEMCACHED_MODE:
         # Memcached returns None if no cached data or expired
@@ -4409,7 +4409,7 @@ def query_target_entity(id, user_token):
     # Otherwise, make a fresh query and add to cache
     if entity_dict is None:
         if MEMCACHED_MODE:
-            logger.info(f'Cache not found or expired. Making a new query to retrieve {id} at time {current_datetime}')
+            logger.info(f'Neo4j cache not found or expired. Making a new query to retrieve {id} at time {current_datetime}')
 
         try:
             """
@@ -4454,7 +4454,7 @@ def query_target_entity(id, user_token):
             else:
                 internal_server_error(e.response.text)
     else:
-        logger.info(f'Using the cache data of entity {id} at time {current_datetime}')
+        logger.info(f'Using the cache neo4j data of entity {id} at time {current_datetime}')
         logger.debug(entity_dict)
 
     # Final return
@@ -4484,8 +4484,8 @@ id : str
 def delete_cache(id):
     if MEMCACHED_MODE:
         cache_keys = [
-            f'{MEMCACHED_PREFIX}{id}',
-            f'{_memcached_prefix}_complete_entity_{id}{"_".join(properties_to_skip)}'
+            f'{MEMCACHED_PREFIX}_neo4j_{id}',
+            f'{MEMCACHED_PREFIX}_complete_{id}'
         ]
 
         memcached_client_instance.delete_many(cache_keys)
@@ -4493,7 +4493,7 @@ def delete_cache(id):
         logger.info(f"Deleted cache of key: {', '.join(cache_keys)}")
 
         # Also delete the cache of all the direct descendants (children)
-        # Otherwise they'll have old cached data for the `direct_ancestor` (Sample) `direct_ancestors` (Dataset) fields
+        # Otherwise they'll have old cached data for the `direct_ancestor` (Sample) `direct_ancestors` (Dataset/Publication) fields
         # Note: must use uuid in the Neo4j query
         children_uuid_list = schema_neo4j_queries.get_children(neo4j_driver_instance, entity_dict['uuid'] , 'uuid')
         
@@ -4501,8 +4501,8 @@ def delete_cache(id):
 
         for child_uuid in children_uuid_list:
             cache_keys = [
-                f'{MEMCACHED_PREFIX}{child_uuid}',
-                f'{_memcached_prefix}_complete_entity_{child_uuid}{"_".join(properties_to_skip)}'
+                f'{MEMCACHED_PREFIX}_neo4j_{child_uuid}',
+                f'{MEMCACHED_PREFIX}_complete_{child_uuid}'
             ]
 
             memcached_client_instance.delete_many(cache_keys)

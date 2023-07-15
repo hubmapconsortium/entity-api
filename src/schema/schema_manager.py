@@ -510,7 +510,7 @@ def get_complete_entity_result(token, entity_dict, properties_to_skip = []):
         entity_type = entity_dict['entity_type']
 
         if _memcached_client and _memcached_prefix:
-            cache_key = f'{_memcached_prefix}_complete_entity_{entity_uuid}{"_".join(properties_to_skip)}'
+            cache_key = f'{_memcached_prefix}_complete_{entity_uuid}'
             result = _memcached_client.get(cache_key)
 
         current_datetime = datetime.now()
