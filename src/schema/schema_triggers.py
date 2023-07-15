@@ -589,20 +589,23 @@ def get_collection_datasets(property_key, normalized_type, user_token, existing_
 
     datasets_list = schema_neo4j_queries.get_collection_datasets(schema_manager.get_neo4j_driver_instance(), existing_data_dict['uuid'])
 
-    # Additional properties of the datasets to exclude 
-    # We don't want to show too much nested information
-    properties_to_skip = [
-        'direct_ancestors', 
-        'collections', 
-        'upload',
-        'title', 
-        'previous_revision_uuid', 
-        'next_revision_uuid'
+    # These are the node properties stored in Neo4j
+    # None of them needs to be generated via a read trigger
+    properties_to_return = [
+        'uuid', 
+        'hubmap_id', 
+        'data_types',
+        'status', 
+        'last_modified_timestamp', 
+        'created_by_user_displayname'
     ]
 
-    complete_entities_list = schema_manager.get_complete_entities_list(user_token, datasets_list, properties_to_skip)
+    for dataset_dict in datasets_list:
+        for key in list(dataset_dict):
+            if key not in properties_to_return:
+                dataset_dict.pop(key)
 
-    return property_key, schema_manager.normalize_entities_list_for_response(complete_entities_list)
+    return property_key, datasets_list
 
 
 ####################################################################################################
@@ -708,6 +711,44 @@ def get_dataset_collections(property_key, normalized_type, user_token, existing_
     complete_entities_list = schema_manager.get_complete_entities_list(user_token, collections_list, properties_to_skip)
 
     return property_key, schema_manager.normalize_entities_list_for_response(complete_entities_list)
+
+"""
+Trigger event method of getting the associated collection for this publication
+
+Parameters
+----------
+property_key : str
+    The target property key
+normalized_type : str
+    One of the types defined in the schema yaml: Dataset
+user_token: str
+    The user's globus nexus token
+existing_data_dict : dict
+    A dictionary that contains all existing entity properties
+new_data_dict : dict
+    A merged dictionary that contains all possible input data to be used
+
+Returns
+-------
+str: The target property key
+dict: A dictionary representation of the associated collection with all the normalized information
+"""
+def get_publication_associated_collection(property_key, normalized_type, user_token, existing_data_dict, new_data_dict):
+    if 'uuid' not in existing_data_dict:
+        raise KeyError("Missing 'uuid' key in 'existing_data_dict' during calling 'get_publication_associated_collection()' trigger method.")
+
+    logger.info(f"Executing 'get_publication_associated_collection()' trigger method on uuid: {existing_data_dict['uuid']}")
+
+    # No property key needs to filter the result
+    # Get back the associated collection dict
+    collection = schema_neo4j_queries.get_publication_associated_collection(schema_manager.get_neo4j_driver_instance(), existing_data_dict['uuid'])
+
+    # Exclude datasets from the resulting collection
+    # We don't want to show too much nested information
+    properties_to_skip = ['datasets']
+    complete_entity = schema_manager.get_complete_entity_result(user_token, collection, properties_to_skip)
+
+    return property_key, schema_manager.normalize_entity_result_for_response(complete_entity)
 
 """
 Trigger event method of getting the associated Upload for this Dataset
@@ -1481,6 +1522,40 @@ def link_sample_to_direct_ancestor(property_key, normalized_type, user_token, ex
         # No need to log
         raise
 
+"""
+Trigger event method of creating or recreating linkages between this new publication and its associated_collection
+
+Parameters
+----------
+property_key : str
+    The target property key
+normalized_type : str
+    One of the types defined in the schema yaml: Publication
+user_token: str
+    The user's globus nexus token
+existing_data_dict : dict
+    A dictionary that contains all existing entity properties
+new_data_dict : dict
+    A merged dictionary that contains all possible input data to be used
+"""
+def link_publication_to_associated_collection(property_key, normalized_type, user_token, existing_data_dict, new_data_dict):
+    if 'uuid' not in existing_data_dict:
+        raise KeyError("Missing 'uuid' key in 'existing_data_dict' during calling 'link_publication_to_associated_collection()' trigger method.")
+
+    if 'associated_collection_uuid' not in existing_data_dict:
+        raise KeyError("Missing 'associated_collection_uuid' key in 'existing_data_dict' during calling 'link_publication_to_associated_collection()' trigger method.")
+
+    associated_collection_uuid = existing_data_dict['associated_collection_uuid']
+
+    # No activity node. We are creating a direct link to the associated collection
+
+    try:
+        # Create a linkage
+        # between the Publication node and the Collection node in neo4j
+        schema_neo4j_queries.link_publication_to_associated_collection(schema_manager.get_neo4j_driver_instance(), existing_data_dict['uuid'], associated_collection_uuid)
+    except TransactionError:
+        # No need to log
+        raise
 
 """
 Trigger event method of getting the parent of a Sample
@@ -2209,7 +2284,6 @@ def _get_organ_description(organ_code):
 
         # Also bubble up the error message
         raise requests.exceptions.RequestException(response.text)
-
 
 
 
