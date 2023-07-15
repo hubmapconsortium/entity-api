@@ -507,19 +507,19 @@ def get_complete_entity_result(token, entity_dict, properties_to_skip = []):
     # In case entity_dict is None or 
     # an incorrectly created entity that doesn't have the `entity_type` property
     if entity_dict and ('entity_type' in entity_dict) and ('uuid' in entity_dict):
-        result = None
+        cache_key = f'{_memcached_prefix}_complete_{entity_uuid}'
+        cache_result = None
         entity_uuid = entity_dict['uuid']
         entity_type = entity_dict['entity_type']
 
         if _memcached_client and _memcached_prefix:
-            cache_key = f'{_memcached_prefix}_complete_{entity_uuid}'
-            result = _memcached_client.get(cache_key)
+            cache_result = _memcached_client.get(cache_key)
 
         current_datetime = datetime.now()
 
         # Use the cached data if found and still valid
         # Otherwise, calculate and add to cache
-        if result is None:
+        if cache_result is None:
             if _memcached_client:
                 logger.info(f'Cache of complete entity result not found or expired. Generating a new one at time {current_datetime}')
             
@@ -542,7 +542,7 @@ def get_complete_entity_result(token, entity_dict, properties_to_skip = []):
         else:
             logger.info(f'Using the {entity_type} entity complete result of {entity_uuid} at time {current_datetime}')
 
-            complete_entity = result
+            complete_entity = cache_result
     else:
         # Just return the original entity_dict otherwise
         complete_entity = entity_dict
@@ -638,19 +638,19 @@ def normalize_entity_result_for_response(entity_dict, properties_to_exclude = []
     # In case entity_dict is None or 
     # an incorrectly created entity that doesn't have the `entity_type` property
     if entity_dict and ('entity_type' in entity_dict) and ('uuid' in entity_dict):
-        result = None
+        cache_key = f'{_memcached_prefix}_normalized_{entity_uuid}'
+        cache_result = None
         entity_uuid = entity_dict['uuid']
         entity_type = entity_dict['entity_type']
 
         if _memcached_client and _memcached_prefix:
-            cache_key = f'{_memcached_prefix}_normalized_{entity_uuid}'
-            result = _memcached_client.get(cache_key)
+            cache_result = _memcached_client.get(cache_key)
 
         current_datetime = datetime.now()
 
         # Use the cached data if found and still valid
         # Otherwise, calculate and add to cache
-        if result is None:
+        if cache_result is None:
             if _memcached_client:
                 logger.info(f'Cache of normalized entity result not found or expired. Generating a new one at time {current_datetime}')
 
@@ -681,10 +681,14 @@ def normalize_entity_result_for_response(entity_dict, properties_to_exclude = []
                         # Final step: remove properties with empty string value, empty dict {}, and empty list []
                         if (isinstance(normalized_entity[key], (str, dict, list)) and (not normalized_entity[key])):
                             normalized_entity.pop(key)
+
+            if _memcached_client:
+                # Cache the result
+                _memcached_client.set(cache_key, normalized_entity, expire = SchemaConstants.MEMCACHED_TTL)
         else:
             logger.info(f'Using the {entity_type} entity normalized cache result of {entity_uuid} at time {current_datetime}')
 
-            normalized_entity = result
+            normalized_entity = cache_result
 
     # One final return
     return normalized_entity

@@ -4396,18 +4396,18 @@ dict
 """
 def query_target_entity(id, user_token):
     entity_dict = None
-
     cache_key = f'{MEMCACHED_PREFIX}_neo4j_{id}'
+    cache_result = None
     
     if MEMCACHED_MODE:
         # Memcached returns None if no cached data or expired
-        entity_dict = memcached_client_instance.get(cache_key)
+        cache_result = memcached_client_instance.get(cache_key)
     
     current_datetime = datetime.now()
 
     # Use the cached data if found and still valid
     # Otherwise, make a fresh query and add to cache
-    if entity_dict is None:
+    if cache_result is None:
         if MEMCACHED_MODE:
             logger.info(f'Neo4j cache not found or expired. Making a new query to retrieve {id} at time {current_datetime}')
 
@@ -4456,6 +4456,8 @@ def query_target_entity(id, user_token):
     else:
         logger.info(f'Using the cache neo4j data of entity {id} at time {current_datetime}')
         logger.debug(entity_dict)
+
+        entity_dict = cache_result
 
     # One final return
     return entity_dict
