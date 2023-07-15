@@ -4489,7 +4489,7 @@ def require_json(request):
 
 
 """
-Delete the cached data of all possible keys used for the given entity ID
+Delete the cached data of all possible keys used for the given entity id
 
 Parameters
 ----------
@@ -4497,11 +4497,23 @@ id : str
     The HuBMAP ID (e.g. HBM123.ABCD.456) or UUID of target entity (Donor/Dataset/Sample/Upload/Collection/Publication)
 """
 def delete_cache(id):
-    if MEMCACHED_MODE:
+    if MEMCACHED_MODE and memcached_client_instance and MEMCACHED_PREFIX:
+        # Use the internal token to query the target entity
+        # since public entities don't require user token
+        token = get_internal_token()
+
+        # Get the entity dict from cache if exists
+        # Otherwise query against uuid-api and neo4j to get the entity dict if the id exists
+        entity_dict = query_target_entity(id, token)
+        uuid = entity_dict['uuid']
+
+        # It's possible we may have neo4j cache keyed with either hubmap_id or uuid
+        # However, we only use uuid for the complete and normalized entity cache
         cache_keys = [
             f'{MEMCACHED_PREFIX}_neo4j_{id}',
-            f'{MEMCACHED_PREFIX}_complete_{id}',
-            f'{MEMCACHED_PREFIX}_normalized_{id}'
+            f'{MEMCACHED_PREFIX}_neo4j_{uuid}',
+            f'{MEMCACHED_PREFIX}_complete_{uuid}',
+            f'{MEMCACHED_PREFIX}_normalized_{uuid}'
         ]
 
         memcached_client_instance.delete_many(cache_keys)
@@ -4511,7 +4523,7 @@ def delete_cache(id):
         # Also delete the cache of all the direct descendants (children)
         # Otherwise they'll have old cached data for the `direct_ancestor` (Sample) `direct_ancestors` (Dataset/Publication) fields
         # Note: must use uuid in the Neo4j query
-        children_uuid_list = schema_neo4j_queries.get_children(neo4j_driver_instance, entity_dict['uuid'] , 'uuid')
+        children_uuid_list = schema_neo4j_queries.get_children(neo4j_driver_instance, uuid , 'uuid')
         
         logger.info(f"Also delete the cache of all the direct descendants (children) of {id} if exist")
 
