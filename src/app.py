@@ -4454,7 +4454,7 @@ def query_target_entity(id, user_token):
             else:
                 internal_server_error(e.response.text)
     else:
-        logger.info(f'Using neo4j entity result cache of {entity_type} {id} at time {current_datetime}')
+        logger.info(f'Using neo4j entity result cache of {id} at time {current_datetime}')
         logger.debug(entity_dict)
 
         entity_dict = cache_result
