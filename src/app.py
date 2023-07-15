@@ -4523,7 +4523,7 @@ def delete_cache(id):
 
         # If the target entity is Collection, we'll delete the cache for each of its associated 
         # Datasets (via [:IN_COLLECTION] relationship) and Publications (via [:USES_DATA] relationship)
-        collection_associated_uuid_list = schema_neo4j_queries.get_collection_associated_entities(neo4j_driver_instance, uuid , 'uuid')
+        collection_associated_uuid_list = schema_neo4j_queries.get_collection_associated_entities(neo4j_driver_instance, entity_uuid , 'uuid')
 
         # We only use uuid in the cache key acorss all the cache types
         for uuid in ([entity_uuid] + children_uuid_list + collection_associated_uuid_list):
