@@ -521,7 +521,7 @@ def get_complete_entity_result(token, entity_dict, properties_to_skip = []):
         # Otherwise, calculate and add to cache
         if cache_result is None:
             if _memcached_client:
-                logger.info(f'Cache of complete entity result not found or expired. Generating a new one at time {current_datetime}')
+                logger.info(f'Cache of complete entity result of {entity_type} {entity_uuid} not found or expired. Generating a new one at time {current_datetime}')
             
             # No error handling here since if a 'on_read_trigger' method failed, 
             # the property value will be the error message
@@ -540,7 +540,7 @@ def get_complete_entity_result(token, entity_dict, properties_to_skip = []):
 
             complete_entity = complete_entity_dict_none_removed
         else:
-            logger.info(f'Using the {entity_type} entity complete result of {entity_uuid} at time {current_datetime}')
+            logger.info(f'Using complete entity result cache of {entity_type} {entity_uuid} at time {current_datetime}')
 
             complete_entity = cache_result
     else:
@@ -652,7 +652,7 @@ def normalize_entity_result_for_response(entity_dict, properties_to_exclude = []
         # Otherwise, calculate and add to cache
         if cache_result is None:
             if _memcached_client:
-                logger.info(f'Cache of normalized entity result not found or expired. Generating a new one at time {current_datetime}')
+                logger.info(f'Cache of normalized entity result of {entity_type} {entity_uuid} not found or expired. Generating a new one at time {current_datetime}')
 
             properties = _schema['ENTITIES'][entity_type]['properties']
 
@@ -686,7 +686,7 @@ def normalize_entity_result_for_response(entity_dict, properties_to_exclude = []
                 # Cache the result
                 _memcached_client.set(cache_key, normalized_entity, expire = SchemaConstants.MEMCACHED_TTL)
         else:
-            logger.info(f'Using the {entity_type} entity normalized cache result of {entity_uuid} at time {current_datetime}')
+            logger.info(f'Using normalized entity result cache of {entity_type} {entity_uuid} at time {current_datetime}')
 
             normalized_entity = cache_result
 
