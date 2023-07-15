@@ -4526,6 +4526,7 @@ def delete_cache(id):
         collection_associated_uuid_list = schema_neo4j_queries.get_collection_associated_entities(neo4j_driver_instance, entity_uuid , 'uuid')
 
         # We only use uuid in the cache key acorss all the cache types
+        cache_keys = []
         for uuid in ([entity_uuid] + children_uuid_list + collection_associated_uuid_list):
             cache_keys.append(f'{MEMCACHED_PREFIX}_neo4j_{uuid}')
             cache_keys.append(f'{MEMCACHED_PREFIX}_complete_{uuid}')
