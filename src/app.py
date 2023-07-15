@@ -4515,17 +4515,18 @@ id : str
 def delete_cache(id):
     if MEMCACHED_MODE and memcached_client_instance and MEMCACHED_PREFIX:
         entity_dict = query_target_entity(id, get_internal_token())
+        entity_uuid = entity_dict['uuid']
 
         # Also delete the cache of all the direct descendants (children)
         # Otherwise they'll have old cached data for the `direct_ancestor` (Sample) `direct_ancestors` (Dataset/Publication) fields
-        children_uuid_list = schema_neo4j_queries.get_children(neo4j_driver_instance, uuid , 'uuid')
+        children_uuid_list = schema_neo4j_queries.get_children(neo4j_driver_instance, entity_uuid , 'uuid')
 
         # If the target entity is Collection, we'll delete the cache for each of its associated 
         # Datasets (via [:IN_COLLECTION] relationship) and Publications (via [:USES_DATA] relationship)
         collection_associated_uuid_list = schema_neo4j_queries.get_collection_associated_entities(neo4j_driver_instance, uuid , 'uuid')
 
         # We only use uuid in the cache key acorss all the cache types
-        for uuid in ([entity_dict['uuid']] + children_uuid_list + collection_associated_uuid_list):
+        for uuid in ([entity_uuid] + children_uuid_list + collection_associated_uuid_list):
             cache_keys.append(f'{MEMCACHED_PREFIX}_neo4j_{uuid}')
             cache_keys.append(f'{MEMCACHED_PREFIX}_complete_{uuid}')
             cache_keys.append(f'{MEMCACHED_PREFIX}_normalized_{uuid}')
