@@ -4532,7 +4532,7 @@ def delete_cache(id):
 
         # We only use uuid in the cache key acorss all the cache types
         cache_keys = []
-        for uuid in ([entity_uuid] + children_uuids + collection_associated_uuids + collection_uuids + pubication_associated_collection_dict['uuid']):
+        for uuid in ([entity_uuid] + children_uuids + collection_associated_uuids + collection_uuids + [pubication_associated_collection_dict['uuid']]):
             cache_keys.append(f'{MEMCACHED_PREFIX}_neo4j_{uuid}')
             cache_keys.append(f'{MEMCACHED_PREFIX}_complete_{uuid}')
             cache_keys.append(f'{MEMCACHED_PREFIX}_normalized_{uuid}')
