@@ -807,11 +807,6 @@ existing_data_dict : dict
     A dictionary that contains all existing entity properties
 new_data_dict : dict
     A merged dictionary that contains all possible input data to be used
-
-Returns
--------
-str: The target property key
-str: The uuid string of source entity
 """
 def link_dataset_to_direct_ancestors(property_key, normalized_type, user_token, existing_data_dict, new_data_dict):
     if 'uuid' not in existing_data_dict:
@@ -820,6 +815,7 @@ def link_dataset_to_direct_ancestors(property_key, normalized_type, user_token, 
     if 'direct_ancestor_uuids' not in existing_data_dict:
         raise KeyError("Missing 'direct_ancestor_uuids' key in 'existing_data_dict' during calling 'link_dataset_to_direct_ancestors()' trigger method.")
 
+    dataset_uuid = existing_data_dict['uuid']
     direct_ancestor_uuids = existing_data_dict['direct_ancestor_uuids']
 
     # Generate property values for Activity node
@@ -827,7 +823,11 @@ def link_dataset_to_direct_ancestors(property_key, normalized_type, user_token, 
 
     try:
         # Create a linkage (via one Activity node) between the dataset node and its direct ancestors in neo4j
-        schema_neo4j_queries.link_entity_to_direct_ancestors(schema_manager.get_neo4j_driver_instance(), existing_data_dict['uuid'], direct_ancestor_uuids, activity_data_dict)
+        schema_neo4j_queries.link_entity_to_direct_ancestors(schema_manager.get_neo4j_driver_instance(), dataset_uuid, direct_ancestor_uuids, activity_data_dict)
+    
+        # Delete the cache of this dataset if any cache exists
+        # Because the `Dataset.direct_ancestors` field
+        schema_manager.delete_memcached_cache([dataset_uuid])
     except TransactionError:
         # No need to log
         raise
@@ -847,11 +847,6 @@ existing_data_dict : dict
     A dictionary that contains all existing entity properties
 new_data_dict : dict
     A merged dictionary that contains all possible input data to be used
-
-Returns
--------
-str: The target property key
-str: The uuid string of source entity
 """
 def link_collection_to_datasets(property_key, normalized_type, user_token, existing_data_dict, new_data_dict):
     if 'uuid' not in existing_data_dict:
@@ -860,6 +855,7 @@ def link_collection_to_datasets(property_key, normalized_type, user_token, exist
     if 'dataset_uuids' not in existing_data_dict:
         raise KeyError("Missing 'dataset_uuids' key in 'existing_data_dict' during calling 'link_collection_to_datasets()' trigger method.")
 
+    collection_uuid = existing_data_dict['uuid']
     dataset_uuids = existing_data_dict['dataset_uuids']
 
     try:
@@ -867,6 +863,11 @@ def link_collection_to_datasets(property_key, normalized_type, user_token, exist
         schema_neo4j_queries.link_collection_to_datasets(neo4j_driver=schema_manager.get_neo4j_driver_instance()
                                                          ,collection_uuid=existing_data_dict['uuid']
                                                          ,dataset_uuid_list=dataset_uuids)
+
+        # Delete the cache of each associated dataset and the collection itself if any cache exists
+        # Because the `Dataset.collecctions` field and `Collection.datasets` field
+        uuids_list = [collection_uuid] + dataset_uuids
+        schema_manager.delete_memcached_cache(uuids_list)
     except TransactionError as te:
         # No need to log
         raise
@@ -976,11 +977,6 @@ existing_data_dict : dict
     A dictionary that contains all existing entity properties
 new_data_dict : dict
     A merged dictionary that contains all possible input data to be used
-
-Returns
--------
-str: The target property key
-str: The uuid string of source entity
 """
 def link_to_previous_revision(property_key, normalized_type, user_token, existing_data_dict, new_data_dict):
     if 'uuid' not in existing_data_dict:
@@ -989,9 +985,17 @@ def link_to_previous_revision(property_key, normalized_type, user_token, existin
     if 'previous_revision_uuid' not in existing_data_dict:
         raise KeyError("Missing 'previous_revision_uuid' key in 'existing_data_dict' during calling 'link_to_previous_revision()' trigger method.")
 
+    entity_uuid = existing_data_dict['uuid']
+    previous_uuid = existing_data_dict['previous_revision_uuid']
+
     # Create a revision reltionship from this new Dataset node and its previous revision of dataset node in neo4j
     try:
-        schema_neo4j_queries.link_entity_to_previous_revision(schema_manager.get_neo4j_driver_instance(), existing_data_dict['uuid'], existing_data_dict['previous_revision_uuid'])
+        schema_neo4j_queries.link_entity_to_previous_revision(schema_manager.get_neo4j_driver_instance(), entity_uuid, previous_uuid)
+    
+        # Delete the cache of each associated dataset if any cache exists
+        # Because the `Dataset.previous_revision_uuid` and `Dataset.next_revision_uuid` fields
+        uuids_list = [entity_uuid, previous_uuid]
+        schema_manager.delete_memcached_cache(uuids_list)
     except TransactionError:
         # No need to log
         raise
@@ -1392,6 +1396,8 @@ def link_donor_to_lab(property_key, normalized_type, user_token, existing_data_d
         # Create a linkage (via Activity node) 
         # between the Donor node and the parent Lab node in neo4j
         schema_neo4j_queries.link_entity_to_direct_ancestors(schema_manager.get_neo4j_driver_instance(), existing_data_dict['uuid'], direct_ancestor_uuids, activity_data_dict)
+    
+        # No need to delete any cache here since this is one-time donor creation
     except TransactionError:
         # No need to log
         raise
@@ -1507,6 +1513,8 @@ def link_sample_to_direct_ancestor(property_key, normalized_type, user_token, ex
     if 'direct_ancestor_uuid' not in existing_data_dict:
         raise KeyError("Missing 'direct_ancestor_uuid' key in 'existing_data_dict' during calling 'link_sample_to_direct_ancestor()' trigger method.")
 
+    sample_uuid = existing_data_dict['uuid']
+
     # Build a list of direct ancestor uuids
     # Only one uuid in the list in this case
     direct_ancestor_uuids = [existing_data_dict['direct_ancestor_uuid']]
@@ -1517,7 +1525,11 @@ def link_sample_to_direct_ancestor(property_key, normalized_type, user_token, ex
     try:
         # Create a linkage (via Activity node) 
         # between the Sample node and the source entity node in neo4j
-        schema_neo4j_queries.link_entity_to_direct_ancestors(schema_manager.get_neo4j_driver_instance(), existing_data_dict['uuid'], direct_ancestor_uuids, activity_data_dict)
+        schema_neo4j_queries.link_entity_to_direct_ancestors(schema_manager.get_neo4j_driver_instance(), sample_uuid, direct_ancestor_uuids, activity_data_dict)
+    
+        # Delete the cache of sample if any cache exists
+        # Because the `Sample.direct_ancestor` field can be updated
+        schema_manager.delete_memcached_cache([sample_uuid])
     except TransactionError:
         # No need to log
         raise
@@ -1553,6 +1565,8 @@ def link_publication_to_associated_collection(property_key, normalized_type, use
         # Create a linkage
         # between the Publication node and the Collection node in neo4j
         schema_neo4j_queries.link_publication_to_associated_collection(schema_manager.get_neo4j_driver_instance(), existing_data_dict['uuid'], associated_collection_uuid)
+    
+        # Will need to delete the collection cache if later we add `Collection.associated_publications` field - 7/16/2023 Zhou
     except TransactionError:
         # No need to log
         raise
@@ -1791,6 +1805,8 @@ def link_upload_to_lab(property_key, normalized_type, user_token, existing_data_
         # Create a linkage (via Activity node) 
         # between the Submission node and the parent Lab node in neo4j
         schema_neo4j_queries.link_entity_to_direct_ancestors(schema_manager.get_neo4j_driver_instance(), existing_data_dict['uuid'], direct_ancestor_uuids, activity_data_dict)
+    
+        # No need to delete any cache here since this is one-time upload creation
     except TransactionError:
         # No need to log
         raise
@@ -1818,9 +1834,17 @@ def link_datasets_to_upload(property_key, normalized_type, user_token, existing_
     if 'dataset_uuids_to_link' not in existing_data_dict:
         raise KeyError("Missing 'dataset_uuids_to_link' key in 'existing_data_dict' during calling 'link_datasets_to_upload()' trigger method.")
 
+    upload_uuid = existing_data_dict['uuid']
+    dataset_uuids = existing_data_dict['dataset_uuids_to_link']
+
     try:
         # Create a direct linkage (Dataset) - [:IN_UPLOAD] -> (Submission) for each dataset
-        schema_neo4j_queries.link_datasets_to_upload(schema_manager.get_neo4j_driver_instance(), existing_data_dict['uuid'], existing_data_dict['dataset_uuids_to_link'])
+        schema_neo4j_queries.link_datasets_to_upload(schema_manager.get_neo4j_driver_instance(), upload_uuid, dataset_uuids)
+    
+        # Delete the cache of each associated dataset and the target upload if any cache exists
+        # Because the `Dataset.upload` and `Upload.datasets` fields, and 
+        uuids_list = [upload_uuid] + dataset_uuids
+        schema_manager.delete_memcached_cache(uuids_list)
     except TransactionError:
         # No need to log
         raise
@@ -1849,9 +1873,17 @@ def unlink_datasets_from_upload(property_key, normalized_type, user_token, exist
     if 'dataset_uuids_to_unlink' not in existing_data_dict:
         raise KeyError("Missing 'dataset_uuids_to_unlink' key in 'existing_data_dict' during calling 'unlink_datasets_from_upload()' trigger method.")
 
+    upload_uuid = existing_data_dict['uuid']
+    dataset_uuids = existing_data_dict['dataset_uuids_to_unlink']
+
     try:
         # Delete the linkage (Dataset) - [:IN_UPLOAD] -> (Upload) for each dataset
-        schema_neo4j_queries.unlink_datasets_from_upload(schema_manager.get_neo4j_driver_instance(), existing_data_dict['uuid'], existing_data_dict['dataset_uuids_to_unlink'])
+        schema_neo4j_queries.unlink_datasets_from_upload(schema_manager.get_neo4j_driver_instance(), upload_uuid, dataset_uuids)
+    
+        # Delete the cache of each associated dataset and the upload itself if any cache exists
+        # Because the associated datasets have this `Dataset.upload` field and Upload has `Upload.datasets` field
+        uuids_list = dataset_uuids + [upload_uuid]
+        schema_manager.delete_memcached_cache(uuids_list)
     except TransactionError:
         # No need to log
         raise

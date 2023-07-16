@@ -34,6 +34,7 @@ _ingest_api_url = None
 _auth_helper = None
 _neo4j_driver = None
 _memcached_client = None
+_memcached_prefix = None
 
 
 ####################################################################################################
@@ -499,22 +500,56 @@ dict
     A dictionary of complete entity with all the generated 'on_read_trigger' data
 """
 def get_complete_entity_result(token, entity_dict, properties_to_skip = []):
+    global _memcached_client
+    global _memcached_prefix
+
+    complete_entity = {}
+
     # In case entity_dict is None or 
     # an incorrectly created entity that doesn't have the `entity_type` property
-    if entity_dict and ('entity_type' in entity_dict):
-        # No error handling here since if a 'on_read_trigger' method failed, 
-        # the property value will be the error message
-        # Pass {} since no new_data_dict for 'on_read_trigger'
-        generated_on_read_trigger_data_dict = generate_triggered_data('on_read_trigger', entity_dict['entity_type'], token, entity_dict, {}, properties_to_skip)
+    if entity_dict and ('entity_type' in entity_dict) and ('uuid' in entity_dict):
+        entity_uuid = entity_dict['uuid']
+        entity_type = entity_dict['entity_type']
+        cache_result = None
 
-        # Merge the entity info and the generated on read data into one dictionary
-        complete_entity_dict = {**entity_dict, **generated_on_read_trigger_data_dict}
+        # Need both client and prefix when fetching the cache
+        if _memcached_client and _memcached_prefix:
+            cache_key = f'{_memcached_prefix}_complete_{entity_uuid}'
+            cache_result = _memcached_client.get(cache_key)
 
-        # Remove properties of None value
-        return remove_none_values(complete_entity_dict)
+        # Use the cached data if found and still valid
+        # Otherwise, calculate and add to cache
+        if cache_result is None:
+            if _memcached_client and _memcached_prefix:
+                logger.info(f'Cache of complete entity of {entity_type} {entity_uuid} not found or expired at time {datetime.now()}')
+            
+            # No error handling here since if a 'on_read_trigger' method failed, 
+            # the property value will be the error message
+            # Pass {} since no new_data_dict for 'on_read_trigger'
+            generated_on_read_trigger_data_dict = generate_triggered_data('on_read_trigger', entity_type, token, entity_dict, {}, properties_to_skip)
+
+            # Merge the entity info and the generated on read data into one dictionary
+            complete_entity_dict = {**entity_dict, **generated_on_read_trigger_data_dict}
+
+            # Remove properties of None value
+            complete_entity = remove_none_values(complete_entity_dict)
+
+            # Need both client and prefix when creating the cache
+            if _memcached_client and _memcached_prefix:
+                logger.info(f'Creating complete entity cache of {entity_type} {entity_uuid} at time {datetime.now()}')
+
+                cache_key = f'{_memcached_prefix}_complete_{entity_uuid}'
+                _memcached_client.set(cache_key, complete_entity, expire = SchemaConstants.MEMCACHED_TTL)
+        else:
+            logger.info(f'Using complete entity cache of {entity_type} {entity_uuid} at time {datetime.now()}')
+
+            complete_entity = cache_result
     else:
         # Just return the original entity_dict otherwise
-        return entity_dict
+        complete_entity = entity_dict
+
+    # One final return
+    return complete_entity
 
 
 """
@@ -596,41 +631,69 @@ dict
 """
 def normalize_entity_result_for_response(entity_dict, properties_to_exclude = []):
     global _schema
+    global _memcached_client
+    global _memcached_prefix
 
     normalized_entity = {}
 
     # In case entity_dict is None or 
     # an incorrectly created entity that doesn't have the `entity_type` property
-    if entity_dict and ('entity_type' in entity_dict):
-        normalized_entity_type = entity_dict['entity_type']
-        properties = _schema['ENTITIES'][normalized_entity_type]['properties']
+    if entity_dict and ('entity_type' in entity_dict) and ('uuid' in entity_dict):
+        entity_uuid = entity_dict['uuid']
+        entity_type = entity_dict['entity_type']
+        cache_result = None
 
-        for key in entity_dict:
-            # Only return the properties defined in the schema yaml
-            # Exclude additional properties if specified
-            if (key in properties) and (key not in properties_to_exclude):
-                # Skip properties with None value and the ones that are marked as not to be exposed.
-                # By default, all properties are exposed if not marked as `exposed: false`
-                # It's still possible to see `exposed: true` marked explictly
-                if (entity_dict[key] is not None) and ('exposed' not in properties[key]) or (('exposed' in properties[key]) and properties[key]['exposed']): 
-                    # Only run convert_str_literal() on string representation of Python dict and list with removing control characters
-                    # No convertion for string representation of Python string, meaning that can still contain control characters
-                    if entity_dict[key] and (properties[key]['type'] in ['list', 'json_string']):
-                        logger.info(f"Executing convert_str_literal() on {normalized_entity_type}.{key} of uuid: {entity_dict['uuid']}")
+        # Need both client and prefix when fetching the cache
+        if _memcached_client and _memcached_prefix:
+            cache_key = f'{_memcached_prefix}_normalized_{entity_uuid}'
+            cache_result = _memcached_client.get(cache_key)
 
-                        # Safely evaluate a string containing a Python dict or list literal
-                        # Only convert to Python list/dict when the string literal is not empty
-                        # instead of returning the json-as-string or array-as-string
-                        # convert_str_literal() also removes those control chars to avoid SyntaxError
-                        entity_dict[key] = convert_str_literal(entity_dict[key])
-                    
-                    # Add the target key with correct value of data type to the normalized_entity dict
-                    normalized_entity[key] = entity_dict[key]
+        # Use the cached data if found and still valid
+        # Otherwise, calculate and add to cache
+        if cache_result is None:
+            if _memcached_client and _memcached_prefix:
+                logger.info(f'Cache of normalized entity of {entity_type} {entity_uuid} not found or expired at time {datetime.now()}')
 
-                    # Final step: remove properties with empty string value, empty dict {}, and empty list []
-                    if (isinstance(normalized_entity[key], (str, dict, list)) and (not normalized_entity[key])):
-                        normalized_entity.pop(key)
+            properties = _schema['ENTITIES'][entity_type]['properties']
 
+            for key in entity_dict:
+                # Only return the properties defined in the schema yaml
+                # Exclude additional properties if specified
+                if (key in properties) and (key not in properties_to_exclude):
+                    # Skip properties with None value and the ones that are marked as not to be exposed.
+                    # By default, all properties are exposed if not marked as `exposed: false`
+                    # It's still possible to see `exposed: true` marked explictly
+                    if (entity_dict[key] is not None) and ('exposed' not in properties[key]) or (('exposed' in properties[key]) and properties[key]['exposed']): 
+                        # Only run convert_str_literal() on string representation of Python dict and list with removing control characters
+                        # No convertion for string representation of Python string, meaning that can still contain control characters
+                        if entity_dict[key] and (properties[key]['type'] in ['list', 'json_string']):
+                            logger.info(f"Executing convert_str_literal() on {entity_type}.{key} of uuid: {entity_uuid}")
+
+                            # Safely evaluate a string containing a Python dict or list literal
+                            # Only convert to Python list/dict when the string literal is not empty
+                            # instead of returning the json-as-string or array-as-string
+                            # convert_str_literal() also removes those control chars to avoid SyntaxError
+                            entity_dict[key] = convert_str_literal(entity_dict[key])
+                        
+                        # Add the target key with correct value of data type to the normalized_entity dict
+                        normalized_entity[key] = entity_dict[key]
+
+                        # Final step: remove properties with empty string value, empty dict {}, and empty list []
+                        if (isinstance(normalized_entity[key], (str, dict, list)) and (not normalized_entity[key])):
+                            normalized_entity.pop(key)
+
+            # Need both client and prefix when creating the cache
+            if _memcached_client and _memcached_prefix:
+                logger.info(f'Creating normalized entity cache of {entity_type} {entity_uuid} at time {datetime.now()}')
+
+                cache_key = f'{_memcached_prefix}_normalized_{entity_uuid}'
+                _memcached_client.set(cache_key, normalized_entity, expire = SchemaConstants.MEMCACHED_TTL)
+        else:
+            logger.info(f'Using normalized entity cache of {entity_type} {entity_uuid} at time {datetime.now()}')
+
+            normalized_entity = cache_result
+
+    # One final return
     return normalized_entity
 
 
@@ -1578,6 +1641,34 @@ def get_neo4j_driver_instance():
 
 
 """
+Get the Memcached client instance to be used by trigger methods
+
+Returns
+-------
+neo4j.Driver
+    The neo4j.Driver instance
+"""
+def get_memcached_client_instance():
+    global _memcached_client
+    
+    return _memcached_client
+
+
+"""
+Get the configured Memcached prefix to be used by trigger methods
+
+Returns
+-------
+neo4j.Driver
+    The neo4j.Driver instance
+"""
+def get_memcached_prefix():
+    global _memcached_prefix
+    
+    return _memcached_prefix
+
+
+"""
 Convert a string representation of the Python list/dict (either nested or not) to a Python list/dict object
 with removing any non-printable control characters if presents.
 
@@ -1647,13 +1738,11 @@ def make_request_get(target_url, internal_token_used = False):
         cache_key = f'{_memcached_prefix}{target_url}'
         response = _memcached_client.get(cache_key)
 
-    current_datetime = datetime.now()
-
     # Use the cached data if found and still valid
     # Otherwise, make a fresh query and add to cache
     if response is None:
-        if _memcached_client:
-            logger.info(f'Cache not found or expired. Making a new HTTP request of GET {target_url} at time {current_datetime}')
+        if _memcached_client and _memcached_prefix:
+            logger.info(f'HTTP response cache not found or expired. Making a new HTTP request of GET {target_url} at time {datetime.now()}')
         
         if internal_token_used:
             # Use modified version of globus app secret from configuration as the internal token
@@ -1666,12 +1755,38 @@ def make_request_get(target_url, internal_token_used = False):
             response = requests.get(url = target_url, verify = False)
 
         if _memcached_client and _memcached_prefix:
+            logger.info(f'Creating HTTP response cache of GET {target_url} at time {datetime.now()}')
+
             cache_key = f'{_memcached_prefix}{target_url}'
             _memcached_client.set(cache_key, response, expire = SchemaConstants.MEMCACHED_TTL)
     else:
-        logger.info(f'Using the cached HTTP response of GET {target_url} at time {current_datetime}')
+        logger.info(f'Using HTTP response cache of GET {target_url} at time {datetime.now()}')
 
     return response
+
+
+"""
+Delete the cached data for the given entity uuids
+
+Parameters
+----------
+uuids_list : list
+    A list of target uuids
+"""
+def delete_memcached_cache(uuids_list):
+    global _memcached_client
+    global _memcached_prefix
+
+    if _memcached_client and _memcached_prefix:
+        cache_keys = []
+        for uuid in uuids_list:
+            cache_keys.append(f'{_memcached_prefix}_neo4j_{uuid}')
+            cache_keys.append(f'{_memcached_prefix}_complete_{uuid}')
+            cache_keys.append(f'{_memcached_prefix}_normalized_{uuid}')
+
+        _memcached_client.delete_many(cache_keys)
+
+        logger.info(f"Deleted cache by key: {', '.join(cache_keys)}")
 
 
 ####################################################################################################
