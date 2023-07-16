@@ -1641,6 +1641,34 @@ def get_neo4j_driver_instance():
 
 
 """
+Get the Memcached client instance to be used by trigger methods
+
+Returns
+-------
+neo4j.Driver
+    The neo4j.Driver instance
+"""
+def get_memcached_client_instance():
+    global _memcached_client
+    
+    return _memcached_client
+
+
+"""
+Get the configured Memcached prefix to be used by trigger methods
+
+Returns
+-------
+neo4j.Driver
+    The neo4j.Driver instance
+"""
+def get_memcached_prefix():
+    global _memcached_prefix
+    
+    return _memcached_prefix
+
+
+"""
 Convert a string representation of the Python list/dict (either nested or not) to a Python list/dict object
 with removing any non-printable control characters if presents.
 
@@ -1735,6 +1763,30 @@ def make_request_get(target_url, internal_token_used = False):
         logger.info(f'Using HTTP response cache of GET {target_url} at time {datetime.now()}')
 
     return response
+
+
+"""
+Delete the cached data for the given entity uuids
+
+Parameters
+----------
+uuids_list : list
+    A list of target uuids
+"""
+def delete_memcached_cache(uuids_list):
+    global _memcached_client
+    global _memcached_prefix
+
+    if _memcached_client and _memcached_prefix:
+        cache_keys = []
+        for uuid in uuids_list:
+            cache_keys.append(f'{_memcached_prefix}_neo4j_{uuid}')
+            cache_keys.append(f'{_memcached_prefix}_complete_{uuid}')
+            cache_keys.append(f'{_memcached_prefix}_normalized_{uuid}')
+
+        _memcached_client.delete_many(cache_keys)
+
+        logger.info(f"Deleted cache by key: {', '.join(cache_keys)}")
 
 
 ####################################################################################################

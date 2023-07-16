@@ -4513,7 +4513,7 @@ id : str
     The HuBMAP ID (e.g. HBM123.ABCD.456) or UUID of target entity (Donor/Dataset/Sample/Upload/Collection/Publication)
 """
 def delete_cache(id):
-    if MEMCACHED_MODE and memcached_client_instance and MEMCACHED_PREFIX:
+    if MEMCACHED_MODE:
         # First delete the target entity cache
         entity_dict = query_target_entity(id, get_internal_token())
         entity_uuid = entity_dict['uuid']
@@ -4535,15 +4535,8 @@ def delete_cache(id):
         upload_dict = schema_neo4j_queries.get_dataset_upload(neo4j_driver_instance, entity_uuid)
 
         # We only use uuid in the cache key acorss all the cache types
-        cache_keys = []
-        for uuid in ([entity_uuid] + child_uuids + collection_dataset_uuids + upload_dataset_uuids + collection_uuids + [collection_dict['uuid']] + [upload_dict['uuid']]):
-            cache_keys.append(f'{MEMCACHED_PREFIX}_neo4j_{uuid}')
-            cache_keys.append(f'{MEMCACHED_PREFIX}_complete_{uuid}')
-            cache_keys.append(f'{MEMCACHED_PREFIX}_normalized_{uuid}')
-
-        memcached_client_instance.delete_many(cache_keys)
-
-        logger.info(f"Deleted cache by key: {', '.join(cache_keys)}")
+        uuids_list = [entity_uuid] + child_uuids + collection_dataset_uuids + upload_dataset_uuids + collection_uuids + [collection_dict['uuid']] + [upload_dict['uuid']]
+        schema_manager.delete_memcached_cache(uuids_list)
 
 
 """
