@@ -4514,25 +4514,29 @@ id : str
 """
 def delete_cache(id):
     if MEMCACHED_MODE and memcached_client_instance and MEMCACHED_PREFIX:
+        # First delete the target entity cache
         entity_dict = query_target_entity(id, get_internal_token())
         entity_uuid = entity_dict['uuid']
 
+        # If the target entity is Sample (`direct_ancestor`) or Dataset/Publication (`direct_ancestors`)
         # Delete the cache of all the direct descendants (children)
-        # Otherwise they'll have old cached data for the `direct_ancestor` (Sample) `direct_ancestors` (Dataset/Publication) fields
-        children_uuids = schema_neo4j_queries.get_children(neo4j_driver_instance, entity_uuid , 'uuid')
+        child_uuids = schema_neo4j_queries.get_children(neo4j_driver_instance, entity_uuid , 'uuid')
 
         # If the target entity is Collection, delete the cache for each of its associated 
-        # Datasets (via [:IN_COLLECTION] relationship) and Publications (via [:USES_DATA] relationship)
-        collection_associated_uuids = schema_neo4j_queries.get_collection_associated_entities(neo4j_driver_instance, entity_uuid , 'uuid')
+        # Datasets and Publications (via [:IN_COLLECTION] relationship) as well as just Publications (via [:USES_DATA] relationship)
+        collection_dataset_uuids = schema_neo4j_queries.get_collection_associated_datasets(neo4j_driver_instance, entity_uuid , 'uuid')
 
-        # Also find the associated Collections if the target entity is Datasets or Publication
-        # `get_dataset_collections()` applies to both Dataset and Publication (subclass of Dataset)
+        # If the target entity is Upload, delete the cache for each of its associated Datasets (via [:IN_UPLOAD] relationship)
+        upload_dataset_uuids = schema_neo4j_queries.get_upload_datasets(neo4j_driver_instance, entity_uuid , 'uuid')
+
+        # If the target entity is Datasets/Publication, delete the associated Collections cache, Upload cache
         collection_uuids = schema_neo4j_queries.get_dataset_collections(neo4j_driver_instance, entity_uuid , 'uuid')
-        pubication_associated_collection_dict = schema_neo4j_queries.get_publication_associated_collection(neo4j_driver_instance, entity_uuid)
+        collection_dict = schema_neo4j_queries.get_publication_associated_collection(neo4j_driver_instance, entity_uuid)
+        upload_dict = schema_neo4j_queries.get_dataset_upload(neo4j_driver_instance, entity_uuid)
 
         # We only use uuid in the cache key acorss all the cache types
         cache_keys = []
-        for uuid in ([entity_uuid] + children_uuids + collection_associated_uuids + collection_uuids + [pubication_associated_collection_dict['uuid']]):
+        for uuid in ([entity_uuid] + child_uuids + collection_dataset_uuids + upload_dataset_uuids + collection_uuids + [collection_dict['uuid']] + [upload_dict['uuid']]):
             cache_keys.append(f'{MEMCACHED_PREFIX}_neo4j_{uuid}')
             cache_keys.append(f'{MEMCACHED_PREFIX}_complete_{uuid}')
             cache_keys.append(f'{MEMCACHED_PREFIX}_normalized_{uuid}')
