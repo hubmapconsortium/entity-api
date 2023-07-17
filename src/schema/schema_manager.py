@@ -513,11 +513,10 @@ def get_complete_entity_result(token, entity_dict, properties_to_skip = []):
         cache_result = None
 
         # Need both client and prefix when fetching the cache
-        if _memcached_client and _memcached_prefix:
-            # Do NOT fetch cache is properties_to_skip is specified
-            if not properties_to_skip:
-                cache_key = f'{_memcached_prefix}_complete_{entity_uuid}'
-                cache_result = _memcached_client.get(cache_key)
+        # Do NOT fetch cache is properties_to_skip is specified
+        if _memcached_client and _memcached_prefix and (not properties_to_skip):
+            cache_key = f'{_memcached_prefix}_complete_{entity_uuid}'
+            cache_result = _memcached_client.get(cache_key)
 
         # Use the cached data if found and still valid
         # Otherwise, calculate and add to cache
@@ -537,15 +536,18 @@ def get_complete_entity_result(token, entity_dict, properties_to_skip = []):
             complete_entity = remove_none_values(complete_entity_dict)
 
             # Need both client and prefix when creating the cache
-            if _memcached_client and _memcached_prefix:
+            # Do NOT cache when properties_to_skip is specified
+            if _memcached_client and _memcached_prefix and (not properties_to_skip):
                 logger.info(f'Creating complete entity cache of {entity_type} {entity_uuid} at time {datetime.now()}')
 
-                # Do NOT cache when properties_to_skip is specified
-                if not properties_to_skip:
-                    cache_key = f'{_memcached_prefix}_complete_{entity_uuid}'
-                    _memcached_client.set(cache_key, complete_entity, expire = SchemaConstants.MEMCACHED_TTL)
+                cache_key = f'{_memcached_prefix}_complete_{entity_uuid}'
+                _memcached_client.set(cache_key, complete_entity, expire = SchemaConstants.MEMCACHED_TTL)
+
+                logger.debug(f"Following is the complete {entity_type} cache created at time {datetime.now()} using key {cache_key}:")
+                logger.debug(complete_entity)
         else:
             logger.info(f'Using complete entity cache of {entity_type} {entity_uuid} at time {datetime.now()}')
+            logger.debug(cache_result)
 
             complete_entity = cache_result
     else:
@@ -648,11 +650,10 @@ def normalize_entity_result_for_response(entity_dict, properties_to_exclude = []
         cache_result = None
 
         # Need both client and prefix when fetching the cache
-        if _memcached_client and _memcached_prefix:
-            # Do NOT fetch cache is properties_to_exclude is specified
-            if not properties_to_exclude:
-                cache_key = f'{_memcached_prefix}_normalized_{entity_uuid}'
-                cache_result = _memcached_client.get(cache_key)
+        # Do NOT fetch cache is properties_to_exclude is specified
+        if _memcached_client and _memcached_prefix and (not properties_to_exclude):
+            cache_key = f'{_memcached_prefix}_normalized_{entity_uuid}'
+            cache_result = _memcached_client.get(cache_key)
 
         # Use the cached data if found and still valid
         # Otherwise, calculate and add to cache
@@ -689,15 +690,18 @@ def normalize_entity_result_for_response(entity_dict, properties_to_exclude = []
                             normalized_entity.pop(key)
 
             # Need both client and prefix when creating the cache
-            if _memcached_client and _memcached_prefix:
+            # Do NOT cache when properties_to_exclude is specified
+            if _memcached_client and _memcached_prefix and (not properties_to_exclude):
                 logger.info(f'Creating normalized entity cache of {entity_type} {entity_uuid} at time {datetime.now()}')
 
-                # Do NOT cache when properties_to_exclude is specified
-                if not properties_to_exclude:
-                    cache_key = f'{_memcached_prefix}_normalized_{entity_uuid}'
-                    _memcached_client.set(cache_key, normalized_entity, expire = SchemaConstants.MEMCACHED_TTL)
+                cache_key = f'{_memcached_prefix}_normalized_{entity_uuid}'
+                _memcached_client.set(cache_key, normalized_entity, expire = SchemaConstants.MEMCACHED_TTL)
+
+                logger.debug(f"Following is the normalized {entity_type} cache created at time {datetime.now()} using key {cache_key}:")
+                logger.debug(normalized_entity)
         else:
             logger.info(f'Using normalized entity cache of {entity_type} {entity_uuid} at time {datetime.now()}')
+            logger.debug(cache_result)
 
             normalized_entity = cache_result
 
