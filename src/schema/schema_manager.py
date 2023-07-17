@@ -515,7 +515,7 @@ def get_complete_entity_result(token, entity_dict, properties_to_skip = []):
         # Need both client and prefix when fetching the cache
         if _memcached_client and _memcached_prefix:
             # Do NOT fetch cache is properties_to_skip is specified
-            if not properties_to_skip
+            if not properties_to_skip:
                 cache_key = f'{_memcached_prefix}_complete_{entity_uuid}'
                 cache_result = _memcached_client.get(cache_key)
 
