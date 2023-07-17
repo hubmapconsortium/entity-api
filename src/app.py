@@ -4535,7 +4535,15 @@ def delete_cache(id):
         upload_dict = schema_neo4j_queries.get_dataset_upload(neo4j_driver_instance, entity_uuid)
 
         # We only use uuid in the cache key acorss all the cache types
-        uuids_list = [entity_uuid] + child_uuids + collection_dataset_uuids + upload_dataset_uuids + collection_uuids + [collection_dict['uuid']] + [upload_dict['uuid']]
+        uuids_list = [entity_uuid] + child_uuids + collection_dataset_uuids + upload_dataset_uuids + collection_uuids
+
+        # It's possible no linked collection or upload
+        if collection_dict:
+            uuids_list.append(collection_dict['uuid'])
+
+        if upload_dict:
+            uuids_list.append(upload_dict['uuid'])
+
         schema_manager.delete_memcached_cache(uuids_list)
 
 
