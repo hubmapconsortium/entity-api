@@ -4410,83 +4410,54 @@ dict
 def query_target_entity(id, user_token):
     entity_dict = None
     cache_result = None
-    
-    if MEMCACHED_MODE and MEMCACHED_PREFIX and memcached_client_instance:
-        # If this id is hubmap_id rather than uuid, there won't be a cache
-        # Only uuid is used in the cache key
-        cache_key = f'{MEMCACHED_PREFIX}_neo4j_{id}'
-        # Memcached returns None if no cached data or expired
-        cache_result = memcached_client_instance.get(cache_key)
-    
-    # Use the cached data if the id is an uuid and we found a valid cache
-    # Otherwise, either the id is a hubmap_id or we don't have a cache for it even if it's uuid
-    if cache_result is None:
+
+    try:
+        # Get cached ids if exist otherwise retrieve from UUID-API
+        hubmap_ids = schema_manager.get_hubmap_ids(id)
+
+        # Get the target uuid if all good
+        uuid = hubmap_ids['hm_uuid']
+
+        # Look up the cache again by the uuid since we only use uuid in the cache key
         if MEMCACHED_MODE and MEMCACHED_PREFIX and memcached_client_instance:
-            logger.info(f'Neo4j entity cache of {id} not found or expired at time {datetime.now()}')
+            cache_key = f'{MEMCACHED_PREFIX}_neo4j_{uuid}'
+            cache_result = memcached_client_instance.get(cache_key)
 
-        try:
-            """
-            The dict returned by uuid-api that contains all the associated ids, e.g.:
-            {
-                "ancestor_id": "940f409ea5b96ff8d98a87d185cc28e2",
-                "ancestor_ids": [
-                    "940f409ea5b96ff8d98a87d185cc28e2"
-                ],
-                "email": "jamie.l.allen@vanderbilt.edu",
-                "hm_uuid": "be5a8f1654364c9ea0ca3071ba48f260",
-                "hubmap_id": "HBM272.FXQF.697",
-                "submission_id": "VAN0032-RK-2-43",
-                "time_generated": "2020-11-09 19:55:09",
-                "type": "SAMPLE",
-                "user_id": "83ae233d-6d1d-40eb-baa7-b6f636ab579a"
-            }
-            """
-            # Get cached ids if exist otherwise retrieve from UUID-API
-            hubmap_ids = schema_manager.get_hubmap_ids(id)
+        if cache_result is None:
+            logger.info(f'Neo4j entity cache of {uuid} not found or expired at time {datetime.now()}')
 
-            # Get the target uuid if all good
-            uuid = hubmap_ids['hm_uuid']
+            # Make a new query against neo4j
+            entity_dict = schema_neo4j_queries.get_entity(neo4j_driver_instance, uuid)
 
-            # Look up the cache again by the uuid since we only use uuid in the cache key
+            # The uuid exists via uuid-api doesn't mean it also exists in Neo4j
+            if not entity_dict:
+                logger.debug(f"Entity of uuid: {uuid} not found in Neo4j")
+
+                # Still use the user provided id, especially when it's a hubmap_id, for error message
+                not_found_error(f"Entity of id: {id} not found in Neo4j")
+            
+            # Save to cache
             if MEMCACHED_MODE and MEMCACHED_PREFIX and memcached_client_instance:
+                logger.info(f'Creating neo4j entity result cache of {uuid} at time {datetime.now()}')
+
                 cache_key = f'{MEMCACHED_PREFIX}_neo4j_{uuid}'
-                cache_result = memcached_client_instance.get(cache_key)
+                memcached_client_instance.set(cache_key, entity_dict, expire = SchemaConstants.MEMCACHED_TTL)
+        else:
+            logger.info(f'Using neo4j entity cache of UUID {uuid} at time {datetime.now()}')
+            logger.debug(cache_result)
 
-                if cache_result is None:
-                    logger.info(f'Neo4j entity cache of {uuid} not found or expired at time {datetime.now()}')
+            entity_dict = cache_result
+    except requests.exceptions.RequestException as e:
+        # Due to the use of response.raise_for_status() in schema_manager.get_hubmap_ids()
+        # we can access the status codes from the exception
+        status_code = e.response.status_code
 
-                    # Make a new query against neo4j
-                    entity_dict = schema_neo4j_queries.get_entity(neo4j_driver_instance, uuid)
-
-                    # The uuid exists via uuid-api doesn't mean it also exists in Neo4j
-                    if not entity_dict:
-                        not_found_error(f"Entity of id: {uuid} not found in Neo4j")
-                    
-                    logger.info(f'Creating neo4j entity result cache of {uuid} at time {datetime.now()}')
-
-                    cache_key = f'{MEMCACHED_PREFIX}_neo4j_{uuid}'
-                    memcached_client_instance.set(cache_key, entity_dict, expire = SchemaConstants.MEMCACHED_TTL)
-                else:
-                    logger.info(f'Using neo4j entity cache of {uuid} at time {datetime.now()}')
-                    logger.debug(entity_dict)
-
-                    entity_dict = cache_result
-        except requests.exceptions.RequestException as e:
-            # Due to the use of response.raise_for_status() in schema_manager.get_hubmap_ids()
-            # we can access the status codes from the exception
-            status_code = e.response.status_code
-
-            if status_code == 400:
-                bad_request_error(e.response.text)
-            if status_code == 404:
-                not_found_error(e.response.text)
-            else:
-                internal_server_error(e.response.text)
-    else:
-        logger.info(f'Using neo4j entity cache of {id} at time {datetime.now()}')
-        logger.debug(entity_dict)
-
-        entity_dict = cache_result
+        if status_code == 400:
+            bad_request_error(e.response.text)
+        if status_code == 404:
+            not_found_error(e.response.text)
+        else:
+            internal_server_error(e.response.text)
 
     # One final return
     return entity_dict
