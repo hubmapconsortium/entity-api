@@ -514,10 +514,10 @@ def get_complete_entity_result(token, entity_dict, properties_to_skip = []):
 
         # Need both client and prefix when fetching the cache
         if _memcached_client and _memcached_prefix:
-            cache_key = f'{_memcached_prefix}_complete_{entity_uuid}'
-            if properties_to_skip:
-                cache_key = f'{_memcached_prefix}_complete_{entity_uuid}_{"_".join(properties_to_skip)}'
-            cache_result = _memcached_client.get(cache_key)
+            # Do NOT fetch cache is properties_to_skip is specified
+            if not properties_to_skip
+                cache_key = f'{_memcached_prefix}_complete_{entity_uuid}'
+                cache_result = _memcached_client.get(cache_key)
 
         # Use the cached data if found and still valid
         # Otherwise, calculate and add to cache
@@ -540,10 +540,10 @@ def get_complete_entity_result(token, entity_dict, properties_to_skip = []):
             if _memcached_client and _memcached_prefix:
                 logger.info(f'Creating complete entity cache of {entity_type} {entity_uuid} at time {datetime.now()}')
 
-                cache_key = f'{_memcached_prefix}_complete_{entity_uuid}'
-                if properties_to_skip:
-                    cache_key = f'{_memcached_prefix}_complete_{entity_uuid}_{"_".join(properties_to_skip)}'
-                _memcached_client.set(cache_key, complete_entity, expire = SchemaConstants.MEMCACHED_TTL)
+                # Do NOT cache when properties_to_skip is specified
+                if not properties_to_skip:
+                    cache_key = f'{_memcached_prefix}_complete_{entity_uuid}'
+                    _memcached_client.set(cache_key, complete_entity, expire = SchemaConstants.MEMCACHED_TTL)
         else:
             logger.info(f'Using complete entity cache of {entity_type} {entity_uuid} at time {datetime.now()}')
 
@@ -649,10 +649,10 @@ def normalize_entity_result_for_response(entity_dict, properties_to_exclude = []
 
         # Need both client and prefix when fetching the cache
         if _memcached_client and _memcached_prefix:
-            cache_key = f'{_memcached_prefix}_normalized_{entity_uuid}'
-            if properties_to_exclude:
-                cache_key = f'{_memcached_prefix}_normalized_{entity_uuid}_{"_".join(properties_to_exclude)}'
-            cache_result = _memcached_client.get(cache_key)
+            # Do NOT fetch cache is properties_to_exclude is specified
+            if not properties_to_exclude:
+                cache_key = f'{_memcached_prefix}_normalized_{entity_uuid}'
+                cache_result = _memcached_client.get(cache_key)
 
         # Use the cached data if found and still valid
         # Otherwise, calculate and add to cache
@@ -692,10 +692,10 @@ def normalize_entity_result_for_response(entity_dict, properties_to_exclude = []
             if _memcached_client and _memcached_prefix:
                 logger.info(f'Creating normalized entity cache of {entity_type} {entity_uuid} at time {datetime.now()}')
 
-                cache_key = f'{_memcached_prefix}_normalized_{entity_uuid}'
-                if properties_to_exclude:
-                    cache_key = f'{_memcached_prefix}_normalized_{entity_uuid}_{"_".join(properties_to_exclude)}'
-                _memcached_client.set(cache_key, normalized_entity, expire = SchemaConstants.MEMCACHED_TTL)
+                # Do NOT cache when properties_to_exclude is specified
+                if not properties_to_exclude:
+                    cache_key = f'{_memcached_prefix}_normalized_{entity_uuid}'
+                    _memcached_client.set(cache_key, normalized_entity, expire = SchemaConstants.MEMCACHED_TTL)
         else:
             logger.info(f'Using normalized entity cache of {entity_type} {entity_uuid} at time {datetime.now()}')
 
