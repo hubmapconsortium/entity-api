@@ -589,23 +589,9 @@ def get_collection_datasets(property_key, normalized_type, user_token, existing_
 
     datasets_list = schema_neo4j_queries.get_collection_datasets(schema_manager.get_neo4j_driver_instance(), existing_data_dict['uuid'])
 
-    # These are the node properties stored in Neo4j
-    # None of them needs to be generated via a read trigger
-    properties_to_return = [
-        'uuid', 
-        'hubmap_id', 
-        'data_types',
-        'status', 
-        'last_modified_timestamp', 
-        'created_by_user_displayname'
-    ]
-
-    for dataset_dict in datasets_list:
-        for key in list(dataset_dict):
-            if key not in properties_to_return:
-                dataset_dict.pop(key)
-
-    return property_key, datasets_list
+    # Get rid of the entity node properties that are not defined in the yaml schema
+    # as well as the ones defined as `exposed: false` in the yaml schema
+    return property_key, schema_manager.normalize_entities_list_for_response(datasets_list)
 
 
 ####################################################################################################
