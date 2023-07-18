@@ -569,7 +569,7 @@ def _get_entity_visibility(normalized_entity_type, entity_dict):
     # Use the characteristics of the entity's data to classify the entity's visibility, so
     # it can be used along with the user's authorization to determine access.
     entity_visibility=DataVisibilityEnum.NONPUBLIC
-    if normalized_entity_type == 'Dataset' and \
+    if schema_manager.entity_type_instanceof(normalized_entity_type, 'Dataset') and \
        entity_dict['status'].lower() == DATASET_STATUS_PUBLISHED:
         entity_visibility=DataVisibilityEnum.PUBLIC
     elif normalized_entity_type == 'Collection' and \
