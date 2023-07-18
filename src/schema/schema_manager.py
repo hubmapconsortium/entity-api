@@ -483,7 +483,7 @@ def remove_transient_and_none_values(merged_dict, normalized_entity_type):
 
 
 """
-Generate the complete entity record as well as result filtering for response
+Generate the complete entity record by running the read triggers
 
 Parameters
 ----------
@@ -513,11 +513,10 @@ def get_complete_entity_result(token, entity_dict, properties_to_skip = []):
         cache_result = None
 
         # Need both client and prefix when fetching the cache
-        if _memcached_client and _memcached_prefix:
-            # Do NOT fetch cache is properties_to_skip is specified
-            if not properties_to_skip:
-                cache_key = f'{_memcached_prefix}_complete_{entity_uuid}'
-                cache_result = _memcached_client.get(cache_key)
+        # Do NOT fetch cache if properties_to_skip is specified
+        if _memcached_client and _memcached_prefix and (not properties_to_skip):
+            cache_key = f'{_memcached_prefix}_complete_{entity_uuid}'
+            cache_result = _memcached_client.get(cache_key)
 
         # Use the cached data if found and still valid
         # Otherwise, calculate and add to cache
@@ -525,7 +524,7 @@ def get_complete_entity_result(token, entity_dict, properties_to_skip = []):
             if _memcached_client and _memcached_prefix:
                 logger.info(f'Cache of complete entity of {entity_type} {entity_uuid} not found or expired at time {datetime.now()}')
             
-            # No error handling here since if a 'on_read_trigger' method failed, 
+            # No error handling here since if a 'on_read_trigger' method fails, 
             # the property value will be the error message
             # Pass {} since no new_data_dict for 'on_read_trigger'
             generated_on_read_trigger_data_dict = generate_triggered_data('on_read_trigger', entity_type, token, entity_dict, {}, properties_to_skip)
@@ -537,15 +536,18 @@ def get_complete_entity_result(token, entity_dict, properties_to_skip = []):
             complete_entity = remove_none_values(complete_entity_dict)
 
             # Need both client and prefix when creating the cache
-            if _memcached_client and _memcached_prefix:
+            # Do NOT cache when properties_to_skip is specified
+            if _memcached_client and _memcached_prefix and (not properties_to_skip):
                 logger.info(f'Creating complete entity cache of {entity_type} {entity_uuid} at time {datetime.now()}')
 
-                # Do NOT cache when properties_to_skip is specified
-                if not properties_to_skip:
-                    cache_key = f'{_memcached_prefix}_complete_{entity_uuid}'
-                    _memcached_client.set(cache_key, complete_entity, expire = SchemaConstants.MEMCACHED_TTL)
+                cache_key = f'{_memcached_prefix}_complete_{entity_uuid}'
+                _memcached_client.set(cache_key, complete_entity, expire = SchemaConstants.MEMCACHED_TTL)
+
+                logger.debug(f"Following is the complete {entity_type} cache created at time {datetime.now()} using key {cache_key}:")
+                logger.debug(complete_entity)
         else:
             logger.info(f'Using complete entity cache of {entity_type} {entity_uuid} at time {datetime.now()}')
+            logger.debug(cache_result)
 
             complete_entity = cache_result
     else:
@@ -590,15 +592,13 @@ Parameters
 ----------
 activity_dict : dict
     A dictionary that contains all activity details
-properties_to_exclude : list
-    Any additional properties to exclude from the response
 
 Returns
 -------
 dict
     A dictionary of activity information with keys that are all normalized
 """
-def normalize_activity_result_for_response(activity_dict, properties_to_exclude = []):
+def normalize_activity_result_for_response(activity_dict):
     global _schema
 
     properties = _schema['ACTIVITIES']['Activity']['properties']
@@ -607,7 +607,7 @@ def normalize_activity_result_for_response(activity_dict, properties_to_exclude 
     for key in activity_dict:
         # Only return the properties defined in the schema yaml
         # Exclude additional properties if specified
-        if (key in properties) and (key not in properties_to_exclude):
+        if key in properties:
             # By default, all properties are exposed
             # It's possible to see `exposed: true`
             if ('exposed' not in properties[key]) or (('exposed' in properties[key]) and properties[key]['exposed']):
@@ -624,7 +624,7 @@ and the ones that are marked as `exposed: false` prior to sending the response
 Parameters
 ----------
 entity_dict : dict
-    A merged dictionary that contains all possible data to be used by the trigger methods
+    Either a neo4j node converted dict or complete dict generated from get_complete_entity_result()
 properties_to_exclude : list
     Any additional properties to exclude from the response
 
@@ -635,73 +635,41 @@ dict
 """
 def normalize_entity_result_for_response(entity_dict, properties_to_exclude = []):
     global _schema
-    global _memcached_client
-    global _memcached_prefix
 
     normalized_entity = {}
 
     # In case entity_dict is None or 
     # an incorrectly created entity that doesn't have the `entity_type` property
-    if entity_dict and ('entity_type' in entity_dict) and ('uuid' in entity_dict):
-        entity_uuid = entity_dict['uuid']
-        entity_type = entity_dict['entity_type']
-        cache_result = None
+    if entity_dict and ('entity_type' in entity_dict):
+        normalized_entity_type = entity_dict['entity_type']
+        properties = _schema['ENTITIES'][normalized_entity_type]['properties']
 
-        # Need both client and prefix when fetching the cache
-        if _memcached_client and _memcached_prefix:
-            # Do NOT fetch cache is properties_to_exclude is specified
-            if not properties_to_exclude:
-                cache_key = f'{_memcached_prefix}_normalized_{entity_uuid}'
-                cache_result = _memcached_client.get(cache_key)
+        for key in entity_dict:
+            # Only return the properties defined in the schema yaml
+            # Exclude additional properties if specified
+            if (key in properties) and (key not in properties_to_exclude):
+                # Skip properties with None value and the ones that are marked as not to be exposed.
+                # By default, all properties are exposed if not marked as `exposed: false`
+                # It's still possible to see `exposed: true` marked explictly
+                if (entity_dict[key] is not None) and ('exposed' not in properties[key]) or (('exposed' in properties[key]) and properties[key]['exposed']): 
+                    # Only run convert_str_literal() on string representation of Python dict and list with removing control characters
+                    # No convertion for string representation of Python string, meaning that can still contain control characters
+                    if entity_dict[key] and (properties[key]['type'] in ['list', 'json_string']):
+                        logger.info(f"Executing convert_str_literal() on {normalized_entity_type}.{key} of uuid: {entity_dict['uuid']}")
 
-        # Use the cached data if found and still valid
-        # Otherwise, calculate and add to cache
-        if cache_result is None:
-            if _memcached_client and _memcached_prefix:
-                logger.info(f'Cache of normalized entity of {entity_type} {entity_uuid} not found or expired at time {datetime.now()}')
+                        # Safely evaluate a string containing a Python dict or list literal
+                        # Only convert to Python list/dict when the string literal is not empty
+                        # instead of returning the json-as-string or array-as-string
+                        # convert_str_literal() also removes those control chars to avoid SyntaxError
+                        entity_dict[key] = convert_str_literal(entity_dict[key])
+                    
+                    # Add the target key with correct value of data type to the normalized_entity dict
+                    normalized_entity[key] = entity_dict[key]
 
-            properties = _schema['ENTITIES'][entity_type]['properties']
+                    # Final step: remove properties with empty string value, empty dict {}, and empty list []
+                    if (isinstance(normalized_entity[key], (str, dict, list)) and (not normalized_entity[key])):
+                        normalized_entity.pop(key)
 
-            for key in entity_dict:
-                # Only return the properties defined in the schema yaml
-                # Exclude additional properties if specified
-                if (key in properties) and (key not in properties_to_exclude):
-                    # Skip properties with None value and the ones that are marked as not to be exposed.
-                    # By default, all properties are exposed if not marked as `exposed: false`
-                    # It's still possible to see `exposed: true` marked explictly
-                    if (entity_dict[key] is not None) and ('exposed' not in properties[key]) or (('exposed' in properties[key]) and properties[key]['exposed']): 
-                        # Only run convert_str_literal() on string representation of Python dict and list with removing control characters
-                        # No convertion for string representation of Python string, meaning that can still contain control characters
-                        if entity_dict[key] and (properties[key]['type'] in ['list', 'json_string']):
-                            logger.info(f"Executing convert_str_literal() on {entity_type}.{key} of uuid: {entity_uuid}")
-
-                            # Safely evaluate a string containing a Python dict or list literal
-                            # Only convert to Python list/dict when the string literal is not empty
-                            # instead of returning the json-as-string or array-as-string
-                            # convert_str_literal() also removes those control chars to avoid SyntaxError
-                            entity_dict[key] = convert_str_literal(entity_dict[key])
-                        
-                        # Add the target key with correct value of data type to the normalized_entity dict
-                        normalized_entity[key] = entity_dict[key]
-
-                        # Final step: remove properties with empty string value, empty dict {}, and empty list []
-                        if (isinstance(normalized_entity[key], (str, dict, list)) and (not normalized_entity[key])):
-                            normalized_entity.pop(key)
-
-            # Need both client and prefix when creating the cache
-            if _memcached_client and _memcached_prefix:
-                logger.info(f'Creating normalized entity cache of {entity_type} {entity_uuid} at time {datetime.now()}')
-
-                # Do NOT cache when properties_to_exclude is specified
-                if not properties_to_exclude:
-                    cache_key = f'{_memcached_prefix}_normalized_{entity_uuid}'
-                    _memcached_client.set(cache_key, normalized_entity, expire = SchemaConstants.MEMCACHED_TTL)
-        else:
-            logger.info(f'Using normalized entity cache of {entity_type} {entity_uuid} at time {datetime.now()}')
-
-            normalized_entity = cache_result
-
-    # One final return
     return normalized_entity
 
 
@@ -1790,7 +1758,6 @@ def delete_memcached_cache(uuids_list):
         for uuid in uuids_list:
             cache_keys.append(f'{_memcached_prefix}_neo4j_{uuid}')
             cache_keys.append(f'{_memcached_prefix}_complete_{uuid}')
-            cache_keys.append(f'{_memcached_prefix}_normalized_{uuid}')
 
         _memcached_client.delete_many(cache_keys)
 

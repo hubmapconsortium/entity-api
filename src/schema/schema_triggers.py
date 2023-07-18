@@ -589,23 +589,9 @@ def get_collection_datasets(property_key, normalized_type, user_token, existing_
 
     datasets_list = schema_neo4j_queries.get_collection_datasets(schema_manager.get_neo4j_driver_instance(), existing_data_dict['uuid'])
 
-    # These are the node properties stored in Neo4j
-    # None of them needs to be generated via a read trigger
-    properties_to_return = [
-        'uuid', 
-        'hubmap_id', 
-        'data_types',
-        'status', 
-        'last_modified_timestamp', 
-        'created_by_user_displayname'
-    ]
-
-    for dataset_dict in datasets_list:
-        for key in list(dataset_dict):
-            if key not in properties_to_return:
-                dataset_dict.pop(key)
-
-    return property_key, datasets_list
+    # Get rid of the entity node properties that are not defined in the yaml schema
+    # as well as the ones defined as `exposed: false` in the yaml schema
+    return property_key, schema_manager.normalize_entities_list_for_response(datasets_list)
 
 
 ####################################################################################################
@@ -701,16 +687,11 @@ def get_dataset_collections(property_key, normalized_type, user_token, existing_
 
     logger.info(f"Executing 'get_dataset_collections()' trigger method on uuid: {existing_data_dict['uuid']}")
 
-    # No property key needs to filter the result
-    # Get back the list of collection dicts
     collections_list = schema_neo4j_queries.get_dataset_collections(schema_manager.get_neo4j_driver_instance(), existing_data_dict['uuid'])
 
-    # Exclude datasets from each resulting collection
-    # We don't want to show too much nested information
-    properties_to_skip = ['datasets']
-    complete_entities_list = schema_manager.get_complete_entities_list(user_token, collections_list, properties_to_skip)
-
-    return property_key, schema_manager.normalize_entities_list_for_response(complete_entities_list)
+    # Get rid of the entity node properties that are not defined in the yaml schema
+    # as well as the ones defined as `exposed: false` in the yaml schema
+    return property_key, schema_manager.normalize_entities_list_for_response(collections_list)
 
 """
 Trigger event method of getting the associated collection for this publication
@@ -739,16 +720,11 @@ def get_publication_associated_collection(property_key, normalized_type, user_to
 
     logger.info(f"Executing 'get_publication_associated_collection()' trigger method on uuid: {existing_data_dict['uuid']}")
 
-    # No property key needs to filter the result
-    # Get back the associated collection dict
-    collection = schema_neo4j_queries.get_publication_associated_collection(schema_manager.get_neo4j_driver_instance(), existing_data_dict['uuid'])
+    collection_dict = schema_neo4j_queries.get_publication_associated_collection(schema_manager.get_neo4j_driver_instance(), existing_data_dict['uuid'])
 
-    # Exclude datasets from the resulting collection
-    # We don't want to show too much nested information
-    properties_to_skip = ['datasets']
-    complete_entity = schema_manager.get_complete_entity_result(user_token, collection, properties_to_skip)
-
-    return property_key, schema_manager.normalize_entity_result_for_response(complete_entity)
+    # Get rid of the entity node properties that are not defined in the yaml schema
+    # as well as the ones defined as `exposed: false` in the yaml schema
+    return property_key, schema_manager.normalize_entity_result_for_response(collection_dict)
 
 """
 Trigger event method of getting the associated Upload for this Dataset
@@ -779,17 +755,11 @@ def get_dataset_upload(property_key, normalized_type, user_token, existing_data_
 
     logger.info(f"Executing 'get_dataset_upload()' trigger method on uuid: {existing_data_dict['uuid']}")
 
-    # It could be None if the dataset doesn't in any Upload
     upload_dict = schema_neo4j_queries.get_dataset_upload(schema_manager.get_neo4j_driver_instance(), existing_data_dict['uuid'])
     
-    if upload_dict:
-        # Exclude datasets from each resulting Upload
-        # We don't want to show too much nested information
-        properties_to_skip = ['datasets']
-        complete_upload_dict = schema_manager.get_complete_entity_result(user_token, upload_dict, properties_to_skip)
-        return_dict = schema_manager.normalize_entity_result_for_response(complete_upload_dict)
-
-    return property_key, return_dict
+    # Get rid of the entity node properties that are not defined in the yaml schema
+    # as well as the ones defined as `exposed: false` in the yaml schema
+    return property_key, schema_manager.normalize_entity_result_for_response(upload_dict)
 
 
 """
@@ -873,14 +843,14 @@ def link_collection_to_datasets(property_key, normalized_type, user_token, exist
         raise
 
 """
-Trigger event method of getting source uuid
+Trigger event method of getting a list of direct ancestors for a given dataset or publication
 
 Parameters
 ----------
 property_key : str
     The target property key of the value to be generated
 normalized_type : str
-    One of the types defined in the schema yaml: Dataset
+    One of the types defined in the schema yaml: Dataset/Publication
 user_token: str
     The user's globus nexus token
 existing_data_dict : dict
@@ -899,18 +869,11 @@ def get_dataset_direct_ancestors(property_key, normalized_type, user_token, exis
 
     logger.info(f"Executing 'get_dataset_direct_ancestors()' trigger method on uuid: {existing_data_dict['uuid']}")
 
-    # No property key needs to filter the result
-    # Get back the list of ancestor dicts
     direct_ancestors_list = schema_neo4j_queries.get_dataset_direct_ancestors(schema_manager.get_neo4j_driver_instance(), existing_data_dict['uuid'])
 
-    # We don't want to show too much nested information
-    # The direct ancestor of a Dataset could be: Dataset or Sample
-    # Skip running the trigger methods for 'direct_ancestors' and 'collections' if the direct ancestor is Dataset
-    # Skip running the trigger methods for 'direct_ancestor' if the direct ancestor is Sample
-    properties_to_skip = ['direct_ancestors', 'collections', 'direct_ancestor']
-    complete_entities_list = schema_manager.get_complete_entities_list(user_token, direct_ancestors_list, properties_to_skip)
-
-    return property_key, schema_manager.normalize_entities_list_for_response(complete_entities_list)
+    # Get rid of the entity node properties that are not defined in the yaml schema
+    # as well as the ones defined as `exposed: false` in the yaml schema
+    return property_key, schema_manager.normalize_entities_list_for_response(direct_ancestors_list)
 
 
 """
@@ -1143,8 +1106,6 @@ def get_previous_revision_uuid(property_key, normalized_type, user_token, existi
 
     previous_revision_uuid = schema_neo4j_queries.get_previous_revision_uuid(schema_manager.get_neo4j_driver_instance(), existing_data_dict['uuid'])
     
-    # previous_revision_uuid can be None, but will be filtered out by 
-    # schema_manager.normalize_entity_result_for_response()
     return property_key, previous_revision_uuid
 
 
@@ -1177,8 +1138,6 @@ def get_next_revision_uuid(property_key, normalized_type, user_token, existing_d
     
     next_revision_uuid = schema_neo4j_queries.get_next_revision_uuid(schema_manager.get_neo4j_driver_instance(), existing_data_dict['uuid'])
     
-    # next_revision_uuid can be None, but will be filtered out by 
-    # schema_manager.normalize_entity_result_for_response()
     return property_key, next_revision_uuid
 
 
@@ -1572,7 +1531,7 @@ def link_publication_to_associated_collection(property_key, normalized_type, use
         raise
 
 """
-Trigger event method of getting the parent of a Sample
+Trigger event method of getting the parent of a Sample, which is a Donor
 
 Parameters
 ----------
@@ -1600,16 +1559,9 @@ def get_sample_direct_ancestor(property_key, normalized_type, user_token, existi
 
     direct_ancestor_dict = schema_neo4j_queries.get_sample_direct_ancestor(schema_manager.get_neo4j_driver_instance(), existing_data_dict['uuid'])
 
-    if 'entity_type' not in direct_ancestor_dict:
-        raise KeyError("The 'entity_type' property in the resulting 'direct_ancestor_dict' is not set during calling 'get_sample_direct_ancestor()' trigger method.")
-
-    # Generate trigger data for sample's direct_ancestor and skip the direct_ancestor's direct_ancestor
-    properties_to_skip = ['direct_ancestor']
-    complete_dict = schema_manager.get_complete_entity_result(user_token, direct_ancestor_dict, properties_to_skip)
-
     # Get rid of the entity node properties that are not defined in the yaml schema
     # as well as the ones defined as `exposed: false` in the yaml schema
-    return property_key, schema_manager.normalize_entity_result_for_response(complete_dict)
+    return property_key, schema_manager.normalize_entity_result_for_response(direct_ancestor_dict)
 
 
 """
@@ -1917,20 +1869,9 @@ def get_upload_datasets(property_key, normalized_type, user_token, existing_data
 
     datasets_list = schema_neo4j_queries.get_upload_datasets(schema_manager.get_neo4j_driver_instance(), existing_data_dict['uuid'])
 
-    # Additional properties of the datasets to exclude 
-    # We don't want to show too much nested information due to performance consideration
-    properties_to_skip = [
-        'direct_ancestors', 
-        'collections', 
-        'upload',
-        'title', 
-        'previous_revision_uuid', 
-        'next_revision_uuid'
-    ]
-
-    complete_entities_list = schema_manager.get_complete_entities_list(user_token, datasets_list, properties_to_skip)
-
-    return property_key, schema_manager.normalize_entities_list_for_response(complete_entities_list)
+    # Get rid of the entity node properties that are not defined in the yaml schema
+    # as well as the ones defined as `exposed: false` in the yaml schema
+    return property_key, schema_manager.normalize_entities_list_for_response(datasets_list)
 
 
 ####################################################################################################
