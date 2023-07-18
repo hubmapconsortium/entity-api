@@ -483,7 +483,7 @@ def remove_transient_and_none_values(merged_dict, normalized_entity_type):
 
 
 """
-Generate the complete entity record as well as result filtering for response
+Generate the complete entity record by running the read triggers
 
 Parameters
 ----------
@@ -513,7 +513,7 @@ def get_complete_entity_result(token, entity_dict, properties_to_skip = []):
         cache_result = None
 
         # Need both client and prefix when fetching the cache
-        # Do NOT fetch cache is properties_to_skip is specified
+        # Do NOT fetch cache if properties_to_skip is specified
         if _memcached_client and _memcached_prefix and (not properties_to_skip):
             cache_key = f'{_memcached_prefix}_complete_{entity_uuid}'
             cache_result = _memcached_client.get(cache_key)
@@ -524,7 +524,7 @@ def get_complete_entity_result(token, entity_dict, properties_to_skip = []):
             if _memcached_client and _memcached_prefix:
                 logger.info(f'Cache of complete entity of {entity_type} {entity_uuid} not found or expired at time {datetime.now()}')
             
-            # No error handling here since if a 'on_read_trigger' method failed, 
+            # No error handling here since if a 'on_read_trigger' method fails, 
             # the property value will be the error message
             # Pass {} since no new_data_dict for 'on_read_trigger'
             generated_on_read_trigger_data_dict = generate_triggered_data('on_read_trigger', entity_type, token, entity_dict, {}, properties_to_skip)
@@ -626,7 +626,7 @@ and the ones that are marked as `exposed: false` prior to sending the response
 Parameters
 ----------
 entity_dict : dict
-    A merged dictionary that contains all possible data to be used by the trigger methods
+    Either a neo4j node converted dict or complete dict generated from get_complete_entity_result()
 properties_to_exclude : list
     Any additional properties to exclude from the response
 
