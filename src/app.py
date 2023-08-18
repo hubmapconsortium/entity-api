@@ -1402,6 +1402,12 @@ def update_entity(id):
         # Handle linkages update via `after_update_trigger` methods
         if has_dataset_uuids_to_link or has_dataset_uuids_to_unlink:
             after_update(normalized_entity_type, user_token, merged_updated_dict)
+    elif normalized_entity_type == 'Collection':
+        # Generate 'before_update_trigger' data and update the entity details in Neo4j
+        merged_updated_dict = update_entity_details(request, normalized_entity_type, user_token, json_data_dict, entity_dict)
+
+        # Handle linkages update via `after_update_trigger` methods
+        after_update(normalized_entity_type, user_token, merged_updated_dict)
     else:
         # Generate 'before_update_trigger' data and update the entity details in Neo4j
         merged_updated_dict = update_entity_details(request, normalized_entity_type, user_token, json_data_dict, entity_dict)
