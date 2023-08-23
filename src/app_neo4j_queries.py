@@ -379,56 +379,6 @@ def get_next_revisions(neo4j_driver, uuid, property_key = None):
 
     return results
 
-
-"""
-Link the datasets to the target collection
-
-Parameters
-----------
-neo4j_driver : neo4j.Driver object
-    The neo4j database connection pool
-collection_uuid : str
-    The uuid of target collection 
-dataset_uuids_list : list
-    A list of dataset uuids to be linked to collection
-"""
-def add_datasets_to_collection(neo4j_driver, collection_uuid, dataset_uuids_list):
-    # Join the list of uuids and wrap each string in single quote
-    joined_str = ', '.join("'{0}'".format(dataset_uuid) for dataset_uuid in dataset_uuids_list)
-    # Format a string to be used in Cypher query.
-    # E.g., ['fb6757b606ac35be7fa85062fde9c2e1', 'ku0gd44535be7fa85062fde98gt5']
-    dataset_uuids_list_str = '[' + joined_str + ']'
-
-    try:
-        with neo4j_driver.session() as session:
-            tx = session.begin_transaction()
-
-            logger.info("Create relationships between the target Collection and the given Datasets")
-
-            query = (f"MATCH (c:Collection), (d:Dataset) "
-                     f"WHERE c.uuid = '{collection_uuid}' AND d.uuid IN {dataset_uuids_list_str} "
-                     # Use MERGE instead of CREATE to avoid creating the relationship multiple times
-                     # MERGE creates the relationship only if there is no existing relationship
-                     f"MERGE (c)<-[r:IN_COLLECTION]-(d)")
-
-            logger.info("======add_datasets_to_collection() query======")
-            logger.info(query)
-
-            tx.run(query)
-            tx.commit()
-    except TransactionError as te:
-        msg = f"TransactionError from calling add_datasets_to_collection(): {te.value}"
-        # Log the full stack trace, prepend a line with our message
-        logger.exception(msg)
-
-        if tx.closed() == False:
-            logger.info("Failed to commit add_datasets_to_collection() transaction, rollback")
-
-            tx.rollback()
-
-        raise TransactionError(msg)
-
-
 """
 Retrive the full tree above the given entity
 
