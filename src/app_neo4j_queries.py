@@ -1014,3 +1014,58 @@ def get_paired_dataset(neo4j_driver, uuid, data_type, search_depth):
     with neo4j_driver.session() as session:
         rval = session.run(query).data()
         return rval
+
+
+"""
+Get all siblings by uuid
+
+Parameters
+----------
+neo4j_driver : neo4j.Driver object
+    The neo4j database connection pool
+uuid : str
+    The uuid of target entity 
+property_key : str
+    A target property key for result filtering
+
+Returns
+-------
+dict
+    A list of unique sibling dictionaries returned from the Cypher query
+"""
+
+
+def get_siblings(neo4j_driver, uuid, status, prop_key, include_revisions):
+    sibling_uuids = schema_neo4j_queries.get_siblings(neo4j_driver, uuid, property_key='uuid')
+    sibling_uuids_string = str(sibling_uuids)
+    revision_query_string = "AND NOT (e)<-[:REVISION_OF]-(:Entity) "
+    status_query_string = ""
+    prop_query_string = "RETURN e "
+    if include_revisions:
+        revision_query_string = ""
+    if status is not None:
+        status_query_string = f"AND (NOT e:Dataset OR e.status = '{status}' "
+    if prop_key is not None:
+        prop_query_string = f"RETURN distinct e.{prop_key} AS {record_field_name}"
+
+    query = ("MATCH (e:Entity) "
+             f"WHERE e.uuid IN {sibling_uuids_string} "
+             f"{revision_query_string}"
+             f"{status_query_string}"
+             f"{prop_query_string}")
+
+    # with neo4j_driver.session() as session:
+    #     rval = session.run(query).data()
+    #
+    # return rval
+    with neo4j_driver.session() as session:
+        record = session.read_transaction(execute_readonly_tx, query)
+
+        if record and record[record_field_name]:
+            if property_key:
+                # Just return the list of property values from each entity node
+                results = record[record_field_name]
+            else:
+                # Convert the list of nodes to a list of dicts
+                results = nodes_to_dicts(record[record_field_name])
+    return results
