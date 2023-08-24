@@ -1040,14 +1040,14 @@ def get_siblings(neo4j_driver, uuid, status, prop_key, include_revisions):
     sibling_uuids_string = str(sibling_uuids)
     revision_query_string = "AND NOT (e)<-[:REVISION_OF]-(:Entity) "
     status_query_string = ""
-    prop_query_string = "RETURN e "
+    prop_query_string = f"RETURN apoc.coll.toSet(COLLECT(e)) AS {record_field_name}"
     if include_revisions:
         revision_query_string = ""
     if status is not None:
-        status_query_string = f"AND (NOT e:Dataset OR e.status = '{status}' "
+        status_query_string = f"AND (NOT e:Dataset OR TOLOWER(e.status) = '{status}') "
     if prop_key is not None:
-        prop_query_string = f"RETURN distinct e.{prop_key} AS {record_field_name}"
-
+        prop_query_string = f"RETURN apoc.coll.toSet(COLLECT(e.{prop_key})) AS {record_field_name}"
+    results = []
     query = ("MATCH (e:Entity) "
              f"WHERE e.uuid IN {sibling_uuids_string} "
              f"{revision_query_string}"
@@ -1059,13 +1059,13 @@ def get_siblings(neo4j_driver, uuid, status, prop_key, include_revisions):
     #
     # return rval
     with neo4j_driver.session() as session:
-        record = session.read_transaction(execute_readonly_tx, query)
+        record = session.read_transaction(schema_neo4j_queries.execute_readonly_tx, query)
 
         if record and record[record_field_name]:
-            if property_key:
+            if prop_key:
                 # Just return the list of property values from each entity node
                 results = record[record_field_name]
             else:
                 # Convert the list of nodes to a list of dicts
-                results = nodes_to_dicts(record[record_field_name])
+                results = schema_neo4j_queries.nodes_to_dicts(record[record_field_name])
     return results

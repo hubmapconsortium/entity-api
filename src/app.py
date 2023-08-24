@@ -1888,7 +1888,11 @@ def get_siblings(id):
     status = None
     property_key = None
     include_revisions = None
+    accepted_args = ['property', 'status', 'include-old-revisions']
     if bool(request.args):
+        for arg_name in request.args.keys():
+            if arg_name not in accepted_args:
+                bad_request_error(f"{arg_name} is an unrecognized argument")
         property_key = request.args.get('property')
         status = request.args.get('status')
         include_revisions = request.args.get('include-old-revisions')
@@ -1910,6 +1914,8 @@ def get_siblings(id):
             else:
                 include_revisions = False
     sibling_list = app_neo4j_queries.get_siblings(neo4j_driver_instance, uuid, status, property_key, include_revisions)
+    if property_key is not None:
+        return jsonify(sibling_list)
     # Generate trigger data
     # Skip some of the properties that are time-consuming to generate via triggers
     # Also skip next_revision_uuid and previous_revision_uuid for Dataset to avoid additional
@@ -1928,7 +1934,6 @@ def get_siblings(id):
 
     complete_entities_list = schema_manager.get_complete_entities_list(token, sibling_list, properties_to_skip)
     # Final result after normalization
-    return jsonify(complete_entities_list)
     final_result = schema_manager.normalize_entities_list_for_response(complete_entities_list)
 
     return jsonify(final_result)
