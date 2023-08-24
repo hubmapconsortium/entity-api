@@ -1402,6 +1402,12 @@ def update_entity(id):
         # Handle linkages update via `after_update_trigger` methods
         if has_dataset_uuids_to_link or has_dataset_uuids_to_unlink:
             after_update(normalized_entity_type, user_token, merged_updated_dict)
+    elif normalized_entity_type == 'Collection':
+        # Generate 'before_update_trigger' data and update the entity details in Neo4j
+        merged_updated_dict = update_entity_details(request, normalized_entity_type, user_token, json_data_dict, entity_dict)
+
+        # Handle linkages update via `after_update_trigger` methods
+        after_update(normalized_entity_type, user_token, merged_updated_dict)
     else:
         # Generate 'before_update_trigger' data and update the entity details in Neo4j
         merged_updated_dict = update_entity_details(request, normalized_entity_type, user_token, json_data_dict, entity_dict)
@@ -2060,78 +2066,6 @@ def get_next_revisions(id):
         final_result = schema_manager.normalize_entities_list_for_response(complete_entities_list)
 
     return jsonify(final_result)
-
-
-
-"""
-Link the given list of datasets to the target collection
-
-JSON request body example:
-{
-    "dataset_uuids": [
-        "fb6757b606ac35be7fa85062fde9c2e1",
-        "81a9fa68b2b4ea3e5f7cb17554149473",
-        "3ac0768d61c6c84f0ec59d766e123e05",
-        "0576b972e074074b4c51a61c3d17a6e3"
-    ]
-}
-
-Parameters
-----------
-collection_uuid : str
-    The UUID of target collection 
-
-Returns
--------
-json
-    JSON string containing a success message with 200 status code
-"""
-@app.route('/collections/<collection_uuid>/add-datasets', methods = ['PUT'])
-def add_datasets_to_collection(collection_uuid):
-    if READ_ONLY_MODE:
-        forbidden_error("Access not granted when entity-api in READ-ONLY mode")
-
-    # Get user token from Authorization header
-    user_token = get_user_token(request)
-
-    # Query target entity against uuid-api and neo4j and return as a dict if exists
-    entity_dict = query_target_entity(collection_uuid, user_token)
-    if entity_dict['entity_type'] != 'Collection':
-        bad_request_error(f"The UUID provided in URL is not a Collection: {collection_uuid}")
-
-    # Always expect a json body
-    require_json(request)
-
-    # Parse incoming json string into json data(python list object)
-    json_data_dict = request.get_json()
-
-    if 'dataset_uuids' not in json_data_dict:
-        bad_request_error("Missing 'dataset_uuids' key in the request JSON.")
-
-    if not json_data_dict['dataset_uuids']:
-        bad_request_error("JSON field 'dataset_uuids' can not be empty list.")
-
-    # Now we have a list of uuids
-    dataset_uuids_list = json_data_dict['dataset_uuids']
-
-    # Make sure all the given uuids are datasets (or publications 2/17/23 ~Derek Furst)
-    for dataset_uuid in dataset_uuids_list:
-        entity_dict = query_target_entity(dataset_uuid, user_token)
-        if not schema_manager.entity_type_instanceof(entity_dict['entity_type'], 'Dataset'):
-            bad_request_error(f"The UUID provided in JSON is not a Dataset or Publication: {dataset_uuid}")
-
-    try:
-        app_neo4j_queries.add_datasets_to_collection(neo4j_driver_instance, collection_uuid, dataset_uuids_list)
-    except TransactionError:
-        msg = "Failed to create the linkage between the given datasets and the target collection"
-        # Log the full stack trace, prepend a line with our message
-        logger.exception(msg)
-        # Terminate and let the users know
-        internal_server_error(msg)
-
-    # Send response with success message
-    return jsonify(message = "Successfully added all the specified datasets to the target collection")
-
 
 """
 Redirect a request from a doi service for a dataset or collection
