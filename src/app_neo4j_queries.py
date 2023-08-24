@@ -1052,10 +1052,6 @@ def get_siblings(neo4j_driver, uuid, status, prop_key, include_revisions):
              f"{status_query_string}"
              f"{prop_query_string}")
 
-    # with neo4j_driver.session() as session:
-    #     rval = session.run(query).data()
-    #
-    # return rval
     with neo4j_driver.session() as session:
         record = session.read_transaction(schema_neo4j_queries.execute_readonly_tx, query)
 
