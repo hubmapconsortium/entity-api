@@ -1543,6 +1543,37 @@ paths:
           description: The target entity could not be found
         '500':
           description: Internal error
+  '/siblings/{id}':
+    get:
+      summary: Get the siblings list for an Entity.  The siblings have the same direct ancestor.  This list does not include all nodes whom have common ancestors, only the direct ancestor.
+      parameters:
+        - name: id
+          in: path
+          description: The unique identifier of entity.  This identifier can be either an HuBMAP ID (e.g. HBM123.ABCD.456) or UUID
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: An array of sibling entities is returned
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  anyOf:
+                    - $ref: '#/components/schemas/Sample'
+                    - $ref: '#/components/schemas/Dataset'
+        '400':
+          description: Invalid or misformatted entity identifier
+        '401':
+          description: The user's token has expired or the user did not supply a valid token
+        '403':
+          description: The user is not authorized to access the entity.
+        '404':
+          description: The target entity could not be found
+        '500':
+          description: Internal error
   '/entities/{id}/provenance':
     get:
       summary: 'Get Provenance Data for Entity.  This returns a PROV JSON compliant representation of the entity''s provenance. Refer to this document for more information regarding [PROV JSON format](https://www.w3.org/Submission/2013/SUBM-prov-json-20130424/)'
