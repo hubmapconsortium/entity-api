@@ -1033,8 +1033,6 @@ Returns
 dict
     A list of unique sibling dictionaries returned from the Cypher query
 """
-
-
 def get_siblings(neo4j_driver, uuid, status, prop_key, include_revisions):
     sibling_uuids = schema_neo4j_queries.get_siblings(neo4j_driver, uuid, property_key='uuid')
     sibling_uuids_string = str(sibling_uuids)

@@ -1823,11 +1823,6 @@ def get_children(id):
     return jsonify(final_result)
 
 
-@app.route('/test', methods = ['GET'])
-def test_function():
-    results = schema_neo4j_queries.get_siblings(neo4j_driver_instance, '384b0dfb6880810b8fd4dbc5f79c6d9a', property_key = 'uuid')
-    return jsonify(results)
-
 """
 Get all siblings of the given entity
 
@@ -1937,6 +1932,7 @@ def get_siblings(id):
     final_result = schema_manager.normalize_entities_list_for_response(complete_entities_list)
 
     return jsonify(final_result)
+
 
 """
 Get all previous revisions of the given entity
