@@ -1553,6 +1553,27 @@ paths:
           required: true
           schema:
             type: string
+        - name: include-old-revisions
+            in: query
+            description: A case insensitive string. Any value besides true will have no effect. If the string is 'true', datasets that are have newer revisions will be included, otherwise by default they are not included.
+            required: false
+            schema:
+              type: string
+              enum: [ 'true', 'false' ]
+        - name: status
+            in: query
+            description: A case insensitive string. Any value besides 'new', 'qa', and 'published' will raise an error. If a valid status is provided, only results matching that status (if they are datasets) will be returned
+            required: false
+            schema:
+              type: string
+              enum: [ 'new', 'qa', 'published' ]
+        - name: property_key
+            in: query
+            description: A case insensitive string. Any value besides 'uuid' will raise an error. If property_key=uuid is provided, rather than entire dictionary representations of each node, only the list of matching uuid's will be returned
+            required: false
+            schema:
+              type: string
+              enum: [ 'uuid' ]
       responses:
         '200':
           description: An array of sibling entities is returned
