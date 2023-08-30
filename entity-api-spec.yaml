@@ -1543,6 +1543,58 @@ paths:
           description: The target entity could not be found
         '500':
           description: Internal error
+  '/siblings/{id}':
+    get:
+      summary: Get the siblings list for an Entity.  The siblings have the same direct ancestor.  This list does not include all nodes whom have common ancestors, only the direct ancestor.
+      parameters:
+        - name: id
+          in: path
+          description: The unique identifier of entity.  This identifier can be either an HuBMAP ID (e.g. HBM123.ABCD.456) or UUID
+          required: true
+          schema:
+            type: string
+        - name: include-old-revisions
+            in: query
+            description: A case insensitive string. Any value besides true will have no effect. If the string is 'true', datasets that are have newer revisions will be included, otherwise by default they are not included.
+            required: false
+            schema:
+              type: string
+              enum: [ 'true', 'false' ]
+        - name: status
+            in: query
+            description: A case insensitive string. Any value besides 'new', 'qa', and 'published' will raise an error. If a valid status is provided, only results matching that status (if they are datasets) will be returned
+            required: false
+            schema:
+              type: string
+              enum: [ 'new', 'qa', 'published' ]
+        - name: property_key
+            in: query
+            description: A case insensitive string. Any value besides 'uuid' will raise an error. If property_key=uuid is provided, rather than entire dictionary representations of each node, only the list of matching uuid's will be returned
+            required: false
+            schema:
+              type: string
+              enum: [ 'uuid' ]
+      responses:
+        '200':
+          description: An array of sibling entities is returned
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  anyOf:
+                    - $ref: '#/components/schemas/Sample'
+                    - $ref: '#/components/schemas/Dataset'
+        '400':
+          description: Invalid or misformatted entity identifier
+        '401':
+          description: The user's token has expired or the user did not supply a valid token
+        '403':
+          description: The user is not authorized to access the entity.
+        '404':
+          description: The target entity could not be found
+        '500':
+          description: Internal error
   '/entities/{id}/provenance':
     get:
       summary: 'Get Provenance Data for Entity.  This returns a PROV JSON compliant representation of the entity''s provenance. Refer to this document for more information regarding [PROV JSON format](https://www.w3.org/Submission/2013/SUBM-prov-json-20130424/)'
