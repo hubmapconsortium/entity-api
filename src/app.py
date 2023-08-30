@@ -1899,7 +1899,7 @@ def get_siblings(id):
         include_revisions = request.args.get('include-old-revisions')
         if status is not None:
             status = status.lower()
-            if status not in ['published', 'new', 'qa']:
+            if status not in ['new', 'processing', 'published', 'qa', 'error', 'hold', 'invalid', 'submitted']:
                 bad_request_error("Invalid Dataset Status. Must be 'new', 'qa', or 'published' Case-Insensitive")
         if property_key is not None:
             property_key = property_key.lower()
@@ -1930,7 +1930,8 @@ def get_siblings(id):
         'upload',
         'title',
         'next_revision_uuid',
-        'previous_revision_uuid'
+        'previous_revision_uuid',
+        'associated_collection'
     ]
 
     complete_entities_list = schema_manager.get_complete_entities_list(token, sibling_list, properties_to_skip)
