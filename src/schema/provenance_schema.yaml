@@ -307,7 +307,6 @@ ENTITIES:
         generated: true
         description: "One of: New|Processing|QA|Published|Error|Hold|Invalid|Submitted"
         before_create_trigger: set_dataset_status_new
-        after_update_trigger: update_dataset_and_ancestors_data_access_level
       title:
         type: string
         generated: true # Disallow entry from users via POST
@@ -522,7 +521,6 @@ ENTITIES:
         generated: true
         description: "One of: New|Processing|QA|Published|Error|Hold|Invalid"
         before_create_trigger: set_dataset_status_new
-        after_update_trigger: update_dataset_and_ancestors_data_access_level
       title:
         type: string
         description: "The title of the publication."
