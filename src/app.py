@@ -163,7 +163,7 @@ memcached_client_instance = None
 if MEMCACHED_MODE:
     try:
         # Use client pool to maintain a pool of already-connected clients for improved performance
-        # The uwsgi config launches the app across multiple threads (8) inside each process (32), making essentially 256 processes
+        # The uwsgi config launches the app across multiple threads (16) inside each process (16), making essentially 256 processes
         # Set the connect_timeout and timeout to avoid blocking the process when memcached is slow, defaults to "forever"
         # connect_timeout: seconds to wait for a connection to the memcached server
         # timeout: seconds to wait for send or reveive calls on the socket connected to memcached
