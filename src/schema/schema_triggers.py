@@ -557,6 +557,43 @@ def update_file_descriptions(property_key, normalized_type, user_token, existing
 
 
 ####################################################################################################
+## Trigger methods shared by Dataset, Upload, and Publication - DO NOT RENAME
+####################################################################################################
+
+def set_status_history(property_key, normalized_type, user_token, existing_data_dict, new_data_dict):
+    # This trigger is set to auto-update. This is because while it involves status_history, it depends on changes to status.
+    # So if auto_update is not set to true, it will not trigger. We must now add this first conditional so that if there are no
+    # changes to the status field, it exits returning the existing status_history value.
+    if ('status' not in new_data_dict and existing_data_dict) or (new_data_dict.get('status') and existing_data_dict.get('status') and new_data_dict.get('status') == existing_data_dict.get('status')):
+        if 'status_history' not in existing_data_dict:
+            raise KeyError("Missing 'status_history' key in 'existing_data_dict' during calling 'set_status_history()' trigger method.")
+        return property_key, existing_data_dict['status_history']
+
+    new_status_history = []
+    status_entry = {}
+    if not existing_data_dict:
+        status = "New"
+    else:
+        if 'status' not in new_data_dict:
+            raise KeyError("Missing 'status' key in 'new_data_dict' during calling 'set_status_history()' trigger method.")
+        status = new_data_dict['status']
+        if 'status_history' in existing_data_dict:
+            status_history_string = existing_data_dict['status_history'].replace("'", "\"")
+            new_status_history += json.loads(status_history_string)
+    current_time = int(datetime.now().timestamp() * 1000)
+    if 'email' not in new_data_dict:
+        raise KeyError("Missing 'email' key in 'new_data_dict' during calling 'set_status_hisotry()' trigger method.")
+    email = new_data_dict['email']
+    status_entry['status'] = status
+    status_entry['changed_by_email'] = email
+    status_entry['change_timestamp'] = current_time
+    new_status_history.append(status_entry)
+    return property_key, new_status_history
+
+
+
+
+####################################################################################################
 ## Trigger methods specific to Collection - DO NOT RENAME
 ####################################################################################################
 
