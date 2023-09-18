@@ -272,6 +272,30 @@ def validate_dataset_status_value(property_key, normalized_entity_type, request,
 
 
 """
+Validate that status, if included in new_data_dict, is different from the existing status value
+
+Parameters
+----------
+property_key : str
+    The target property key
+normalized_type : str
+    Submission
+request: Flask request object
+    The instance of Flask request passed in from application request
+existing_data_dict : dict
+    A dictionary that contains all existing entity properties
+new_data_dict : dict
+    The json data in request body, already after the regular validations
+"""
+def validate_status_changed(property_key, normalized_entity_type, request, existing_data_dict, new_data_dict):
+    if 'status' not in existing_data_dict:
+        raise KeyError("Missing 'status' key in 'existing_data_dict' during calling 'validate_status_changed()' validator method.")
+    # Only allow 'status' in new_data_dict if its different than the existing status value
+    if existing_data_dict['status'].lower() == new_data_dict['status'].lower():
+        raise ValueError(f"Status value is already {existing_data_dict['status']}, cannot change to {existing_data_dict['status']}. If no change, do not include status field in update")
+
+
+"""
 Validate the sub_status field is also provided when Dataset.retraction_reason is provided on update via PUT
 
 Parameters

@@ -561,34 +561,32 @@ def update_file_descriptions(property_key, normalized_type, user_token, existing
 ####################################################################################################
 
 def set_status_history(property_key, normalized_type, user_token, existing_data_dict, new_data_dict):
-    # This trigger is set to auto-update. This is because while it involves status_history, it depends on changes to status.
-    # So if auto_update is not set to true, it will not trigger. We must now add this first conditional so that if there are no
-    # changes to the status field, it exits returning the existing status_history value.
-    if ('status' not in new_data_dict and existing_data_dict) or (new_data_dict.get('status') and existing_data_dict.get('status') and new_data_dict.get('status') == existing_data_dict.get('status')):
-        if 'status_history' not in existing_data_dict:
-            raise KeyError("Missing 'status_history' key in 'existing_data_dict' during calling 'set_status_history()' trigger method.")
-        return property_key, existing_data_dict['status_history']
-
     new_status_history = []
     status_entry = {}
-    if not existing_data_dict:
-        status = "New"
-    else:
-        if 'status' not in new_data_dict:
-            raise KeyError("Missing 'status' key in 'new_data_dict' during calling 'set_status_history()' trigger method.")
-        status = new_data_dict['status']
-        if 'status_history' in existing_data_dict:
-            status_history_string = existing_data_dict['status_history'].replace("'", "\"")
-            new_status_history += json.loads(status_history_string)
-    current_time = int(datetime.now().timestamp() * 1000)
-    if 'email' not in new_data_dict:
-        raise KeyError("Missing 'email' key in 'new_data_dict' during calling 'set_status_hisotry()' trigger method.")
-    email = new_data_dict['email']
+
+    if 'status_history' in existing_data_dict:
+        status_history_string = existing_data_dict['status_history'].replace("'", "\"")
+        new_status_history += json.loads(status_history_string)
+
+    if 'status' not in existing_data_dict:
+        raise KeyError("Missing 'status' key in 'existing_data_dict' during calling 'set_status_history()' trigger method")
+    if 'last_modified_timestamp' not in existing_data_dict:
+        raise KeyError("Missing 'last_modified_timestamp' key in 'existing_dat_dict' during calling 'set_status_history()' trigger method.")
+    if 'last_modified_user_email' not in existing_data_dict:
+        raise KeyError("Missing 'last_modified_user_email' key in 'existing_data_dict' during calling 'set_status_hisotry()' trigger method.")
+
+    status = existing_data_dict['status']
+    last_modified_user_email = existing_data_dict['last_modified_user_email']
+    last_modified_timestamp = existing_data_dict['last_modified_timestamp']
+    uuid = existing_data_dict['uuid']
+
     status_entry['status'] = status
-    status_entry['changed_by_email'] = email
-    status_entry['change_timestamp'] = current_time
+    status_entry['changed_by_email'] = last_modified_user_email
+    status_entry['change_timestamp'] = last_modified_timestamp
     new_status_history.append(status_entry)
-    return property_key, new_status_history
+    entity_data_dict = {"status_history": new_status_history}
+
+    schema_neo4j_queries.update_entity(schema_manager.get_neo4j_driver_instance(), normalized_type, entity_data_dict, uuid)
 
 
 

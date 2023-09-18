@@ -1352,6 +1352,7 @@ def update_entity(id):
         # A bit more validation if `direct_ancestor_uuids` provided
         has_direct_ancestor_uuids = False
         has_associated_collection_uuid = False
+        has_updated_status = False
         if ('direct_ancestor_uuids' in json_data_dict) and (json_data_dict['direct_ancestor_uuids']):
             has_direct_ancestor_uuids = True
 
@@ -1363,12 +1364,14 @@ def update_entity(id):
 
             # Check existence of associated collection
             associated_collection_dict = query_target_entity(json_data_dict['associated_collection_uuid'], user_token)
+        if ('status' in json_data_dict) and (json_data_dict['status']):
+            has_updated_status = True
 
         # Generate 'before_update_trigger' data and update the entity details in Neo4j
         merged_updated_dict = update_entity_details(request, normalized_entity_type, user_token, json_data_dict, entity_dict)
 
         # Handle linkages update via `after_update_trigger` methods
-        if has_direct_ancestor_uuids or has_associated_collection_uuid:
+        if has_direct_ancestor_uuids or has_associated_collection_uuid or has_updated_status:
             after_update(normalized_entity_type, user_token, merged_updated_dict)
     elif normalized_entity_type == 'Upload':
         has_dataset_uuids_to_link = False

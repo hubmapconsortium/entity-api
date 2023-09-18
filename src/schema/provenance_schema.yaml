@@ -304,9 +304,12 @@ ENTITIES:
         before_property_update_validators: 
           - validate_application_header_before_property_update
           - validate_dataset_status_value
+          - validate_status_changed
         generated: true
         description: "One of: New|Processing|QA|Published|Error|Hold|Invalid|Submitted"
         before_create_trigger: set_dataset_status_new
+        after_create_trigger: set_status_history
+        after_update_trigger: set_status_history
       title:
         type: string
         generated: true # Disallow entry from users via POST
@@ -479,9 +482,7 @@ ENTITIES:
         type: list
         description: "A list of all status change events. Each entry in the list is a dictionary containing the change_timestamp, changed_by_email, previous_status, new_status"
         generated: true
-        auto_update: true
-        before_create_trigger: set_status_history
-        before_update_trigger: set_status_history
+        immutable: true
 
   ############################################# Publication #############################################
   Publication:
@@ -525,9 +526,12 @@ ENTITIES:
         before_property_update_validators:
           - validate_application_header_before_property_update
           - validate_dataset_status_value
+          - validate_status_changed
         generated: true
         description: "One of: New|Processing|QA|Published|Error|Hold|Invalid"
         before_create_trigger: set_dataset_status_new
+        after_create_trigger: set_status_history
+        after_update_trigger: set_status_history
       title:
         type: string
         description: "The title of the publication."
@@ -748,9 +752,7 @@ ENTITIES:
         type: list
         description: "A list of all status change events. Each entry in the list is a dictionary containing the change_timestamp, changed_by_email, previous_status, new_status"
         generated: true
-        auto_update: true
-        before_create_trigger: set_status_history
-        before_update_trigger: set_status_history
+        immutable: true
 
   ############################################# Donor #############################################
   Donor:
@@ -1098,11 +1100,14 @@ ENTITIES:
         before_property_update_validators: 
           - validate_application_header_before_property_update
           - validate_upload_status_value
+          - validate_status_changed
         type: string
         generated: true
         description: "One of: New|Valid|Invalid|Error|Reorganized|Processing"
         # Trigger method will set the status to "New" on create
         before_create_trigger: set_upload_status_new
+        after_create_trigger: set_status_history
+        after_update_trigger: set_status_history
       validation_message:
         type: string
         description: A message from the validation tools describing what is invalid with the upload.
@@ -1154,6 +1159,4 @@ ENTITIES:
         type: list
         description: "A list of all status change events. Each entry in the list is a dictionary containing the change_timestamp, changed_by_email, previous_status, new_status"
         generated: true
-        auto_update: true
-        before_create_trigger: set_status_history
-        before_update_trigger: set_status_history
+        immutable: true
