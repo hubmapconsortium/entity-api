@@ -1294,6 +1294,11 @@ def update_entity(id):
         normalized_status = schema_manager.normalize_status(json_data_dict["status"])
         json_data_dict["status"] = normalized_status
 
+    has_updated_status = False
+    if ('status' in json_data_dict) and (json_data_dict['status']):
+        has_updated_status = True
+
+
     # Normalize user provided status
     if "sub_status" in json_data_dict:
         normalized_status = schema_manager.normalize_status(json_data_dict["sub_status"])
@@ -1368,7 +1373,7 @@ def update_entity(id):
         merged_updated_dict = update_entity_details(request, normalized_entity_type, user_token, json_data_dict, entity_dict)
 
         # Handle linkages update via `after_update_trigger` methods
-        if has_direct_ancestor_uuids or has_associated_collection_uuid:
+        if has_direct_ancestor_uuids or has_associated_collection_uuid or has_updated_status:
             after_update(normalized_entity_type, user_token, merged_updated_dict)
     elif normalized_entity_type == 'Upload':
         has_dataset_uuids_to_link = False
@@ -1400,7 +1405,7 @@ def update_entity(id):
         merged_updated_dict = update_entity_details(request, normalized_entity_type, user_token, json_data_dict, entity_dict)
 
         # Handle linkages update via `after_update_trigger` methods
-        if has_dataset_uuids_to_link or has_dataset_uuids_to_unlink:
+        if has_dataset_uuids_to_link or has_dataset_uuids_to_unlink or has_updated_status:
             after_update(normalized_entity_type, user_token, merged_updated_dict)
     elif normalized_entity_type == 'Collection':
         # Generate 'before_update_trigger' data and update the entity details in Neo4j

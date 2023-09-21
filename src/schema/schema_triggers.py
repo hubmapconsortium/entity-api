@@ -557,6 +557,41 @@ def update_file_descriptions(property_key, normalized_type, user_token, existing
 
 
 ####################################################################################################
+## Trigger methods shared by Dataset, Upload, and Publication - DO NOT RENAME
+####################################################################################################
+
+def set_status_history(property_key, normalized_type, user_token, existing_data_dict, new_data_dict):
+    new_status_history = []
+    status_entry = {}
+
+    if 'status_history' in existing_data_dict:
+        status_history_string = existing_data_dict['status_history'].replace("'", "\"")
+        new_status_history += json.loads(status_history_string)
+
+    if 'status' not in existing_data_dict:
+        raise KeyError("Missing 'status' key in 'existing_data_dict' during calling 'set_status_history()' trigger method")
+    if 'last_modified_timestamp' not in existing_data_dict:
+        raise KeyError("Missing 'last_modified_timestamp' key in 'existing_dat_dict' during calling 'set_status_history()' trigger method.")
+    if 'last_modified_user_email' not in existing_data_dict:
+        raise KeyError("Missing 'last_modified_user_email' key in 'existing_data_dict' during calling 'set_status_hisotry()' trigger method.")
+
+    status = existing_data_dict['status']
+    last_modified_user_email = existing_data_dict['last_modified_user_email']
+    last_modified_timestamp = existing_data_dict['last_modified_timestamp']
+    uuid = existing_data_dict['uuid']
+
+    status_entry['status'] = status
+    status_entry['changed_by_email'] = last_modified_user_email
+    status_entry['change_timestamp'] = last_modified_timestamp
+    new_status_history.append(status_entry)
+    entity_data_dict = {"status_history": new_status_history}
+
+    schema_neo4j_queries.update_entity(schema_manager.get_neo4j_driver_instance(), normalized_type, entity_data_dict, uuid)
+
+
+
+
+####################################################################################################
 ## Trigger methods specific to Collection - DO NOT RENAME
 ####################################################################################################
 
