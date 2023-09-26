@@ -280,7 +280,10 @@ ENTITIES:
       creation_action:
         type: string
         transient: true
+        immutable: true
         description: "The activity that was performed."
+        before_property_create_validators:
+          - validate_creation_action
       description:
         type: string
         description: "Free text description of the dataset"
@@ -513,6 +516,7 @@ ENTITIES:
       creation_action:
         type: string
         transient: true
+        immutable: true
         description: "The activity that was performed."
         before_property_create_validators:
           - validate_creation_action
