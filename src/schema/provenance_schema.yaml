@@ -88,8 +88,6 @@ ACTIVITIES:
       <<: *shared_properties
       creation_action:
         type: string
-        generated: true
-        immutable: true
         description: "The activity that was performed."
         before_create_trigger: set_activity_creation_action
 
@@ -279,6 +277,13 @@ ENTITIES:
       antibodies:
         type: list
         description: "A list of antibodies used in the assay that created the dataset"
+      creation_action:
+        type: string
+        transient: true
+        immutable: true
+        description: "The activity that was performed."
+        before_property_create_validators:
+          - validate_creation_action
       description:
         type: string
         description: "Free text description of the dataset"
@@ -508,6 +513,13 @@ ENTITIES:
         type: string
         description: "Additional information about the dataset, which can be used to find this dataset, including lab specific (non-PHI) identifiers."
       # The Dataset.data_access_level is based on Dataset.status and Dataset.contains_human_genetic_sequences
+      creation_action:
+        type: string
+        transient: true
+        immutable: true
+        description: "The activity that was performed."
+        before_property_create_validators:
+          - validate_creation_action
       data_access_level:
         type: string
         generated: true
