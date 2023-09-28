@@ -526,9 +526,12 @@ new_data_dict : dict
     The json data in request body, already after the regular validations
 """
 def validate_creation_action(property_key, normalized_entity_type, request, existing_data_dict, new_data_dict):
-    creation_action = new_data_dict[property_key]
-    if creation_action and creation_action not in ["Central Process", "Lab Process", "Multi-Assay Split"]:
-        raise ValueError(f"Invalid {property_key} value")
+    accepted_creation_action_values = ["central process", "lab process", "multi-assay split"]
+    creation_action = new_data_dict[property_key].lower()
+    if creation_action and creation_action not in accepted_creation_action_values:
+        raise ValueError("Invalid {} value. Accepted values are: {}".format(property_key, ", ".join(accepted_creation_action_values)))
+    if creation_action == '':
+        raise ValueError(f"The property {property_key} cannot be empty, when specified.")
 
 
 ####################################################################################################
