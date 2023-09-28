@@ -3785,6 +3785,22 @@ def paired_dataset(id):
         return jsonify(out_list), 200
 
 
+"""
+Description
+"""
+@app.route('datasets/components', methods=['POST'])
+def multiple_components():
+    if READ_ONLY_MODE:
+        forbidden_error("Access not granted when entity-api in READ-ONLY mode")
+
+    # If an invalid token provided, we need to tell the client with a 401 error, rather
+    # than a 500 error later if the token is not good.
+    validate_token_if_auth_header_exists(request)
+    # Get user token from Authorization header
+    user_token = get_user_token(request)
+
+
+
 ####################################################################################################
 ## Internal Functions
 ####################################################################################################
