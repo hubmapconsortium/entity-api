@@ -3788,7 +3788,7 @@ def paired_dataset(id):
 """
 Description
 """
-@app.route('datasets/components', methods=['POST'])
+@app.route('/datasets/components', methods=['POST'])
 def multiple_components():
     if READ_ONLY_MODE:
         forbidden_error("Access not granted when entity-api in READ-ONLY mode")
@@ -3798,6 +3798,100 @@ def multiple_components():
     validate_token_if_auth_header_exists(request)
     # Get user token from Authorization header
     user_token = get_user_token(request)
+
+    schema_validators.validate_application_header_before_entity_create("Dataset", request)
+
+    require_json(request)
+
+    json_data_dict = request.get_json()
+
+    required_fields = ['creation_action', 'group_uuid', 'direct_ancestor_uuids', 'datasets']
+    # dataset_required_fields = ['dataset_link_abs_dir', 'contains_human_genetic_sequences', 'data_types']
+
+    # Verify that each field is in the json_data_dict, and that there are no other fields
+    for field in required_fields:
+        if field not in json_data_dict:
+            raise bad_request_error(f"Missing required field {field}")
+    for field in json_data_dict:
+        if field not in required_fields:
+            raise bad_request_error(f"Request body contained unexpected field {field}")
+
+    user_info_dict = schema_manager.get_user_info(request)
+    return jsonify(user_info_dict)
+
+    new_data_dict = {**json_data_dict, **user_info_dict}
+
+    # validate top level fields
+
+    # validate group_uuid
+    schema_triggers.set_group_uuid("group_uuid", "Dataset", user_token, {}, new_data_dict)
+
+    allowable_creation_actions = ['Multi-Assay Split']
+
+    if json_data_dict.get('creation_action') not in allowable_creation_actions:
+        bad_request_error(f"creation_action {json_data_dict.get('creation_action')} not recognized. Allowed values are: {COMMA_SEPARATOR.join(allowable_creation_actions)}")
+
+    # validate existence of direct ancestors.
+    for direct_ancestor_uuid in json_data_dict['direct_ancestor_uuids']:
+        direct_ancestor_dict = query_target_entity(direct_ancestor_uuid, user_token)
+
+    dataset_list = []
+
+    for dataset in json_data_dict.get('datasets'):
+        dataset['group_uuid'] = json_data_dict.get('group_uuid')
+        dataset['direct_ancestor_uuids'] = json_Data_dict.get('direct_ancestor_uuids')
+        try:
+            schema_manager.validate_json_data_against_schema(dataset, 'Dataset')
+        except schema_errors.SchemaValidationException as e:
+            # No need to log validation errors
+            bad_request_error(str(e))
+        # Execute property level validators defined in the schema yaml before entity property creation
+        # Use empty dict {} to indicate there's no existing_data_dict
+        try:
+            schema_manager.execute_property_level_validators('before_property_create_validators', normalized_entity_type, request, {}, json_data_dict)
+        # Currently only ValueError
+        except ValueError as e:
+            bad_request_error(e)
+
+        # Also check existence of the previous revision dataset if specified
+        if 'previous_revision_uuid' in json_data_dict:
+            previous_version_dict = query_target_entity(json_data_dict['previous_revision_uuid'], user_token)
+
+            # Make sure the previous version entity is either a Dataset or Sample (and publication 2/17/23)
+            if previous_version_dict['entity_type'] not in ['Sample'] and \
+                    not schema_manager.entity_type_instanceof(previous_version_dict['entity_type'], 'Dataset'):
+                bad_request_error(
+                    f"The previous_revision_uuid specified for this dataset must be either a Dataset or Sample or Publication")
+
+            # Also need to validate if the given 'previous_revision_uuid' has already had
+            # an existing next revision
+            # Only return a list of the uuids, no need to get back the list of dicts
+            next_revisions_list = app_neo4j_queries.get_next_revisions(neo4j_driver_instance, previous_version_dict['uuid'], 'uuid')
+
+            # As long as the list is not empty, tell the users to use a different 'previous_revision_uuid'
+            if next_revisions_list:
+                bad_request_error(
+                    f"The previous_revision_uuid specified for this dataset has already had a next revision")
+
+            # Only published datasets can have revisions made of them. Verify that that status of the Dataset specified
+            # by previous_revision_uuid is published. Else, bad request error.
+            if previous_version_dict['status'].lower() != DATASET_STATUS_PUBLISHED:
+                bad_request_error(f"The previous_revision_uuid specified for this dataset must be 'Published' in order to create a new revision from it")
+
+    for dataset in json_data_dict.get('datasets'):
+        merged_dict = create_entity_details(request, "Dataset", user_token, json_data_dict)
+        schema_triggers.set_status_history('status', 'Dataset', user_token, merged_dict, {})
+        schema_triggers.link_to_previous_revision('previous_revision_uuid', 'Dataset', user_token, merged_dict, {})
+        dataset_list.append(merged_dict)
+
+    # Generate property values for Activity node
+    # Can grab the existing data from the first dataset in the list
+    activity_data_dict = schema_manager.generate_activity_data('Dataset', user_token, dataset_list[0])
+
+
+
+    for data_dict in dataset_list:
+
 
 
 
