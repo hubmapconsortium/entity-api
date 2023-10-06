@@ -3817,12 +3817,12 @@ def multiple_components():
 
     user_info_dict = schema_manager.get_user_info(request)
 
-    new_data_dict = {**json_data_dict, **user_info_dict}
+    json_data_with_user_info_dict = {**json_data_dict, **user_info_dict}
 
     # validate top level fields
 
     # validate group_uuid
-    schema_triggers.set_group_uuid("group_uuid", "Dataset", user_token, {}, new_data_dict)
+    schema_triggers.set_group_uuid("group_uuid", "Dataset", user_token, {}, json_data_with_user_info_dict)
 
     allowable_creation_actions = ['Multi-Assay Split']
 
@@ -3891,7 +3891,7 @@ def multiple_components():
     for dataset in dataset_list:
         entity_uuid_list.append(dataset['uuid'])
 
-    schema_neo4j_queries.link_multiple_entities_to_direct_ancestor(neo4j_driver_instance, entity_uuid_list, , activity_data_dict)
+    schema_neo4j_queries.link_multiple_entities_to_direct_ancestors(neo4j_driver_instance, entity_uuid_list, json_data_dict['direct_ancestor_uuids'], activity_data_dict)
 
 
 
