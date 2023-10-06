@@ -569,28 +569,26 @@ direct_ancestor_uuid : str
 activity_data_dict : dict
     A dict of activity properties to be created
 """
-
-
 def link_multiple_entities_to_direct_ancestor(neo4j_driver, entity_uuids, direct_ancestor_uuid, activity_data_dict):
     try:
         with neo4j_driver.session() as session:
             tx = session.begin_transaction()
 
-            # First delete all the old linkages and Activity node between this entity and its direct ancestors
-            _delete_activity_node_and_linkages_tx(tx, entity_uuid)
+            # Create the Acvitity node
+            create_activity_tx(tx, activity_data_dict)
 
             # Get the activity uuid
             activity_uuid = activity_data_dict['uuid']
 
-            # Create the Acvitity node
-            create_activity_tx(tx, activity_data_dict)
+            for entity_uuid in entity_uuids:
+                # First delete all the old linkages and Activity node between this entity and its direct ancestors
+                _delete_activity_node_and_linkages_tx(tx, entity_uuid)
 
-            # Create relationship from this Activity node to the target entity node
-            create_relationship_tx(tx, activity_uuid, entity_uuid, 'ACTIVITY_OUTPUT', '->')
+                # Create relationship from this Activity node to the target entity node
+                create_relationship_tx(tx, activity_uuid, entity_uuid, 'ACTIVITY_OUTPUT', '->')
 
-            # Create relationship from each ancestor entity node to this Activity node
-            for direct_ancestor_uuid in direct_ancestor_uuids:
-                create_relationship_tx(tx, direct_ancestor_uuid, activity_uuid, 'ACTIVITY_INPUT', '->')
+            # Create relationship from the ancestor entity node to this Activity node
+            create_relationship_tx(tx, direct_ancestor_uuid, activity_uuid, 'ACTIVITY_INPUT', '->')
 
             tx.commit()
     except TransactionError as te:

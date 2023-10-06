@@ -3806,7 +3806,6 @@ def multiple_components():
     json_data_dict = request.get_json()
 
     required_fields = ['creation_action', 'group_uuid', 'direct_ancestor_uuids', 'datasets']
-    # dataset_required_fields = ['dataset_link_abs_dir', 'contains_human_genetic_sequences', 'data_types']
 
     # Verify that each field is in the json_data_dict, and that there are no other fields
     for field in required_fields:
@@ -3817,7 +3816,6 @@ def multiple_components():
             raise bad_request_error(f"Request body contained unexpected field {field}")
 
     user_info_dict = schema_manager.get_user_info(request)
-    return jsonify(user_info_dict)
 
     new_data_dict = {**json_data_dict, **user_info_dict}
 
@@ -3888,10 +3886,12 @@ def multiple_components():
     # Can grab the existing data from the first dataset in the list
     activity_data_dict = schema_manager.generate_activity_data('Dataset', user_token, dataset_list[0])
 
+    entity_uuid_list = []
 
+    for dataset in dataset_list:
+        entity_uuid_list.append(dataset['uuid'])
 
-    for data_dict in dataset_list:
-
+    schema_neo4j_queries.link_multiple_entities_to_direct_ancestor(neo4j_driver_instance, entity_uuid_list, , activity_data_dict)
 
 
 
