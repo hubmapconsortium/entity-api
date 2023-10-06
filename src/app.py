@@ -27,6 +27,7 @@ import provenance
 from schema import schema_manager
 from schema import schema_errors
 from schema import schema_triggers
+from schema import schema_validators
 from schema import schema_neo4j_queries
 from schema.schema_constants import SchemaConstants
 from schema.schema_constants import DataVisibilityEnum
@@ -3798,8 +3799,10 @@ def multiple_components():
     validate_token_if_auth_header_exists(request)
     # Get user token from Authorization header
     user_token = get_user_token(request)
-
-    schema_validators.validate_application_header_before_entity_create("Dataset", request)
+    try:
+        schema_validators.validate_application_header_before_entity_create("Dataset", request)
+    except Exception as e:
+        bad_request_error(str(e))
 
     require_json(request)
 
@@ -3836,8 +3839,13 @@ def multiple_components():
     dataset_list = []
 
     for dataset in json_data_dict.get('datasets'):
+        # dataset_link_abs_dir is not part of the entity creation, will not be stored in neo4j and does not require
+        # validation. Remove it here and add it back after validation. We do the same for creating the entities. Doing
+        # this makes it easier to keep the dataset_link_abs_dir with the associated dataset instead of adding additional lists and keeping track of which value is tied to which dataset
+        dataset_link_abs_dir = dataset.pop('dataset_link_abs_dir', None)
         dataset['group_uuid'] = json_data_dict.get('group_uuid')
-        dataset['direct_ancestor_uuids'] = json_Data_dict.get('direct_ancestor_uuids')
+        dataset['direct_ancestor_uuids'] = json_data_dict.get('direct_ancestor_uuids')
+        dataset['creation_action'] = json_data_dict.get('creation_action')
         try:
             schema_manager.validate_json_data_against_schema(dataset, 'Dataset')
         except schema_errors.SchemaValidationException as e:
@@ -3846,7 +3854,7 @@ def multiple_components():
         # Execute property level validators defined in the schema yaml before entity property creation
         # Use empty dict {} to indicate there's no existing_data_dict
         try:
-            schema_manager.execute_property_level_validators('before_property_create_validators', normalized_entity_type, request, {}, json_data_dict)
+            schema_manager.execute_property_level_validators('before_property_create_validators', "Dataset", request, {}, json_data_dict)
         # Currently only ValueError
         except ValueError as e:
             bad_request_error(e)
@@ -3875,11 +3883,15 @@ def multiple_components():
             # by previous_revision_uuid is published. Else, bad request error.
             if previous_version_dict['status'].lower() != DATASET_STATUS_PUBLISHED:
                 bad_request_error(f"The previous_revision_uuid specified for this dataset must be 'Published' in order to create a new revision from it")
+        # Add back in dataset_link_abs_dir
+        dataset['dataset_link_abs_dir'] = dataset_link_abs_dir
 
     for dataset in json_data_dict.get('datasets'):
-        merged_dict = create_entity_details(request, "Dataset", user_token, json_data_dict)
-        schema_triggers.set_status_history('status', 'Dataset', user_token, merged_dict, {})
-        schema_triggers.link_to_previous_revision('previous_revision_uuid', 'Dataset', user_token, merged_dict, {})
+        # Remove dataset_link_abs_dir once more before entity creation
+        dataset_link_abs_dir = dataset.pop('dataset_link_abs_dir', None)
+        merged_dict = create_entity_details(request, "Dataset", user_token, dataset)
+        # Add back in dataset_link_abs_dir
+        merged_dict['dataset_link_abs_dir'] = dataset_link_abs_dir
         dataset_list.append(merged_dict)
 
     # Generate property values for Activity node
@@ -3892,7 +3904,15 @@ def multiple_components():
         entity_uuid_list.append(dataset['uuid'])
 
     schema_neo4j_queries.link_multiple_entities_to_direct_ancestors(neo4j_driver_instance, entity_uuid_list, json_data_dict['direct_ancestor_uuids'], activity_data_dict)
-    return jsonify(entity_uuid_list)
+
+    # We wait until after the new datasets are linked to their ancestor before performing the remaining post-creation
+    # linkeages. This way, in the event of unforseen errors, we don't have orphaned nodes.
+    for dataset in dataset_list:
+        schema_triggers.set_status_history('status', 'Dataset', user_token, merged_dict, {})
+        if merged_dict.get('previous_revision_uuid'):
+            schema_triggers.link_to_previous_revision('previous_revision_uuid', 'Dataset', user_token, merged_dict, {})
+
+    return jsonify(dataset_list)
 
 
 ####################################################################################################
