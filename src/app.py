@@ -3892,7 +3892,7 @@ def multiple_components():
         entity_uuid_list.append(dataset['uuid'])
 
     schema_neo4j_queries.link_multiple_entities_to_direct_ancestors(neo4j_driver_instance, entity_uuid_list, json_data_dict['direct_ancestor_uuids'], activity_data_dict)
-
+    return jsonify(entity_uuid_list)
 
 
 ####################################################################################################
