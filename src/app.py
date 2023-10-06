@@ -3845,7 +3845,8 @@ def multiple_components():
         dataset_link_abs_dir = dataset.pop('dataset_link_abs_dir', None)
         dataset['group_uuid'] = json_data_dict.get('group_uuid')
         dataset['direct_ancestor_uuids'] = json_data_dict.get('direct_ancestor_uuids')
-        dataset['creation_action'] = json_data_dict.get('creation_action')
+        # TODO re-enable the following line once creattion_action support is merged in
+        # dataset['creation_action'] = json_data_dict.get('creation_action')
         try:
             schema_manager.validate_json_data_against_schema(dataset, 'Dataset')
         except schema_errors.SchemaValidationException as e:
@@ -3912,7 +3913,44 @@ def multiple_components():
         if merged_dict.get('previous_revision_uuid'):
             schema_triggers.link_to_previous_revision('previous_revision_uuid', 'Dataset', user_token, merged_dict, {})
 
-    return jsonify(dataset_list)
+    properties_to_skip = [
+        'direct_ancestors',
+        'collections',
+        'upload',
+        'title',
+        'previous_revision_uuid',
+        'next_revision_uuid'
+    ]
+
+    if bool(request.args):
+        # The parsed query string value is a string 'true'
+        return_all_properties = request.args.get('return_all_properties')
+
+        if (return_all_properties is not None) and (return_all_properties.lower() == 'true'):
+            properties_to_skip = []
+
+    normalized_complete_entity_list = []
+    for dataset in dataset_list:
+        # Remove dataset_link_abs_dir once more before entity creation
+        dataset_link_abs_dir = dataset.pop('dataset_link_abs_dir', None)
+        # Generate the filtered or complete entity dict to send back
+        complete_dict = schema_manager.get_complete_entity_result(user_token, dataset, properties_to_skip)
+
+        # Will also filter the result based on schema
+        normalized_complete_dict = schema_manager.normalize_entity_result_for_response(complete_dict)
+
+
+        # Also index the new entity node in elasticsearch via search-api
+        logger.log(logging.INFO
+                   ,f"Re-indexing for creation of {complete_dict['entity_type']}"
+                    f" with UUID {complete_dict['uuid']}")
+        reindex_entity(complete_dict['uuid'], user_token)
+        # Add back in dataset_link_abs_dir one last time
+        normalized_complete_dict['dataset_link_abs_dir'] = dataset_link_abs_dir
+        normalized_complete_entity_list.append(normalized_complete_dict)
+
+    return jsonify(normalized_complete_entity_list)
+
 
 
 ####################################################################################################
