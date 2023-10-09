@@ -509,6 +509,30 @@ def validate_publication_date(property_key, normalized_entity_type, request, exi
     except ValueError:
         raise ValueError(f"Invalid {property_key} format, must be YYYY-MM-DD")
 
+"""
+Validate the provided value of the activity creation action. Only very specific
+values are allowed.
+Parameters
+----------
+property_key : str
+    The target property key
+normalized_type : str
+    Submission
+request: Flask request object
+    The instance of Flask request passed in from application request
+existing_data_dict : dict
+    A dictionary that contains all existing entity properties
+new_data_dict : dict
+    The json data in request body, already after the regular validations
+"""
+def validate_creation_action(property_key, normalized_entity_type, request, existing_data_dict, new_data_dict):
+    accepted_creation_action_values = ["central process", "lab process"]
+    creation_action = new_data_dict[property_key].lower()
+    if creation_action and creation_action not in accepted_creation_action_values:
+        raise ValueError("Invalid {} value. Accepted values are: {}".format(property_key, ", ".join(accepted_creation_action_values)))
+    if creation_action == '':
+        raise ValueError(f"The property {property_key} cannot be empty, when specified.")
+
 
 ####################################################################################################
 ## Internal Functions

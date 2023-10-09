@@ -4126,7 +4126,6 @@ def create_entity_details(request, normalized_entity_type, user_token, json_data
     # Meaning the returned target property key is different from the original key
     # in the trigger method, e.g., Donor.image_files_to_add
     filtered_merged_dict = schema_manager.remove_transient_and_none_values(merged_dict, normalized_entity_type)
-
     # Create new entity
     try:
         # Check if the optional `superclass` property is defined, None otherwise
