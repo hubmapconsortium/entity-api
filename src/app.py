@@ -3845,8 +3845,6 @@ def multiple_components():
         dataset_link_abs_dir = dataset.pop('dataset_link_abs_dir', None)
         dataset['group_uuid'] = json_data_dict.get('group_uuid')
         dataset['direct_ancestor_uuids'] = json_data_dict.get('direct_ancestor_uuids')
-        # TODO re-enable the following line once creattion_action support is merged in
-        # dataset['creation_action'] = json_data_dict.get('creation_action')
         try:
             schema_manager.validate_json_data_against_schema(dataset, 'Dataset')
         except schema_errors.SchemaValidationException as e:
@@ -3855,14 +3853,14 @@ def multiple_components():
         # Execute property level validators defined in the schema yaml before entity property creation
         # Use empty dict {} to indicate there's no existing_data_dict
         try:
-            schema_manager.execute_property_level_validators('before_property_create_validators', "Dataset", request, {}, json_data_dict)
+            schema_manager.execute_property_level_validators('before_property_create_validators', "Dataset", request, {}, dataset)
         # Currently only ValueError
         except ValueError as e:
             bad_request_error(e)
 
         # Also check existence of the previous revision dataset if specified
-        if 'previous_revision_uuid' in json_data_dict:
-            previous_version_dict = query_target_entity(json_data_dict['previous_revision_uuid'], user_token)
+        if 'previous_revision_uuid' in dataset:
+            previous_version_dict = query_target_entity(dataset['previous_revision_uuid'], user_token)
 
             # Make sure the previous version entity is either a Dataset or Sample (and publication 2/17/23)
             if previous_version_dict['entity_type'] not in ['Sample'] and \
@@ -3898,6 +3896,7 @@ def multiple_components():
     # Generate property values for Activity node
     # Can grab the existing data from the first dataset in the list
     activity_data_dict = schema_manager.generate_activity_data('Dataset', user_token, dataset_list[0])
+    activity_data_dict['creation_action'] = json_data_dict.get('creation_action')
 
     entity_uuid_list = []
 
