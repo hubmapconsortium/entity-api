@@ -1814,29 +1814,6 @@ paths:
           description: The user's token has expired or the user did not supply a valid token
         '500':
           description: Internal error
-  '/collections/{id}/add-datasets':
-    put:
-      summary: Link the given list of datasets to the target collection
-      parameters:
-        - name: id
-          in: path
-          description: The UUID of target collection
-          required: true
-          schema:
-            type: string
-      responses:
-        '200':
-          description: successful operation
-        '400':
-          description: Invalid or misformatted collection uuid
-        '401':
-          description: The user's token has expired or the user did not supply a valid token
-        '403':
-          description: The user is not authorized to add datasets to the collection
-        '404':
-          description: The target entity could not be found
-        '500':
-          description: Internal error
   '/doi/redirect/{id}':
     get:
       summary: Redirect a request from a doi service
