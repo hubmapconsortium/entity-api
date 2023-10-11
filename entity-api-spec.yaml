@@ -459,14 +459,6 @@ components:
         specimen_type_other:
           type: string
           description: "The user provided sample type if the 'other' sample_type is chosen."
-        sample_category:
-          type: string
-          enum:
-            - organ
-            - block
-            - section
-            - suspension
-          description: "A code representing the category of the specimen.  Must be one of organ|block|section|suspension. This is a required field. If set to `organ`, the organ property must be provided as well."
         protocol_url:
           type: string
           description: "The protocols.io doi url pointing the protocol under wich the sample was obtained and/or prepared."
@@ -1554,26 +1546,26 @@ paths:
           schema:
             type: string
         - name: include-old-revisions
-            in: query
-            description: A case insensitive string. Any value besides true will have no effect. If the string is 'true', datasets that are have newer revisions will be included, otherwise by default they are not included.
-            required: false
-            schema:
-              type: string
-              enum: [ 'true', 'false' ]
+          in: query
+          description: A case insensitive string. Any value besides true will have no effect. If the string is 'true', datasets that are have newer revisions will be included, otherwise by default they are not included.
+          required: false
+          schema:
+            type: string
+            enum: [ 'true', 'false' ]
         - name: status
-            in: query
-            description: A case insensitive string. Any value besides 'new', 'qa', and 'published' will raise an error. If a valid status is provided, only results matching that status (if they are datasets) will be returned
-            required: false
-            schema:
-              type: string
-              enum: [ 'new', 'qa', 'published' ]
+          in: query
+          description: A case insensitive string. Any value besides 'new', 'qa', and 'published' will raise an error. If a valid status is provided, only results matching that status (if they are datasets) will be returned
+          equired: false
+          schema:
+            type: string
+            enum: [ 'new', 'qa', 'published' ]
         - name: property_key
-            in: query
-            description: A case insensitive string. Any value besides 'uuid' will raise an error. If property_key=uuid is provided, rather than entire dictionary representations of each node, only the list of matching uuid's will be returned
-            required: false
-            schema:
-              type: string
-              enum: [ 'uuid' ]
+          in: query
+          description: A case insensitive string. Any value besides 'uuid' will raise an error. If property_key=uuid is provided, rather than entire dictionary representations of each node, only the list of matching uuid's will be returned
+          required: false
+          schema:
+            type: string
+            enum: [ 'uuid' ]
       responses:
         '200':
           description: An array of sibling entities is returned
