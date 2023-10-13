@@ -555,58 +555,6 @@ def link_entity_to_direct_ancestors(neo4j_driver, entity_uuid, direct_ancestor_u
 
 
 """
-Create or recreate one or more linkages (via Activity nodes) 
-between the target entity nodes and the direct ancestor nodes in neo4j
-
-Parameters
-----------
-neo4j_driver : neo4j.Driver object
-    The neo4j database connection pool
-entity_uuids : list
-    List of the uuids of target child entities
-direct_ancestor_uuid : list
-    The uuids of direct ancestors
-activity_data_dict : dict
-    A dict of activity properties to be created
-"""
-def link_multiple_entities_to_direct_ancestors(neo4j_driver, entity_uuids, direct_ancestor_uuids, activity_data_dict):
-    try:
-        with neo4j_driver.session() as session:
-            tx = session.begin_transaction()
-
-            # Create the Acvitity node
-            create_activity_tx(tx, activity_data_dict)
-
-            # Get the activity uuid
-            activity_uuid = activity_data_dict['uuid']
-
-            for entity_uuid in entity_uuids:
-                # First delete all the old linkages and Activity node between this entity and its direct ancestors
-                _delete_activity_node_and_linkages_tx(tx, entity_uuid)
-
-                # Create relationship from this Activity node to the target entity node
-                create_relationship_tx(tx, activity_uuid, entity_uuid, 'ACTIVITY_OUTPUT', '->')
-
-            # Create relationship from each ancestor entity node to this Activity node
-            for direct_ancestor_uuid in direct_ancestor_uuids:
-                create_relationship_tx(tx, direct_ancestor_uuid, activity_uuid, 'ACTIVITY_INPUT', '->')
-
-
-            tx.commit()
-    except TransactionError as te:
-        msg = "TransactionError from calling link_entity_to_direct_ancestors(): "
-        # Log the full stack trace, prepend a line with our message
-        logger.exception(msg)
-
-        if tx.closed() == False:
-            # Log the full stack trace, prepend a line with our message
-            logger.info("Failed to commit link_entity_to_direct_ancestors() transaction, rollback")
-            tx.rollback()
-
-        raise TransactionError(msg)
-
-
-"""
 Create or recreate linkage 
 between the publication node and the associated collection node in neo4j
 

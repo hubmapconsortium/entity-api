@@ -3787,13 +3787,34 @@ def paired_dataset(id):
 
 
 """
-Description
+Create multiple component datasets from a single Multi-Assay ancestor
+
+Input
+-----
+json
+    A json object with the fields: 
+        creation_action
+         - type: str
+         - description: the action event that will describe the activity node. Allowed valuese are: "Multi-Assay Split"
+        group_uuid
+         - type: str
+         - description: the group uuid for the new component datasets
+        direct_ancestor_uuid
+         - type: str
+         - description: the uuid for the parent multi assay dataset
+        datasets
+         - type: dict
+         - description: the datasets to be created. Only difference between these and normal datasets are the field "dataset_link_abs_dir"
+
+Returns
+--------
+json array
+    List of uuids of the newly created component datasets
 """
 @app.route('/datasets/components', methods=['POST'])
 def multiple_components():
     if READ_ONLY_MODE:
         forbidden_error("Access not granted when entity-api in READ-ONLY mode")
-
     # If an invalid token provided, we need to tell the client with a 401 error, rather
     # than a 500 error later if the token is not good.
     validate_token_if_auth_header_exists(request)
@@ -3803,14 +3824,13 @@ def multiple_components():
         schema_validators.validate_application_header_before_entity_create("Dataset", request)
     except Exception as e:
         bad_request_error(str(e))
-
     require_json(request)
 
+    ######### validate top level properties ########
+
+    # Verify that each required field is in the json_data_dict, and that there are no other fields
     json_data_dict = request.get_json()
-
     required_fields = ['creation_action', 'group_uuid', 'direct_ancestor_uuids', 'datasets']
-
-    # Verify that each field is in the json_data_dict, and that there are no other fields
     for field in required_fields:
         if field not in json_data_dict:
             raise bad_request_error(f"Missing required field {field}")
@@ -3818,33 +3838,34 @@ def multiple_components():
         if field not in required_fields:
             raise bad_request_error(f"Request body contained unexpected field {field}")
 
-    user_info_dict = schema_manager.get_user_info(request)
-
-    json_data_with_user_info_dict = {**json_data_dict, **user_info_dict}
-
-    # validate top level fields
-
-    # validate group_uuid
-    schema_triggers.set_group_uuid("group_uuid", "Dataset", user_token, {}, json_data_with_user_info_dict)
-
+    # validate creation_action
     allowable_creation_actions = ['Multi-Assay Split']
-
     if json_data_dict.get('creation_action') not in allowable_creation_actions:
         bad_request_error(f"creation_action {json_data_dict.get('creation_action')} not recognized. Allowed values are: {COMMA_SEPARATOR.join(allowable_creation_actions)}")
 
+    # While we accept a list of direct_ancestor_uuids, we currently only allow a single direct ancestor so verify that there is only 1
+    direct_ancestor_uuids = json_data_dict.get('direct_ancestor_uuids')
+    if direct_ancestor_uuids is None or not isinstance(direct_ancestor_uuids, list) or len(direct_ancestor_uuids) !=1:
+        bad_request_error(f"Required field 'direct_ancestor_uuids' must be a list. This list may only contain 1 item: a string representing the uuid of the direct ancestor")
+
     # validate existence of direct ancestors.
-    for direct_ancestor_uuid in json_data_dict['direct_ancestor_uuids']:
+    for direct_ancestor_uuid in direct_ancestor_uuids:
         direct_ancestor_dict = query_target_entity(direct_ancestor_uuid, user_token)
+        if direct_ancestor_dict.get('entity_type').lower() != "dataset":
+            bad_request_error(f"Direct ancestor is of type: {direct_ancestor_dict.get('entity_type')}. Must be of type 'dataset'.")
 
-    dataset_list = []
+    # validate that there are 2 and only 2 datasets in the dataset list
+    if len(json_data_dict.get('datasets')) != 2:
+        bad_request_error(f"'datasets' field must contain 2 component datasets.")
 
+    # Validate all datasets using existing schema with triggers and validators
     for dataset in json_data_dict.get('datasets'):
         # dataset_link_abs_dir is not part of the entity creation, will not be stored in neo4j and does not require
         # validation. Remove it here and add it back after validation. We do the same for creating the entities. Doing
         # this makes it easier to keep the dataset_link_abs_dir with the associated dataset instead of adding additional lists and keeping track of which value is tied to which dataset
         dataset_link_abs_dir = dataset.pop('dataset_link_abs_dir', None)
         dataset['group_uuid'] = json_data_dict.get('group_uuid')
-        dataset['direct_ancestor_uuids'] = json_data_dict.get('direct_ancestor_uuids')
+        dataset['direct_ancestor_uuids'] = direct_ancestor_uuids
         try:
             schema_manager.validate_json_data_against_schema(dataset, 'Dataset')
         except schema_errors.SchemaValidationException as e:
@@ -3858,59 +3879,15 @@ def multiple_components():
         except ValueError as e:
             bad_request_error(e)
 
-        # Also check existence of the previous revision dataset if specified
-        if 'previous_revision_uuid' in dataset:
-            previous_version_dict = query_target_entity(dataset['previous_revision_uuid'], user_token)
-
-            # Make sure the previous version entity is either a Dataset or Sample (and publication 2/17/23)
-            if previous_version_dict['entity_type'] not in ['Sample'] and \
-                    not schema_manager.entity_type_instanceof(previous_version_dict['entity_type'], 'Dataset'):
-                bad_request_error(
-                    f"The previous_revision_uuid specified for this dataset must be either a Dataset or Sample or Publication")
-
-            # Also need to validate if the given 'previous_revision_uuid' has already had
-            # an existing next revision
-            # Only return a list of the uuids, no need to get back the list of dicts
-            next_revisions_list = app_neo4j_queries.get_next_revisions(neo4j_driver_instance, previous_version_dict['uuid'], 'uuid')
-
-            # As long as the list is not empty, tell the users to use a different 'previous_revision_uuid'
-            if next_revisions_list:
-                bad_request_error(
-                    f"The previous_revision_uuid specified for this dataset has already had a next revision")
-
-            # Only published datasets can have revisions made of them. Verify that that status of the Dataset specified
-            # by previous_revision_uuid is published. Else, bad request error.
-            if previous_version_dict['status'].lower() != DATASET_STATUS_PUBLISHED:
-                bad_request_error(f"The previous_revision_uuid specified for this dataset must be 'Published' in order to create a new revision from it")
         # Add back in dataset_link_abs_dir
         dataset['dataset_link_abs_dir'] = dataset_link_abs_dir
 
-    for dataset in json_data_dict.get('datasets'):
-        # Remove dataset_link_abs_dir once more before entity creation
-        dataset_link_abs_dir = dataset.pop('dataset_link_abs_dir', None)
-        merged_dict = create_entity_details(request, "Dataset", user_token, dataset)
-        # Add back in dataset_link_abs_dir
-        merged_dict['dataset_link_abs_dir'] = dataset_link_abs_dir
-        dataset_list.append(merged_dict)
-
-    # Generate property values for Activity node
-    # Can grab the existing data from the first dataset in the list
-    activity_data_dict = schema_manager.generate_activity_data('Dataset', user_token, dataset_list[0])
-    activity_data_dict['creation_action'] = json_data_dict.get('creation_action')
-
-    entity_uuid_list = []
-
-    for dataset in dataset_list:
-        entity_uuid_list.append(dataset['uuid'])
-
-    schema_neo4j_queries.link_multiple_entities_to_direct_ancestors(neo4j_driver_instance, entity_uuid_list, json_data_dict['direct_ancestor_uuids'], activity_data_dict)
+    dataset_list = create_multiple_component_details(request, "Dataset", user_token, json_data_dict.get('datasets'), json_data_dict.get('creation_action'))
 
     # We wait until after the new datasets are linked to their ancestor before performing the remaining post-creation
     # linkeages. This way, in the event of unforseen errors, we don't have orphaned nodes.
     for dataset in dataset_list:
-        schema_triggers.set_status_history('status', 'Dataset', user_token, merged_dict, {})
-        if merged_dict.get('previous_revision_uuid'):
-            schema_triggers.link_to_previous_revision('previous_revision_uuid', 'Dataset', user_token, merged_dict, {})
+        schema_triggers.set_status_history('status', 'Dataset', user_token, dataset, {})
 
     properties_to_skip = [
         'direct_ancestors',
@@ -4469,6 +4446,139 @@ def create_multiple_samples_details(request, normalized_entity_type, user_token,
     # Return the generated ids for UI
     return new_ids_dict_list
 
+
+"""
+Create multiple dataset nodes and relationships with the source entity node
+
+Parameters
+----------
+request : flask.Request object
+    The incoming request
+normalized_entity_type : str
+    One of the normalized entity types: Dataset, Collection, Sample, Donor
+user_token: str
+    The user's globus groups token
+json_data_dict: dict
+    The json request dict from user input
+creation_action : str
+    The creation action for the new activity node.
+
+Returns
+-------
+list
+    A list of all the newly generated ids via uuid-api
+"""
+def create_multiple_component_details(request, normalized_entity_type, user_token, json_data_dict_list, creation_action):
+    # Get user info based on request
+    user_info_dict = schema_manager.get_user_info(request)
+    direct_ancestor = json_data_dict_list[0].get('direct_ancestor_uuids')[0]
+    # Create new ids for the new entity
+    try:
+        # we only need the json data from one of the datasets. The info will be the same for both, so we just grab the first in the list
+        new_ids_dict_list = schema_manager.create_hubmap_ids(normalized_entity_type, json_data_dict_list[0], user_token, user_info_dict, len(json_data_dict_list))
+    # When group_uuid is provided by user, it can be invalid
+    except schema_errors.NoDataProviderGroupException:
+        # Log the full stack trace, prepend a line with our message
+        if 'group_uuid' in json_data_dict:
+            msg = "Invalid 'group_uuid' value, can't create the entity"
+        else:
+            msg = "The user does not have the correct Globus group associated with, can't create the entity"
+
+        logger.exception(msg)
+        bad_request_error(msg)
+    except schema_errors.UnmatchedDataProviderGroupException:
+        # Log the full stack trace, prepend a line with our message
+        msg = "The user does not belong to the given Globus group, can't create the entity"
+        logger.exception(msg)
+        forbidden_error(msg)
+    except schema_errors.MultipleDataProviderGroupException:
+        # Log the full stack trace, prepend a line with our message
+        msg = "The user has mutiple Globus groups associated with, please specify one using 'group_uuid'"
+        logger.exception(msg)
+        bad_request_error(msg)
+    except KeyError as e:
+        # Log the full stack trace, prepend a line with our message
+        logger.exception(e)
+        bad_request_error(e)
+    except requests.exceptions.RequestException as e:
+        msg = f"Failed to create new HuBMAP ids via the uuid-api service"
+        logger.exception(msg)
+
+        # Due to the use of response.raise_for_status() in schema_manager.create_hubmap_ids()
+        # we can access the status codes from the exception
+        status_code = e.response.status_code
+
+        if status_code == 400:
+            bad_request_error(e.response.text)
+        if status_code == 404:
+            not_found_error(e.response.text)
+        else:
+            internal_server_error(e.response.text)
+    datasets_dict_list = []
+    for i in range(len(json_data_dict_list)):
+        # Remove dataset_link_abs_dir once more before entity creation
+        dataset_link_abs_dir = json_data_dict_list[i].pop('dataset_link_abs_dir', None)
+        # Combine each id dict into each dataset in json_data_dict_list
+        new_data_dict = {**json_data_dict_list[i], **user_info_dict, **new_ids_dict_list[i]}
+        try:
+            # Use {} since no existing dict
+            generated_before_create_trigger_data_dict = schema_manager.generate_triggered_data('before_create_trigger', normalized_entity_type, user_token, {}, new_data_dict)
+            # If one of the before_create_trigger methods fails, we can't create the entity
+        except schema_errors.BeforeCreateTriggerException:
+            # Log the full stack trace, prepend a line with our message
+            msg = "Failed to execute one of the 'before_create_trigger' methods, can't create the entity"
+            logger.exception(msg)
+            internal_server_error(msg)
+        except schema_errors.NoDataProviderGroupException:
+            # Log the full stack trace, prepend a line with our message
+            if 'group_uuid' in json_data_dict:
+                msg = "Invalid 'group_uuid' value, can't create the entity"
+            else:
+                msg = "The user does not have the correct Globus group associated with, can't create the entity"
+
+            logger.exception(msg)
+            bad_request_error(msg)
+        except schema_errors.UnmatchedDataProviderGroupException:
+            # Log the full stack trace, prepend a line with our message
+            msg = "The user does not belong to the given Globus group, can't create the entity"
+            logger.exception(msg)
+            forbidden_error(msg)
+        except schema_errors.MultipleDataProviderGroupException:
+            # Log the full stack trace, prepend a line with our message
+            msg = "The user has mutiple Globus groups associated with, please specify one using 'group_uuid'"
+            logger.exception(msg)
+            bad_request_error(msg)
+        except KeyError as e:
+            # Log the full stack trace, prepend a line with our message
+            logger.exception(e)
+            bad_request_error(e)
+        except Exception as e:
+            logger.exception(e)
+            internal_server_error(e)
+        merged_dict = {**json_data_dict_list[i], **generated_before_create_trigger_data_dict}
+
+        # Filter out the merged_dict by getting rid of the transitent properties (not to be stored)
+        # and properties with None value
+        # Meaning the returned target property key is different from the original key
+        # in the trigger method, e.g., Donor.image_files_to_add
+        filtered_merged_dict = schema_manager.remove_transient_and_none_values(merged_dict, normalized_entity_type)
+        dataset_dict = {**filtered_merged_dict, **new_ids_dict_list[i]}
+        dataset_dict['dataset_link_abs_dir'] = dataset_link_abs_dir
+        datasets_dict_list.append(dataset_dict)
+
+    activity_data_dict = schema_manager.generate_activity_data(normalized_entity_type, user_token, user_info_dict)
+    activity_data_dict['creation_action'] = creation_action
+    try:
+        created_datasets = app_neo4j_queries.create_multiple_datasets(neo4j_driver_instance, datasets_dict_list, activity_data_dict, direct_ancestor)
+    except TransactionError:
+        msg = "Failed to create multiple samples"
+        # Log the full stack trace, prepend a line with our message
+        logger.exception(msg)
+        # Terminate and let the users know
+        internal_server_error(msg)
+
+
+    return created_datasets
 
 """
 Execute 'after_create_triiger' methods
