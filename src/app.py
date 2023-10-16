@@ -3809,7 +3809,7 @@ json
 Returns
 --------
 json array
-    List of uuids of the newly created component datasets
+    List of the newly created datasets represented as dictionaries. 
 """
 @app.route('/datasets/components', methods=['POST'])
 def multiple_components():
@@ -4458,15 +4458,15 @@ normalized_entity_type : str
     One of the normalized entity types: Dataset, Collection, Sample, Donor
 user_token: str
     The user's globus groups token
-json_data_dict: dict
-    The json request dict from user input
+json_data_dict_list: list
+    List of datasets objects as dictionaries
 creation_action : str
     The creation action for the new activity node.
 
 Returns
 -------
 list
-    A list of all the newly generated ids via uuid-api
+    A list of all the newly created datasets with generated fields represented as dictionaries
 """
 def create_multiple_component_details(request, normalized_entity_type, user_token, json_data_dict_list, creation_action):
     # Get user info based on request
