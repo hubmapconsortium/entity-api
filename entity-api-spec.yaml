@@ -2512,3 +2512,47 @@ paths:
           description: The given dataset is unpublished and the user does not have the authorization to view it.
         '500':
           description: Internal error
+  '/datasets/components':
+    post:
+      summary: Create multiple component datasets from a single Multi-Assay ancestor
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                creation_action:
+                  type: string
+                  description: the action event that will describe the activity node. Allowed valuese are "Multi-Assay Split"
+                group_uuid:
+                  type: string
+                  description: the group uuid for the new component datasets
+                direct_ancestor_uuids:
+                  type: string
+                  description: the uuid for the parent multi assay dataset
+                datasets:
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/Dataset'
+
+      responses:
+        '200':
+          description: The entities were successfully created and are returned.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Dataset'
+
+        '400':
+          description: Invalid input.
+        '404':
+          description: Not found. No matching datasets were found, or the none were found that the user is authorized to see.
+        '401':
+          description: The user's token has expired or the user did not supply a valid token
+        '403':
+          description: The given dataset is unpublished and the user does not have the authorization to view it.
+        '500':
+          description: Internal error
