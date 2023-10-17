@@ -4512,6 +4512,25 @@ def create_multiple_component_details(request, normalized_entity_type, user_toke
             msg = "Failed to execute one of the 'before_create_trigger' methods, can't create the entity"
             logger.exception(msg)
             internal_server_error(msg)
+        except schema_errors.NoDataProviderGroupException:
+            # Log the full stack trace, prepend a line with our message
+            if 'group_uuid' in json_data_dict:
+                msg = "Invalid 'group_uuid' value, can't create the entity"
+            else:
+                msg = "The user does not have the correct Globus group associated with, can't create the entity"
+
+            logger.exception(msg)
+            bad_request_error(msg)
+        except schema_errors.UnmatchedDataProviderGroupException:
+            # Log the full stack trace, prepend a line with our message
+            msg = "The user does not belong to the given Globus group, can't create the entity"
+            logger.exception(msg)
+            forbidden_error(msg)
+        except schema_errors.MultipleDataProviderGroupException:
+            # Log the full stack trace, prepend a line with our message
+            msg = "The user has mutiple Globus groups associated with, please specify one using 'group_uuid'"
+            logger.exception(msg)
+            bad_request_error(msg)
         except KeyError as e:
             # Log the full stack trace, prepend a line with our message
             logger.exception(e)
