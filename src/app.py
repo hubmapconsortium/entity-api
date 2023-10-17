@@ -4479,25 +4479,6 @@ def create_multiple_component_details(request, normalized_entity_type, user_toke
         # we only need the json data from one of the datasets. The info will be the same for both, so we just grab the first in the list
         new_ids_dict_list = schema_manager.create_hubmap_ids(normalized_entity_type, json_data_dict_list[0], user_token, user_info_dict, len(json_data_dict_list))
     # When group_uuid is provided by user, it can be invalid
-    except schema_errors.NoDataProviderGroupException:
-        # Log the full stack trace, prepend a line with our message
-        if 'group_uuid' in json_data_dict_list[0]:
-            msg = "Invalid 'group_uuid' value, can't create the entity"
-        else:
-            msg = "The user does not have the correct Globus group associated with, can't create the entity"
-
-        logger.exception(msg)
-        bad_request_error(msg)
-    except schema_errors.UnmatchedDataProviderGroupException:
-        # Log the full stack trace, prepend a line with our message
-        msg = "The user does not belong to the given Globus group, can't create the entity"
-        logger.exception(msg)
-        forbidden_error(msg)
-    except schema_errors.MultipleDataProviderGroupException:
-        # Log the full stack trace, prepend a line with our message
-        msg = "The user has mutiple Globus groups associated with, please specify one using 'group_uuid'"
-        logger.exception(msg)
-        bad_request_error(msg)
     except KeyError as e:
         # Log the full stack trace, prepend a line with our message
         logger.exception(e)
@@ -4531,25 +4512,6 @@ def create_multiple_component_details(request, normalized_entity_type, user_toke
             msg = "Failed to execute one of the 'before_create_trigger' methods, can't create the entity"
             logger.exception(msg)
             internal_server_error(msg)
-        except schema_errors.NoDataProviderGroupException:
-            # Log the full stack trace, prepend a line with our message
-            if 'group_uuid' in json_data_dict_list[i]:
-                msg = "Invalid 'group_uuid' value, can't create the entity"
-            else:
-                msg = "The user does not have the correct Globus group associated with, can't create the entity"
-
-            logger.exception(msg)
-            bad_request_error(msg)
-        except schema_errors.UnmatchedDataProviderGroupException:
-            # Log the full stack trace, prepend a line with our message
-            msg = "The user does not belong to the given Globus group, can't create the entity"
-            logger.exception(msg)
-            forbidden_error(msg)
-        except schema_errors.MultipleDataProviderGroupException:
-            # Log the full stack trace, prepend a line with our message
-            msg = "The user has mutiple Globus groups associated with, please specify one using 'group_uuid'"
-            logger.exception(msg)
-            bad_request_error(msg)
         except KeyError as e:
             # Log the full stack trace, prepend a line with our message
             logger.exception(e)
