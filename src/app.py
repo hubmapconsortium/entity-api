@@ -3864,6 +3864,8 @@ def multiple_components():
         # validation. Remove it here and add it back after validation. We do the same for creating the entities. Doing
         # this makes it easier to keep the dataset_link_abs_dir with the associated dataset instead of adding additional lists and keeping track of which value is tied to which dataset
         dataset_link_abs_dir = dataset.pop('dataset_link_abs_dir', None)
+        if not dataset_link_abs_dir:
+            bad_request_error(f"Missing required field in datasets: dataset_link_abs_dir")
         dataset['group_uuid'] = json_data_dict.get('group_uuid')
         dataset['direct_ancestor_uuids'] = direct_ancestor_uuids
         try:
