@@ -926,15 +926,11 @@ def get_entities_by_type(entity_type):
             if property_key not in result_filtering_accepted_property_keys:
                 bad_request_error(f"Only the following property keys are supported in the query string: {COMMA_SEPARATOR.join(result_filtering_accepted_property_keys)}")
 
-            if normalized_entity_type == 'Collection':
-                # Only return a list of the filtered property value of each public collection
-                final_result = app_neo4j_queries.get_public_collections(neo4j_driver_instance, property_key)
-            else:
-                # Only return a list of the filtered property value of each entity
-                property_list = app_neo4j_queries.get_entities_by_type(neo4j_driver_instance, normalized_entity_type, property_key)
+            # Only return a list of the filtered property value of each entity
+            property_list = app_neo4j_queries.get_entities_by_type(neo4j_driver_instance, normalized_entity_type, property_key)
 
-                # Final result
-                final_result = property_list
+            # Final result
+            final_result = property_list
         else:
             bad_request_error("The specified query string is not supported. Use '?property=<key>' to filter the result")
     # Return all the details if no property filtering
@@ -956,18 +952,11 @@ def get_entities_by_type(entity_type):
             'previous_revision_uuid',
             'next_revision_uuid'
         ]
-        if normalized_entity_type == 'Collection':
-            # Use the internal token since no user token is required to access public collections
-            token = get_internal_token()
+        # Get user token from Authorization header.  Since this endpoint is not exposed through the AWS Gateway
+        token = get_user_token(request)
 
-            # Get back a list of public collections dicts
-            entities_list = app_neo4j_queries.get_public_collections(neo4j_driver_instance)
-        else:
-            # Get user token from Authorization header.  Since this endpoint is not exposed through the AWS Gateway
-            token = get_user_token(request)
-    
-            # Get back a list of entity dicts for the given entity type
-            entities_list = app_neo4j_queries.get_entities_by_type(neo4j_driver_instance, normalized_entity_type)
+        # Get back a list of entity dicts for the given entity type
+        entities_list = app_neo4j_queries.get_entities_by_type(neo4j_driver_instance, normalized_entity_type)
 
         complete_entities_list = schema_manager.get_complete_entities_list(token, entities_list, generated_properties_to_skip)
 
