@@ -4514,7 +4514,7 @@ def create_multiple_component_details(request, normalized_entity_type, user_toke
             internal_server_error(msg)
         except schema_errors.NoDataProviderGroupException:
             # Log the full stack trace, prepend a line with our message
-            if 'group_uuid' in json_data_dict:
+            if 'group_uuid' in json_data_dict_list[i]:
                 msg = "Invalid 'group_uuid' value, can't create the entity"
             else:
                 msg = "The user does not have the correct Globus group associated with, can't create the entity"
