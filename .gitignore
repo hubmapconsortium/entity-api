@@ -10,6 +10,9 @@ venv-entity-api
 #Mac DS Store files
 .DS_Store
 
+# Ignore docker env file
+docker/.env
+
 # Ignore copied files
 docker/entity-api/src
 docker/entity-api/VERSION
