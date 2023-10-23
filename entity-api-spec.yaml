@@ -1707,33 +1707,6 @@ paths:
           description: The target entity could not be found
         '500':
           description: Internal error
-  '/collections/{id}':
-    get:
-      summary: 'Returns the information of the Collection specified by the uuid with all connected datasets. If a valid token is provided with group membership in the HuBMAP-Read group any collection matching the id will be returned.  Otherwise if no token is provided or a valid token with no HuBMAP-Read group membership then only a public collection will be returned.  Public collections are defined as being published via a DOI (collection.doi_registered == true) and at least one of the connected datasets is public (dataset.metadata.data_access_level == ''public''). For public collections only connected datasets that are public are returned with it.'
-      parameters:
-        - name: id
-          in: path
-          description: The unique identifier of entity.  This identifier can be either an HuBMAP ID (e.g. HBM123.ABCD.456) or UUID
-          required: true
-          schema:
-            type: string
-      responses:
-        '200':
-          description: The collection is returned
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/Collection'
-        '400':
-          description: Invalid or misformatted entity identifier
-        '401':
-          description: The user's token has expired or the user did not supply a valid token
-        '404':
-          description: The target entity could not be found
-        '500':
-          description: Internal error
   '/entities/new/{entity_type}':
     post:
       summary: Create a new entity of the target type
