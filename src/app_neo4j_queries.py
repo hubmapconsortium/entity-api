@@ -686,7 +686,7 @@ dataset_uuid : string
 """
 def get_individual_prov_info(neo4j_driver, dataset_uuid):
     query = (f"MATCH (ds:Dataset {{uuid: '{dataset_uuid}'}})<-[*]-(firstSample:Sample)<-[*]-(donor:Donor)"
-             f" WHERE (:Dataset)<-[:ACTIVITY_OUTPUT]-(:ACTIVITY)<-[:ACTIVITY_INPUT]-(firstSample)"
+             f" WHERE (:Dataset)<-[:ACTIVITY_OUTPUT]-(:Activity)<-[:ACTIVITY_INPUT]-(firstSample)"
              f" WITH ds, COLLECT(distinct donor) AS DONOR, COLLECT(distinct firstSample) AS FIRSTSAMPLE"
              f" OPTIONAL MATCH (ds)<-[*]-(metaSample:Sample)"
              f" WHERE NOT metaSample.metadata IS NULL AND NOT TRIM(metaSample.metadata) = ''"
@@ -698,7 +698,7 @@ def get_individual_prov_info(neo4j_driver, dataset_uuid):
              f" OPTIONAL match (donor)-[:ACTIVITY_INPUT]->(oa)-[:ACTIVITY_OUTPUT]->(organ:Sample {{sample_category:'organ'}})-[*]->(ds)"
              f" WITH ds, FIRSTSAMPLE, DONOR, METASAMPLE, RUISAMPLE, COLLECT(distinct organ) AS ORGAN "
              f" OPTIONAL MATCH (ds)-[*]->(a3)-[:ACTIVITY_OUTPUT]->(processed_dataset:Dataset)"
-             f" WHERE WHERE toLower(a3.creation_action) ENDS WITH 'process'"
+             f" WHERE toLower(a3.creation_action) ENDS WITH 'process'"
              f" WITH ds, FIRSTSAMPLE, DONOR, METASAMPLE, RUISAMPLE, ORGAN, COLLECT(distinct processed_dataset) AS PROCESSED_DATASET"
              f" RETURN ds.uuid, FIRSTSAMPLE, DONOR, RUISAMPLE, ORGAN, ds.hubmap_id, ds.status, ds.group_name,"
              f" ds.group_uuid, ds.created_timestamp, ds.created_by_user_email, ds.last_modified_timestamp, "
@@ -870,7 +870,7 @@ def get_sample_prov_info(neo4j_driver, param_dict, public_only):
         # specimen_type -> sample_category 12/15/2022
         f" OPTIONAL MATCH (s)<-[*]-(organ:Sample{{sample_category: 'organ'}})"
         f" WITH s, organ, d"
-        f" MATCH (s)<-[:ACTIVITY_OUTPUT]-(:ACTIVITY)<-[:ACTIVITY_INPUT]-(da)"
+        f" MATCH (s)<-[:ACTIVITY_OUTPUT]-(:Activity)<-[:ACTIVITY_INPUT]-(da)"
         f" RETURN s.uuid, s.lab_tissue_sample_id, s.group_name, s.created_by_user_email, s.metadata, s.rui_location,"
         f" d.uuid, d.metadata, organ.uuid, organ.sample_category, organ.metadata, da.uuid, da.entity_type, "
         f"s.sample_category, organ.organ, s.organ, s.hubmap_id, s.submission_id, organ.hubmap_id, organ.submission_id, "
@@ -979,7 +979,7 @@ def get_paired_dataset(neo4j_driver, uuid, data_type, search_depth):
         number_of_jumps = f"*..{search_depth}"
     data_type = f"['{data_type}']"
     query = (
-        f'MATCH (ds:Dataset)<-[*]-(s:Sample) WHERE ds.uuid = "{uuid}" AND (:Dataset)<-[:ACTIVITY_OUTPUT]-(:ACTIVITY)<-[:ACTIVITY_INPUT]-(s)'
+        f'MATCH (ds:Dataset)<-[*]-(s:Sample) WHERE ds.uuid = "{uuid}" AND (:Dataset)<-[:ACTIVITY_OUTPUT]-(:Activity)<-[:ACTIVITY_INPUT]-(s)'
         f'MATCH (ods)<-[{number_of_jumps}]-(s) WHERE ods.data_types = "{data_type}"'
         f'return ods.uuid as uuid, ods.status as status'
     )
