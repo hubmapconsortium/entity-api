@@ -686,7 +686,7 @@ dataset_uuid : string
 """
 def get_individual_prov_info(neo4j_driver, dataset_uuid):
     query = (f"MATCH (ds:Dataset {{uuid: '{dataset_uuid}'}})<-[*]-(firstSample:Sample)<-[*]-(donor:Donor)"
-             f" WHERE (:Dataset)<-[]-()<-[]-(firstSample)"
+             f" WHERE (:Dataset)<-[:ACTIVITY_OUTPUT]-(:ACTIVITY)<-[:ACTIVITY_INPUT]-(firstSample)"
              f" WITH ds, COLLECT(distinct donor) AS DONOR, COLLECT(distinct firstSample) AS FIRSTSAMPLE"
              f" OPTIONAL MATCH (ds)<-[*]-(metaSample:Sample)"
              f" WHERE NOT metaSample.metadata IS NULL AND NOT TRIM(metaSample.metadata) = ''"
