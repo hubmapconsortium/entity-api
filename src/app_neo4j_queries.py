@@ -579,8 +579,8 @@ def get_prov_info(neo4j_driver, param_dict, published_only):
     if published_only:
         published_only_query_string = f" AND toUpper(ds.status) = 'PUBLISHED'"
         published_only_revisions_string = f" WHERE toUpper(rev.status) = 'PUBLISHED'"
-    query = (f"MATCH (ds:Dataset)<-[:ACTIVITY_OUTPUT]-(a:ACTIVITY)<-[*]-(firstSample:Sample)<-[*]-(donor:Donor)"
-             f"WHERE not (ds)-[:REVISION_OF]->(:Dataset)"
+    query = (f"MATCH (ds:Dataset)<-[:ACTIVITY_OUTPUT]-(a:Activity)<-[*]-(firstSample:Sample)<-[*]-(donor:Donor)"
+             f" WHERE not (ds)-[:REVISION_OF]->(:Dataset)"
              f" AND NOT toLower(a.creation_action) ENDS WITH 'process'"
              f"{group_uuid_query_string}"
              f"{dataset_status_query_string}"
