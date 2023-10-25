@@ -2557,7 +2557,14 @@ paths:
                 datasets:
                   type: array
                   items:
-                    $ref: '#/components/schemas/Dataset'
+                    type: object
+                    properties:
+                      dataset_link_abs_dir:
+                        type: string
+                        required: true
+                        description: The file path to the component's sub-directory beneath the ancestor dataset on globus. The created symbolic link will point to this subdirectory
+                      $ref: '#/components/schemas/Dataset'
+
 
       responses:
         '200':
