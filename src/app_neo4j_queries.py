@@ -98,53 +98,6 @@ def get_entities_by_type(neo4j_driver, entity_type, property_key = None):
     return results
 
 """
-Get all the public collection nodes
-
-Parameters
-----------
-neo4j_driver : neo4j.Driver object
-    The neo4j database connection pool
-property_key : str
-    A target property key for result filtering
-
-Returns
--------
-list
-    A list of public collections returned from the Cypher query
-"""
-def get_public_collections(neo4j_driver, property_key = None):
-    results = []
-
-    if property_key:
-        query = (f"MATCH (e:Collection) "
-                 f"WHERE e.registered_doi IS NOT NULL AND e.doi_url IS NOT NULL "
-                 # COLLECT() returns a list
-                 # apoc.coll.toSet() reruns a set containing unique nodes
-                 f"RETURN apoc.coll.toSet(COLLECT(e.{property_key})) AS {record_field_name}")
-    else:
-        query = (f"MATCH (e:Collection) "
-                 f"WHERE e.registered_doi IS NOT NULL AND e.doi_url IS NOT NULL "
-                 # COLLECT() returns a list
-                 # apoc.coll.toSet() reruns a set containing unique nodes
-                 f"RETURN apoc.coll.toSet(COLLECT(e)) AS {record_field_name}")
-
-    logger.info("======get_public_collections() query======")
-    logger.info(query)
-
-    with neo4j_driver.session() as session:
-        record = session.read_transaction(schema_neo4j_queries.execute_readonly_tx, query)
-
-        if record and record[record_field_name]:
-            if property_key:
-                # Just return the list of property values from each entity node
-                results = record[record_field_name]
-            else:
-                # Convert the list of nodes to a list of dicts
-                results = schema_neo4j_queries.nodes_to_dicts(record[record_field_name])
-
-    return results
-
-"""
 Retrieve the ancestor organ(s) of a given entity
 
 Parameters
@@ -238,6 +191,73 @@ def create_multiple_samples(neo4j_driver, samples_dict_list, activity_data_dict,
 
         raise TransactionError(msg)
 
+
+"""
+Create multiple dataset nodes in neo4j
+
+Parameters
+----------
+neo4j_driver : neo4j.Driver object
+    The neo4j database connection pool
+datasets_dict_list : list
+    A list of dicts containing the generated data of each sample to be created
+activity_dict : dict
+    The dict containing generated activity data
+direct_ancestor_uuid : str
+    The uuid of the direct ancestor to be linked to
+"""
+def create_multiple_datasets(neo4j_driver, datasets_dict_list, activity_data_dict, direct_ancestor_uuid):
+    try:
+        with neo4j_driver.session() as session:
+            entity_dict = {}
+
+            tx = session.begin_transaction()
+
+            activity_uuid = activity_data_dict['uuid']
+
+            # Step 1: create the Activity node
+            schema_neo4j_queries.create_activity_tx(tx, activity_data_dict)
+
+            # Step 2: create relationship from source entity node to this Activity node
+            schema_neo4j_queries.create_relationship_tx(tx, direct_ancestor_uuid, activity_uuid, 'ACTIVITY_INPUT', '->')
+
+            # Step 3: create each new sample node and link to the Activity node at the same time
+            output_dicts_list = []
+            for dataset_dict in datasets_dict_list:
+                # Remove dataset_link_abs_dir once more before entity creation
+                dataset_link_abs_dir = dataset_dict.pop('dataset_link_abs_dir', None)
+                node_properties_map = schema_neo4j_queries.build_properties_map(dataset_dict)
+
+                query = (f"MATCH (a:Activity) "
+                         f"WHERE a.uuid = '{activity_uuid}' "
+                         # Always define the Entity label in addition to the target `entity_type` label
+                         f"CREATE (e:Entity:Dataset {node_properties_map} ) "
+                         f"CREATE (a)-[:ACTIVITY_OUTPUT]->(e)" 
+                         f"RETURN e AS {record_field_name}")
+
+                logger.info("======create_multiple_samples() individual query======")
+                logger.info(query)
+
+                result = tx.run(query)
+                record = result.single()
+                entity_node = record[record_field_name]
+                entity_dict = schema_neo4j_queries.node_to_dict(entity_node)
+                entity_dict['dataset_link_abs_dir'] = dataset_link_abs_dir
+                output_dicts_list.append(entity_dict)
+            # Then
+            tx.commit()
+            return output_dicts_list
+    except TransactionError as te:
+        msg = f"TransactionError from calling create_multiple_samples(): {te.value}"
+        # Log the full stack trace, prepend a line with our message
+        logger.exception(msg)
+
+        if tx.closed() == False:
+            logger.info("Failed to commit create_multiple_samples() transaction, rollback")
+
+            tx.rollback()
+
+        raise TransactionError(msg)
 
 
 """
