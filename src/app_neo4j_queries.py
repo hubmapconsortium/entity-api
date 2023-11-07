@@ -399,6 +399,43 @@ def get_next_revisions(neo4j_driver, uuid, property_key = None):
 
     return results
 
+
+def is_next_revision_latest(neo4j_driver, uuid, property_key = None):
+    results = []
+
+    if property_key:
+        query = (f"MATCH (e:Entity)<-[:REVISION_OF*]-(parent:Entity)<-[:REVISION_OF*]-(next:Entity) "
+                 f"WHERE e.uuid='{uuid}' "
+                 # COLLECT() returns a list
+                 # apoc.coll.toSet() reruns a set containing unique nodes
+                 f"RETURN apoc.coll.toSet(COLLECT(next.{property_key})) AS {record_field_name}")
+    else:
+        query = (f"MATCH (e:Entity)<-[:REVISION_OF*]-(parent:Entity)<-[:REVISION_OF*]-(next:Entity) "
+                 f"WHERE e.uuid='{uuid}' "
+                 # COLLECT() returns a list
+                 # apoc.coll.toSet() reruns a set containing unique nodes
+                 f"RETURN apoc.coll.toSet(COLLECT(next)) AS {record_field_name}")
+
+    logger.info("======get_next_revisions() query======")
+    logger.info(query)
+
+    with neo4j_driver.session() as session:
+        record = session.read_transaction(schema_neo4j_queries.execute_readonly_tx, query)
+
+        if record and record[record_field_name]:
+            if property_key:
+                # Just return the list of property values from each entity node
+                results = record[record_field_name]
+            else:
+                # Convert the list of nodes to a list of dicts
+                results = schema_neo4j_queries.nodes_to_dicts(record[record_field_name])
+
+    if results:
+        return False
+    else:
+        return True
+
+
 """
 Retrive the full tree above the given entity
 

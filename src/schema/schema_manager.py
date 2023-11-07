@@ -784,9 +784,13 @@ def validate_json_data_against_schema(json_data_dict, normalized_entity_type, ex
     invalid_data_type_keys = []
     for key in json_data_keys:
         # boolean starts with bool, string starts with str, integer starts with int, list is list
-        if (properties[key]['type'] in ['string', 'integer', 'list', 'boolean']) and (not properties[key]['type'].startswith(type(json_data_dict[key]).__name__)):
-            invalid_data_type_keys.append(key)
-            
+        property_type = properties[key]['type']
+        if isinstance(property_type, str):
+            if (property_type in ['string', 'integer', 'list', 'boolean']) and (not property_type.startswith(type(json_data_dict[key]).__name__)):
+                invalid_data_type_keys.append(key)
+        elif isinstance(property_type, list):
+            if any(item.startswith(type(json_data_dict[key]).__name__) for item in property_type):
+                invalid_data_type_keys.append(key)
         # Handling json_string as dict
         if (properties[key]['type'] == 'json_string') and (not isinstance(json_data_dict[key], dict)):
             invalid_data_type_keys.append(key)
