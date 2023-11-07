@@ -2329,7 +2329,7 @@ def get_multi_revisions_list(id):
 
     # Only published/public datasets don't require token
     if entity_dict['status'].lower() != DATASET_STATUS_PUBLISHED:
-        # Token is required and the user must belong to SenNet-READ group
+        # Token is required and the user must belong to HuBMAP-READ group
         token = get_user_token(request, non_public_access_required=True)
 
     # By now, either the entity is public accessible or
