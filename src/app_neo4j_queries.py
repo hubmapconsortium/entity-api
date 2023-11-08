@@ -301,6 +301,66 @@ def get_sorted_revisions(neo4j_driver, uuid):
 
 
 """
+Get all revisions for a given dataset uuid and sort them in descending order based on their creation time
+
+Parameters
+----------
+neo4j_driver : neo4j.Driver object
+    The neo4j database connection pool
+uuid : str
+    The uuid of target entity 
+fetch_all : bool
+    Whether to fetch all Datasets or only include Published
+property_key : str
+    Return only a particular property from the cypher query, None for return all    
+
+Returns
+-------
+dict
+    A multi-dimensional list [prev_revisions<list<list>>, next_revisions<list<list>>]
+"""
+
+
+def get_sorted_multi_revisions(neo4j_driver, uuid, fetch_all=True, property_key=False):
+    results = []
+    match_case = '' if fetch_all is True else 'AND prev.status = "Published" AND next.status = "Published" '
+    collect_prop = f".{property_key}" if property_key else ''
+
+    query = (
+        "MATCH (e:Dataset), (next:Dataset), (prev:Dataset),"
+        f"p = (e)-[:REVISION_OF *0..]->(prev),"
+        f"n = (e)<-[:REVISION_OF *0..]-(next) "
+        f"WHERE e.uuid='{uuid}' {match_case}"
+        "WITH length(p) AS p_len, prev, length(n) AS n_len, next "
+        "ORDER BY prev.created_timestamp, next.created_timestamp DESC "
+        f"WITH p_len, collect(distinct prev{collect_prop}) AS prev_revisions, n_len, collect(distinct next{collect_prop}) AS next_revisions "
+        f"RETURN [collect(distinct next_revisions), collect(distinct prev_revisions)] AS {record_field_name}"
+    )
+
+    logger.info("======get_sorted_revisions() query======")
+    logger.info(query)
+
+    with neo4j_driver.session() as session:
+        record = session.read_transaction(schema_neo4j_queries.execute_readonly_tx, query)
+
+        if record and record[record_field_name] and len(record[record_field_name]) > 0:
+            record[record_field_name][0].pop()  # the target will appear twice, pop it from the next list
+            if property_key:
+                return record[record_field_name]
+            else:
+                for collection in record[record_field_name]:  # two collections: next, prev
+                    revs = []
+                    for rev in collection:  # each collection list contains revision lists, so 2 dimensional array
+                        # Convert the list of nodes to a list of dicts
+                        nodes_to_dicts = schema_neo4j_queries.nodes_to_dicts(rev)
+                        revs.append(nodes_to_dicts)
+
+                    results.append(revs)
+
+    return results
+
+
+"""
 Get all previous revisions of the target entity by uuid
 
 Parameters

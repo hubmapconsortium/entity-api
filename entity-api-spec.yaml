@@ -1874,6 +1874,49 @@ paths:
           description: The target dataset could not be found
         '500':
           description: Internal error
+  '/datasets/{id}/multi-revisions':
+    get:
+      summary: 'Retrieve a list of all multi revisions of a dataset from the id of any dataset in the chain. E.g: If there are 5 revisions, and the id for revision 4 is given, a list of revisions 1-5 will be returned in reverse order (newest first). Non-public access is only required to retrieve information on non-published datasets. Output will be a list of dictionaries. Each dictionary contains the dataset revision number and its list of uuids. Optionally, the full dataset can be included for each.'
+      parameters:
+        - name: id
+          in: path
+          description: The unique identifier of entity.  This identifier can be either an HuBMAP ID (e.g. HBM123.ABCD.456) or UUID
+          required: true
+          schema:
+            type: string
+        - name: include_dataset
+          in: query
+          description: A case insensitive string. Any value besides true will have no effect. If the string is 'true', the full dataset for each revision will be included in the response
+          required: false
+          schema:
+            type: string
+            enum: ['true', 'false']
+      responses:
+        '200':
+          description: The list of revised datasets that the referenced dataset is a member of including the index number of the revision, where 1 is the oldest version of any revision chain
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  uuid:
+                    type: string
+                    description: The uuid of a dataset
+                  revision_number:
+                    type: integer
+                    description: The number in the revision chain of this dataset where 1 is the oldest revision
+                  dataset:
+                    $ref: '#/components/schemas/Dataset'
+        '400':
+          description: Invalid or misformatted entity identifier, or the given entity is not a Dataset
+        '401':
+          description: The user's token has expired or the user did not supply a valid token
+        '403':
+          description: The user is not authorized to query the revision number of the given dataset.
+        '404':
+          description: The target dataset could not be found
+        '500':
+          description: Internal error
   '/datasets/{id}/revisions':
     get:
       summary: 'From a given ID of a versioned dataset, retrieve a list of every dataset in the chain ordered from most recent to oldest. The revision number, as well as the dataset uuid will be included. An optional parameter ?include_dataset=true will include the full dataset for each revision as well. Public/Consortium access rules apply, if is for a non-public dataset and no token or a token without membership in HuBMAP-Read group is sent with the request then a 403 response should be returned. If the given id is published, but later revisions are not and the user is not in HuBMAP-Read group, only published revisions will be returned. The field next_revision_uuid will not be returned if the next revision is unpublished'
@@ -1890,7 +1933,7 @@ paths:
           required: false
           schema:
             type: string
-            enum: ['true', 'false']
+            enum: [ 'true', 'false' ]
       responses:
         '200':
           description: The list of revised datasets that the referenced dataset is a member of including the index number of the revision, where 1 is the oldest version of any revision chain
