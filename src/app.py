@@ -1012,7 +1012,7 @@ def create_entity(entity_type):
                 next_revision_is_latest = app_neo4j_queries.is_next_revision_latest(neo4j_driver_instance, previous_version_dict['uuid'], 'uuid')
 
                 # As long as the list is not empty, tell the users to use a different 'previous_revision_uuid'
-                if next_revision_is_latest:
+                if not next_revision_is_latest:
                     bad_request_error(f"The previous_revision_uuid specified for this dataset has already had a next revision")
 
                 # Only published datasets can have revisions made of them. Verify that that status of the Dataset specified
