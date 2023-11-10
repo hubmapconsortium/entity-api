@@ -60,6 +60,7 @@ app.config.from_pyfile('app.cfg')
 # Remove trailing slash / from URL base to avoid "//" caused by config with trailing slash
 app.config['UUID_API_URL'] = app.config['UUID_API_URL'].strip('/')
 app.config['INGEST_API_URL'] = app.config['INGEST_API_URL'].strip('/')
+app.config['ONTOLOGY_API_URL'] = app.config['ONTOLOGY_API_URL'].strip('/')
 app.config['SEARCH_API_URL_LIST'] = [url.strip('/') for url in app.config['SEARCH_API_URL_LIST']]
 
 # This mode when set True disables the PUT and POST calls, used on STAGE to make entity-api READ-ONLY 
@@ -198,6 +199,7 @@ try:
     schema_manager.initialize(app.config['SCHEMA_YAML_FILE'],
                               app.config['UUID_API_URL'],
                               app.config['INGEST_API_URL'],
+                              app.config['ONTOLOGY_API_URL'],
                               auth_helper_instance,
                               neo4j_driver_instance,
                               memcached_client_instance,
@@ -2623,26 +2625,12 @@ def get_prov_info():
 
     # Parsing the organ types yaml has to be done here rather than calling schema.schema_triggers.get_organ_description
     # because that would require using a urllib request for each dataset
-    response = schema_manager.make_request_get(SchemaConstants.ORGAN_TYPES_YAML)
-
-    if response.status_code == 200:
-        yaml_file = response.text
-        try:
-            organ_types_dict = yaml.safe_load(yaml_file)
-        except yaml.YAMLError as e:
-            raise yaml.YAMLError(e)
+    organ_types_dict = schema_manager.get_organ_types()
 
     # As above, we parse te assay type yaml here rather than calling the special method for it because this avoids
     # having to access the resource for every dataset.
-    response = schema_manager.make_request_get(SchemaConstants.ASSAY_TYPES_YAML)
-
-    if response.status_code == 200:
-        yaml_file = response.text
-        try:
-            assay_types_dict = yaml.safe_load(yaml_file)
-        except yaml.YAMLError as e:
-            raise yaml.YAMLError(e)
-
+    assay_types_dict = schema_manager.get_assay_types()
+    
     # Processing and validating query parameters
     accepted_arguments = ['format', 'organ', 'has_rui_info', 'dataset_status', 'group_uuid']
     return_json = False
@@ -3007,25 +2995,11 @@ def get_prov_info_for_dataset(id):
 
     # Parsing the organ types yaml has to be done here rather than calling schema.schema_triggers.get_organ_description
     # because that would require using a urllib request for each dataset
-    response = schema_manager.make_request_get(SchemaConstants.ORGAN_TYPES_YAML)
-
-    if response.status_code == 200:
-        yaml_file = response.text
-        try:
-            organ_types_dict = yaml.safe_load(yaml_file)
-        except yaml.YAMLError as e:
-            raise yaml.YAMLError(e)
+    organ_types_dict = schema_manager.get_organ_types()
 
     # As above, we parse te assay type yaml here rather than calling the special method for it because this avoids
     # having to access the resource for every dataset.
-    response = schema_manager.make_request_get(SchemaConstants.ASSAY_TYPES_YAML)
-
-    if response.status_code == 200:
-        yaml_file = response.text
-        try:
-            assay_types_dict = yaml.safe_load(yaml_file)
-        except yaml.YAMLError as e:
-            raise yaml.YAMLError(e)
+    assay_types_dict = schema_manager.get_assay_types()
 
     hubmap_ids = schema_manager.get_hubmap_ids(id)
 
@@ -3251,25 +3225,11 @@ def sankey_data():
         mapping_dict = json.load(f)
     # Parsing the organ types yaml has to be done here rather than calling schema.schema_triggers.get_organ_description
     # because that would require using a urllib request for each dataset
-    response = schema_manager.make_request_get(SchemaConstants.ORGAN_TYPES_YAML)
-
-    if response.status_code == 200:
-        yaml_file = response.text
-        try:
-            organ_types_dict = yaml.safe_load(yaml_file)
-        except yaml.YAMLError as e:
-            raise yaml.YAMLError(e)
+    organ_types_dict = schema_manager.get_organ_types()
 
     # As above, we parse te assay type yaml here rather than calling the special method for it because this avoids
     # having to access the resource for every dataset.
-    response = schema_manager.make_request_get(SchemaConstants.ASSAY_TYPES_YAML)
-
-    if response.status_code == 200:
-        yaml_file = response.text
-        try:
-            assay_types_dict = yaml.safe_load(yaml_file)
-        except yaml.YAMLError as e:
-            raise yaml.YAMLError(e)
+    assay_types_dict = schema_manager.get_assay_types()
 
     # Instantiation of the list dataset_sankey_list
     dataset_sankey_list = []
@@ -3377,14 +3337,16 @@ def get_sample_prov_info():
 
     # Parsing the organ types yaml has to be done here rather than calling schema.schema_triggers.get_organ_description
     # because that would require using a urllib request for each dataset
-    response = schema_manager.make_request_get(SchemaConstants.ORGAN_TYPES_YAML)
+    # response = schema_manager.make_request_get(SchemaConstants.ORGAN_TYPES_YAML)
 
-    if response.status_code == 200:
-        yaml_file = response.text
-        try:
-            organ_types_dict = yaml.safe_load(yaml_file)
-        except yaml.YAMLError as e:
-            raise yaml.YAMLError(e)
+    # if response.status_code == 200:
+    #     yaml_file = response.text
+    #     try:
+    #         organ_types_dict = yaml.safe_load(yaml_file)
+    #     except yaml.YAMLError as e:
+    #         raise yaml.YAMLError(e)
+
+    organ_types_dict = schema_manager.get_organ_types()
 
     # Processing and validating query parameters
     accepted_arguments = ['group_uuid']
@@ -4744,34 +4706,18 @@ Returns
 Returns nothing. Raises bad_request_error is organ code not found on organ_types.yaml 
 """
 def validate_organ_code(organ_code):
-    yaml_file_url = SchemaConstants.ORGAN_TYPES_YAML
+    try:
+        organ_types_dict = schema_manager.get_organ_types()
 
-    # Use Memcached to improve performance
-    response = schema_manager.make_request_get(yaml_file_url)
-
-    if response.status_code == 200:
-        yaml_file = response.text
-
-        try:
-            organ_types_dict = yaml.safe_load(response.text)
-            
-            if organ_code.upper() not in organ_types_dict:
-                bad_request_error(f"Invalid organ code. Must be 2 digit code specified {yaml_file_url}")
-        except yaml.YAMLError as e:
-            raise yaml.YAMLError(e)
-    else:
-        msg = f"Unable to fetch the: {yaml_file_url}"
+        if organ_code.upper() not in organ_types_dict:
+            bad_request_error(f"Invalid organ code. Must be 2 digit code")
+    except:
+        msg = f"Failed to validate the organ code: {organ_code}"
         # Log the full stack trace, prepend a line with our message
         logger.exception(msg)
 
-        logger.debug("======validate_organ_code() status code======")
-        logger.debug(response.status_code)
-
-        logger.debug("======validate_organ_code() response text======")
-        logger.debug(response.text)
-
         # Terminate and let the users know
-        internal_server_error(f"Failed to validate the organ code: {organ_code}")
+        internal_server_error(msg)
 
 
 ####################################################################################################

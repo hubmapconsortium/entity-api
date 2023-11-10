@@ -13,9 +13,11 @@ class SchemaConstants(object):
     ACCESS_LEVEL_CONSORTIUM = 'consortium'
     ACCESS_LEVEL_PROTECTED = 'protected'
 
-    # Yaml file to parse organ description
-    ORGAN_TYPES_YAML = 'https://raw.githubusercontent.com/hubmapconsortium/search-api/main/src/search-schema/data/definitions/enums/organ_types.yaml'
-    ASSAY_TYPES_YAML = 'https://raw.githubusercontent.com/hubmapconsortium/search-api/main/src/search-schema/data/definitions/enums/assay_types.yaml'
+    UUID_API_ID_ENDPOINT = '/uuid'
+    INGEST_API_FILE_COMMIT_ENDPOINT = '/file-commit'
+    INGEST_API_FILE_REMOVE_ENDPOINT = '/file-remove'
+    ONTOLOGY_API_ASSAY_TYPES_ENDPOINT = '/assaytype?application_context=HuBMAP'
+    ONTOLOGY_API_ORGAN_TYPES_ENDPOINT = '/organs?application_context=HuBMAP'
 
     # For generating Sample.tissue_type
     TISSUE_TYPES_YAML = 'https://raw.githubusercontent.com/hubmapconsortium/search-api/main/src/search-schema/data/definitions/enums/tissue_sample_types.yaml'

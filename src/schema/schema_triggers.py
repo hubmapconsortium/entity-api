@@ -1184,7 +1184,7 @@ def commit_thumbnail_file(property_key, normalized_type, user_token, existing_da
             entity_uuid = existing_data_dict['uuid']
 
         # Commit the thumbnail file via ingest-api call
-        ingest_api_target_url = schema_manager.get_ingest_api_url() + '/file-commit'
+        ingest_api_target_url = schema_manager.get_ingest_api_url() + schema_constants.INGEST_API_FILE_COMMIT_ENDPOINT
         
         # Example: {"temp_file_id":"dzevgd6xjs4d5grmcp4n"}
         thumbnail_file_dict = new_data_dict[property_key]
@@ -1286,7 +1286,7 @@ def delete_thumbnail_file(property_key, normalized_type, user_token, existing_da
         file_info_dict = generated_dict[target_property_key]
     
     # Remove the thumbnail file via ingest-api call
-    ingest_api_target_url = schema_manager.get_ingest_api_url() + '/file-remove'
+    ingest_api_target_url = schema_manager.get_ingest_api_url() + schema_constants.INGEST_API_FILE_REMOVE_ENDPOINT
 
     # ingest-api's /file-remove takes a list of files to remove
     # In this case, we only need to remove the single thumbnail file
@@ -1994,7 +1994,7 @@ def _commit_files(target_property_key, property_key, normalized_type, user_token
             entity_uuid = existing_data_dict['uuid']
 
         # Commit the files via ingest-api call
-        ingest_api_target_url = schema_manager.get_ingest_api_url() + '/file-commit'
+        ingest_api_target_url = schema_manager.get_ingest_api_url() + schema_constants.INGEST_API_FILE_COMMIT_ENDPOINT
 
         for file_info in new_data_dict[property_key]:
             temp_file_id = file_info['temp_file_id']
@@ -2104,7 +2104,7 @@ def _delete_files(target_property_key, property_key, normalized_type, user_token
         file_uuids.append(file_uuid)
 
     # Remove the files via ingest-api call
-    ingest_api_target_url = schema_manager.get_ingest_api_url() + '/file-remove'
+    ingest_api_target_url = schema_manager.get_ingest_api_url() + schema_constants.INGEST_API_FILE_REMOVE_ENDPOINT
 
     json_to_post = {
         'entity_uuid': entity_uuid,
@@ -2143,39 +2143,10 @@ Returns
 str: The corresponding assay type description
 """
 def _get_assay_type_description(assay_type):
-    yaml_file_url = SchemaConstants.ASSAY_TYPES_YAML
+    assay_types_dict = schema_manager.get_assay_types()
 
-    # Use Memcached to improve performance
-    response = schema_manager.make_request_get(yaml_file_url)
-
-    if response.status_code == 200:
-        yaml_file = response.text
-
-        try:
-            assay_types_dict = yaml.safe_load(response.text)
-
-            if assay_type in assay_types_dict:
-                return assay_types_dict[assay_type]['description'].lower()
-            else:
-                # Check the 'alt-names' list if not found in the top-level keys
-                for key in assay_types_dict:
-                    if assay_type in assay_types_dict[key]['alt-names']:
-                        return assay_types_dict[key]['description'].lower()
-        except yaml.YAMLError as e:
-            raise yaml.YAMLError(e)
-    else:
-        msg = f"Unable to fetch the: {yaml_file_url}"
-        # Log the full stack trace, prepend a line with our message
-        logger.exception(msg)
-
-        logger.debug("======_get_assay_type_description() status code======")
-        logger.debug(response.status_code)
-
-        logger.debug("======_get_assay_type_description() response text======")
-        logger.debug(response.text)
-
-        # Also bubble up the error message
-        raise requests.exceptions.RequestException(response.text)
+    if assay_type in assay_types_dict:
+        return assay_types_dict[assay_type]['description'].lower()
 
 
 """
@@ -2230,32 +2201,7 @@ Returns
 str: The organ code description
 """
 def _get_organ_description(organ_code):
-    yaml_file_url = SchemaConstants.ORGAN_TYPES_YAML
-
-    # Use Memcached to improve performance
-    response = schema_manager.make_request_get(yaml_file_url)
-
-    if response.status_code == 200:
-        yaml_file = response.text
-
-        try:
-            organ_types_dict = yaml.safe_load(response.text)
-            return organ_types_dict[organ_code]['description'].lower()
-        except yaml.YAMLError as e:
-            raise yaml.YAMLError(e)
-    else:
-        msg = f"Unable to fetch the: {yaml_file_url}"
-        # Log the full stack trace, prepend a line with our message
-        logger.exception(msg)
-
-        logger.debug("======_get_organ_description() status code======")
-        logger.debug(response.status_code)
-
-        logger.debug("======_get_organ_description() response text======")
-        logger.debug(response.text)
-
-        # Also bubble up the error message
-        raise requests.exceptions.RequestException(response.text)
-
+    organ_types_dict = schema_manager.get_organ_types()
+    return organ_types_dict[organ_code]['description'].lower()
 
 

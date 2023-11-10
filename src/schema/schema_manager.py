@@ -50,9 +50,11 @@ Parameters
 valid_yaml_file : file
     A valid yaml file
 uuid_api_url : str
-    The uuid-api URL
+    The uuid-api base URL
 ingest_api_url : str
-    The ingest-api URL
+    The ingest-api base URL
+ontology_api_url : str
+    The ontology-api base URL
 auth_helper_instance : AuthHelper
     The auth helper instance
 neo4j_driver_instance : neo4j_driver
@@ -65,6 +67,7 @@ memcached_prefix : str
 def initialize(valid_yaml_file, 
                uuid_api_url,
                ingest_api_url,
+               ontology_api_url,
                auth_helper_instance,
                neo4j_driver_instance,
                memcached_client_instance,
@@ -73,6 +76,7 @@ def initialize(valid_yaml_file,
     global _schema
     global _uuid_api_url
     global _ingest_api_url
+    global _ontology_api_url
     global _auth_helper
     global _neo4j_driver
     global _memcached_client
@@ -81,6 +85,7 @@ def initialize(valid_yaml_file,
     _schema = load_provenance_schema(valid_yaml_file)
     _uuid_api_url = uuid_api_url
     _ingest_api_url = ingest_api_url
+    _ontology_api_url = ontology_api_url
 
     # Get the helper instances
     _auth_helper = auth_helper_instance
@@ -1202,7 +1207,7 @@ dict
 def get_hubmap_ids(id):
     global _uuid_api_url
 
-    target_url = _uuid_api_url + '/uuid/' + id
+    target_url = _uuid_api_url + schema_constants.UUID_API_ID_ENDPOINT + '/' + id
 
     # Use Memcached to improve performance
     response = make_request_get(target_url, internal_token_used = True)
@@ -1365,7 +1370,7 @@ def create_hubmap_ids(normalized_class, json_data_dict, user_token, user_info_di
     logger.info(json_to_post)
 
     # Disable ssl certificate verification
-    target_url = _uuid_api_url + '/uuid'
+    target_url = _uuid_api_url + schema_constants.UUID_API_ID_ENDPOINT
     response = requests.post(url = target_url, headers = request_headers, json = json_to_post, verify = False, params = query_parms)
     
     # Invoke .raise_for_status(), an HTTPError will be raised with certain status codes
@@ -1762,6 +1767,84 @@ def delete_memcached_cache(uuids_list):
         _memcached_client.delete_many(cache_keys)
 
         logger.info(f"Deleted cache by key: {', '.join(cache_keys)}")
+
+
+"""
+Retrive the organ types from ontology-api
+
+Returns
+-------
+dict
+    The available organ types
+"""
+def get_organ_types():
+    global _ontology_api_url
+
+    target_url = _ontology_api_url + '/organs?application_context=HuBMAP'
+
+    # Use Memcached to improve performance
+    response = make_request_get(target_url, internal_token_used = True)
+
+    # Invoke .raise_for_status(), an HTTPError will be raised with certain status codes
+    response.raise_for_status()
+
+    if response.status_code == 200:
+        ids_dict = response.json()
+        return ids_dict
+    else:
+        # uuid-api will also return 400 if the given id is invalid
+        # We'll just hanle that and all other cases all together here
+        msg = f"Unable to make a request to query the id via uuid-api: {id}"
+        # Log the full stack trace, prepend a line with our message
+        logger.exception(msg)
+
+        logger.debug("======get_organ_types() status code from ontology-api======")
+        logger.debug(response.status_code)
+
+        logger.debug("======get_organ_types() response text from ontology-api======")
+        logger.debug(response.text)
+
+        # Also bubble up the error message from ontology-api
+        raise requests.exceptions.RequestException(response.text)
+
+
+"""
+Retrive the assay types from ontology-api
+
+Returns
+-------
+dict
+    The available assay types
+"""
+def get_assay_types():
+    global _ontology_api_url
+
+    target_url = _ontology_api_url + '/assaytype?application_context=HuBMAP'
+
+    # Use Memcached to improve performance
+    response = make_request_get(target_url, internal_token_used = True)
+
+    # Invoke .raise_for_status(), an HTTPError will be raised with certain status codes
+    response.raise_for_status()
+
+    if response.status_code == 200:
+        ids_dict = response.json()
+        return ids_dict
+    else:
+        # uuid-api will also return 400 if the given id is invalid
+        # We'll just hanle that and all other cases all together here
+        msg = f"Unable to make a request to query the id via uuid-api: {id}"
+        # Log the full stack trace, prepend a line with our message
+        logger.exception(msg)
+
+        logger.debug("======get_assay_types() status code from ontology-api======")
+        logger.debug(response.status_code)
+
+        logger.debug("======get_assay_types() response text from ontology-api======")
+        logger.debug(response.text)
+
+        # Also bubble up the error message from ontology-api
+        raise requests.exceptions.RequestException(response.text)
 
 
 ####################################################################################################
