@@ -2,13 +2,11 @@ from enum import Enum
 class SchemaConstants(object):
     MEMCACHED_TTL = 7200
 
-    # Constants used by validators
     INGEST_API_APP = 'ingest-api'
     INGEST_PIPELINE_APP = 'ingest-pipeline'
     HUBMAP_APP_HEADER = 'X-Hubmap-Application'
     DATASET_STATUS_PUBLISHED = 'published'
 
-    # Used by triggers, all lowercase for easy comparision
     ACCESS_LEVEL_PUBLIC = 'public'
     ACCESS_LEVEL_CONSORTIUM = 'consortium'
     ACCESS_LEVEL_PROTECTED = 'protected'
@@ -18,9 +16,6 @@ class SchemaConstants(object):
     INGEST_API_FILE_REMOVE_ENDPOINT = '/file-remove'
     ONTOLOGY_API_ASSAY_TYPES_ENDPOINT = '/assaytype?application_context=HuBMAP'
     ONTOLOGY_API_ORGAN_TYPES_ENDPOINT = '/organs?application_context=HuBMAP'
-
-    # For generating Sample.tissue_type
-    TISSUE_TYPES_YAML = 'https://raw.githubusercontent.com/hubmapconsortium/search-api/main/src/search-schema/data/definitions/enums/tissue_sample_types.yaml'
 
     DOI_BASE_URL = 'https://doi.org/'
 

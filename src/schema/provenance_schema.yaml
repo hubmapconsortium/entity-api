@@ -897,33 +897,6 @@ ENTITIES:
           - validate_sample_category
         before_property_update_validators:
           - validate_sample_category
-
-      # No logner required on create, specimen_type -> sample_category 12/15/2022
-      specimen_type:
-        type: string
-        #required_on_create: true # Only required for create via POST, not update via PUT
-        description: "A code representing the type of specimen.  Must be one of the codes specified in: [tissue sample types](https://github.com/hubmapconsortium/search-api/blob/main/src/search-schema/data/definitions/enums/tissue_sample_types.yaml)"
-        # Validate the given value against the definitions: https://github.com/hubmapconsortium/search-api/blob/main/src/search-schema/data/definitions/enums/tissue_sample_types.yaml
-        # Disabled validation 12/15/2022
-        # before_property_create_validators:
-        #   - validate_specimen_type
-        # before_property_update_validators:
-        #   - validate_specimen_type
-      specimen_type_other:
-        type: string
-        description: "The user provided sample type if the 'other' sample_type is chosen."
-      
-
-      # specimen_type no logner required on create, will remove this field when removing specimen_type
-      # Simply always set to 'Unknown' and no need to update 12/15/2022
-      tissue_type:
-        type: string
-        generated: true # Can not be updated via the PUT
-        #auto_update: true # Will always update automatically if the entity gets updated
-        description: 'The type of the tissue based on the mapping between type (Block/Section/Suspension) and the specimen_type, default is Unknown'
-        before_create_trigger: set_tissue_type
-        #before_update_trigger: set_tissue_type
-
       portal_metadata_upload_files:
         type: json_string
         description: "A list of relative paths to metadata files"
@@ -949,7 +922,6 @@ ENTITIES:
         immutable: true
         description: "The displayname of globus group which the user who created this entity is a member of"
         before_create_trigger: set_group_name
-      # Should be required on create only when specimen_type==organ
       organ:
         type: string
         description: "Organ code specifier, only set if sample_type == organ.  Valid values found in: [organ types](https://github.com/hubmapconsortium/search-api/blob/main/src/search-schema/data/definitions/enums/organ_types.yaml)"
