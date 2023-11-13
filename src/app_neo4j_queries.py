@@ -437,6 +437,39 @@ def is_next_revision_latest(neo4j_driver, uuid, property_key = None):
 
 
 """
+Verifies that, for a list of previous revision, one or more revisions in the list is itself a revision of another 
+revision in the list. 
+
+Parameters
+----------
+previous_revision_list : list
+    The list of previous_revision_uuids
+    
+Returns
+-------
+tuple
+    The uuid of the first encountered uuid that is a revision of another previous_revision, as well as the uuid that it is a revision of
+    Else return None
+"""
+def nested_previous_revisions(neo4j_driver, previous_revision_list):
+    query = (f"WITH {previous_revision_list} AS uuidList "
+            "MATCH (ds1:Dataset)-[r:REVISION_OF]->(ds2:Dataset) "
+            "WHERE ds1.uuid IN uuidList AND ds2.uuid IN uuidList "
+            "WITH COLLECT(DISTINCT ds1.uuid) AS connectedUUID1, COLLECT(DISTINCT ds2.uuid) as connectedUUID2 "
+            "RETURN connectedUUID1, connectedUUID2 ")
+
+    logger.info("======nexted_previous_revisions() query======")
+    logger.info(query)
+
+    with neo4j_driver.session() as session:
+        record = session.read_transaction(schema_neo4j_queries.execute_readonly_tx, query)
+    if record[0]:
+        return record
+    else:
+        return None
+
+
+"""
 Retrive the full tree above the given entity
 
 Parameters

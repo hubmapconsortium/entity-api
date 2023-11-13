@@ -999,6 +999,10 @@ def create_entity(entity_type):
         if 'previous_revision_uuid' in json_data_dict:
             if isinstance(json_data_dict['previous_revision_uuid'], list):
                 previous_revision_list = json_data_dict['previous_revision_uuid']
+
+                nested_revisions =  app_neo4j_queries.nested_previous_revisions(neo4j_driver_instance, previous_revision_list)
+                if nested_revisions:
+                    bad_request_error(f"{nested_revisions[0][0]} is a revision of {nested_revisions[1][0]}. Datasets in previous_revision_uuid must not be revisions of eachother")
             else:
                 previous_revision_list = [json_data_dict['previous_revision_uuid']]
             for previous_revision in previous_revision_list:
