@@ -301,6 +301,66 @@ def get_sorted_revisions(neo4j_driver, uuid):
 
 
 """
+Get all revisions for a given dataset uuid and sort them in descending order based on their creation time
+
+Parameters
+----------
+neo4j_driver : neo4j.Driver object
+    The neo4j database connection pool
+uuid : str
+    The uuid of target entity 
+fetch_all : bool
+    Whether to fetch all Datasets or only include Published
+property_key : str
+    Return only a particular property from the cypher query, None for return all    
+
+Returns
+-------
+dict
+    A multi-dimensional list [prev_revisions<list<list>>, next_revisions<list<list>>]
+"""
+
+
+def get_sorted_multi_revisions(neo4j_driver, uuid, fetch_all=True, property_key=False):
+    results = []
+    match_case = '' if fetch_all is True else 'AND prev.status = "Published" AND next.status = "Published" '
+    collect_prop = f".{property_key}" if property_key else ''
+
+    query = (
+        "MATCH (e:Dataset), (next:Dataset), (prev:Dataset),"
+        f"p = (e)-[:REVISION_OF *0..]->(prev),"
+        f"n = (e)<-[:REVISION_OF *0..]-(next) "
+        f"WHERE e.uuid='{uuid}' {match_case}"
+        "WITH length(p) AS p_len, prev, length(n) AS n_len, next "
+        "ORDER BY prev.created_timestamp, next.created_timestamp DESC "
+        f"WITH p_len, collect(distinct prev{collect_prop}) AS prev_revisions, n_len, collect(distinct next{collect_prop}) AS next_revisions "
+        f"RETURN [collect(distinct next_revisions), collect(distinct prev_revisions)] AS {record_field_name}"
+    )
+
+    logger.info("======get_sorted_revisions() query======")
+    logger.info(query)
+
+    with neo4j_driver.session() as session:
+        record = session.read_transaction(schema_neo4j_queries.execute_readonly_tx, query)
+
+        if record and record[record_field_name] and len(record[record_field_name]) > 0:
+            record[record_field_name][0].pop()  # the target will appear twice, pop it from the next list
+            if property_key:
+                return record[record_field_name]
+            else:
+                for collection in record[record_field_name]:  # two collections: next, prev
+                    revs = []
+                    for rev in collection:  # each collection list contains revision lists, so 2 dimensional array
+                        # Convert the list of nodes to a list of dicts
+                        nodes_to_dicts = schema_neo4j_queries.nodes_to_dicts(rev)
+                        revs.append(nodes_to_dicts)
+
+                    results.append(revs)
+
+    return results
+
+
+"""
 Get all previous revisions of the target entity by uuid
 
 Parameters
@@ -649,8 +709,9 @@ def get_prov_info(neo4j_driver, param_dict, published_only):
     if published_only:
         published_only_query_string = f" AND toUpper(ds.status) = 'PUBLISHED'"
         published_only_revisions_string = f" WHERE toUpper(rev.status) = 'PUBLISHED'"
-    query = (f"MATCH (ds:Dataset)<-[:ACTIVITY_OUTPUT]-(a)<-[:ACTIVITY_INPUT]-(firstSample:Sample)<-[*]-(donor:Donor)"
-             f"WHERE not (ds)-[:REVISION_OF]->(:Dataset)"
+    query = (f"MATCH (ds:Dataset)<-[:ACTIVITY_OUTPUT]-(a:Activity)<-[*]-(firstSample:Sample)<-[*]-(donor:Donor)"
+             f" WHERE not (ds)-[:REVISION_OF]->(:Dataset)"
+             f" AND NOT toLower(a.creation_action) ENDS WITH 'process'"
              f"{group_uuid_query_string}"
              f"{dataset_status_query_string}"
              f"{published_only_query_string}"
@@ -668,7 +729,8 @@ def get_prov_info(neo4j_driver, param_dict, published_only):
              f" {organ_query_string} (donor)-[:ACTIVITY_INPUT]->(oa)-[:ACTIVITY_OUTPUT]->(organ:Sample {{sample_category:'organ'}})-[*]->(ds)"
              f" {organ_where_clause}"
              f" WITH ds, FIRSTSAMPLE, DONOR, REVISIONS, METASAMPLE, RUISAMPLE, COLLECT(DISTINCT organ) AS ORGAN "
-             f" OPTIONAL MATCH (ds)-[:ACTIVITY_INPUT]->(a3)-[:ACTIVITY_OUTPUT]->(processed_dataset:Dataset)"
+             f" OPTIONAL MATCH (ds)-[*]->(a3)-[:ACTIVITY_OUTPUT]->(processed_dataset:Dataset)"
+             f" WHERE toLower(a3.creation_action) ENDS WITH 'process'"
              f" WITH ds, FIRSTSAMPLE, DONOR, REVISIONS, METASAMPLE, RUISAMPLE, ORGAN, COLLECT(distinct processed_dataset) AS PROCESSED_DATASET"
              f" RETURN ds.uuid, FIRSTSAMPLE, DONOR, RUISAMPLE, ORGAN, ds.hubmap_id, ds.status, ds.group_name,"
              f" ds.group_uuid, ds.created_timestamp, ds.created_by_user_email, ds.last_modified_timestamp, "
@@ -754,7 +816,7 @@ dataset_uuid : string
 """
 def get_individual_prov_info(neo4j_driver, dataset_uuid):
     query = (f"MATCH (ds:Dataset {{uuid: '{dataset_uuid}'}})<-[*]-(firstSample:Sample)<-[*]-(donor:Donor)"
-             f" WHERE (:Dataset)<-[]-()<-[]-(firstSample)"
+             f" WHERE (:Dataset)<-[:ACTIVITY_OUTPUT]-(:Activity)<-[:ACTIVITY_INPUT]-(firstSample)"
              f" WITH ds, COLLECT(distinct donor) AS DONOR, COLLECT(distinct firstSample) AS FIRSTSAMPLE"
              f" OPTIONAL MATCH (ds)<-[*]-(metaSample:Sample)"
              f" WHERE NOT metaSample.metadata IS NULL AND NOT TRIM(metaSample.metadata) = ''"
@@ -765,7 +827,8 @@ def get_individual_prov_info(neo4j_driver, dataset_uuid):
              # specimen_type -> sample_category 12/15/2022
              f" OPTIONAL match (donor)-[:ACTIVITY_INPUT]->(oa)-[:ACTIVITY_OUTPUT]->(organ:Sample {{sample_category:'organ'}})-[*]->(ds)"
              f" WITH ds, FIRSTSAMPLE, DONOR, METASAMPLE, RUISAMPLE, COLLECT(distinct organ) AS ORGAN "
-             f" OPTIONAL MATCH (ds)-[:ACTIVITY_INPUT]->(a3)-[:ACTIVITY_OUTPUT]->(processed_dataset:Dataset)"
+             f" OPTIONAL MATCH (ds)-[*]->(a3)-[:ACTIVITY_OUTPUT]->(processed_dataset:Dataset)"
+             f" WHERE toLower(a3.creation_action) ENDS WITH 'process'"
              f" WITH ds, FIRSTSAMPLE, DONOR, METASAMPLE, RUISAMPLE, ORGAN, COLLECT(distinct processed_dataset) AS PROCESSED_DATASET"
              f" RETURN ds.uuid, FIRSTSAMPLE, DONOR, RUISAMPLE, ORGAN, ds.hubmap_id, ds.status, ds.group_name,"
              f" ds.group_uuid, ds.created_timestamp, ds.created_by_user_email, ds.last_modified_timestamp, "
@@ -937,7 +1000,7 @@ def get_sample_prov_info(neo4j_driver, param_dict, public_only):
         # specimen_type -> sample_category 12/15/2022
         f" OPTIONAL MATCH (s)<-[*]-(organ:Sample{{sample_category: 'organ'}})"
         f" WITH s, organ, d"
-        f" MATCH (s)<-[]-()<-[]-(da)"
+        f" MATCH (s)<-[:ACTIVITY_OUTPUT]-(:Activity)<-[:ACTIVITY_INPUT]-(da)"
         f" RETURN s.uuid, s.lab_tissue_sample_id, s.group_name, s.created_by_user_email, s.metadata, s.rui_location,"
         f" d.uuid, d.metadata, organ.uuid, organ.sample_category, organ.metadata, da.uuid, da.entity_type, "
         f"s.sample_category, organ.organ, s.organ, s.hubmap_id, s.submission_id, organ.hubmap_id, organ.submission_id, "
@@ -1046,7 +1109,7 @@ def get_paired_dataset(neo4j_driver, uuid, data_type, search_depth):
         number_of_jumps = f"*..{search_depth}"
     data_type = f"['{data_type}']"
     query = (
-        f'MATCH (ds:Dataset)<-[*]-(s:Sample) WHERE ds.uuid = "{uuid}" AND (:Dataset)<-[]-()<-[]-(s)'
+        f'MATCH (ds:Dataset)<-[*]-(s:Sample) WHERE ds.uuid = "{uuid}" AND (:Dataset)<-[:ACTIVITY_OUTPUT]-(:Activity)<-[:ACTIVITY_INPUT]-(s)'
         f'MATCH (ods)<-[{number_of_jumps}]-(s) WHERE ods.data_types = "{data_type}"'
         f'return ods.uuid as uuid, ods.status as status'
     )

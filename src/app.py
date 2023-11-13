@@ -43,29 +43,15 @@ from hubmap_commons.exceptions import HTTPException
 # Root logger configuration
 global logger
 
+# Set logging format and level (default is warning)
+# All the API logging is forwarded to the uWSGI server and gets written into the log file `log/uwsgi-entity-api.log`
+# Log rotation is handled via logrotate on the host system with a configuration file
+# Do NOT handle log file and rotation via the Python logging to avoid issues with multi-worker processes
+logging.basicConfig(format='[%(asctime)s] %(levelname)s in %(module)s: %(message)s', level=logging.DEBUG, datefmt='%Y-%m-%d %H:%M:%S')
+
 # Use `getLogger()` instead of `getLogger(__name__)` to apply the config to the root logger
 # will be inherited by the sub-module loggers
-try:
-    logger = logging.getLogger()
-    logger.setLevel(logging.DEBUG) # logger.setLevel(logging.INFO)
-
-    # All the API logging is gets written into the same log file
-    # The uWSGI logging for each deployment disables the request logging
-    # but still captures the 4xx and 5xx errors to the file `log/uwsgi-entity-api.log`
-    # Log rotation is handled via logrotate on the host system with a configuration file
-    # Do NOT handle log file and rotation via the Python logging to avoid issues with multi-worker processes
-    log_file_handler = logging.FileHandler('../log/entity-api-' + time.strftime("%m-%d-%Y-%H-%M-%S") + '.log')
-    log_file_handler.setFormatter(logging.Formatter('[%(asctime)s] %(levelname)s in %(module)s: %(message)s'))
-    logger.addHandler(log_file_handler)
-except Exception as e:
-    print("Error setting up global log file.")
-    print(str(e))
-
-try:
-    logger.info("logger initialized")
-except Exception as e:
-    print("Error opening log file during startup")
-    print(str(e))
+logger = logging.getLogger()
 
 # Specify the absolute path of the instance folder and use the config file relative to the instance path
 app = Flask(__name__, instance_path = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'instance'), instance_relative_config = True)
@@ -2297,6 +2283,100 @@ def get_dataset_revision_number(id):
 
     # Response with the integer
     return jsonify(revision_number)
+
+
+"""
+Retrieve a list of all multi revisions of a dataset from the id of any dataset in the chain. 
+E.g: If there are 5 revisions, and the id for revision 4 is given, a list of revisions
+1-5 will be returned in reverse order (newest first). Non-public access is only required to 
+retrieve information on non-published datasets. Output will be a list of dictionaries. Each dictionary
+contains the dataset revision number and its list of uuids. Optionally, the full dataset can be included for each.
+
+By default, only the revision number and uuids are included. To include the full dataset, the query 
+parameter "include_dataset" can be given with the value of "true". If this parameter is not included or 
+is set to false, the dataset will not be included. For example, to include the full datasets for each revision,
+use '/datasets/<id>/multi-revisions?include_dataset=true'. To omit the datasets, either set include_dataset=false, or
+simply do not include this parameter. 
+
+Parameters
+----------
+id : str
+    The HuBMAP ID (e.g. HBM123.ABCD.456) or UUID of target dataset 
+
+Returns
+-------
+list
+    The list of revision datasets
+"""
+@app.route('/entities/<id>/multi-revisions', methods=['GET'])
+@app.route('/datasets/<id>/multi-revisions', methods=['GET'])
+def get_multi_revisions_list(id):
+    # By default, do not return dataset. Only return dataset if include_dataset is true
+    property_key = 'uuid'
+    if bool(request.args):
+        include_dataset = request.args.get('include_dataset')
+        if (include_dataset is not None) and (include_dataset.lower() == 'true'):
+            property_key = None
+    # Token is not required, but if an invalid token provided,
+    # we need to tell the client with a 401 error
+    validate_token_if_auth_header_exists(request)
+
+    # Use the internal token to query the target entity
+    # since public entities don't require user token
+    token = get_internal_token()
+
+    # Query target entity against uuid-api and neo4j and return as a dict if exists
+    entity_dict = query_target_entity(id, token)
+    normalized_entity_type = entity_dict['entity_type']
+
+    # Only for Dataset
+    if not schema_manager.entity_type_instanceof(normalized_entity_type, 'Dataset'):
+        abort_bad_req("The entity is not a Dataset. Found entity type:" + normalized_entity_type)
+
+    # Only published/public datasets don't require token
+    if entity_dict['status'].lower() != DATASET_STATUS_PUBLISHED:
+        # Token is required and the user must belong to HuBMAP-READ group
+        token = get_user_token(request, non_public_access_required=True)
+
+    # By now, either the entity is public accessible or
+    # the user token has the correct access level
+    # Get the all the sorted (DESC based on creation timestamp) revisions
+    sorted_revisions_list = app_neo4j_queries.get_sorted_multi_revisions(neo4j_driver_instance, entity_dict['uuid'],
+                                                                         fetch_all=user_in_hubmap_read_group(request),
+                                                                         property_key=property_key)
+
+    # Skip some of the properties that are time-consuming to generate via triggers
+    properties_to_skip = [
+        'direct_ancestors',
+        'collections',
+        'upload',
+        'title'
+    ]
+
+    normalized_revisions_list = []
+    sorted_revisions_list_merged = sorted_revisions_list[0] + sorted_revisions_list[1][::-1]
+
+    if property_key is None:
+        for revision in sorted_revisions_list_merged:
+            complete_revision_list = schema_manager.get_complete_entities_list(token, revision, properties_to_skip)
+            normal = schema_manager.normalize_entities_list_for_response(complete_revision_list)
+            normalized_revisions_list.append(normal)
+    else:
+        normalized_revisions_list = sorted_revisions_list_merged
+
+    # Now all we need to do is to compose the result list
+    results = []
+    revision_number = len(normalized_revisions_list)
+    for revision in normalized_revisions_list:
+        result = {
+            'revision_number': revision_number,
+            'uuids': revision
+        }
+        results.append(result)
+        revision_number -= 1
+
+    return jsonify(results)
+
 
 
 """
