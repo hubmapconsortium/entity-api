@@ -460,6 +460,78 @@ def get_next_revisions(neo4j_driver, uuid, property_key = None):
     return results
 
 """
+Verifies whether a revisions of a given entity are the last (most recent) revisions. Example: If an entity has a
+revision, but that revision also has a revision, return false.
+
+Parameters
+----------
+neo4j_driver : neo4j.Driver object
+    The neo4j database connection pool
+uuid : str
+    The uuid of target entity 
+
+Returns
+-------
+bool
+    Returns true or false whether revisions of the target entity are the latest revisions
+"""
+def is_next_revision_latest(neo4j_driver, uuid):
+    results = []
+
+    query = (f"MATCH (e:Entity)<-[:REVISION_OF*]-(rev:Entity)<-[:REVISION_OF*]-(next:Entity) "
+             f"WHERE e.uuid='{uuid}' "
+             # COLLECT() returns a list
+             # apoc.coll.toSet() reruns a set containing unique nodes
+             f"RETURN apoc.coll.toSet(COLLECT(next.uuid)) AS {record_field_name}")
+
+    logger.info("======is_next_revision_latest() query======")
+    logger.info(query)
+
+    with neo4j_driver.session() as session:
+        record = session.read_transaction(schema_neo4j_queries.execute_readonly_tx, query)
+
+        if record and record[record_field_name]:
+            results = record[record_field_name]
+    if results:
+        return False
+    else:
+        return True
+
+
+"""
+Verifies that, for a list of previous revision, one or more revisions in the list is itself a revision of another 
+revision in the list. 
+
+Parameters
+----------
+previous_revision_list : list
+    The list of previous_revision_uuids
+    
+Returns
+-------
+tuple
+    The uuid of the first encountered uuid that is a revision of another previous_revision, as well as the uuid that it is a revision of
+    Else return None
+"""
+def nested_previous_revisions(neo4j_driver, previous_revision_list):
+    query = (f"WITH {previous_revision_list} AS uuidList "
+            "MATCH (ds1:Dataset)-[r:REVISION_OF]->(ds2:Dataset) "
+            "WHERE ds1.uuid IN uuidList AND ds2.uuid IN uuidList "
+            "WITH COLLECT(DISTINCT ds1.uuid) AS connectedUUID1, COLLECT(DISTINCT ds2.uuid) as connectedUUID2 "
+            "RETURN connectedUUID1, connectedUUID2 ")
+
+    logger.info("======nested_previous_revisions() query======")
+    logger.info(query)
+
+    with neo4j_driver.session() as session:
+        record = session.read_transaction(schema_neo4j_queries.execute_readonly_tx, query)
+    if record[0]:
+        return record
+    else:
+        return None
+
+
+"""
 Retrive the full tree above the given entity
 
 Parameters
