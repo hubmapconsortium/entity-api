@@ -654,14 +654,12 @@ previous_revision_entity_uuid : str
 """
 def link_entity_to_previous_revision(neo4j_driver, entity_uuid, previous_revision_entity_uuids):
     try:
-        for previous_uuid in previous_revision_entity_uuids:
-            with neo4j_driver.session() as session:
-                tx = session.begin_transaction()
-
+        with neo4j_driver.session() as session:
+            tx = session.begin_transaction()
+            for previous_uuid in previous_revision_entity_uuids:
                 # Create relationship from ancestor entity node to this Activity node
                 create_relationship_tx(tx, entity_uuid, previous_uuid, 'REVISION_OF', '->')
-
-                tx.commit()
+            tx.commit()
     except TransactionError as te:
         msg = "TransactionError from calling link_entity_to_previous_revision(): "
         # Log the full stack trace, prepend a line with our message

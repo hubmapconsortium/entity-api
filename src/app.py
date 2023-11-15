@@ -995,11 +995,10 @@ def create_entity(entity_type):
                 previous_version_dict = query_target_entity(previous_revision, user_token)
 
                 # Make sure the previous version entity is either a Dataset or Sample (and publication 2/17/23)
-                if previous_version_dict['entity_type'] not in ['Sample'] and \
-                        not schema_manager.entity_type_instanceof(previous_version_dict['entity_type'], 'Dataset'):
+                if not schema_manager.entity_type_instanceof(previous_version_dict['entity_type'], 'Dataset'):
                     bad_request_error(f"The previous_revision_uuid specified for this dataset must be either a Dataset or Sample or Publication")
 
-                next_revision_is_latest = app_neo4j_queries.is_next_revision_latest(neo4j_driver_instance, previous_version_dict['uuid'], 'uuid')
+                next_revision_is_latest = app_neo4j_queries.is_next_revision_latest(neo4j_driver_instance, previous_version_dict['uuid'])
 
                 # As long as the list is not empty, tell the users to use a different 'previous_revision_uuid'
                 if not next_revision_is_latest:

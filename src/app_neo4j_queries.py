@@ -459,37 +459,39 @@ def get_next_revisions(neo4j_driver, uuid, property_key = None):
 
     return results
 
+"""
+Verifies whether a revisions of a given entity are the last (most recent) revisions. Example: If an entity has a
+revision, but that revision also has a revision, return false.
 
-def is_next_revision_latest(neo4j_driver, uuid, property_key = None):
+Parameters
+----------
+neo4j_driver : neo4j.Driver object
+    The neo4j database connection pool
+uuid : str
+    The uuid of target entity 
+
+Returns
+-------
+bool
+    Returns true or false whether revisions of the target entity are the latest revisions
+"""
+def is_next_revision_latest(neo4j_driver, uuid):
     results = []
 
-    if property_key:
-        query = (f"MATCH (e:Entity)<-[:REVISION_OF*]-(parent:Entity)<-[:REVISION_OF*]-(next:Entity) "
-                 f"WHERE e.uuid='{uuid}' "
-                 # COLLECT() returns a list
-                 # apoc.coll.toSet() reruns a set containing unique nodes
-                 f"RETURN apoc.coll.toSet(COLLECT(next.{property_key})) AS {record_field_name}")
-    else:
-        query = (f"MATCH (e:Entity)<-[:REVISION_OF*]-(parent:Entity)<-[:REVISION_OF*]-(next:Entity) "
-                 f"WHERE e.uuid='{uuid}' "
-                 # COLLECT() returns a list
-                 # apoc.coll.toSet() reruns a set containing unique nodes
-                 f"RETURN apoc.coll.toSet(COLLECT(next)) AS {record_field_name}")
+    query = (f"MATCH (e:Entity)<-[:REVISION_OF*]-(rev:Entity)<-[:REVISION_OF*]-(next:Entity) "
+             f"WHERE e.uuid='{uuid}' "
+             # COLLECT() returns a list
+             # apoc.coll.toSet() reruns a set containing unique nodes
+             f"RETURN apoc.coll.toSet(COLLECT(next.uuid)) AS {record_field_name}")
 
-    logger.info("======get_next_revisions() query======")
+    logger.info("======is_next_revision_latest() query======")
     logger.info(query)
 
     with neo4j_driver.session() as session:
         record = session.read_transaction(schema_neo4j_queries.execute_readonly_tx, query)
 
         if record and record[record_field_name]:
-            if property_key:
-                # Just return the list of property values from each entity node
-                results = record[record_field_name]
-            else:
-                # Convert the list of nodes to a list of dicts
-                results = schema_neo4j_queries.nodes_to_dicts(record[record_field_name])
-
+            results = record[record_field_name]
     if results:
         return False
     else:
@@ -518,7 +520,7 @@ def nested_previous_revisions(neo4j_driver, previous_revision_list):
             "WITH COLLECT(DISTINCT ds1.uuid) AS connectedUUID1, COLLECT(DISTINCT ds2.uuid) as connectedUUID2 "
             "RETURN connectedUUID1, connectedUUID2 ")
 
-    logger.info("======nexted_previous_revisions() query======")
+    logger.info("======nested_previous_revisions() query======")
     logger.info(query)
 
     with neo4j_driver.session() as session:
