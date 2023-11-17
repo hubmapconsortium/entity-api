@@ -959,7 +959,11 @@ def link_to_previous_revision(property_key, normalized_type, user_token, existin
 
             # Delete the cache of each associated dataset if any cache exists
             # Because the `Dataset.previous_revision_uuid` and `Dataset.next_revision_uuid` fields
-            uuids_list = [entity_uuid, previous_uuid]
+            uuids_list = [entity_uuid]
+            if isinstance(previous_uuid, list):
+                uuids_list.extend(previous_uuid)
+            else:
+                uuids_list.append(previous_uuid)
             schema_manager.delete_memcached_cache(uuids_list)
         except TransactionError:
             # No need to log
