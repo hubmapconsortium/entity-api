@@ -940,26 +940,36 @@ new_data_dict : dict
     A merged dictionary that contains all possible input data to be used
 """
 def link_to_previous_revision(property_key, normalized_type, user_token, existing_data_dict, new_data_dict):
-    if 'uuid' not in existing_data_dict:
-        raise KeyError("Missing 'uuid' key in 'existing_data_dict' during calling 'link_to_previous_revision()' trigger method.")
-
-    if 'previous_revision_uuid' not in existing_data_dict:
-        raise KeyError("Missing 'previous_revision_uuid' key in 'existing_data_dict' during calling 'link_to_previous_revision()' trigger method.")
-
-    entity_uuid = existing_data_dict['uuid']
-    previous_uuid = existing_data_dict['previous_revision_uuid']
-
-    # Create a revision reltionship from this new Dataset node and its previous revision of dataset node in neo4j
     try:
-        schema_neo4j_queries.link_entity_to_previous_revision(schema_manager.get_neo4j_driver_instance(), entity_uuid, previous_uuid)
-    
-        # Delete the cache of each associated dataset if any cache exists
-        # Because the `Dataset.previous_revision_uuid` and `Dataset.next_revision_uuid` fields
-        uuids_list = [entity_uuid, previous_uuid]
-        schema_manager.delete_memcached_cache(uuids_list)
-    except TransactionError:
-        # No need to log
-        raise
+        if 'uuid' not in existing_data_dict:
+            raise KeyError("Missing 'uuid' key in 'existing_data_dict' during calling 'link_to_previous_revision()' trigger method.")
+
+        if 'previous_revision_uuid' not in existing_data_dict:
+            raise KeyError("Missing 'previous_revision_uuid' key in 'existing_data_dict' during calling 'link_to_previous_revision()' trigger method.")
+
+        entity_uuid = existing_data_dict['uuid']
+        if isinstance(existing_data_dict['previous_revision_uuid'], list):
+            previous_uuid = existing_data_dict['previous_revision_uuid']
+        else:
+            previous_uuid = [existing_data_dict['previous_revision_uuid']]
+
+        # Create a revision reltionship from this new Dataset node and its previous revision of dataset node in neo4j
+        try:
+            schema_neo4j_queries.link_entity_to_previous_revision(schema_manager.get_neo4j_driver_instance(), entity_uuid, previous_uuid)
+
+            # Delete the cache of each associated dataset if any cache exists
+            # Because the `Dataset.previous_revision_uuid` and `Dataset.next_revision_uuid` fields
+            uuids_list = [entity_uuid]
+            if isinstance(previous_uuid, list):
+                uuids_list.extend(previous_uuid)
+            else:
+                uuids_list.append(previous_uuid)
+            schema_manager.delete_memcached_cache(uuids_list)
+        except TransactionError:
+            # No need to log
+            raise
+    except Exception as e:
+        raise KeyError(e)
 
 """
 Trigger event method of auto generating the dataset title
