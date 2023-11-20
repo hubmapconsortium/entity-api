@@ -301,6 +301,66 @@ def get_sorted_revisions(neo4j_driver, uuid):
 
 
 """
+Get all revisions for a given dataset uuid and sort them in descending order based on their creation time
+
+Parameters
+----------
+neo4j_driver : neo4j.Driver object
+    The neo4j database connection pool
+uuid : str
+    The uuid of target entity 
+fetch_all : bool
+    Whether to fetch all Datasets or only include Published
+property_key : str
+    Return only a particular property from the cypher query, None for return all    
+
+Returns
+-------
+dict
+    A multi-dimensional list [prev_revisions<list<list>>, next_revisions<list<list>>]
+"""
+
+
+def get_sorted_multi_revisions(neo4j_driver, uuid, fetch_all=True, property_key=False):
+    results = []
+    match_case = '' if fetch_all is True else 'AND prev.status = "Published" AND next.status = "Published" '
+    collect_prop = f".{property_key}" if property_key else ''
+
+    query = (
+        "MATCH (e:Dataset), (next:Dataset), (prev:Dataset),"
+        f"p = (e)-[:REVISION_OF *0..]->(prev),"
+        f"n = (e)<-[:REVISION_OF *0..]-(next) "
+        f"WHERE e.uuid='{uuid}' {match_case}"
+        "WITH length(p) AS p_len, prev, length(n) AS n_len, next "
+        "ORDER BY prev.created_timestamp, next.created_timestamp DESC "
+        f"WITH p_len, collect(distinct prev{collect_prop}) AS prev_revisions, n_len, collect(distinct next{collect_prop}) AS next_revisions "
+        f"RETURN [collect(distinct next_revisions), collect(distinct prev_revisions)] AS {record_field_name}"
+    )
+
+    logger.info("======get_sorted_revisions() query======")
+    logger.info(query)
+
+    with neo4j_driver.session() as session:
+        record = session.read_transaction(schema_neo4j_queries.execute_readonly_tx, query)
+
+        if record and record[record_field_name] and len(record[record_field_name]) > 0:
+            record[record_field_name][0].pop()  # the target will appear twice, pop it from the next list
+            if property_key:
+                return record[record_field_name]
+            else:
+                for collection in record[record_field_name]:  # two collections: next, prev
+                    revs = []
+                    for rev in collection:  # each collection list contains revision lists, so 2 dimensional array
+                        # Convert the list of nodes to a list of dicts
+                        nodes_to_dicts = schema_neo4j_queries.nodes_to_dicts(rev)
+                        revs.append(nodes_to_dicts)
+
+                    results.append(revs)
+
+    return results
+
+
+"""
 Get all previous revisions of the target entity by uuid
 
 Parameters
@@ -398,6 +458,78 @@ def get_next_revisions(neo4j_driver, uuid, property_key = None):
                 results = schema_neo4j_queries.nodes_to_dicts(record[record_field_name])
 
     return results
+
+"""
+Verifies whether a revisions of a given entity are the last (most recent) revisions. Example: If an entity has a
+revision, but that revision also has a revision, return false.
+
+Parameters
+----------
+neo4j_driver : neo4j.Driver object
+    The neo4j database connection pool
+uuid : str
+    The uuid of target entity 
+
+Returns
+-------
+bool
+    Returns true or false whether revisions of the target entity are the latest revisions
+"""
+def is_next_revision_latest(neo4j_driver, uuid):
+    results = []
+
+    query = (f"MATCH (e:Entity)<-[:REVISION_OF*]-(rev:Entity)<-[:REVISION_OF*]-(next:Entity) "
+             f"WHERE e.uuid='{uuid}' "
+             # COLLECT() returns a list
+             # apoc.coll.toSet() reruns a set containing unique nodes
+             f"RETURN apoc.coll.toSet(COLLECT(next.uuid)) AS {record_field_name}")
+
+    logger.info("======is_next_revision_latest() query======")
+    logger.info(query)
+
+    with neo4j_driver.session() as session:
+        record = session.read_transaction(schema_neo4j_queries.execute_readonly_tx, query)
+
+        if record and record[record_field_name]:
+            results = record[record_field_name]
+    if results:
+        return False
+    else:
+        return True
+
+
+"""
+Verifies that, for a list of previous revision, one or more revisions in the list is itself a revision of another 
+revision in the list. 
+
+Parameters
+----------
+previous_revision_list : list
+    The list of previous_revision_uuids
+    
+Returns
+-------
+tuple
+    The uuid of the first encountered uuid that is a revision of another previous_revision, as well as the uuid that it is a revision of
+    Else return None
+"""
+def nested_previous_revisions(neo4j_driver, previous_revision_list):
+    query = (f"WITH {previous_revision_list} AS uuidList "
+            "MATCH (ds1:Dataset)-[r:REVISION_OF]->(ds2:Dataset) "
+            "WHERE ds1.uuid IN uuidList AND ds2.uuid IN uuidList "
+            "WITH COLLECT(DISTINCT ds1.uuid) AS connectedUUID1, COLLECT(DISTINCT ds2.uuid) as connectedUUID2 "
+            "RETURN connectedUUID1, connectedUUID2 ")
+
+    logger.info("======nested_previous_revisions() query======")
+    logger.info(query)
+
+    with neo4j_driver.session() as session:
+        record = session.read_transaction(schema_neo4j_queries.execute_readonly_tx, query)
+    if record[0]:
+        return record
+    else:
+        return None
+
 
 """
 Retrive the full tree above the given entity
