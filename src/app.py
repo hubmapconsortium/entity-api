@@ -436,7 +436,6 @@ def get_ancestor_organs(id):
         bad_request_error(f"Unable to get the ancestor organs for this: {normalized_entity_type},"
                           " supported entity types: Sample, Dataset, Publication")
 
-    # specimen_type -> sample_category 12/15/2022
     if normalized_entity_type == 'Sample' and entity_dict['sample_category'].lower() == 'organ':
         bad_request_error("Unable to get the ancestor organ of an organ.")
 
@@ -939,7 +938,6 @@ def create_entity(entity_type):
         # Check existence of the direct ancestor (either another Sample or Donor)
         direct_ancestor_dict = query_target_entity(direct_ancestor_uuid, user_token)
 
-        # specimen_type -> sample_category 12/15/2022
         # `sample_category` is required on create
         sample_category = json_data_dict['sample_category'].lower()
         
@@ -1112,7 +1110,6 @@ def create_multiple_samples(count):
     # sample's direct ancestor is a Donor.
     # Must be one of the codes from: https://github.com/hubmapconsortium/search-api/blob/main/src/search-schema/data/definitions/enums/organ_types.yaml
     if direct_ancestor_dict['entity_type'] == 'Donor':
-        # specimen_type -> sample_category 12/15/2022
         # `sample_category` is required on create
         if json_data_dict['sample_category'].lower() != 'organ':
             bad_request_error("The sample_category must be organ since the direct ancestor is a Donor")
@@ -2828,8 +2825,6 @@ def get_prov_info():
                 first_sample_hubmap_id_list.append(item['hubmap_id'])
                 first_sample_submission_id_list.append(item['submission_id'])
                 first_sample_uuid_list.append(item['uuid'])
-
-                # specimen_type -> sample_category 12/15/2022
                 first_sample_type_list.append(item['sample_category'])
 
                 first_sample_portal_url_list.append(app.config['DOI_REDIRECT_URL'].replace('<entity_type>', 'sample').replace('<identifier>', item['uuid']))
@@ -3148,8 +3143,6 @@ def get_prov_info_for_dataset(id):
             first_sample_hubmap_id_list.append(item['hubmap_id'])
             first_sample_submission_id_list.append(item['submission_id'])
             first_sample_uuid_list.append(item['uuid'])
-
-            # specimen_type -> sample_category 12/15/2022
             first_sample_type_list.append(item['sample_category'])
 
             first_sample_portal_url_list.append(
@@ -3267,7 +3260,6 @@ def get_prov_info_for_dataset(id):
         else:
             requested_samples = {}
             for uuid in dataset_samples.keys():
-                # specimen_type -> sample_category 12/15/2022
                 if dataset_samples[uuid]['sample_category'] in include_samples:
                     requested_samples[uuid] = dataset_samples[uuid]
             internal_dict[HEADER_DATASET_SAMPLES] = requested_samples
@@ -3479,7 +3471,6 @@ def get_sample_prov_info():
             organ_hubmap_id = sample['organ_hubmap_id']
             organ_submission_id = sample['organ_submission_id']
         else:
-            # sample_specimen_type -> sample_category 12/15/2022
             if sample['sample_category'] == "organ":
                 organ_uuid = sample['sample_uuid']
                 organ_type = organ_types_dict[sample['sample_organ']]['description'].lower()
@@ -3507,10 +3498,7 @@ def get_sample_prov_info():
         internal_dict[HEADER_SAMPLE_HAS_METADATA] = sample_has_metadata
         internal_dict[HEADER_SAMPLE_HAS_RUI_INFO] = sample_has_rui_info
         internal_dict[HEADER_SAMPLE_DIRECT_ANCESTOR_ID] = sample['sample_ancestor_id']
-
-        # sample_specimen_type -> sample_category 12/15/2022
         internal_dict[HEADER_SAMPLE_TYPE] = sample['sample_category']
-
         internal_dict[HEADER_SAMPLE_HUBMAP_ID] = sample['sample_hubmap_id']
         internal_dict[HEADER_SAMPLE_SUBMISSION_ID] = sample['sample_submission_id']
         internal_dict[HEADER_SAMPLE_DIRECT_ANCESTOR_ENTITY_TYPE] = sample['sample_ancestor_entity']

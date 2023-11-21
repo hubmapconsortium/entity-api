@@ -1356,7 +1356,6 @@ def create_hubmap_ids(normalized_class, json_data_dict, user_token, user_info_di
             parent_id = json_data_dict['direct_ancestor_uuid']
             json_to_post['parent_ids'] = [parent_id]
 
-            # specimen_type -> sample_category 12/15/2022
             # 'Sample.sample_category' is marked as `required_on_create` in the schema yaml
             if json_data_dict['sample_category'].lower() == 'organ':
                 # The 'organ' field containing the 2 digit organ code is required in this case
