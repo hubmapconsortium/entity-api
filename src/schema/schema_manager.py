@@ -1211,7 +1211,7 @@ dict
 def get_hubmap_ids(id):
     global _uuid_api_url
 
-    target_url = _uuid_api_url + schema_constants.UUID_API_ID_ENDPOINT + '/' + id
+    target_url = _uuid_api_url + SchemaConstants.UUID_API_ID_ENDPOINT + '/' + id
 
     # Use Memcached to improve performance
     response = make_request_get(target_url, internal_token_used = True)
@@ -1373,7 +1373,7 @@ def create_hubmap_ids(normalized_class, json_data_dict, user_token, user_info_di
     logger.info(json_to_post)
 
     # Disable ssl certificate verification
-    target_url = _uuid_api_url + schema_constants.UUID_API_ID_ENDPOINT
+    target_url = _uuid_api_url + SchemaConstants.UUID_API_ID_ENDPOINT
     response = requests.post(url = target_url, headers = request_headers, json = json_to_post, verify = False, params = query_parms)
     
     # Invoke .raise_for_status(), an HTTPError will be raised with certain status codes
