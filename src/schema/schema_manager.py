@@ -1802,10 +1802,9 @@ def get_organ_types():
     response.raise_for_status()
 
     if response.status_code == 200:
-        ids_dict = response.json()
-        return ids_dict
+        return response.json()
     else:
-        msg = f"Unable to make a request to query the id via uuid-api: {id}"
+        msg = "Unable to make a request to query the organ types via ontology-api: {id}"
         # Log the full stack trace, prepend a line with our message
         logger.exception(msg)
 
@@ -1869,9 +1868,7 @@ def get_assay_types():
 
         return assay_types_by_name
     else:
-        # uuid-api will also return 400 if the given id is invalid
-        # We'll just hanle that and all other cases all together here
-        msg = f"Unable to make a request to query the id via uuid-api: {id}"
+        msg = "Unable to make a request to query the assay types via ontology-api"
         # Log the full stack trace, prepend a line with our message
         logger.exception(msg)
 
