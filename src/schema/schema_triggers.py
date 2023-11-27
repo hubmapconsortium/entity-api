@@ -1024,9 +1024,10 @@ def get_dataset_title(property_key, normalized_type, user_token, existing_data_d
     # Parse the organ description
     if organ_name is not None:
         try: 
-            # The organ_name is the two-letter code only set if specimen_type == 'organ'
+            # The organ_name is the two-letter code only set for 'organ'
             # Convert the two-letter code to a description
-            organ_desc = _get_organ_description(organ_name)
+            organ_types_dict = schema_manager.get_organ_types()
+            organ_desc = organ_types_dict[organ_name].lower()
         except (yaml.YAMLError, requests.exceptions.RequestException) as e:
             raise Exception(e)
 
@@ -2097,22 +2098,4 @@ def _get_combined_assay_type_description(data_types):
         raise ValueError(msg)
 
     return assay_type_desc
-
-
-"""
-Get the organ description based on the given organ code
-
-Parameters
-----------
-organ_code : str
-    The two-letter organ code
-
-Returns
--------
-str: The organ code description
-"""
-def _get_organ_description(organ_code):
-    organ_types_dict = schema_manager.get_organ_types()
-    return organ_types_dict[organ_code]['description'].lower()
-
 
