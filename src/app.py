@@ -4786,8 +4786,8 @@ def validate_organ_code(organ_code):
         organ_types_dict = schema_manager.get_organ_types()
 
         if organ_code.upper() not in organ_types_dict:
-            internal_server_error(f"Unable to find organ code {organ_code} via the ontology-api")
-    except:
+            not_found_error(f"Unable to find organ code {organ_code} via the ontology-api")
+    except requests.exceptions.RequestException:
         msg = f"Failed to validate the organ code: {organ_code}"
         # Log the full stack trace, prepend a line with our message
         logger.exception(msg)
