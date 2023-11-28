@@ -1778,12 +1778,22 @@ Retrive the organ types from ontology-api
 Returns
 -------
 dict
-    The available organ types
+    The available organ types in the following format:
+
+    {
+        "AO": "Aorta",
+        "BD": "Blood",
+        "BL": "Bladder",
+        "BM": "Bone Marrow",
+        "BR": "Brain",
+        "HT": "Heart",
+        ...
+    }
 """
 def get_organ_types():
     global _ontology_api_url
 
-    target_url = _ontology_api_url + '/organs?application_context=HuBMAP'
+    target_url = _ontology_api_url + SchemaConstants.ONTOLOGY_API_ORGAN_TYPES_ENDPOINT
 
     # Use Memcached to improve performance
     response = make_request_get(target_url, internal_token_used = True)
@@ -1792,14 +1802,10 @@ def get_organ_types():
     response.raise_for_status()
 
     if response.status_code == 200:
-        ids_dict = response.json()
-        return ids_dict
+        return response.json()
     else:
-        # uuid-api will also return 400 if the given id is invalid
-        # We'll just hanle that and all other cases all together here
-        msg = f"Unable to make a request to query the id via uuid-api: {id}"
         # Log the full stack trace, prepend a line with our message
-        logger.exception(msg)
+        logger.exception("Unable to make a request to query the organ types via ontology-api")
 
         logger.debug("======get_organ_types() status code from ontology-api======")
         logger.debug(response.status_code)
@@ -1817,12 +1823,32 @@ Retrive the assay types from ontology-api
 Returns
 -------
 dict
-    The available assay types
+    The available assay types by name in the following format:
+
+    {
+        "10x-multiome": {
+            "contains_pii": true,
+            "description": "10x Multiome",
+            "name": "10x-multiome",
+            "primary": true,
+            "vis_only": false,
+            "vitessce_hints": []
+        },
+        "AF": {
+            "contains_pii": false,
+            "description": "Autofluorescence Microscopy",
+            "name": "AF",
+            "primary": true,
+            "vis_only": false,
+            "vitessce_hints": []
+        },
+        ...
+    }
 """
 def get_assay_types():
     global _ontology_api_url
 
-    target_url = _ontology_api_url + '/assaytype?application_context=HuBMAP'
+    target_url = _ontology_api_url + SchemaConstants.ONTOLOGY_API_ASSAY_TYPES_ENDPOINT
 
     # Use Memcached to improve performance
     response = make_request_get(target_url, internal_token_used = True)
@@ -1831,14 +1857,18 @@ def get_assay_types():
     response.raise_for_status()
 
     if response.status_code == 200:
-        ids_dict = response.json()
-        return ids_dict
+        assay_types_by_name = {}
+        result_dict = response.json()
+
+        # Due to the json envelop being used int the json result
+        assay_types_list = result_dict['result']
+        for assay_type_dict in assay_types_list:
+            assay_types_by_name[assay_type_dict['name']] = assay_type_dict
+
+        return assay_types_by_name
     else:
-        # uuid-api will also return 400 if the given id is invalid
-        # We'll just hanle that and all other cases all together here
-        msg = f"Unable to make a request to query the id via uuid-api: {id}"
         # Log the full stack trace, prepend a line with our message
-        logger.exception(msg)
+        logger.exception("Unable to make a request to query the assay types via ontology-api")
 
         logger.debug("======get_assay_types() status code from ontology-api======")
         logger.debug(response.status_code)

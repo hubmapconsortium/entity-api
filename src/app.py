@@ -2794,17 +2794,12 @@ def get_prov_info():
         for item in dataset['data_types']:
             try:
                 assay_description_list.append(assay_types_dict[item]['description'])
-            # Some data types aren't given by their code in the assay types yaml and are instead given as an alt name.
-            # In these cases, we have to search each assay type and see if the given code matches any alternate names.
             except KeyError:
-                valid_key = False
-                for each in assay_types_dict:
-                    if valid_key is False:
-                        if item in assay_types_dict[each]['alt-names']:
-                            assay_description_list.append(assay_types_dict[each]['description'])
-                            valid_key = True
-                if valid_key is False:
-                    assay_description_list.append(item)
+                logger.exception(f"Data type {item} not found in resulting assay types via ontology-api")
+
+                # Just use the data type value
+                assay_description_list.append(item)
+
         dataset['data_types'] = assay_description_list
         internal_dict[HEADER_DATASET_DATA_TYPES] = dataset['data_types']
 
@@ -3116,17 +3111,12 @@ def get_prov_info_for_dataset(id):
     for item in dataset['data_types']:
         try:
             assay_description_list.append(assay_types_dict[item]['description'])
-        # Some data types aren't given by their code in the assay types yaml and are instead given as an alt name.
-        # In these cases, we have to search each assay type and see if the given code matches any alternate names.
         except KeyError:
-            valid_key = False
-            for each in assay_types_dict:
-                if valid_key is False:
-                    if item in assay_types_dict[each]['alt-names']:
-                        assay_description_list.append(assay_types_dict[each]['description'])
-                        valid_key = True
-            if valid_key is False:
-                assay_description_list.append(item)
+            logger.exception(f"Data type {item} not found in resulting assay types via ontology-api")
+
+            # Just use the data type value
+            assay_description_list.append(item)
+
     dataset['data_types'] = assay_description_list
     internal_dict[HEADER_DATASET_DATA_TYPES] = dataset['data_types']
     if return_json is False:
@@ -3342,17 +3332,12 @@ def sankey_data():
             assay_description = ""
             try:
                 assay_description = assay_types_dict[dataset[HEADER_DATASET_DATA_TYPES]]['description']
-            # Some data types aren't given by their code in the assay types yaml and are instead given as an alt name.
-            # In these cases, we have to search each assay type and see if the given code matches any alternate names.
             except KeyError:
-                valid_key = False
-                for each in assay_types_dict:
-                    if valid_key is False:
-                        if dataset[HEADER_DATASET_DATA_TYPES] in assay_types_dict[each]['alt-names']:
-                            assay_description = assay_types_dict[each]['description']
-                            valid_key = True
-                if valid_key is False:
-                    assay_description = dataset[HEADER_DATASET_DATA_TYPES]
+                logger.exception(f"Data type {dataset[HEADER_DATASET_DATA_TYPES]} not found in resulting assay types via ontology-api")
+
+                # Just use the data type value
+                assay_description = dataset[HEADER_DATASET_DATA_TYPES]
+
             internal_dict[HEADER_DATASET_DATA_TYPES] = assay_description
 
             # Replace applicable Group Name and Data type with the value needed for the sankey via the mapping_dict
