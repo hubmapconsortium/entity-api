@@ -1086,6 +1086,7 @@ def get_dataset_title(property_key, normalized_type, user_token, existing_data_d
 
     return property_key, generated_title
 
+
 """
 Trigger event method of getting the uuid of the previous revision dataset if exists
 

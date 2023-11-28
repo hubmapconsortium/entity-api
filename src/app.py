@@ -2845,7 +2845,7 @@ def get_prov_info():
                 distinct_organ_hubmap_id_list.append(item['hubmap_id'])
                 distinct_organ_submission_id_list.append(item['submission_id'])
                 distinct_organ_uuid_list.append(item['uuid'])
-                distinct_organ_type_list.append(organ_types_dict[item['organ']]['description'].lower())
+                distinct_organ_type_list.append(organ_types_dict[item['organ']].lower())
             internal_dict[HEADER_ORGAN_HUBMAP_ID] = distinct_organ_hubmap_id_list
             internal_dict[HEADER_ORGAN_SUBMISSION_ID] = distinct_organ_submission_id_list
             internal_dict[HEADER_ORGAN_UUID] = distinct_organ_uuid_list
@@ -3157,7 +3157,7 @@ def get_prov_info_for_dataset(id):
             distinct_organ_hubmap_id_list.append(item['hubmap_id'])
             distinct_organ_submission_id_list.append(item['submission_id'])
             distinct_organ_uuid_list.append(item['uuid'])
-            distinct_organ_type_list.append(organ_types_dict[item['organ']]['description'].lower())
+            distinct_organ_type_list.append(organ_types_dict[item['organ']].lower())
         internal_dict[HEADER_ORGAN_HUBMAP_ID] = distinct_organ_hubmap_id_list
         internal_dict[HEADER_ORGAN_SUBMISSION_ID] = distinct_organ_submission_id_list
         internal_dict[HEADER_ORGAN_UUID] = distinct_organ_uuid_list
@@ -3327,7 +3327,7 @@ def sankey_data():
         for dataset in sankey_info:
             internal_dict = collections.OrderedDict()
             internal_dict[HEADER_DATASET_GROUP_NAME] = dataset[HEADER_DATASET_GROUP_NAME]
-            internal_dict[HEADER_ORGAN_TYPE] = organ_types_dict[dataset[HEADER_ORGAN_TYPE]]['description'].lower()
+            internal_dict[HEADER_ORGAN_TYPE] = organ_types_dict[dataset[HEADER_ORGAN_TYPE]].lower()
             # Data type codes are replaced with data type descriptions
             assay_description = ""
             try:
@@ -3452,13 +3452,13 @@ def get_sample_prov_info():
         organ_submission_id = None
         if sample['organ_uuid'] is not None:
             organ_uuid = sample['organ_uuid']
-            organ_type = organ_types_dict[sample['organ_organ_type']]['description'].lower()
+            organ_type = organ_types_dict[sample['organ_organ_type']].lower()
             organ_hubmap_id = sample['organ_hubmap_id']
             organ_submission_id = sample['organ_submission_id']
         else:
             if sample['sample_category'] == "organ":
                 organ_uuid = sample['sample_uuid']
-                organ_type = organ_types_dict[sample['sample_organ']]['description'].lower()
+                organ_type = organ_types_dict[sample['sample_organ']].lower()
                 organ_hubmap_id = sample['sample_hubmap_id']
                 organ_submission_id = sample['sample_submission_id']
 
