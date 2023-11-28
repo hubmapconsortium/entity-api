@@ -1863,7 +1863,7 @@ def get_assay_types():
         # Due to the json envelop being used int the json result
         assay_types_list = result_dict['result']
         for assay_type_dict in assay_types_list:
-            assay_types_dict_by_name[assay_type_dict['name']] = assay_type_dict
+            assay_types_by_name[assay_type_dict['name']] = assay_type_dict
 
         return assay_types_by_name
     else:
