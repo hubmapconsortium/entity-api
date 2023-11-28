@@ -14,8 +14,8 @@ class SchemaConstants(object):
     UUID_API_ID_ENDPOINT = '/uuid'
     INGEST_API_FILE_COMMIT_ENDPOINT = '/file-commit'
     INGEST_API_FILE_REMOVE_ENDPOINT = '/file-remove'
-    ONTOLOGY_API_ASSAY_TYPES_ENDPOINT = '/assaytype?application_context=HuBMAP'
-    ONTOLOGY_API_ORGAN_TYPES_ENDPOINT = '/organs/by-code?application_context=HuBMAP'
+    ONTOLOGY_API_ASSAY_TYPES_ENDPOINT = '/assaytype?application_context=HUBMAP'
+    ONTOLOGY_API_ORGAN_TYPES_ENDPOINT = '/organs/by-code?application_context=HUBMAP'
 
     DOI_BASE_URL = 'https://doi.org/'
 

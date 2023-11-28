@@ -1804,9 +1804,8 @@ def get_organ_types():
     if response.status_code == 200:
         return response.json()
     else:
-        msg = "Unable to make a request to query the organ types via ontology-api: {id}"
         # Log the full stack trace, prepend a line with our message
-        logger.exception(msg)
+        logger.exception("Unable to make a request to query the organ types via ontology-api")
 
         logger.debug("======get_organ_types() status code from ontology-api======")
         logger.debug(response.status_code)
@@ -1868,9 +1867,8 @@ def get_assay_types():
 
         return assay_types_by_name
     else:
-        msg = "Unable to make a request to query the assay types via ontology-api"
         # Log the full stack trace, prepend a line with our message
-        logger.exception(msg)
+        logger.exception("Unable to make a request to query the assay types via ontology-api")
 
         logger.debug("======get_assay_types() status code from ontology-api======")
         logger.debug(response.status_code)
