@@ -951,9 +951,8 @@ def create_entity(entity_type):
             # A valid organ code must be present in the `organ` field
             if ('organ' not in json_data_dict) or (json_data_dict['organ'].strip() == ''):
                 bad_request_error("A valid organ code is required when registering an organ associated with a Donor")
-
-            # Must be one of the defined organ codes
-            # https://github.com/hubmapconsortium/search-api/blob/main/src/search-schema/data/definitions/enums/organ_types.yaml
+            
+            # Must be a 2-letter alphabetic code and can be found in UBKG ontology-api
             validate_organ_code(json_data_dict['organ'])
         else:
             if 'organ' in json_data_dict:
@@ -2845,7 +2844,11 @@ def get_prov_info():
                 distinct_organ_hubmap_id_list.append(item['hubmap_id'])
                 distinct_organ_submission_id_list.append(item['submission_id'])
                 distinct_organ_uuid_list.append(item['uuid'])
-                distinct_organ_type_list.append(organ_types_dict[item['organ']]['description'].lower())
+
+                organ_code = item['organ'].upper()
+                validate_organ_code(organ_code)
+
+                distinct_organ_type_list.append(organ_types_dict[organ_code].lower())
             internal_dict[HEADER_ORGAN_HUBMAP_ID] = distinct_organ_hubmap_id_list
             internal_dict[HEADER_ORGAN_SUBMISSION_ID] = distinct_organ_submission_id_list
             internal_dict[HEADER_ORGAN_UUID] = distinct_organ_uuid_list
@@ -3157,7 +3160,11 @@ def get_prov_info_for_dataset(id):
             distinct_organ_hubmap_id_list.append(item['hubmap_id'])
             distinct_organ_submission_id_list.append(item['submission_id'])
             distinct_organ_uuid_list.append(item['uuid'])
-            distinct_organ_type_list.append(organ_types_dict[item['organ']]['description'].lower())
+
+            organ_code = item['organ'].upper()
+            validate_organ_code(organ_code)
+
+            distinct_organ_type_list.append(organ_types_dict[organ_code].lower())
         internal_dict[HEADER_ORGAN_HUBMAP_ID] = distinct_organ_hubmap_id_list
         internal_dict[HEADER_ORGAN_SUBMISSION_ID] = distinct_organ_submission_id_list
         internal_dict[HEADER_ORGAN_UUID] = distinct_organ_uuid_list
@@ -3327,7 +3334,11 @@ def sankey_data():
         for dataset in sankey_info:
             internal_dict = collections.OrderedDict()
             internal_dict[HEADER_DATASET_GROUP_NAME] = dataset[HEADER_DATASET_GROUP_NAME]
-            internal_dict[HEADER_ORGAN_TYPE] = organ_types_dict[dataset[HEADER_ORGAN_TYPE]]['description'].lower()
+
+            organ_code = dataset[HEADER_ORGAN_TYPE].upper()
+            validate_organ_code(organ_code)
+
+            internal_dict[HEADER_ORGAN_TYPE] = organ_types_dict[organ_code].lower()
             # Data type codes are replaced with data type descriptions
             assay_description = ""
             try:
@@ -3408,17 +3419,6 @@ def get_sample_prov_info():
     if user_in_hubmap_read_group(request):
         public_only = False
 
-    # Parsing the organ types yaml has to be done here rather than calling schema.schema_triggers.get_organ_description
-    # because that would require using a urllib request for each dataset
-    # response = schema_manager.make_request_get(SchemaConstants.ORGAN_TYPES_YAML)
-
-    # if response.status_code == 200:
-    #     yaml_file = response.text
-    #     try:
-    #         organ_types_dict = yaml.safe_load(yaml_file)
-    #     except yaml.YAMLError as e:
-    #         raise yaml.YAMLError(e)
-
     organ_types_dict = schema_manager.get_organ_types()
 
     # Processing and validating query parameters
@@ -3452,13 +3452,21 @@ def get_sample_prov_info():
         organ_submission_id = None
         if sample['organ_uuid'] is not None:
             organ_uuid = sample['organ_uuid']
-            organ_type = organ_types_dict[sample['organ_organ_type']]['description'].lower()
+
+            organ_code = sample['organ_organ_type'].upper()
+            validate_organ_code(organ_code)
+
+            organ_type = organ_types_dict[organ_code].lower()
             organ_hubmap_id = sample['organ_hubmap_id']
             organ_submission_id = sample['organ_submission_id']
         else:
             if sample['sample_category'] == "organ":
                 organ_uuid = sample['sample_uuid']
-                organ_type = organ_types_dict[sample['sample_organ']]['description'].lower()
+
+                organ_code = sample['sample_organ'].upper()
+                validate_organ_code(organ_code)
+
+                organ_type = organ_types_dict[organ_code].lower()
                 organ_hubmap_id = sample['sample_hubmap_id']
                 organ_submission_id = sample['sample_submission_id']
 
@@ -4764,23 +4772,22 @@ def access_level_prefix_dir(dir_name):
 
 
 """
-Ensures that a given organ code matches what is found on the organ_types yaml document
+Ensures that a given organ code is 2-letter alphabetic and can be found int the UBKG ontology-api
 
 Parameters
 ----------
 organ_code : str
-
-Returns
--------
-Returns nothing. Raises bad_request_error is organ code not found on organ_types.yaml 
 """
 def validate_organ_code(organ_code):
+    if not organ_code.isalpha() or not len(organ_code) == 2:
+        internal_server_error(f"Invalid organ code {organ_code}. Must be 2-letter alphabetic code")
+
     try:
         organ_types_dict = schema_manager.get_organ_types()
 
         if organ_code.upper() not in organ_types_dict:
-            bad_request_error(f"Invalid organ code. Must be 2 digit code")
-    except:
+            not_found_error(f"Unable to find organ code {organ_code} via the ontology-api")
+    except requests.exceptions.RequestException:
         msg = f"Failed to validate the organ code: {organ_code}"
         # Log the full stack trace, prepend a line with our message
         logger.exception(msg)
