@@ -4669,12 +4669,6 @@ def query_target_entity(id, user_token):
 
             # Make a new query against neo4j
             entity_dict = schema_neo4j_queries.get_entity(neo4j_driver_instance, uuid)
-            # entity_type is found in shared_entity_properties in provenance_schema.yaml
-            if entity_dict.get('entity_type') == 'Dataset':
-                # Entities.Dataset already has a creation_action property which is processed in a different manner
-                # see provenance_schema.yaml and code in this file.
-                entity_dict['creation_action_activity'] =\
-                    schema_neo4j_queries.get_entity_creation_action_activity(neo4j_driver_instance, uuid)
 
             # The uuid exists via uuid-api doesn't mean it also exists in Neo4j
             if not entity_dict:

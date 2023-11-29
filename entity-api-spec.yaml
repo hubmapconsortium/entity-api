@@ -807,7 +807,7 @@ components:
         dbgap_study_url:
           type: string
           description: 'A URL linking the dataset to the particular study on dbGap it belongs to'
-        creation_action_activity:
+        creation_action:
           type: string
           description: 'The associated action that represents the creation of that dataset'
     Upload:

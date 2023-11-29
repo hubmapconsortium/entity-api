@@ -1149,6 +1149,20 @@ def get_next_revision_uuid(property_key, normalized_type, user_token, existing_d
     return property_key, next_revision_uuid
 
 
+def get_creation_action_activity(property_key, normalized_type, user_token, existing_data_dict, new_data_dict):
+    if 'uuid' not in existing_data_dict:
+        raise KeyError("Missing 'uuid' key in 'existing_data_dict' during calling 'get_creation_action_activity()' trigger method.")
+
+    uuid: str = existing_data_dict['uuid']
+    logger.info(f"Executing 'get_creation_action_activity()' trigger method on uuid: {uuid}")
+
+    neo4j_driver_instance = schema_manager.get_neo4j_driver_instance()
+    creation_action_activity =\
+        schema_neo4j_queries.get_entity_creation_action_activity(neo4j_driver_instance, uuid)
+
+    return property_key, creation_action_activity
+
+
 """
 Trigger event method to commit thumbnail file saved that were previously uploaded via ingest-api
 
