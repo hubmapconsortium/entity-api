@@ -28,10 +28,6 @@ UUID_API_URL = 'http://uuid-api:8080'
 # Works regardless of the trailing slash
 INGEST_API_URL = 'https://ingest-api.dev.hubmapconsortium.org'
 
-# URL for talking to Ontology API (default for DEV)
-# Works regardless of the trailing slash
-ONTOLOGY_API_URL = 'https://ontology-api.dev.hubmapconsortium.org'
-
 # A list of URLs for talking to multiple Search API instances (default value used for docker deployment, no token needed)
 # Works regardless of the trailing slash /
 SEARCH_API_URL_LIST = ['http://search-api:8080']
