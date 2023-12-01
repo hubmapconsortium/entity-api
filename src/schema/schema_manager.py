@@ -115,7 +115,7 @@ def load_provenance_schema(valid_yaml_file):
     with open(valid_yaml_file) as file:
         schema_dict = yaml.safe_load(file)
 
-        logger.info("Schema yaml file loaded successfully")
+        logger.info(f"Provenance Schema yaml file loaded successfully from {valid_yaml_file} :)")
 
         return schema_dict
 

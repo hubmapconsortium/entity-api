@@ -485,6 +485,20 @@ def get_entity_type(neo4j_driver, entity_uuid: str) -> str:
     return None
 
 
+def get_entity_creation_action_activity(neo4j_driver, entity_uuid: str) -> str:
+    query: str = f"MATCH (ds {{uuid:'{entity_uuid}'}})<-[:ACTIVITY_OUTPUT]-(a:Activity) RETURN a.creation_action"
+
+    logger.info("======get_entity_creation_action() query======")
+    logger.info(query)
+
+    with neo4j_driver.session() as session:
+        record = session.read_transaction(execute_readonly_tx, query)
+        if record and len(record) == 1:
+            return record[0]
+
+    return None
+
+
 """
 Create or recreate one or more linkages (via Activity nodes) 
 between the target entity node and the direct ancestor nodes in neo4j
