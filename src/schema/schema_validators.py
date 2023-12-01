@@ -563,7 +563,7 @@ def validate_in_admin_group(property_key, normalized_entity_type, request, exist
 
         # If the token is not a groups token, no group information available
         # The commons.hm_auth.AuthCache would return a Response with 500 error message
-        # We treat such cases as the user not in the HuBMAP-READ group
+        # We treat such cases as the user not in the HuBMAP-Data group
         raise ValueError("Failed to parse the permission based on token, retraction is not allowed")
 
     if hubmap_admin_group_uuid not in user_info['hmgroupids']:
@@ -590,10 +590,10 @@ new_data_dict : dict
 def validate_group_name(property_key, normalized_entity_type, request, existing_data_dict, new_data_dict):
     assigned_to_group_name = new_data_dict['assigned_to_group_name']
     globus_groups = schema_manager.get_auth_helper_instance().getHuBMAPGroupInfo()
-    shortnames = list({value.get("shortname") for value in globus_groups.values() if value.get("shortname") is not None})
-    if assigned_to_group_name not in shortnames:
+    group_dict = next((entry for entry in globus_groups.values() if entry.get("shortname") == assigned_to_group_name), None)
+    if group_dict is None:
         raise ValueError("Invalid value for 'assigned_to_group_name'")
-    is_data_provider = next((entry.get("data_provider", False) for entry in globus_groups.values() if entry.get("shortname") == assigned_to_group_name), False)
+    is_data_provider = group_dict.get('data_provider')
     if not is_data_provider:
         raise ValueError("Invalid group in 'assigned_to_group_name'. Must be a data provider")
 
