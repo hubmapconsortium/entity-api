@@ -729,6 +729,13 @@ components:
           type: string
           readOnly: true
           description: "The uuid of next revision dataset"
+        previous_revision_uuids:
+          type: list
+          description: "The uuids of previous revision datasets. Can only be set at Create/POST time."
+        next_revision_uuids:
+          type: list
+          readOnly: true
+          description: "The uuids of next revision dataset"
         thumbnail_file:
           readOnly: true
           description: 'The dataset thumbnail file detail. Stored in db as a stringfied json, e.g., {"filename": "thumbnail.jpg", "file_uuid": "c35002f9c3d49f8b77e1e2cd4a01803d"}'
