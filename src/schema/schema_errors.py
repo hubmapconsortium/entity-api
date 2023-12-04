@@ -1,4 +1,7 @@
 
+class UnimplementedValidatorException(Exception):
+    pass
+
 class SchemaValidationException(Exception):
     pass
 
