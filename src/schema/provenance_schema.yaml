@@ -505,6 +505,22 @@ ENTITIES:
         description: "A list of all status change events. Each entry in the list is a dictionary containing the change_timestamp, changed_by_email, previous_status, new_status"
         generated: true
         immutable: true
+      assigned_to_group_name:
+        type: string
+        description: The group who is responsible for the next step in the ingest process
+        before_property_create_validators:
+          - validate_in_admin_group
+          - validate_group_name
+        before_property_update_validators:
+          - validate_in_admin_group
+          - validate_group_name
+      ingest_task:
+        type: string
+        description: A description of the next task in the ingest process
+        before_property_create_validators:
+          - validate_in_admin_group
+        before_property_update_validators:
+          - validate_in_admin_group
 
   ############################################# Publication #############################################
   Publication:
@@ -1205,3 +1221,19 @@ ENTITIES:
         description: "A list of all status change events. Each entry in the list is a dictionary containing the change_timestamp, changed_by_email, previous_status, new_status"
         generated: true
         immutable: true
+      assigned_to_group_name:
+        type: string
+        description: The group who is responsible for the next step in the ingest process
+        before_property_create_validators:
+          - validate_in_admin_group
+          - validate_group_name
+        before_property_update_validators:
+          - validate_in_admin_group
+          - validate_group_name
+      ingest_task:
+        type: string
+        description: A description of the next task in the ingest process
+        before_property_create_validators:
+          - validate_in_admin_group
+        before_property_update_validators:
+          - validate_in_admin_group
