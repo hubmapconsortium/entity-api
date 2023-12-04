@@ -31,6 +31,7 @@ requests.packages.urllib3.disable_warnings(category = InsecureRequestWarning)
 _schema = None
 _uuid_api_url = None
 _ingest_api_url = None
+_ontology_api_url = None
 _auth_helper = None
 _neo4j_driver = None
 _memcached_client = None
@@ -50,9 +51,11 @@ Parameters
 valid_yaml_file : file
     A valid yaml file
 uuid_api_url : str
-    The uuid-api URL
+    The uuid-api base URL
 ingest_api_url : str
-    The ingest-api URL
+    The ingest-api base URL
+ontology_api_url : str
+    The ontology-api base URL
 auth_helper_instance : AuthHelper
     The auth helper instance
 neo4j_driver_instance : neo4j_driver
@@ -65,6 +68,7 @@ memcached_prefix : str
 def initialize(valid_yaml_file, 
                uuid_api_url,
                ingest_api_url,
+               ontology_api_url,
                auth_helper_instance,
                neo4j_driver_instance,
                memcached_client_instance,
@@ -73,14 +77,33 @@ def initialize(valid_yaml_file,
     global _schema
     global _uuid_api_url
     global _ingest_api_url
+    global _ontology_api_url
     global _auth_helper
     global _neo4j_driver
     global _memcached_client
     global _memcached_prefix
 
     _schema = load_provenance_schema(valid_yaml_file)
-    _uuid_api_url = uuid_api_url
-    _ingest_api_url = ingest_api_url
+    if uuid_api_url is not None:
+        _uuid_api_url = uuid_api_url
+    else:
+        msg = f"Unable to initialize schema manager with uuid_api_url={uuid_api_url}."
+        logger.critical(msg=msg)
+        raise Exception(msg)
+
+    if ingest_api_url is not None:
+        _ingest_api_url = ingest_api_url
+    else:
+        msg = f"Unable to initialize schema manager with ingest_api_url={ingest_api_url}."
+        logger.critical(msg=msg)
+        raise Exception(msg)
+
+    if ontology_api_url is not None:
+        _ontology_api_url = ontology_api_url
+    else:
+        msg = f"Unable to initialize schema manager with ontology_api_url={ontology_api_url}."
+        logger.critical(msg=msg)
+        raise Exception(msg)
 
     # Get the helper instances
     _auth_helper = auth_helper_instance
@@ -839,7 +862,7 @@ def execute_entity_level_validator(validator_type, normalized_entity_type, reque
             except schema_errors.InvalidApplicationHeaderException as e: 
                 raise schema_errors.InvalidApplicationHeaderException(e)
             except Exception:
-                msg = f"Failed to call the {validator_type} method: {validator_method_name} defiend for entity {normalized_entity_type}"
+                msg = f"Failed to call the {validator_type} method: {validator_method_name} defined for entity {normalized_entity_type}"
                 # Log the full stack trace, prepend a line with our message
                 logger.exception(msg)
 
@@ -892,11 +915,16 @@ def execute_property_level_validators(validator_type, normalized_entity_type, re
                     raise schema_errors.InvalidApplicationHeaderException(e)
                 except ValueError as ve:
                     raise ValueError(ve)
-                except Exception as e:
+                except schema_errors.UnimplementedValidatorException as uve:
                     msg = f"Failed to call the {validator_type} method: {validator_method_name} defined for entity {normalized_entity_type} on property {key}"
                     # Log the full stack trace, prepend a line with our message
+                    logger.exception(f"{msg}. {str(uve)}")
+                    raise uve
+                except Exception as e:
+                    msg = f"Unexpected exception @TODO-KBKBKB calling {validator_type} method: {validator_method_name} defined for entity {normalized_entity_type} on property {key}"
+                    # Log the full stack trace, prepend a line with our message
                     logger.exception(f"{msg}. {str(e)}")
-
+                    raise e
 
 """
 Get a list of entity types that can be used as derivation source in the schmea yaml
@@ -1206,7 +1234,7 @@ dict
 def get_hubmap_ids(id):
     global _uuid_api_url
 
-    target_url = _uuid_api_url + '/uuid/' + id
+    target_url = _uuid_api_url + SchemaConstants.UUID_API_ID_ENDPOINT + '/' + id
 
     # Use Memcached to improve performance
     response = make_request_get(target_url, internal_token_used = True)
@@ -1233,6 +1261,86 @@ def get_hubmap_ids(id):
         # Also bubble up the error message from uuid-api
         raise requests.exceptions.RequestException(response.text)
 
+
+"""
+Helper function to use the Ontology API to retrieve a valueset from UBKG containing
+allowed values for soft assays, which can be set on the beginning of (part before
+square brackets containing anything) the Dataset dataset_type field.
+
+Examples of valid dataset_type values are "RNASeq" and "CODEX [cytokit, image_pyramid]" 
+
+Parameters
+----------
+N/A: This help encapsulates hard-coded strings for soft assay values from the HUBMAP
+     source vocabulary of UBKG.
+
+Returns
+-------
+List of String values for each element in the UBKG valueset for valid dataset_type soft assay entries.
+['Histology','Molecular Cartography',...]
+"""
+def get_dataset_type_valueset_list():
+    # Use the Ontology API to get JSON for allowed terms.
+    ubkg_valueset = get_valueset(parent_vocabulary_sab='HUBMAP'
+                                 ,parent_vocabulary_valueset_code='C003041'
+                                 ,value_preferred_vocabulary_sab='HUBMAP')
+    # Extract the term elements from the JSON into a list to be returned.
+    return [v['term'] for v in ubkg_valueset]
+
+"""
+Use the Ontology API valueset endpoint to retrieve the UBKG valueset for a particular
+"parent" vocabulary & term.  The preferred vocabulary which each "child" element of the valueset
+comes from is also specified.
+
+Parameters
+----------
+parent_vocabulary_sab: The source vocabulary (SAB) recognized by UBKG to which parent_vocabulary_valueset_code belongs.
+
+parent_vocabulary_valueset_code: A code from parent_vocabulary_sab which is the parent of all elements of the valueset.
+
+value_preferred_vocabulary_sab: The source vocabulary (SAB) preferred for each term in the dataset.  It is common, but
+not required, that parent_vocabulary_sab and value_preferred_vocabulary_sab are the same i.e. specify a parent code
+from the HUBMAP vocabulary and return terms from the HUBMAP vocabulary.
+@TODO-KBKBKB determine if it is advisable to check the "sab" element of each term dictionary the Ontology API returns or if UBKG assures coverage such that we would never get a "sab" element which did not match value_preferred_vocabulary_sab.
+
+Returns
+-------
+JSON response from the Ontology API, which is a list of dictionaries, each containing "code", "sab", and "term" elements.
+[
+    {"code": "C003047", "sab": "HUBMAP", "term": "Histology"},
+    {"code": "C003051", "sab": "HUBMAP", "term": "Molecular Cartography"},
+    ...
+]
+"""
+def get_valueset(parent_vocabulary_sab, parent_vocabulary_valueset_code, value_preferred_vocabulary_sab):
+    global _ontology_api_url
+
+    target_url = f"{_ontology_api_url}/valueset" \
+                 f"?parent_sab={parent_vocabulary_sab}" \
+                 f"&parent_code={parent_vocabulary_valueset_code}" \
+                 f"&child_sabs={value_preferred_vocabulary_sab}"
+
+    # Use Memcached to improve performance
+    response = make_request_get(target_url, internal_token_used = True)
+
+    # Invoke .raise_for_status(), an HTTPError will be raised with certain status codes
+    response.raise_for_status()
+
+    if response.status_code == 200:
+        return response.json()
+    else:
+        msg = f"Unable to make a request to query the UBKG via ontology-api: {target_url}"
+        # Log the full stack trace, prepend a line with our message
+        logger.exception(msg)
+
+        logger.debug("======get_valueset() status code from ontology-api======")
+        logger.debug(response.status_code)
+
+        logger.debug("======get_valueset() response text from ontology-api======")
+        logger.debug(response.text)
+
+        # Also bubble up the error message from uuid-api
+        raise requests.exceptions.RequestException(response.text)
 
 """
 Create a set of new ids for the new entity to be created
@@ -1351,7 +1459,6 @@ def create_hubmap_ids(normalized_class, json_data_dict, user_token, user_info_di
             parent_id = json_data_dict['direct_ancestor_uuid']
             json_to_post['parent_ids'] = [parent_id]
 
-            # specimen_type -> sample_category 12/15/2022
             # 'Sample.sample_category' is marked as `required_on_create` in the schema yaml
             if json_data_dict['sample_category'].lower() == 'organ':
                 # The 'organ' field containing the 2 digit organ code is required in this case
@@ -1369,7 +1476,7 @@ def create_hubmap_ids(normalized_class, json_data_dict, user_token, user_info_di
     logger.info(json_to_post)
 
     # Disable ssl certificate verification
-    target_url = _uuid_api_url + '/uuid'
+    target_url = _uuid_api_url + SchemaConstants.UUID_API_ID_ENDPOINT
     response = requests.post(url = target_url, headers = request_headers, json = json_to_post, verify = False, params = query_parms)
     
     # Invoke .raise_for_status(), an HTTPError will be raised with certain status codes
@@ -1766,6 +1873,114 @@ def delete_memcached_cache(uuids_list):
         _memcached_client.delete_many(cache_keys)
 
         logger.info(f"Deleted cache by key: {', '.join(cache_keys)}")
+
+
+"""
+Retrieve the organ types from ontology-api
+
+Returns
+-------
+dict
+    The available organ types in the following format:
+
+    {
+        "AO": "Aorta",
+        "BD": "Blood",
+        "BL": "Bladder",
+        "BM": "Bone Marrow",
+        "BR": "Brain",
+        "HT": "Heart",
+        ...
+    }
+"""
+def get_organ_types():
+    global _ontology_api_url
+
+    target_url = _ontology_api_url + SchemaConstants.ONTOLOGY_API_ORGAN_TYPES_ENDPOINT
+
+    # Use Memcached to improve performance
+    response = make_request_get(target_url, internal_token_used = True)
+
+    # Invoke .raise_for_status(), an HTTPError will be raised with certain status codes
+    response.raise_for_status()
+
+    if response.status_code == 200:
+        return response.json()
+    else:
+        # Log the full stack trace, prepend a line with our message
+        logger.exception("Unable to make a request to query the organ types via ontology-api")
+
+        logger.debug("======get_organ_types() status code from ontology-api======")
+        logger.debug(response.status_code)
+
+        logger.debug("======get_organ_types() response text from ontology-api======")
+        logger.debug(response.text)
+
+        # Also bubble up the error message from ontology-api
+        raise requests.exceptions.RequestException(response.text)
+
+
+"""
+Retrieve the assay types from ontology-api
+
+Returns
+-------
+dict
+    The available assay types by name in the following format:
+
+    {
+        "10x-multiome": {
+            "contains_pii": true,
+            "description": "10x Multiome",
+            "name": "10x-multiome",
+            "primary": true,
+            "vis_only": false,
+            "vitessce_hints": []
+        },
+        "AF": {
+            "contains_pii": false,
+            "description": "Autofluorescence Microscopy",
+            "name": "AF",
+            "primary": true,
+            "vis_only": false,
+            "vitessce_hints": []
+        },
+        ...
+    }
+"""
+def get_assay_types():
+    global _ontology_api_url
+
+    target_url = _ontology_api_url + SchemaConstants.ONTOLOGY_API_ASSAY_TYPES_ENDPOINT
+
+    # Use Memcached to improve performance
+    response = make_request_get(target_url, internal_token_used = True)
+
+    # Invoke .raise_for_status(), an HTTPError will be raised with certain status codes
+    response.raise_for_status()
+
+    if response.status_code == 200:
+        assay_types_by_name = {}
+        result_dict = response.json()
+
+        # Due to the json envelop being used int the json result
+        assay_types_list = result_dict['result']
+        for assay_type_dict in assay_types_list:
+            assay_types_by_name[assay_type_dict['name']] = assay_type_dict
+
+        return assay_types_by_name
+    else:
+        # Log the full stack trace, prepend a line with our message
+        logger.exception("Unable to make a request to query the assay types via ontology-api")
+
+        logger.debug("======get_assay_types() status code from ontology-api======")
+        logger.debug(response.status_code)
+
+        logger.debug("======get_assay_types() response text from ontology-api======")
+        logger.debug(response.text)
+
+        # Also bubble up the error message from ontology-api
+        raise requests.exceptions.RequestException(response.text)
 
 
 ####################################################################################################

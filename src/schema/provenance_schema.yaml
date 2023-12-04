@@ -332,6 +332,14 @@ ENTITIES:
         type: list
         required_on_create: true # Only required for create via POST, not update via PUT
         description: "The data or assay types contained in this dataset as a json array of strings.  Each is an assay code from [assay types](https://github.com/hubmapconsortium/search-api/blob/main/src/search-schema/data/definitions/enums/assay_types.yaml)."
+      dataset_type:
+        before_property_create_validators:
+          - validate_recognized_dataset_type
+        before_property_update_validators:
+          - validate_recognized_dataset_type
+        type: string
+        required_on_create: false # Once replaces data_types, will be required for create via POST, not update via PUT
+        description: "The assay types of this Dataset. Valid values are from UBKG are queried by schema_manager.get_valueset_dataset_type() using the Ontology API."
       collections:
         type: list
         transient: true
@@ -901,33 +909,6 @@ ENTITIES:
           - validate_sample_category
         before_property_update_validators:
           - validate_sample_category
-
-      # No logner required on create, specimen_type -> sample_category 12/15/2022
-      specimen_type:
-        type: string
-        #required_on_create: true # Only required for create via POST, not update via PUT
-        description: "A code representing the type of specimen.  Must be one of the codes specified in: [tissue sample types](https://github.com/hubmapconsortium/search-api/blob/main/src/search-schema/data/definitions/enums/tissue_sample_types.yaml)"
-        # Validate the given value against the definitions: https://github.com/hubmapconsortium/search-api/blob/main/src/search-schema/data/definitions/enums/tissue_sample_types.yaml
-        # Disabled validation 12/15/2022
-        # before_property_create_validators:
-        #   - validate_specimen_type
-        # before_property_update_validators:
-        #   - validate_specimen_type
-      specimen_type_other:
-        type: string
-        description: "The user provided sample type if the 'other' sample_type is chosen."
-      
-
-      # specimen_type no logner required on create, will remove this field when removing specimen_type
-      # Simply always set to 'Unknown' and no need to update 12/15/2022
-      tissue_type:
-        type: string
-        generated: true # Can not be updated via the PUT
-        #auto_update: true # Will always update automatically if the entity gets updated
-        description: 'The type of the tissue based on the mapping between type (Block/Section/Suspension) and the specimen_type, default is Unknown'
-        before_create_trigger: set_tissue_type
-        #before_update_trigger: set_tissue_type
-
       portal_metadata_upload_files:
         type: json_string
         description: "A list of relative paths to metadata files"
@@ -940,6 +921,34 @@ ENTITIES:
         #todo: migrate to new attribute set as above portal_metadata_upload files
         type: json_string
         description: "A list of uploaded image files and descriptions of the files."
+      thumbnail_file:
+        generated: true
+        type: json_string
+        description: "The dataset thumbnail file detail. Stored in db as a stringfied json, e.g., {'filename': 'thumbnail.jpg', 'file_uuid': 'dadasdasdadda'}"
+        # The updated_peripherally tag is a temporary measure to correctly handle any attributes
+        # which are potentially updated by multiple triggers
+        updated_peripherally: true
+      thumbnail_file_to_add:
+        type: json_string 
+        transient: true
+        exposed: false
+        description: 'Just a temporary file id. Provide as a json object with an temp_file_id like {"temp_file_id":"dzevgd6xjs4d5grmcp4n"}'
+        before_create_trigger: commit_thumbnail_file
+        # This before_update_trigger with the same commit process can be used by ingest-api to update the dataset via PUT call
+        before_update_trigger: commit_thumbnail_file
+        # The updated_peripherally tag is a temporary measure to correctly handle any attributes
+        # which are potentially updated by multiple triggers
+        updated_peripherally: true
+      thumbnail_file_to_remove:
+        # This is only valid on update via a PUT request
+        type: string 
+        transient: true
+        exposed: false
+        description: 'The thumbnail image file previously uploaded to delete. Provide as a string of the file_uuid like: "232934234234234234234270c0ea6c51d604a850558ef2247d0b4"'
+        before_update_trigger: delete_thumbnail_file
+        # The updated_peripherally tag is a temporary measure to correctly handle any attributes
+        # which are potentially updated by multiple triggers
+        updated_peripherally: true
       # A user who is a member of multiple groups HAS to send in the group_uuid 
       group_uuid:
         type: string
@@ -953,7 +962,6 @@ ENTITIES:
         immutable: true
         description: "The displayname of globus group which the user who created this entity is a member of"
         before_create_trigger: set_group_name
-      # Should be required on create only when specimen_type==organ
       organ:
         type: string
         description: "Organ code specifier, only set if sample_type == organ.  Valid values found in: [organ types](https://github.com/hubmapconsortium/search-api/blob/main/src/search-schema/data/definitions/enums/organ_types.yaml)"

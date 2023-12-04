@@ -1,3 +1,5 @@
+import re
+
 import yaml
 import logging
 import requests
@@ -40,6 +42,36 @@ def validate_application_header_before_entity_create(normalized_entity_type, req
 ##############################################################################################
 ## Property Level Validators
 ####################################################################################################
+
+
+"""
+@TODO-KBKBKB redo doc...
+Validate the specified value for a Dataset's dataset_type is in the valueset UBKG recognizes. 
+
+Parameters
+----------
+property_key : str
+    The target property key
+normalized_type : str
+    Submission
+request: Flask request object
+    The instance of Flask request passed in from application request
+existing_data_dict : dict
+    A dictionary that contains all existing entity properties
+new_data_dict : dict
+    The json data in request body, already after the regular validations
+"""
+def validate_recognized_dataset_type(property_key, normalized_entity_type, request, existing_data_dict, new_data_dict):
+    # If the proposed Dataset dataset_type ends with something in square brackets, anything inside
+    # those square brackets are acceptable at the end of the string.  Simply validate the start.
+    proposed_dataset_type_prefix = re.sub(pattern='[ ]*\[.*]$', repl='', string=new_data_dict['dataset_type'])
+    target_list = schema_manager.get_dataset_type_valueset_list()
+
+    if proposed_dataset_type_prefix not in target_list:
+        raise ValueError(f"Proposed Dataset dataset_type '{proposed_dataset_type_prefix}'"
+                         f" is not recognized in the existing ontology."
+                         f" Valid values are: {str(target_list)}.")
+
 
 """
 Validate the target list has no duplicated items
@@ -605,4 +637,3 @@ def _get_tissue_types():
 
         # Also bubble up the error message
         raise requests.exceptions.RequestException(response.text)
-
