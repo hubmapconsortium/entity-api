@@ -190,7 +190,14 @@ if MEMCACHED_MODE:
 ## Schema initialization
 ####################################################################################################
 
+
 try:
+    try:
+        _schema_yaml_file = app.config['SCHEMA_YAML_FILE']
+    except KeyError as ke:
+        logger.error("Expected configuration failed to load %s from app_config=%s.", ke, app.config)
+        raise Exception("Expected configuration failed to load. See the logs.")
+
     # The schema_manager is a singleton module
     # Pass in auth_helper_instance, neo4j_driver instance, and memcached_client_instance
     schema_manager.initialize(app.config['SCHEMA_YAML_FILE'],
@@ -261,7 +268,6 @@ ACCESS_LEVEL_CONSORTIUM = SchemaConstants.ACCESS_LEVEL_CONSORTIUM
 ACCESS_LEVEL_PROTECTED = SchemaConstants.ACCESS_LEVEL_PROTECTED
 DATASET_STATUS_PUBLISHED = SchemaConstants.DATASET_STATUS_PUBLISHED
 COMMA_SEPARATOR = ','
-
 
 ####################################################################################################
 ## API Endpoints
@@ -931,6 +937,8 @@ def create_entity(entity_type):
     # Currently only ValueError
     except ValueError as e:
         bad_request_error(e)
+    except schema_errors.UnimplementedValidatorException as uve:
+        internal_server_error(uve)
 
     # Additional validation for Sample entities
     if normalized_entity_type == 'Sample':
@@ -2666,7 +2674,8 @@ def get_prov_info():
     HEADER_DATASET_DATE_TIME_MODIFIED = 'dataset_date_time_modified'
     HEADER_DATASET_MODIFIED_BY_EMAIL = 'dataset_modified_by_email'
     HEADER_DATASET_LAB_ID = 'lab_id_or_name'
-    HEADER_DATASET_DATA_TYPES = 'dataset_data_types'
+    HEADER_DATASET_DATA_TYPES = 'dataset_data_types' # TODO-eliminate when HEADER_DATASET_DATASET_TYPE is required
+    HEADER_DATASET_DATASET_TYPE = 'dataset_dataset_type'
     HEADER_DATASET_PORTAL_URL = 'dataset_portal_url'
     HEADER_FIRST_SAMPLE_HUBMAP_ID = 'first_sample_hubmap_id'
     HEADER_FIRST_SAMPLE_SUBMISSION_ID = 'first_sample_submission_id'
@@ -2693,11 +2702,12 @@ def get_prov_info():
     HEADER_PROCESSED_DATASET_PORTAL_URL = 'processed_dataset_portal_url'
     HEADER_PREVIOUS_VERSION_HUBMAP_IDS = 'previous_version_hubmap_ids'
 
+    # TODO-Eliminate HEADER_DATASET_DATA_TYPES once HEADER_DATASET_DATASET_TYPE is required.
     headers = [
         HEADER_DATASET_UUID, HEADER_DATASET_HUBMAP_ID, HEADER_DATASET_STATUS, HEADER_DATASET_GROUP_NAME,
         HEADER_DATASET_GROUP_UUID, HEADER_DATASET_DATE_TIME_CREATED, HEADER_DATASET_CREATED_BY_EMAIL,
         HEADER_DATASET_DATE_TIME_MODIFIED, HEADER_DATASET_MODIFIED_BY_EMAIL, HEADER_DATASET_LAB_ID,
-        HEADER_DATASET_DATA_TYPES, HEADER_DATASET_PORTAL_URL, HEADER_FIRST_SAMPLE_HUBMAP_ID,
+        HEADER_DATASET_DATA_TYPES, HEADER_DATASET_DATASET_TYPE, HEADER_DATASET_PORTAL_URL, HEADER_FIRST_SAMPLE_HUBMAP_ID,
         HEADER_FIRST_SAMPLE_SUBMISSION_ID, HEADER_FIRST_SAMPLE_UUID, HEADER_FIRST_SAMPLE_TYPE,
         HEADER_FIRST_SAMPLE_PORTAL_URL, HEADER_ORGAN_HUBMAP_ID, HEADER_ORGAN_SUBMISSION_ID, HEADER_ORGAN_UUID,
         HEADER_ORGAN_TYPE, HEADER_DONOR_HUBMAP_ID, HEADER_DONOR_SUBMISSION_ID, HEADER_DONOR_UUID,
@@ -2790,6 +2800,8 @@ def get_prov_info():
 
         # Data type codes are replaced with data type descriptions
         assay_description_list = []
+        # TODO BEGIN evaluate elimination of this block, if it is still in place following the YAML-to-UBKG effort on https://github.com/hubmapconsortium/entity-api/issues/494,
+        # and once dataset['dataset_type'] is required and dataset['data_types'] removed.
         for item in dataset['data_types']:
             try:
                 assay_description_list.append(assay_types_dict[item]['description'])
@@ -2805,6 +2817,8 @@ def get_prov_info():
         # If return_format was not equal to json, json arrays must be converted into comma separated lists for the tsv
         if return_json is False:
             internal_dict[HEADER_DATASET_DATA_TYPES] = ",".join(dataset['data_types'])
+        # TODO END evaluate elimination of this block, if it is still in place following the YAML-to-UBKG effort on https://github.com/hubmapconsortium/entity-api/issues/494,
+        # and once dataset['dataset_type'] is required and dataset['data_types'] removed.
 
         internal_dict[HEADER_DATASET_PORTAL_URL] = app.config['DOI_REDIRECT_URL'].replace('<entity_type>', 'dataset').replace('<identifier>', dataset['uuid'])
 
@@ -3041,7 +3055,8 @@ def get_prov_info_for_dataset(id):
     HEADER_DATASET_DATE_TIME_MODIFIED = 'dataset_date_time_modified'
     HEADER_DATASET_MODIFIED_BY_EMAIL = 'dataset_modified_by_email'
     HEADER_DATASET_LAB_ID = 'lab_id_or_name'
-    HEADER_DATASET_DATA_TYPES = 'dataset_data_types'
+    HEADER_DATASET_DATA_TYPES = 'dataset_data_types' # TODO-eliminate when HEADER_DATASET_DATASET_TYPE is required
+    HEADER_DATASET_DATASET_TYPE = 'dataset_dataset_type'
     HEADER_DATASET_PORTAL_URL = 'dataset_portal_url'
     HEADER_DATASET_SAMPLES = 'dataset_samples'
     HEADER_FIRST_SAMPLE_HUBMAP_ID = 'first_sample_hubmap_id'
@@ -3068,11 +3083,12 @@ def get_prov_info_for_dataset(id):
     HEADER_PROCESSED_DATASET_STATUS = 'processed_dataset_status'
     HEADER_PROCESSED_DATASET_PORTAL_URL = 'processed_dataset_portal_url'
 
+    # TODO-Eliminate HEADER_DATASET_DATA_TYPES once HEADER_DATASET_DATASET_TYPE is required.
     headers = [
         HEADER_DATASET_UUID, HEADER_DATASET_HUBMAP_ID, HEADER_DATASET_STATUS, HEADER_DATASET_GROUP_NAME,
         HEADER_DATASET_GROUP_UUID, HEADER_DATASET_DATE_TIME_CREATED, HEADER_DATASET_CREATED_BY_EMAIL,
         HEADER_DATASET_DATE_TIME_MODIFIED, HEADER_DATASET_MODIFIED_BY_EMAIL, HEADER_DATASET_LAB_ID,
-        HEADER_DATASET_DATA_TYPES, HEADER_DATASET_PORTAL_URL, HEADER_FIRST_SAMPLE_HUBMAP_ID,
+        HEADER_DATASET_DATA_TYPES, HEADER_DATASET_DATASET_TYPE, HEADER_DATASET_PORTAL_URL, HEADER_FIRST_SAMPLE_HUBMAP_ID,
         HEADER_FIRST_SAMPLE_SUBMISSION_ID, HEADER_FIRST_SAMPLE_UUID, HEADER_FIRST_SAMPLE_TYPE,
         HEADER_FIRST_SAMPLE_PORTAL_URL, HEADER_ORGAN_HUBMAP_ID, HEADER_ORGAN_SUBMISSION_ID, HEADER_ORGAN_UUID,
         HEADER_ORGAN_TYPE, HEADER_DONOR_HUBMAP_ID, HEADER_DONOR_SUBMISSION_ID, HEADER_DONOR_UUID,
@@ -3111,6 +3127,8 @@ def get_prov_info_for_dataset(id):
 
     # Data type codes are replaced with data type descriptions
     assay_description_list = []
+    # TODO BEGIN evaluate elimination of this block, if it is still in place following the YAML-to-UBKG effort on https://github.com/hubmapconsortium/entity-api/issues/494,
+    # and once dataset['dataset_type'] is required and dataset['data_types'] removed.
     for item in dataset['data_types']:
         try:
             assay_description_list.append(assay_types_dict[item]['description'])
@@ -3124,6 +3142,11 @@ def get_prov_info_for_dataset(id):
     internal_dict[HEADER_DATASET_DATA_TYPES] = dataset['data_types']
     if return_json is False:
         internal_dict[HEADER_DATASET_DATA_TYPES] = ",".join(dataset['data_types'])
+    # TODO END evaluate elimination of this block, if it is still in place following the YAML-to-UBKG effort on https://github.com/hubmapconsortium/entity-api/issues/494,
+    # and once dataset['dataset_type'] is required and dataset['data_types'] removed.
+
+    internal_dict[HEADER_DATASET_DATASET_TYPE] = dataset['dataset_type']
+
     internal_dict[HEADER_DATASET_PORTAL_URL] = app.config['DOI_REDIRECT_URL'].replace('<entity_type>', 'dataset').replace(
         '<identifier>', dataset['uuid'])
     if dataset['first_sample'] is not None:
@@ -3295,7 +3318,7 @@ Returns
 -------
 json
     a json array. Each item in the array corresponds to a dataset. Each dataset has the values: dataset_group_name, 
-    organ_type, dataset_data_types, and dataset_status, each of which is a string. 
+    organ_type, dataset_data_types, and dataset_status, each of which is a string. # TODO-integrate dataset_dataset_type to documentation.
 
 """
 @app.route('/datasets/sankey_data', methods=['GET'])
@@ -3303,7 +3326,8 @@ def sankey_data():
     # String constants
     HEADER_DATASET_GROUP_NAME = 'dataset_group_name'
     HEADER_ORGAN_TYPE = 'organ_type'
-    HEADER_DATASET_DATA_TYPES = 'dataset_data_types'
+    HEADER_DATASET_DATA_TYPES = 'dataset_data_types' # TODO-eliminate when HEADER_DATASET_DATASET_TYPE is required
+    HEADER_DATASET_DATASET_TYPE = 'dataset_dataset_type'
     HEADER_DATASET_STATUS = 'dataset_status'
 
     with open('sankey_mapping.json') as f:
@@ -3335,6 +3359,7 @@ def sankey_data():
             internal_dict = collections.OrderedDict()
             internal_dict[HEADER_DATASET_GROUP_NAME] = dataset[HEADER_DATASET_GROUP_NAME]
 
+            # TODO BEGIN evaluate elimination of this block once dataset['dataset_type'] is required and dataset['data_types'] removed.
             organ_code = dataset[HEADER_ORGAN_TYPE].upper()
             validate_organ_code(organ_code)
 
@@ -3357,6 +3382,8 @@ def sankey_data():
                 internal_dict[HEADER_DATASET_GROUP_NAME] = mapping_dict[internal_dict[HEADER_DATASET_GROUP_NAME]]
             if internal_dict[HEADER_DATASET_DATA_TYPES] in mapping_dict.keys():
                 internal_dict[HEADER_DATASET_DATA_TYPES] = mapping_dict[internal_dict[HEADER_DATASET_DATA_TYPES]]
+            # TODO END evaluate elimination of this block, if it is still in place following the YAML-to-UBKG effort on https://github.com/hubmapconsortium/entity-api/issues/494,
+            # and once dataset['dataset_type'] is required and dataset['data_types'] removed.
 
             # Each dataset's dictionary is added to the list to be returned
             dataset_sankey_list.append(internal_dict)
@@ -3534,16 +3561,17 @@ Returns
 json
     an array of each unpublished dataset.
     fields: ("data_types", "donor_hubmap_id", "donor_submission_id", "hubmap_id", "organ", "organization", 
-             "provider_experiment_id", "uuid")
+             "provider_experiment_id", "uuid")  # TODO-integrate dataset_dataset_type to documentation.
 tsv
     a text/tab-seperated-value document including each unpublished dataset.
     fields: ("data_types", "donor_hubmap_id", "donor_submission_id", "hubmap_id", "organ", "organization", 
-             "provider_experiment_id", "uuid")
+             "provider_experiment_id", "uuid")  # TODO-integrate dataset_dataset_type to documentation.
 """
 @app.route('/datasets/unpublished', methods=['GET'])
 def unpublished():
     # String constraints
-    HEADER_DATA_TYPES = "data_types"
+    HEADER_DATA_TYPES = "data_types" # TODO-eliminate when HEADER_DATASET_TYPE is required
+    HEADER_DATASET_TYPE = 'dataset_type'
     HEADER_ORGANIZATION = "organization"
     HEADER_UUID = "uuid"
     HEADER_HUBMAP_ID = "hubmap_id"
@@ -3552,8 +3580,9 @@ def unpublished():
     HEADER_SUBMISSION_ID = "donor_submission_id"
     HEADER_PROVIDER_EXPERIMENT_ID = "provider_experiment_id"
 
+    # TODO-Eliminate HEADER_DATA_TYPES once HEADER_DATASET_TYPE is required.
     headers = [
-        HEADER_DATA_TYPES, HEADER_ORGANIZATION, HEADER_UUID, HEADER_HUBMAP_ID, HEADER_ORGAN, HEADER_DONOR_HUBMAP_ID,
+        HEADER_DATA_TYPES, HEADER_DATASET_TYPE, HEADER_ORGANIZATION, HEADER_UUID, HEADER_HUBMAP_ID, HEADER_ORGAN, HEADER_DONOR_HUBMAP_ID,
         HEADER_SUBMISSION_ID, HEADER_PROVIDER_EXPERIMENT_ID
     ]
 
