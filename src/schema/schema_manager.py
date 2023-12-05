@@ -51,9 +51,11 @@ Parameters
 valid_yaml_file : file
     A valid yaml file
 uuid_api_url : str
-    The uuid-api URL
+    The uuid-api base URL
 ingest_api_url : str
-    The ingest-api URL
+    The ingest-api base URL
+ontology_api_url : str
+    The ontology-api base URL
 auth_helper_instance : AuthHelper
     The auth helper instance
 neo4j_driver_instance : neo4j_driver
@@ -1232,7 +1234,7 @@ dict
 def get_hubmap_ids(id):
     global _uuid_api_url
 
-    target_url = _uuid_api_url + '/uuid/' + id
+    target_url = _uuid_api_url + SchemaConstants.UUID_API_ID_ENDPOINT + '/' + id
 
     # Use Memcached to improve performance
     response = make_request_get(target_url, internal_token_used = True)
@@ -1457,7 +1459,6 @@ def create_hubmap_ids(normalized_class, json_data_dict, user_token, user_info_di
             parent_id = json_data_dict['direct_ancestor_uuid']
             json_to_post['parent_ids'] = [parent_id]
 
-            # specimen_type -> sample_category 12/15/2022
             # 'Sample.sample_category' is marked as `required_on_create` in the schema yaml
             if json_data_dict['sample_category'].lower() == 'organ':
                 # The 'organ' field containing the 2 digit organ code is required in this case
@@ -1475,7 +1476,7 @@ def create_hubmap_ids(normalized_class, json_data_dict, user_token, user_info_di
     logger.info(json_to_post)
 
     # Disable ssl certificate verification
-    target_url = _uuid_api_url + '/uuid'
+    target_url = _uuid_api_url + SchemaConstants.UUID_API_ID_ENDPOINT
     response = requests.post(url = target_url, headers = request_headers, json = json_to_post, verify = False, params = query_parms)
     
     # Invoke .raise_for_status(), an HTTPError will be raised with certain status codes
@@ -1872,6 +1873,114 @@ def delete_memcached_cache(uuids_list):
         _memcached_client.delete_many(cache_keys)
 
         logger.info(f"Deleted cache by key: {', '.join(cache_keys)}")
+
+
+"""
+Retrive the organ types from ontology-api
+
+Returns
+-------
+dict
+    The available organ types in the following format:
+
+    {
+        "AO": "Aorta",
+        "BD": "Blood",
+        "BL": "Bladder",
+        "BM": "Bone Marrow",
+        "BR": "Brain",
+        "HT": "Heart",
+        ...
+    }
+"""
+def get_organ_types():
+    global _ontology_api_url
+
+    target_url = _ontology_api_url + SchemaConstants.ONTOLOGY_API_ORGAN_TYPES_ENDPOINT
+
+    # Use Memcached to improve performance
+    response = make_request_get(target_url, internal_token_used = True)
+
+    # Invoke .raise_for_status(), an HTTPError will be raised with certain status codes
+    response.raise_for_status()
+
+    if response.status_code == 200:
+        return response.json()
+    else:
+        # Log the full stack trace, prepend a line with our message
+        logger.exception("Unable to make a request to query the organ types via ontology-api")
+
+        logger.debug("======get_organ_types() status code from ontology-api======")
+        logger.debug(response.status_code)
+
+        logger.debug("======get_organ_types() response text from ontology-api======")
+        logger.debug(response.text)
+
+        # Also bubble up the error message from ontology-api
+        raise requests.exceptions.RequestException(response.text)
+
+
+"""
+Retrive the assay types from ontology-api
+
+Returns
+-------
+dict
+    The available assay types by name in the following format:
+
+    {
+        "10x-multiome": {
+            "contains_pii": true,
+            "description": "10x Multiome",
+            "name": "10x-multiome",
+            "primary": true,
+            "vis_only": false,
+            "vitessce_hints": []
+        },
+        "AF": {
+            "contains_pii": false,
+            "description": "Autofluorescence Microscopy",
+            "name": "AF",
+            "primary": true,
+            "vis_only": false,
+            "vitessce_hints": []
+        },
+        ...
+    }
+"""
+def get_assay_types():
+    global _ontology_api_url
+
+    target_url = _ontology_api_url + SchemaConstants.ONTOLOGY_API_ASSAY_TYPES_ENDPOINT
+
+    # Use Memcached to improve performance
+    response = make_request_get(target_url, internal_token_used = True)
+
+    # Invoke .raise_for_status(), an HTTPError will be raised with certain status codes
+    response.raise_for_status()
+
+    if response.status_code == 200:
+        assay_types_by_name = {}
+        result_dict = response.json()
+
+        # Due to the json envelop being used int the json result
+        assay_types_list = result_dict['result']
+        for assay_type_dict in assay_types_list:
+            assay_types_by_name[assay_type_dict['name']] = assay_type_dict
+
+        return assay_types_by_name
+    else:
+        # Log the full stack trace, prepend a line with our message
+        logger.exception("Unable to make a request to query the assay types via ontology-api")
+
+        logger.debug("======get_assay_types() status code from ontology-api======")
+        logger.debug(response.status_code)
+
+        logger.debug("======get_assay_types() response text from ontology-api======")
+        logger.debug(response.text)
+
+        # Also bubble up the error message from ontology-api
+        raise requests.exceptions.RequestException(response.text)
 
 
 ####################################################################################################

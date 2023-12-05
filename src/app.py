@@ -44,9 +44,6 @@ from hubmap_commons.exceptions import HTTPException
 global logger
 
 # Set logging format and level (default is warning)
-# All the API logging is forwarded to the uWSGI server and gets written into the log file `log/uwsgi-entity-api.log`
-# Log rotation is handled via logrotate on the host system with a configuration file
-# Do NOT handle log file and rotation via the Python logging to avoid issues with multi-worker processes
 logging.basicConfig(format='[%(asctime)s] %(levelname)s in %(module)s: %(message)s', level=logging.DEBUG, datefmt='%Y-%m-%d %H:%M:%S')
 
 # Use `getLogger()` instead of `getLogger(__name__)` to apply the config to the root logger
@@ -445,7 +442,6 @@ def get_ancestor_organs(id):
         bad_request_error(f"Unable to get the ancestor organs for this: {normalized_entity_type},"
                           " supported entity types: Sample, Dataset, Publication")
 
-    # specimen_type -> sample_category 12/15/2022
     if normalized_entity_type == 'Sample' and entity_dict['sample_category'].lower() == 'organ':
         bad_request_error("Unable to get the ancestor organ of an organ.")
 
@@ -950,7 +946,6 @@ def create_entity(entity_type):
         # Check existence of the direct ancestor (either another Sample or Donor)
         direct_ancestor_dict = query_target_entity(direct_ancestor_uuid, user_token)
 
-        # specimen_type -> sample_category 12/15/2022
         # `sample_category` is required on create
         sample_category = json_data_dict['sample_category'].lower()
         
@@ -964,9 +959,8 @@ def create_entity(entity_type):
             # A valid organ code must be present in the `organ` field
             if ('organ' not in json_data_dict) or (json_data_dict['organ'].strip() == ''):
                 bad_request_error("A valid organ code is required when registering an organ associated with a Donor")
-
-            # Must be one of the defined organ codes
-            # https://github.com/hubmapconsortium/search-api/blob/main/src/search-schema/data/definitions/enums/organ_types.yaml
+            
+            # Must be a 2-letter alphabetic code and can be found in UBKG ontology-api
             validate_organ_code(json_data_dict['organ'])
         else:
             if 'organ' in json_data_dict:
@@ -1123,7 +1117,6 @@ def create_multiple_samples(count):
     # sample's direct ancestor is a Donor.
     # Must be one of the codes from: https://github.com/hubmapconsortium/search-api/blob/main/src/search-schema/data/definitions/enums/organ_types.yaml
     if direct_ancestor_dict['entity_type'] == 'Donor':
-        # specimen_type -> sample_category 12/15/2022
         # `sample_category` is required on create
         if json_data_dict['sample_category'].lower() != 'organ':
             bad_request_error("The sample_category must be organ since the direct ancestor is a Donor")
@@ -2734,26 +2727,12 @@ def get_prov_info():
 
     # Parsing the organ types yaml has to be done here rather than calling schema.schema_triggers.get_organ_description
     # because that would require using a urllib request for each dataset
-    response = schema_manager.make_request_get(SchemaConstants.ORGAN_TYPES_YAML)
-
-    if response.status_code == 200:
-        yaml_file = response.text
-        try:
-            organ_types_dict = yaml.safe_load(yaml_file)
-        except yaml.YAMLError as e:
-            raise yaml.YAMLError(e)
+    organ_types_dict = schema_manager.get_organ_types()
 
     # As above, we parse te assay type yaml here rather than calling the special method for it because this avoids
     # having to access the resource for every dataset.
-    response = schema_manager.make_request_get(SchemaConstants.ASSAY_TYPES_YAML)
-
-    if response.status_code == 200:
-        yaml_file = response.text
-        try:
-            assay_types_dict = yaml.safe_load(yaml_file)
-        except yaml.YAMLError as e:
-            raise yaml.YAMLError(e)
-
+    assay_types_dict = schema_manager.get_assay_types()
+    
     # Processing and validating query parameters
     accepted_arguments = ['format', 'organ', 'has_rui_info', 'dataset_status', 'group_uuid']
     return_json = False
@@ -2826,17 +2805,12 @@ def get_prov_info():
         for item in dataset['data_types']:
             try:
                 assay_description_list.append(assay_types_dict[item]['description'])
-            # Some data types aren't given by their code in the assay types yaml and are instead given as an alt name.
-            # In these cases, we have to search each assay type and see if the given code matches any alternate names.
             except KeyError:
-                valid_key = False
-                for each in assay_types_dict:
-                    if valid_key is False:
-                        if item in assay_types_dict[each]['alt-names']:
-                            assay_description_list.append(assay_types_dict[each]['description'])
-                            valid_key = True
-                if valid_key is False:
-                    assay_description_list.append(item)
+                logger.exception(f"Data type {item} not found in resulting assay types via ontology-api")
+
+                # Just use the data type value
+                assay_description_list.append(item)
+
         dataset['data_types'] = assay_description_list
         internal_dict[HEADER_DATASET_DATA_TYPES] = dataset['data_types']
 
@@ -2859,8 +2833,6 @@ def get_prov_info():
                 first_sample_hubmap_id_list.append(item['hubmap_id'])
                 first_sample_submission_id_list.append(item['submission_id'])
                 first_sample_uuid_list.append(item['uuid'])
-
-                # specimen_type -> sample_category 12/15/2022
                 first_sample_type_list.append(item['sample_category'])
 
                 first_sample_portal_url_list.append(app.config['DOI_REDIRECT_URL'].replace('<entity_type>', 'sample').replace('<identifier>', item['uuid']))
@@ -2886,7 +2858,11 @@ def get_prov_info():
                 distinct_organ_hubmap_id_list.append(item['hubmap_id'])
                 distinct_organ_submission_id_list.append(item['submission_id'])
                 distinct_organ_uuid_list.append(item['uuid'])
-                distinct_organ_type_list.append(organ_types_dict[item['organ']]['description'].lower())
+
+                organ_code = item['organ'].upper()
+                validate_organ_code(organ_code)
+
+                distinct_organ_type_list.append(organ_types_dict[organ_code].lower())
             internal_dict[HEADER_ORGAN_HUBMAP_ID] = distinct_organ_hubmap_id_list
             internal_dict[HEADER_ORGAN_SUBMISSION_ID] = distinct_organ_submission_id_list
             internal_dict[HEADER_ORGAN_UUID] = distinct_organ_uuid_list
@@ -3124,25 +3100,11 @@ def get_prov_info_for_dataset(id):
 
     # Parsing the organ types yaml has to be done here rather than calling schema.schema_triggers.get_organ_description
     # because that would require using a urllib request for each dataset
-    response = schema_manager.make_request_get(SchemaConstants.ORGAN_TYPES_YAML)
-
-    if response.status_code == 200:
-        yaml_file = response.text
-        try:
-            organ_types_dict = yaml.safe_load(yaml_file)
-        except yaml.YAMLError as e:
-            raise yaml.YAMLError(e)
+    organ_types_dict = schema_manager.get_organ_types()
 
     # As above, we parse te assay type yaml here rather than calling the special method for it because this avoids
     # having to access the resource for every dataset.
-    response = schema_manager.make_request_get(SchemaConstants.ASSAY_TYPES_YAML)
-
-    if response.status_code == 200:
-        yaml_file = response.text
-        try:
-            assay_types_dict = yaml.safe_load(yaml_file)
-        except yaml.YAMLError as e:
-            raise yaml.YAMLError(e)
+    assay_types_dict = schema_manager.get_assay_types()
 
     hubmap_ids = schema_manager.get_hubmap_ids(id)
 
@@ -3170,17 +3132,12 @@ def get_prov_info_for_dataset(id):
     for item in dataset['data_types']:
         try:
             assay_description_list.append(assay_types_dict[item]['description'])
-        # Some data types aren't given by their code in the assay types yaml and are instead given as an alt name.
-        # In these cases, we have to search each assay type and see if the given code matches any alternate names.
         except KeyError:
-            valid_key = False
-            for each in assay_types_dict:
-                if valid_key is False:
-                    if item in assay_types_dict[each]['alt-names']:
-                        assay_description_list.append(assay_types_dict[each]['description'])
-                        valid_key = True
-            if valid_key is False:
-                assay_description_list.append(item)
+            logger.exception(f"Data type {item} not found in resulting assay types via ontology-api")
+
+            # Just use the data type value
+            assay_description_list.append(item)
+
     dataset['data_types'] = assay_description_list
     internal_dict[HEADER_DATASET_DATA_TYPES] = dataset['data_types']
     if return_json is False:
@@ -3202,8 +3159,6 @@ def get_prov_info_for_dataset(id):
             first_sample_hubmap_id_list.append(item['hubmap_id'])
             first_sample_submission_id_list.append(item['submission_id'])
             first_sample_uuid_list.append(item['uuid'])
-
-            # specimen_type -> sample_category 12/15/2022
             first_sample_type_list.append(item['sample_category'])
 
             first_sample_portal_url_list.append(
@@ -3228,7 +3183,11 @@ def get_prov_info_for_dataset(id):
             distinct_organ_hubmap_id_list.append(item['hubmap_id'])
             distinct_organ_submission_id_list.append(item['submission_id'])
             distinct_organ_uuid_list.append(item['uuid'])
-            distinct_organ_type_list.append(organ_types_dict[item['organ']]['description'].lower())
+
+            organ_code = item['organ'].upper()
+            validate_organ_code(organ_code)
+
+            distinct_organ_type_list.append(organ_types_dict[organ_code].lower())
         internal_dict[HEADER_ORGAN_HUBMAP_ID] = distinct_organ_hubmap_id_list
         internal_dict[HEADER_ORGAN_SUBMISSION_ID] = distinct_organ_submission_id_list
         internal_dict[HEADER_ORGAN_UUID] = distinct_organ_uuid_list
@@ -3321,7 +3280,6 @@ def get_prov_info_for_dataset(id):
         else:
             requested_samples = {}
             for uuid in dataset_samples.keys():
-                # specimen_type -> sample_category 12/15/2022
                 if dataset_samples[uuid]['sample_category'] in include_samples:
                     requested_samples[uuid] = dataset_samples[uuid]
             internal_dict[HEADER_DATASET_SAMPLES] = requested_samples
@@ -3376,25 +3334,11 @@ def sankey_data():
         mapping_dict = json.load(f)
     # Parsing the organ types yaml has to be done here rather than calling schema.schema_triggers.get_organ_description
     # because that would require using a urllib request for each dataset
-    response = schema_manager.make_request_get(SchemaConstants.ORGAN_TYPES_YAML)
-
-    if response.status_code == 200:
-        yaml_file = response.text
-        try:
-            organ_types_dict = yaml.safe_load(yaml_file)
-        except yaml.YAMLError as e:
-            raise yaml.YAMLError(e)
+    organ_types_dict = schema_manager.get_organ_types()
 
     # As above, we parse te assay type yaml here rather than calling the special method for it because this avoids
     # having to access the resource for every dataset.
-    response = schema_manager.make_request_get(SchemaConstants.ASSAY_TYPES_YAML)
-
-    if response.status_code == 200:
-        yaml_file = response.text
-        try:
-            assay_types_dict = yaml.safe_load(yaml_file)
-        except yaml.YAMLError as e:
-            raise yaml.YAMLError(e)
+    assay_types_dict = schema_manager.get_assay_types()
 
     # Instantiation of the list dataset_sankey_list
     dataset_sankey_list = []
@@ -3414,25 +3358,22 @@ def sankey_data():
         for dataset in sankey_info:
             internal_dict = collections.OrderedDict()
             internal_dict[HEADER_DATASET_GROUP_NAME] = dataset[HEADER_DATASET_GROUP_NAME]
-            internal_dict[HEADER_ORGAN_TYPE] = organ_types_dict[dataset[HEADER_ORGAN_TYPE]]['description'].lower()
 
-            # TODO BEGIN evaluate elimination of this block, if it is still in place following the YAML-to-UBKG effort on https://github.com/hubmapconsortium/entity-api/issues/494,
-            # and once dataset['dataset_type'] is required and dataset['data_types'] removed.
+            # TODO BEGIN evaluate elimination of this block once dataset['dataset_type'] is required and dataset['data_types'] removed.
+            organ_code = dataset[HEADER_ORGAN_TYPE].upper()
+            validate_organ_code(organ_code)
+
+            internal_dict[HEADER_ORGAN_TYPE] = organ_types_dict[organ_code].lower()
             # Data type codes are replaced with data type descriptions
             assay_description = ""
             try:
                 assay_description = assay_types_dict[dataset[HEADER_DATASET_DATA_TYPES]]['description']
-            # Some data types aren't given by their code in the assay types yaml and are instead given as an alt name.
-            # In these cases, we have to search each assay type and see if the given code matches any alternate names.
             except KeyError:
-                valid_key = False
-                for each in assay_types_dict:
-                    if valid_key is False:
-                        if dataset[HEADER_DATASET_DATA_TYPES] in assay_types_dict[each]['alt-names']:
-                            assay_description = assay_types_dict[each]['description']
-                            valid_key = True
-                if valid_key is False:
-                    assay_description = dataset[HEADER_DATASET_DATA_TYPES]
+                logger.exception(f"Data type {dataset[HEADER_DATASET_DATA_TYPES]} not found in resulting assay types via ontology-api")
+
+                # Just use the data type value
+                assay_description = dataset[HEADER_DATASET_DATA_TYPES]
+
             internal_dict[HEADER_DATASET_DATA_TYPES] = assay_description
 
             # Replace applicable Group Name and Data type with the value needed for the sankey via the mapping_dict
@@ -3505,16 +3446,7 @@ def get_sample_prov_info():
     if user_in_hubmap_read_group(request):
         public_only = False
 
-    # Parsing the organ types yaml has to be done here rather than calling schema.schema_triggers.get_organ_description
-    # because that would require using a urllib request for each dataset
-    response = schema_manager.make_request_get(SchemaConstants.ORGAN_TYPES_YAML)
-
-    if response.status_code == 200:
-        yaml_file = response.text
-        try:
-            organ_types_dict = yaml.safe_load(yaml_file)
-        except yaml.YAMLError as e:
-            raise yaml.YAMLError(e)
+    organ_types_dict = schema_manager.get_organ_types()
 
     # Processing and validating query parameters
     accepted_arguments = ['group_uuid']
@@ -3547,14 +3479,21 @@ def get_sample_prov_info():
         organ_submission_id = None
         if sample['organ_uuid'] is not None:
             organ_uuid = sample['organ_uuid']
-            organ_type = organ_types_dict[sample['organ_organ_type']]['description'].lower()
+
+            organ_code = sample['organ_organ_type'].upper()
+            validate_organ_code(organ_code)
+
+            organ_type = organ_types_dict[organ_code].lower()
             organ_hubmap_id = sample['organ_hubmap_id']
             organ_submission_id = sample['organ_submission_id']
         else:
-            # sample_specimen_type -> sample_category 12/15/2022
             if sample['sample_category'] == "organ":
                 organ_uuid = sample['sample_uuid']
-                organ_type = organ_types_dict[sample['sample_organ']]['description'].lower()
+
+                organ_code = sample['sample_organ'].upper()
+                validate_organ_code(organ_code)
+
+                organ_type = organ_types_dict[organ_code].lower()
                 organ_hubmap_id = sample['sample_hubmap_id']
                 organ_submission_id = sample['sample_submission_id']
 
@@ -3579,10 +3518,7 @@ def get_sample_prov_info():
         internal_dict[HEADER_SAMPLE_HAS_METADATA] = sample_has_metadata
         internal_dict[HEADER_SAMPLE_HAS_RUI_INFO] = sample_has_rui_info
         internal_dict[HEADER_SAMPLE_DIRECT_ANCESTOR_ID] = sample['sample_ancestor_id']
-
-        # sample_specimen_type -> sample_category 12/15/2022
         internal_dict[HEADER_SAMPLE_TYPE] = sample['sample_category']
-
         internal_dict[HEADER_SAMPLE_HUBMAP_ID] = sample['sample_hubmap_id']
         internal_dict[HEADER_SAMPLE_SUBMISSION_ID] = sample['sample_submission_id']
         internal_dict[HEADER_SAMPLE_DIRECT_ANCESTOR_ENTITY_TYPE] = sample['sample_ancestor_entity']
@@ -4865,45 +4801,28 @@ def access_level_prefix_dir(dir_name):
 
 
 """
-Ensures that a given organ code matches what is found on the organ_types yaml document
+Ensures that a given organ code is 2-letter alphabetic and can be found int the UBKG ontology-api
 
 Parameters
 ----------
 organ_code : str
-
-Returns
--------
-Returns nothing. Raises bad_request_error is organ code not found on organ_types.yaml 
 """
 def validate_organ_code(organ_code):
-    yaml_file_url = SchemaConstants.ORGAN_TYPES_YAML
+    if not organ_code.isalpha() or not len(organ_code) == 2:
+        internal_server_error(f"Invalid organ code {organ_code}. Must be 2-letter alphabetic code")
 
-    # Use Memcached to improve performance
-    response = schema_manager.make_request_get(yaml_file_url)
+    try:
+        organ_types_dict = schema_manager.get_organ_types()
 
-    if response.status_code == 200:
-        yaml_file = response.text
-
-        try:
-            organ_types_dict = yaml.safe_load(response.text)
-            
-            if organ_code.upper() not in organ_types_dict:
-                bad_request_error(f"Invalid organ code. Must be 2 digit code specified {yaml_file_url}")
-        except yaml.YAMLError as e:
-            raise yaml.YAMLError(e)
-    else:
-        msg = f"Unable to fetch the: {yaml_file_url}"
+        if organ_code.upper() not in organ_types_dict:
+            not_found_error(f"Unable to find organ code {organ_code} via the ontology-api")
+    except requests.exceptions.RequestException:
+        msg = f"Failed to validate the organ code: {organ_code}"
         # Log the full stack trace, prepend a line with our message
         logger.exception(msg)
 
-        logger.debug("======validate_organ_code() status code======")
-        logger.debug(response.status_code)
-
-        logger.debug("======validate_organ_code() response text======")
-        logger.debug(response.text)
-
         # Terminate and let the users know
-        internal_server_error(f"Failed to validate the organ code: {organ_code}")
+        internal_server_error(msg)
 
 
 ####################################################################################################
