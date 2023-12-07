@@ -281,6 +281,7 @@ ENTITIES:
         type: string
         transient: true
         immutable: true
+        on_read_trigger: get_creation_action_activity
         description: "The activity that was performed."
         before_property_create_validators:
           - validate_creation_action
@@ -519,6 +520,7 @@ ENTITIES:
         type: string
         transient: true
         immutable: true
+        on_read_trigger: get_creation_action_activity
         description: "The activity that was performed."
         before_property_create_validators:
           - validate_creation_action
