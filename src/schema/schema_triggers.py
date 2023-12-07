@@ -1118,6 +1118,42 @@ def get_previous_revision_uuid(property_key, normalized_type, user_token, existi
 
 
 """
+Trigger event method of getting the uuids of the previous revision datasets if they exist
+
+Parameters
+----------
+property_key : str
+    The target property key
+normalized_type : str
+    One of the types defined in the schema yaml: Dataset
+user_token: str
+    The user's globus nexus token
+existing_data_dict : dict
+    A dictionary that contains all existing entity properties
+new_data_dict : dict
+    A merged dictionary that contains all possible input data to be used
+
+Returns
+-------
+str: The target property key
+str: A list of the uuid strings of previous revision entity or an empty list if not found
+"""
+
+
+def get_previous_revision_uuids(property_key, normalized_type, user_token, existing_data_dict, new_data_dict):
+    if 'uuid' not in existing_data_dict:
+        raise KeyError(
+            "Missing 'uuid' key in 'existing_data_dict' during calling 'get_previous_revision_uuid()' trigger method.")
+
+    logger.info(f"Executing 'get_previous_revision_uuids()' trigger method on uuid: {existing_data_dict['uuid']}")
+
+    previous_revision_uuids = schema_neo4j_queries.get_previous_revision_uuids(schema_manager.get_neo4j_driver_instance(),
+                                                                             existing_data_dict['uuid'])
+
+    return property_key, previous_revision_uuids
+
+
+"""
 Trigger event method of getting the uuid of the next version dataset if exists
 
 Parameters
@@ -1161,6 +1197,42 @@ def get_creation_action_activity(property_key, normalized_type, user_token, exis
         schema_neo4j_queries.get_entity_creation_action_activity(neo4j_driver_instance, uuid)
 
     return property_key, creation_action_activity
+
+
+"""
+Trigger event method of getting the uuids of the next version dataset if they exist
+
+Parameters
+----------
+property_key : str
+    The target property key
+normalized_type : str
+    One of the types defined in the schema yaml: Dataset
+user_token: str
+    The user's globus nexus token
+existing_data_dict : dict
+    A dictionary that contains all existing entity properties
+new_data_dict : dict
+    A merged dictionary that contains all possible input data to be used
+
+Returns
+-------
+str: The target property key
+str: The list of uuid strings of next version entity or empty string if not found
+"""
+
+
+def get_next_revision_uuids(property_key, normalized_type, user_token, existing_data_dict, new_data_dict):
+    if 'uuid' not in existing_data_dict:
+        raise KeyError(
+            "Missing 'uuid' key in 'existing_data_dict' during calling 'get_next_revision_uuid()' trigger method.")
+
+    logger.info(f"Executing 'get_next_revision_uuid()' trigger method on uuid: {existing_data_dict['uuid']}")
+
+    next_revision_uuids = schema_neo4j_queries.get_next_revision_uuids(schema_manager.get_neo4j_driver_instance(),
+                                                                     existing_data_dict['uuid'])
+
+    return property_key, next_revision_uuids
 
 
 """

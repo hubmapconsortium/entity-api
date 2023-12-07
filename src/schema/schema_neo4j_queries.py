@@ -724,6 +724,44 @@ def get_previous_revision_uuid(neo4j_driver, uuid):
 
 
 """
+Get the uuids of previous revision entities for a given entity
+
+Parameters
+----------
+neo4j_driver : neo4j.Driver object
+    The neo4j database connection pool
+uuid : str
+    The uuid of the entity 
+
+Returns
+-------
+list
+    The previous revision uuids
+"""
+def get_previous_revision_uuids(neo4j_driver, uuid):
+    result = []
+
+    # Don't use [r:REVISION_OF] because
+    # Binding a variable length relationship pattern to a variable ('r') is deprecated
+    query = (f"MATCH (e:Entity)-[:REVISION_OF]->(previous_revision:Entity) "
+             f"WHERE e.uuid='{uuid}' "
+             f"RETURN COLLECT(previous_revision.uuid) AS {record_field_name}")
+
+    logger.info("======get_previous_revision_uuids() query======")
+    logger.info(query)
+
+    with neo4j_driver.session() as session:
+        record = session.read_transaction(execute_readonly_tx, query)
+
+        if record and record[record_field_name]:
+            result = record[record_field_name]
+
+    return result
+
+
+
+
+"""
 Get the uuid of next revision entity for a given entity
 
 Parameters
@@ -748,6 +786,42 @@ def get_next_revision_uuid(neo4j_driver, uuid):
              f"RETURN next_revision.uuid AS {record_field_name}")
 
     logger.info("======get_next_revision_uuid() query======")
+    logger.info(query)
+
+    with neo4j_driver.session() as session:
+        record = session.read_transaction(execute_readonly_tx, query)
+
+        if record and record[record_field_name]:
+            result = record[record_field_name]
+
+    return result
+
+
+"""
+Get the uuids of next revision entities for a given entity
+
+Parameters
+----------
+neo4j_driver : neo4j.Driver object
+    The neo4j database connection pool
+uuid : str
+    The uuid of the entity 
+
+Returns
+-------
+list
+    The uuids of the next revision
+"""
+def get_next_revision_uuids(neo4j_driver, uuid):
+    result = []
+
+    # Don't use [r:REVISION_OF] because
+    # Binding a variable length relationship pattern to a variable ('r') is deprecated
+    query = (f"MATCH (e:Entity)<-[:REVISION_OF]-(next_revision:Entity) "
+             f"WHERE e.uuid='{uuid}' "
+             f"RETURN COLLECT(next_revision.uuid) AS {record_field_name}")
+
+    logger.info("======get_next_revision_uuids() query======")
     logger.info(query)
 
     with neo4j_driver.session() as session:

@@ -427,6 +427,13 @@ ENTITIES:
         description: "The uuid of previous revision dataset"
         after_create_trigger: link_to_previous_revision
         on_read_trigger: get_previous_revision_uuid
+      previous_revision_uuids:
+        type: list
+        generated: true
+        transient: true
+        immutable: true
+        description: "The list of the uuids of previous revision datasets"
+        on_read_trigger: get_previous_revision_uuids
       next_revision_uuid:
         type: string
         generated: true
@@ -434,6 +441,13 @@ ENTITIES:
         immutable: true
         description: "The uuid of next revision dataset"
         on_read_trigger: get_next_revision_uuid
+      next_revision_uuids:
+        type: list
+        generated: true
+        transient: true
+        immutable: true
+        description: "The list of the uuids of next revision datasets"
+        on_read_trigger: get_next_revision_uuids
       # No like image and metadata files handling for Donor/Sample
       # Dataset has only one thumbnail file
       thumbnail_file:
@@ -657,6 +671,13 @@ ENTITIES:
         description: "The uuid of previous revision dataset"
         after_create_trigger: link_to_previous_revision
         on_read_trigger: get_previous_revision_uuid
+      previous_revision_uuids:
+        type: list
+        generated: true
+        transient: true
+        immutable: true
+        description: "The list of the uuids of previous revision datasets"
+        on_read_trigger: get_previous_revision_uuids
       next_revision_uuid:
         type: string
         generated: true
@@ -664,6 +685,13 @@ ENTITIES:
         immutable: true
         description: "The uuid of next revision dataset"
         on_read_trigger: get_next_revision_uuid
+      next_revision_uuids:
+        type: list
+        generated: true
+        transient: true
+        immutable: true
+        description: "The list of the uuids of next revision datasets"
+        on_read_trigger: get_next_revision_uuids
       # No like image and metadata files handling for Donor/Sample
       # Dataset has only one thumbnail file
       thumbnail_file:
