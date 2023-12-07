@@ -442,24 +442,8 @@ def get_dataset_organ_and_donor_info(neo4j_driver, uuid):
     donor_metadata = None
 
     with neo4j_driver.session() as session:
-        # Old time-consuming single query, it takes a significant amounts of DB hits
-        # query = (f"MATCH (e:Dataset)<-[:ACTIVITY_INPUT|ACTIVITY_OUTPUT*]-(s:Sample)<-[:ACTIVITY_INPUT|ACTIVITY_OUTPUT*]-(d:Donor) "
-        #          f"WHERE e.uuid='{uuid}' AND s.specimen_type='organ' AND EXISTS(s.organ) "
-        #          f"RETURN s.organ AS organ_name, d.metadata AS donor_metadata")
-
-        # logger.info("======get_dataset_organ_and_donor_info() query======")
-        # logger.info(query)
-
-        # with neo4j_driver.session() as session:
-        #     record = session.read_transaction(execute_readonly_tx, query)
-
-        #     if record:
-        #         organ_name = record['organ_name']
-        #         donor_metadata = record['donor_metadata']
-
         # To improve the query performance, we implement the two-step queries to drastically reduce the DB hits
         sample_query = (f"MATCH (e:Dataset)<-[:ACTIVITY_INPUT|ACTIVITY_OUTPUT*]-(s:Sample) "
-                        # specimen_type -> sample_category 12/15/2022
                         f"WHERE e.uuid='{uuid}' AND s.sample_category='organ' AND EXISTS(s.organ) "
                         f"RETURN DISTINCT s.organ AS organ_name, s.uuid AS sample_uuid")
 
@@ -473,7 +457,6 @@ def get_dataset_organ_and_donor_info(neo4j_driver, uuid):
             sample_uuid = sample_record['sample_uuid']
 
             donor_query = (f"MATCH (s:Sample)<-[:ACTIVITY_OUTPUT]-(a:Activity)<-[:ACTIVITY_INPUT]-(d:Donor) "
-                           # specimen_type -> sample_category 12/15/2022
                            f"WHERE s.uuid='{sample_uuid}' AND s.sample_category='organ' AND EXISTS(s.organ) "
                            f"RETURN DISTINCT d.metadata AS donor_metadata")
 

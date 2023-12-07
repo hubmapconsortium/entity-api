@@ -1,3 +1,5 @@
+import re
+
 import yaml
 import logging
 import requests
@@ -41,6 +43,36 @@ def validate_application_header_before_entity_create(normalized_entity_type, req
 ##############################################################################################
 ## Property Level Validators
 ####################################################################################################
+
+
+"""
+@TODO-KBKBKB redo doc...
+Validate the specified value for a Dataset's dataset_type is in the valueset UBKG recognizes. 
+
+Parameters
+----------
+property_key : str
+    The target property key
+normalized_type : str
+    Submission
+request: Flask request object
+    The instance of Flask request passed in from application request
+existing_data_dict : dict
+    A dictionary that contains all existing entity properties
+new_data_dict : dict
+    The json data in request body, already after the regular validations
+"""
+def validate_recognized_dataset_type(property_key, normalized_entity_type, request, existing_data_dict, new_data_dict):
+    # If the proposed Dataset dataset_type ends with something in square brackets, anything inside
+    # those square brackets are acceptable at the end of the string.  Simply validate the start.
+    proposed_dataset_type_prefix = re.sub(pattern='(\S)\s\[.*\]$', repl=r'\1', string=new_data_dict['dataset_type'])
+    target_list = schema_manager.get_dataset_type_valueset_list()
+
+    if proposed_dataset_type_prefix not in target_list:
+        raise ValueError(f"Proposed Dataset dataset_type '{proposed_dataset_type_prefix}'"
+                         f" is not recognized in the existing ontology."
+                         f" Valid values are: {str(target_list)}.")
+
 
 """
 Validate the target list has no duplicated items
@@ -432,33 +464,6 @@ def validate_upload_status_value(property_key, normalized_entity_type, request, 
 
 
 """
-NOTE: TO BE REMOVED when we remove specimen_type field
-
-Validate the provided value of Sample.specimen_type on create via POST and update via PUT
-
-Parameters
-----------
-property_key : str
-    The target property key
-normalized_type : str
-    Submission
-request: Flask request object
-    The instance of Flask request passed in from application request
-existing_data_dict : dict
-    A dictionary that contains all existing entity properties
-new_data_dict : dict
-    The json data in request body, already after the regular validations
-"""
-def validate_specimen_type(property_key, normalized_entity_type, request, existing_data_dict, new_data_dict):
-    # Use lowercase for comparison
-    defined_tissue_types = _get_tissue_types()
-    specimen_type = new_data_dict[property_key].lower()
-
-    if specimen_type not in defined_tissue_types:
-        raise ValueError(f"Invalid specimen_type value: {specimen_type}")
-
-
-"""
 Validate the provided value of Sample.sample_category on create via POST and update via PUT
 
 Parameters
@@ -626,48 +631,3 @@ def _validate_application_header(applications_allowed, request_headers):
     if app_header.lower() not in applications_allowed:
         msg = f"Unable to proceed due to invalid {SchemaConstants.HUBMAP_APP_HEADER} header value: {app_header}"
         raise schema_errors.InvalidApplicationHeaderException(msg)
-
-
-"""
-Get the complete list of defined tissue types
-
-Returns
--------
-list: The list of defined tissue types
-"""
-def _get_tissue_types():
-    yaml_file_url = SchemaConstants.TISSUE_TYPES_YAML
-
-    # Use Memcached to improve performance
-    response = schema_manager.make_request_get(yaml_file_url)
-    
-    if response.status_code == 200:
-        yaml_file = response.text
-
-        try:
-            tissue_types_dict = yaml.safe_load(response.text)
-
-            # We don't need the description here, just a list of tissue types
-            # Note: dict.keys() returns a dict, need to typecast to list
-            tissue_types_list = list(tissue_types_dict.keys())
-
-            # Add the 'other'
-            tissue_types_list.append('other')
-            
-            return tissue_types_list
-        except yaml.YAMLError as e:
-            raise yaml.YAMLError(e)
-    else:
-        msg = f"Unable to fetch the: {yaml_file_url}"
-        # Log the full stack trace, prepend a line with our message
-        logger.exception(msg)
-
-        logger.debug("======_get_tissue_types() status code======")
-        logger.debug(response.status_code)
-
-        logger.debug("======_get_tissue_types() response text======")
-        logger.debug(response.text)
-
-        # Also bubble up the error message
-        raise requests.exceptions.RequestException(response.text)
-

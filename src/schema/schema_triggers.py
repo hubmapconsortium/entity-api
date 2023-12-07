@@ -1024,9 +1024,10 @@ def get_dataset_title(property_key, normalized_type, user_token, existing_data_d
     # Parse the organ description
     if organ_name is not None:
         try: 
-            # The organ_name is the two-letter code only set if specimen_type == 'organ'
+            # The organ_name is the two-letter code only set for 'organ'
             # Convert the two-letter code to a description
-            organ_desc = _get_organ_description(organ_name)
+            organ_types_dict = schema_manager.get_organ_types()
+            organ_desc = organ_types_dict[organ_name].lower()
         except (yaml.YAMLError, requests.exceptions.RequestException) as e:
             raise Exception(e)
 
@@ -1084,6 +1085,7 @@ def get_dataset_title(property_key, normalized_type, user_token, existing_data_d
     generated_title = f"{assay_type_desc} data from the {organ_desc} of a {age_race_sex_info}"
 
     return property_key, generated_title
+
 
 """
 Trigger event method of getting the uuid of the previous revision dataset if exists
@@ -1280,7 +1282,7 @@ def commit_thumbnail_file(property_key, normalized_type, user_token, existing_da
             entity_uuid = existing_data_dict['uuid']
 
         # Commit the thumbnail file via ingest-api call
-        ingest_api_target_url = schema_manager.get_ingest_api_url() + '/file-commit'
+        ingest_api_target_url = schema_manager.get_ingest_api_url() + SchemaConstants.INGEST_API_FILE_COMMIT_ENDPOINT
         
         # Example: {"temp_file_id":"dzevgd6xjs4d5grmcp4n"}
         thumbnail_file_dict = new_data_dict[property_key]
@@ -1382,7 +1384,7 @@ def delete_thumbnail_file(property_key, normalized_type, user_token, existing_da
         file_info_dict = generated_dict[target_property_key]
     
     # Remove the thumbnail file via ingest-api call
-    ingest_api_target_url = schema_manager.get_ingest_api_url() + '/file-remove'
+    ingest_api_target_url = schema_manager.get_ingest_api_url() + SchemaConstants.INGEST_API_FILE_REMOVE_ENDPOINT
 
     # ingest-api's /file-remove takes a list of files to remove
     # In this case, we only need to remove the single thumbnail file
@@ -1657,105 +1659,6 @@ def get_sample_direct_ancestor(property_key, normalized_type, user_token, existi
     # as well as the ones defined as `exposed: false` in the yaml schema
     return property_key, schema_manager.normalize_entity_result_for_response(direct_ancestor_dict)
 
-
-"""
-Trigger event method of generating the type of the tissue based on the mapping between type (Block/Section/Suspension) and the specimen_type
-This method applies to both the create and update triggers
-
-Rererence:
-    - https://docs.google.com/spreadsheets/d/1OODo8QK852txSNSmfIe0ua4A7nPFSgKq6h46grmrpto/edit#gid=0
-    - https://github.com/hubmapconsortium/search-api/blob/main/src/search-schema/data/definitions/enums/tissue_sample_types.yaml
-
-Parameters
-----------
-property_key : str
-    The target property key of the value to be generated
-normalized_type : str
-    One of the types defined in the schema yaml: Sample
-user_token: str
-    The user's globus nexus token
-existing_data_dict : dict
-    A dictionary that contains all existing entity properties
-new_data_dict : dict
-    A merged dictionary that contains all possible input data to be used
-
-Returns
--------
-str: The target property key
-str: The type of the tissue
-"""
-def set_tissue_type(property_key, normalized_type, user_token, existing_data_dict, new_data_dict):
-    # specimen_type is no logner required on create 12/15/2022, set to Unknown
-    # Default to use 'Unknown'
-    tissue_type = 'Unknown'
-
-    # # The `specimen_type` field is required on entity creation via POST
-    # # thus should be available on existing entity update via PUT
-    # # We do a double check here just in case
-    # if ('specimen_type' not in new_data_dict) and ('specimen_type' not in existing_data_dict):
-    #     raise KeyError("Missing 'specimen_type' key in both 'new_data_dict' and 'existing_data_dict' during calling 'set_tissue_type()' trigger method.")
-
-    # # Always calculate the tissue_type value no matter new creation or update existing
-    # # The `specimen_type` field can be used in a PUT
-    # # But if it's not in the request JSON of a PUT, it must be in the existing data
-    # if 'specimen_type' in new_data_dict:
-    #     # The `specimen_type` value validation is handled in the `schema_validators.validate_specimen_type()`
-    #     # and that gets called before this trigger method
-    #     specimen_type = new_data_dict['specimen_type'].lower()
-    # else:
-    #     # Use lowercase in case someone manually updated the neo4j filed with incorrect case
-    #     specimen_type = existing_data_dict['specimen_type'].lower()
-
-    # # Categories: Block, Section, Suspension 
-    # block_category = [
-    #     'pbmc',
-    #     'biopsy',
-    #     'segment',
-    #     'ffpe_block',
-    #     'organ_piece',
-    #     'fresh_tissue',
-    #     'clarity_hydrogel',
-    #     'fixed_tissue_piece',
-    #     'fresh_frozen_tissue',
-    #     'fresh_frozen_oct_block',
-    #     'formalin_fixed_oct_block',
-    #     'pfa_fixed_frozen_oct_block',
-    #     'flash_frozen_liquid_nitrogen',
-    #     'frozen_cell_pellet_buffy_coat'
-    # ]
-
-    # section_category = [
-    #     'ffpe_slide',
-    #     'fixed_frozen_section_slide',
-    #     'fresh_frozen_section_slide',
-    #     'fresh_frozen_tissue_section',
-    #     'cryosections_curls_rnalater',
-    #     'cryosections_curls_from_fresh_frozen_oct'
-    # ]
-
-    # suspension_category = [
-    #     'gdna',
-    #     'serum',
-    #     'plasma',
-    #     'nuclei',
-    #     'protein',
-    #     'rna_total',
-    #     'cell_lysate',
-    #     'tissue_lysate',
-    #     'sequence_library',
-    #     'ran_poly_a_enriched',
-    #     'single_cell_cryopreserved'
-    # ]
-
-    # # Capitalized type, default is 'Unknown' if no match
-    # if specimen_type in block_category:
-    #     tissue_type = 'Block'
-    # elif specimen_type in section_category:
-    #     tissue_type = 'Section'
-    # elif specimen_type in suspension_category:
-    #     tissue_type = 'Suspension'
-
-    return property_key, tissue_type
 
 
 ####################################################################################################
@@ -2090,7 +1993,7 @@ def _commit_files(target_property_key, property_key, normalized_type, user_token
             entity_uuid = existing_data_dict['uuid']
 
         # Commit the files via ingest-api call
-        ingest_api_target_url = schema_manager.get_ingest_api_url() + '/file-commit'
+        ingest_api_target_url = schema_manager.get_ingest_api_url() + SchemaConstants.INGEST_API_FILE_COMMIT_ENDPOINT
 
         for file_info in new_data_dict[property_key]:
             temp_file_id = file_info['temp_file_id']
@@ -2200,7 +2103,7 @@ def _delete_files(target_property_key, property_key, normalized_type, user_token
         file_uuids.append(file_uuid)
 
     # Remove the files via ingest-api call
-    ingest_api_target_url = schema_manager.get_ingest_api_url() + '/file-remove'
+    ingest_api_target_url = schema_manager.get_ingest_api_url() + SchemaConstants.INGEST_API_FILE_REMOVE_ENDPOINT
 
     json_to_post = {
         'entity_uuid': entity_uuid,
@@ -2239,39 +2142,10 @@ Returns
 str: The corresponding assay type description
 """
 def _get_assay_type_description(assay_type):
-    yaml_file_url = SchemaConstants.ASSAY_TYPES_YAML
+    assay_types_dict = schema_manager.get_assay_types()
 
-    # Use Memcached to improve performance
-    response = schema_manager.make_request_get(yaml_file_url)
-
-    if response.status_code == 200:
-        yaml_file = response.text
-
-        try:
-            assay_types_dict = yaml.safe_load(response.text)
-
-            if assay_type in assay_types_dict:
-                return assay_types_dict[assay_type]['description'].lower()
-            else:
-                # Check the 'alt-names' list if not found in the top-level keys
-                for key in assay_types_dict:
-                    if assay_type in assay_types_dict[key]['alt-names']:
-                        return assay_types_dict[key]['description'].lower()
-        except yaml.YAMLError as e:
-            raise yaml.YAMLError(e)
-    else:
-        msg = f"Unable to fetch the: {yaml_file_url}"
-        # Log the full stack trace, prepend a line with our message
-        logger.exception(msg)
-
-        logger.debug("======_get_assay_type_description() status code======")
-        logger.debug(response.status_code)
-
-        logger.debug("======_get_assay_type_description() response text======")
-        logger.debug(response.text)
-
-        # Also bubble up the error message
-        raise requests.exceptions.RequestException(response.text)
+    if assay_type in assay_types_dict:
+        return assay_types_dict[assay_type]['description'].lower()
 
 
 """
@@ -2311,47 +2185,4 @@ def _get_combined_assay_type_description(data_types):
         raise ValueError(msg)
 
     return assay_type_desc
-
-
-"""
-Get the organ description based on the given organ code
-
-Parameters
-----------
-organ_code : str
-    The two-letter organ code
-
-Returns
--------
-str: The organ code description
-"""
-def _get_organ_description(organ_code):
-    yaml_file_url = SchemaConstants.ORGAN_TYPES_YAML
-
-    # Use Memcached to improve performance
-    response = schema_manager.make_request_get(yaml_file_url)
-
-    if response.status_code == 200:
-        yaml_file = response.text
-
-        try:
-            organ_types_dict = yaml.safe_load(response.text)
-            return organ_types_dict[organ_code]['description'].lower()
-        except yaml.YAMLError as e:
-            raise yaml.YAMLError(e)
-    else:
-        msg = f"Unable to fetch the: {yaml_file_url}"
-        # Log the full stack trace, prepend a line with our message
-        logger.exception(msg)
-
-        logger.debug("======_get_organ_description() status code======")
-        logger.debug(response.status_code)
-
-        logger.debug("======_get_organ_description() response text======")
-        logger.debug(response.text)
-
-        # Also bubble up the error message
-        raise requests.exceptions.RequestException(response.text)
-
-
 
