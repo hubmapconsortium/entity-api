@@ -8,6 +8,7 @@ from schema import schema_manager
 from schema import schema_errors
 from schema import schema_neo4j_queries
 from schema.schema_constants import SchemaConstants
+from hubmap_commons import hm_auth
 
 logger = logging.getLogger(__name__)
 
@@ -324,7 +325,7 @@ def validate_if_retraction_permitted(property_key, normalized_entity_type, reque
         # The property 'hmgroupids' is ALWAYS in the output with using schema_manager.get_user_info()
         # when the token in request is a nexus_token
         user_info = schema_manager.get_user_info(request)
-        hubmap_read_group_uuid = schema_manager.get_auth_helper_instance().groupNameToId('HuBMAP-READ')['uuid']
+        hubmap_admin_group_uuid = schema_manager.get_auth_helper_instance().groupNameToId('HuBMAP-Data-Admin')['uuid']
     except Exception as e:
         # Log the full stack trace, prepend a line with our message
         logger.exception(e)
@@ -334,7 +335,7 @@ def validate_if_retraction_permitted(property_key, normalized_entity_type, reque
         # We treat such cases as the user not in the HuBMAP-READ group
         raise ValueError("Failed to parse the permission based on token, retraction is not allowed")
 
-    if hubmap_read_group_uuid not in user_info['hmgroupids']:
+    if hubmap_admin_group_uuid not in user_info['hmgroupids']:
         raise ValueError("Permission denied, retraction is not allowed")
 
 
@@ -532,6 +533,70 @@ def validate_creation_action(property_key, normalized_entity_type, request, exis
         raise ValueError("Invalid {} value. Accepted values are: {}".format(property_key, ", ".join(accepted_creation_action_values)))
     if creation_action == '':
         raise ValueError(f"The property {property_key} cannot be empty, when specified.")
+
+
+"""
+Validate that the user is in  Hubmap-Data-Admin before creating or updating field 'assigned_to_group_name'
+
+Parameters
+----------
+property_key : str
+    The target property key
+normalized_type : str
+    Submission
+request: Flask request object
+    The instance of Flask request passed in from application request
+existing_data_dict : dict
+    A dictionary that contains all existing entity properties
+new_data_dict : dict
+    The json data in request body, already after the regular validations
+"""
+def validate_in_admin_group(property_key, normalized_entity_type, request, existing_data_dict, new_data_dict):
+    try:
+        # The property 'hmgroupids' is ALWAYS in the output with using schema_manager.get_user_info()
+        # when the token in request is a nexus_token
+        user_info = schema_manager.get_user_info(request)
+        hubmap_admin_group_uuid = schema_manager.get_auth_helper_instance().groupNameToId('HuBMAP-Data-Admin')['uuid']
+    except Exception as e:
+        # Log the full stack trace, prepend a line with our message
+        logger.exception(e)
+
+        # If the token is not a groups token, no group information available
+        # The commons.hm_auth.AuthCache would return a Response with 500 error message
+        # We treat such cases as the user not in the HuBMAP-Data group
+        raise ValueError("Failed to parse the permission based on token, retraction is not allowed")
+
+    if hubmap_admin_group_uuid not in user_info['hmgroupids']:
+        raise ValueError(f"Permission denied, not permitted to set property {property_key}")
+
+
+"""
+Validate that the provided group_name is one of the group name 'shortname' values where data_provider == true available
+from hubmap-commons in the xxx-globus-groups.json file on entity creation
+
+Parameters
+----------
+property_key : str
+    The target property key
+normalized_type : str
+    Submission
+request: Flask request object
+    The instance of Flask request passed in from application request
+existing_data_dict : dict
+    A dictionary that contains all existing entity properties
+new_data_dict : dict
+    The json data in request body, already after the regular validations
+"""
+def validate_group_name(property_key, normalized_entity_type, request, existing_data_dict, new_data_dict):
+    assigned_to_group_name = new_data_dict['assigned_to_group_name']
+    globus_groups = schema_manager.get_auth_helper_instance().getHuBMAPGroupInfo()
+    group_dict = next((entry for entry in globus_groups.values() if entry.get("shortname") == assigned_to_group_name), None)
+    if group_dict is None:
+        raise ValueError("Invalid value for 'assigned_to_group_name'")
+    is_data_provider = group_dict.get('data_provider')
+    if not is_data_provider:
+        raise ValueError("Invalid group in 'assigned_to_group_name'. Must be a data provider")
+
 
 
 ####################################################################################################
