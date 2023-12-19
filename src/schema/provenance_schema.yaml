@@ -601,6 +601,14 @@ ENTITIES:
         type: list
         required_on_create: true # Only required for create via POST, not update via PUT
         description: "The data or assay types contained in this dataset as a json array of strings.  Each is an assay code from [assay types](https://github.com/hubmapconsortium/search-api/blob/main/src/search-schema/data/definitions/enums/assay_types.yaml)."
+      dataset_type:
+        before_property_create_validators:
+          - validate_recognized_dataset_type
+        before_property_update_validators:
+          - validate_recognized_dataset_type
+        type: string
+        required_on_create: false # Once replaces data_types, will be required for create via POST, not update via PUT
+        description: "The assay types of this Dataset. Valid values are from UBKG are queried by schema_manager.get_valueset_dataset_type() using the Ontology API."
       collections:
         type: list
         transient: true
