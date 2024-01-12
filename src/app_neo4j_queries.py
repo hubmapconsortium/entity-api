@@ -736,7 +736,7 @@ def get_prov_info(neo4j_driver, param_dict, published_only):
              f" WITH ds, FIRSTSAMPLE, DONOR, REVISIONS, METASAMPLE, RUISAMPLE, ORGAN, COLLECT(distinct processed_dataset) AS PROCESSED_DATASET"
              f" RETURN ds.uuid, FIRSTSAMPLE, DONOR, RUISAMPLE, ORGAN, ds.hubmap_id, ds.status, ds.group_name,"
              f" ds.group_uuid, ds.created_timestamp, ds.created_by_user_email, ds.last_modified_timestamp, "
-             f" ds.last_modified_user_email, ds.lab_dataset_id, ds.data_types, METASAMPLE, PROCESSED_DATASET, REVISIONS") # TODO replace ds.data_types with ds.dataset_type when required
+             f" ds.last_modified_user_email, ds.lab_dataset_id, ds.dataset_type, METASAMPLE, PROCESSED_DATASET, REVISIONS")
 
     logger.info("======get_prov_info() query======")
     logger.info(query)
@@ -782,10 +782,7 @@ def get_prov_info(neo4j_driver, param_dict, published_only):
             record_dict['last_modified_timestamp'] = record_contents[11]
             record_dict['last_modified_user_email'] = record_contents[12]
             record_dict['lab_dataset_id'] = record_contents[13]
-            data_types = record_contents[14]
-            data_types = data_types.replace("'", '"')
-            data_types = json.loads(data_types)
-            record_dict['data_types'] = data_types
+            record_dict['dataset_dataset_type'] = record_contents[14]
             content_fifteen = []
             for entry in record_contents[15]:
                 node_dict = schema_neo4j_queries.node_to_dict(entry)
@@ -834,7 +831,7 @@ def get_individual_prov_info(neo4j_driver, dataset_uuid):
              f" WITH ds, FIRSTSAMPLE, DONOR, METASAMPLE, RUISAMPLE, ORGAN, COLLECT(distinct processed_dataset) AS PROCESSED_DATASET"
              f" RETURN ds.uuid, FIRSTSAMPLE, DONOR, RUISAMPLE, ORGAN, ds.hubmap_id, ds.status, ds.group_name,"
              f" ds.group_uuid, ds.created_timestamp, ds.created_by_user_email, ds.last_modified_timestamp, "
-             f" ds.last_modified_user_email, ds.lab_dataset_id, ds.data_types, METASAMPLE, PROCESSED_DATASET, ds.dataset_type")
+             f" ds.last_modified_user_email, ds.lab_dataset_id, ds.dataset_type, METASAMPLE, PROCESSED_DATASET")
     logger.info("======get_prov_info() query======")
     logger.info(query)
 
@@ -877,10 +874,7 @@ def get_individual_prov_info(neo4j_driver, dataset_uuid):
             record_dict['last_modified_timestamp'] = record_contents[11]
             record_dict['last_modified_user_email'] = record_contents[12]
             record_dict['lab_dataset_id'] = record_contents[13]
-            data_types = record_contents[14]
-            data_types = data_types.replace("'", '"')
-            data_types = json.loads(data_types)
-            record_dict['data_types'] = data_types
+            record_dict['dataset_dataset_type'] = record_contents[14]
             content_fifteen = []
             for entry in record_contents[15]:
                 node_dict = schema_neo4j_queries.node_to_dict(entry)
@@ -891,7 +885,6 @@ def get_individual_prov_info(neo4j_driver, dataset_uuid):
                 node_dict = schema_neo4j_queries.node_to_dict(entry)
                 content_sixteen.append(node_dict)
             record_dict['processed_dataset'] = content_sixteen
-            record_dict['dataset_type'] = record_contents[17] if record_contents[17] is not None else ''
     return record_dict
 
 
