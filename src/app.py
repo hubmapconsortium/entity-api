@@ -3326,12 +3326,9 @@ def sankey_data():
     # String constants
     HEADER_DATASET_GROUP_NAME = 'dataset_group_name'
     HEADER_ORGAN_TYPE = 'organ_type'
-    HEADER_DATASET_DATA_TYPES = 'dataset_data_types' # TODO-eliminate when HEADER_DATASET_DATASET_TYPE is required
     HEADER_DATASET_DATASET_TYPE = 'dataset_dataset_type'
     HEADER_DATASET_STATUS = 'dataset_status'
 
-    with open('sankey_mapping.json') as f:
-        mapping_dict = json.load(f)
     # Parsing the organ types yaml has to be done here rather than calling schema.schema_triggers.get_organ_description
     # because that would require using a urllib request for each dataset
     organ_types_dict = schema_manager.get_organ_types()
@@ -3359,41 +3356,27 @@ def sankey_data():
             internal_dict = collections.OrderedDict()
             internal_dict[HEADER_DATASET_GROUP_NAME] = dataset[HEADER_DATASET_GROUP_NAME]
 
-            # TODO BEGIN evaluate elimination of this block once dataset['dataset_type'] is required and dataset['data_types'] removed.
             organ_code = dataset[HEADER_ORGAN_TYPE].upper()
-            validate_organ_code(organ_code)
+            validate_organ_code(organ_code, organ_types_dict)
 
             internal_dict[HEADER_ORGAN_TYPE] = organ_types_dict[organ_code].lower()
-            # Data type codes are replaced with data type descriptions
-            assay_description = ""
-            try:
-                assay_description = assay_types_dict[dataset[HEADER_DATASET_DATA_TYPES]]['description']
-            except KeyError:
-                logger.exception(f"Data type {dataset[HEADER_DATASET_DATA_TYPES]} not found in resulting assay types via ontology-api")
 
-                # Just use the data type value
-                assay_description = dataset[HEADER_DATASET_DATA_TYPES]
-
-            internal_dict[HEADER_DATASET_DATA_TYPES] = assay_description
+            internal_dict[HEADER_DATASET_DATASET_TYPE] = dataset[HEADER_DATASET_DATASET_TYPE]
 
             # Replace applicable Group Name and Data type with the value needed for the sankey via the mapping_dict
             internal_dict[HEADER_DATASET_STATUS] = dataset['dataset_status']
-            if internal_dict[HEADER_DATASET_GROUP_NAME] in mapping_dict.keys():
-                internal_dict[HEADER_DATASET_GROUP_NAME] = mapping_dict[internal_dict[HEADER_DATASET_GROUP_NAME]]
-            if internal_dict[HEADER_DATASET_DATA_TYPES] in mapping_dict.keys():
-                internal_dict[HEADER_DATASET_DATA_TYPES] = mapping_dict[internal_dict[HEADER_DATASET_DATA_TYPES]]
-            # TODO END evaluate elimination of this block, if it is still in place following the YAML-to-UBKG effort on https://github.com/hubmapconsortium/entity-api/issues/494,
-            # and once dataset['dataset_type'] is required and dataset['data_types'] removed.
+            # if internal_dict[HEADER_DATASET_GROUP_NAME] in mapping_dict.keys():
+            #     internal_dict[HEADER_DATASET_GROUP_NAME] = mapping_dict[internal_dict[HEADER_DATASET_GROUP_NAME]]
 
             # Each dataset's dictionary is added to the list to be returned
             dataset_sankey_list.append(internal_dict)
-        
+
         if MEMCACHED_MODE:
             # Cache the result
             memcached_client_instance.set(cache_key, dataset_sankey_list, expire = SchemaConstants.MEMCACHED_TTL)
     else:
         logger.info(f'Using the cached sankey data at time {datetime.now()}')
-        
+
     return jsonify(dataset_sankey_list)
 
 
@@ -4807,13 +4790,13 @@ Parameters
 ----------
 organ_code : str
 """
-def validate_organ_code(organ_code):
+def validate_organ_code(organ_code, organ_types_dict=None):
+    if organ_types_dict is None:
+        organ_types_dict = schema_manager.get_organ_types()
     if not organ_code.isalpha() or not len(organ_code) == 2:
         internal_server_error(f"Invalid organ code {organ_code}. Must be 2-letter alphabetic code")
 
     try:
-        organ_types_dict = schema_manager.get_organ_types()
-
         if organ_code.upper() not in organ_types_dict:
             not_found_error(f"Unable to find organ code {organ_code} via the ontology-api")
     except requests.exceptions.RequestException:

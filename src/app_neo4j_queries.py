@@ -942,7 +942,7 @@ def get_sankey_info(neo4j_driver):
     query = (f"MATCH (ds:Dataset)<-[]-(a)<-[]-(:Sample)"
              # specimen_type -> sample_category 12/15/2022
              f"MATCH (donor)-[:ACTIVITY_INPUT]->(oa)-[:ACTIVITY_OUTPUT]->(organ:Sample {{sample_category:'organ'}})-[*]->(ds)"
-             f"RETURN distinct ds.group_name, organ.organ, ds.data_types, ds.status, ds. uuid order by ds.group_name")
+             f"RETURN distinct ds.group_name, organ.organ, ds.dataset_type, ds.status, ds. uuid order by ds.group_name")
     logger.info("======get_sankey_info() query======")
     logger.info(query)
     with neo4j_driver.session() as session:
@@ -958,14 +958,7 @@ def get_sankey_info(neo4j_driver):
                 record_contents.append(item)
             record_dict['dataset_group_name'] = record_contents[0]
             record_dict['organ_type'] = record_contents[1]
-            data_types_list = record_contents[2]
-            data_types_list = data_types_list.replace("'", '"')
-            data_types_list = json.loads(data_types_list)
-            data_types = data_types_list[0]
-            if (len(data_types_list)) > 1:
-                if (data_types_list[0] == "scRNAseq-10xGenomics-v3" and data_types_list[1] == "snATACseq") or (data_types_list[1] == "scRNAseq-10xGenomics-v3" and data_types_list[0] == "snATACseq"):
-                    data_types = "scRNA-seq (10x Genomics v3),snATAC-seq"
-            record_dict['dataset_data_types'] = data_types
+            record_dict['dataset_dataset_type'] = record_contents[2]
             record_dict['dataset_status'] = record_contents[3]
             list_of_dictionaries.append(record_dict)
         return list_of_dictionaries
