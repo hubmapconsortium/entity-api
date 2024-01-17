@@ -1681,6 +1681,31 @@ def set_publication_date(property_key, normalized_type, user_token, existing_dat
 
     return property_key, date_obj.date().isoformat()
 
+"""
+Trigger event method setting the dataset_type immutable property for a Publication.
+
+Parameters
+----------
+property_key : str
+    The target property key of the value to be generated
+normalized_type : str
+    One of the types defined in the schema yaml: Publication
+user_token: str
+    The user's globus nexus token
+existing_data_dict : dict
+    A dictionary that contains all existing entity properties
+new_data_dict : dict
+    A merged dictionary that contains all possible input data to be used
+
+Returns
+-------
+str: The target property key
+str: Immutable dataset_type of "Publication"
+"""
+def set_publication_dataset_type(property_key, normalized_type, user_token, existing_data_dict, new_data_dict):
+    # Count upon the dataset_type generated: true property in provenance_schema.yaml to assure the
+    # request does not contain a value which will be overwritten.
+    return property_key, 'Publication'
 
 ####################################################################################################
 ## Trigger methods specific to Upload - DO NOT RENAME
