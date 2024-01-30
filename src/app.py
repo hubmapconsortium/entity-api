@@ -1826,7 +1826,7 @@ def get_siblings(id):
 
 
 """
-Get all tuplets of the given entit: sibling entities sharing an ancestor activity
+Get all tuplets of the given entit: sibling entities sharing an parent activity
 
 The gateway treats this endpoint as public accessible
 
