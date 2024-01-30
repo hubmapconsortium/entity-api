@@ -1826,6 +1826,109 @@ def get_siblings(id):
 
 
 """
+Get all tuplets of the given entit: sibling entities sharing an ancestor activity
+
+The gateway treats this endpoint as public accessible
+
+Result filtering based on query string
+For example: /tuplets/<id>?property=uuid
+
+Parameters
+----------
+id : str
+    The HuBMAP ID (e.g. HBM123.ABCD.456) or UUID of given entity
+
+Returns
+-------
+json
+    A list of all the tuplets of the target entity
+"""
+@app.route('/tuplets/<id>', methods = ['GET'])
+def get_tuplets(id):
+    final_result = []
+
+    # Token is not required, but if an invalid token provided,
+    # we need to tell the client with a 401 error
+    validate_token_if_auth_header_exists(request)
+
+    # Use the internal token to query the target entity
+    # since public entities don't require user token
+    token = get_internal_token()
+
+    # Get the entity dict from cache if exists
+    # Otherwise query against uuid-api and neo4j to get the entity dict if the id exists
+    entity_dict = query_target_entity(id, token)
+    normalized_entity_type = entity_dict['entity_type']
+    uuid = entity_dict['uuid']
+
+    # Collection doesn't have ancestors via Activity nodes
+    if normalized_entity_type == 'Collection':
+        bad_request_error(f"Unsupported entity type of id {id}: {normalized_entity_type}")
+
+    if schema_manager.entity_type_instanceof(normalized_entity_type, 'Dataset'):
+        # Only published/public datasets don't require token
+        if entity_dict['status'].lower() != DATASET_STATUS_PUBLISHED:
+            # Token is required and the user must belong to HuBMAP-READ group
+            token = get_user_token(request, non_public_access_required = True)
+    elif normalized_entity_type == 'Sample':
+        # The `data_access_level` of Sample can only be either 'public' or 'consortium'
+        if entity_dict['data_access_level'] == ACCESS_LEVEL_CONSORTIUM:
+            token = get_user_token(request, non_public_access_required = True)
+    else:
+        # Donor and Upload will always get back an empty list
+        # becuase their direct ancestor is Lab, which is being skipped by Neo4j query
+        # So no need to execute the code below
+        return jsonify(final_result)
+
+    # By now, either the entity is public accessible or the user token has the correct access level
+    # Result filtering based on query string
+    status = None
+    property_key = None
+    accepted_args = ['property', 'status']
+    if bool(request.args):
+        for arg_name in request.args.keys():
+            if arg_name not in accepted_args:
+                bad_request_error(f"{arg_name} is an unrecognized argument")
+        property_key = request.args.get('property')
+        status = request.args.get('status')
+        if status is not None:
+            status = status.lower()
+            if status not in ['new', 'processing', 'published', 'qa', 'error', 'hold', 'invalid', 'submitted']:
+                bad_request_error("Invalid Dataset Status. Must be 'new', 'qa', or 'published' Case-Insensitive")
+        if property_key is not None:
+            property_key = property_key.lower()
+            result_filtering_accepted_property_keys = ['uuid']
+            if property_key not in result_filtering_accepted_property_keys:
+                bad_request_error(f"Only the following property keys are supported in the query string: {COMMA_SEPARATOR.join(result_filtering_accepted_property_keys)}")
+    tuplet_list = app_neo4j_queries.get_tuplets(neo4j_driver_instance, uuid, status, property_key)
+    if property_key is not None:
+        return jsonify(tuplet_list)
+    # Generate trigger data
+    # Skip some of the properties that are time-consuming to generate via triggers
+    # Also skip next_revision_uuid and previous_revision_uuid for Dataset to avoid additional
+    # checks when the target Dataset is public but the revisions are not public
+    properties_to_skip = [
+        # Properties to skip for Sample
+        'direct_ancestor',
+        # Properties to skip for Dataset
+        'direct_ancestors',
+        'collections',
+        'upload',
+        'title',
+        'next_revision_uuid',
+        'previous_revision_uuid',
+        'associated_collection'
+    ]
+
+    complete_entities_list = schema_manager.get_complete_entities_list(token, tuplet_list, properties_to_skip)
+    # Final result after normalization
+    final_result = schema_manager.normalize_entities_list_for_response(complete_entities_list)
+
+    return jsonify(final_result)
+
+
+
+"""
 Get all previous revisions of the given entity
 Result filtering based on query string
 For example: /previous_revisions/<id>?property=uuid

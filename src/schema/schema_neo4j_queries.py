@@ -273,6 +273,62 @@ def get_siblings(neo4j_driver, uuid, property_key=None):
 
 
 """
+Get all tuplets by uuid
+
+Parameters
+----------
+neo4j_driver : neo4j.Driver object
+    The neo4j database connection pool
+uuid : str
+    The uuid of target entity 
+property_key : str
+    A target property key for result filtering
+
+Returns
+-------
+dict
+    A list of unique tuplet dictionaries returned from the Cypher query
+"""
+def get_tuplets(neo4j_driver, uuid, property_key=None):
+    results = []
+
+    if property_key:
+        query = (f"MATCH (e:Entity)<-[:ACTIVITY_OUTPUT]-(a:Activity)<-[:ACTIVITY_INPUT]-(parent:Entity) "
+                 # filter out the Lab entities
+                 f"WHERE e.uuid='{uuid}' AND parent.entity_type <> 'Lab' "
+                 f"MATCH (tuplet:Entity)<-[:ACTIVITY_OUTPUT]-(a) "
+                 f"WHERE tuplet <> e "
+                 # COLLECT() returns a list
+                 # apoc.coll.toSet() returns a set containing unique nodes
+                 f"RETURN apoc.coll.toSet(COLLECT(tuplet.{property_key})) AS {record_field_name}")
+    else:
+        query = (f"MATCH (e:Entity)<-[:ACTIVITY_OUTPUT]-(a:Activity)<-[:ACTIVITY_INPUT]-(parent:Entity) "
+                 # filter out the Lab entities
+                 f"WHERE e.uuid='{uuid}' AND parent.entity_type <> 'Lab' "
+                 f"MATCH (tuplet:Entity)<-[:ACTIVITY_OUTPUT]-(a:Activity) "
+                 f"WHERE tuplet <> e "
+                 # COLLECT() returns a list
+                 # apoc.coll.toSet() returns a set containing unique nodes
+                 f"RETURN apoc.coll.toSet(COLLECT(tuplet)) AS {record_field_name}")
+
+
+    logger.info("======get_tuplets() query======")
+    logger.info(query)
+
+    with neo4j_driver.session() as session:
+        record = session.read_transaction(execute_readonly_tx, query)
+
+        if record and record[record_field_name]:
+            if property_key:
+                # Just return the list of property values from each entity node
+                results = record[record_field_name]
+            else:
+                # Convert the list of nodes to a list of dicts
+                results = nodes_to_dicts(record[record_field_name])
+    return results
+
+
+"""
 Get all ancestors by uuid
 
 Parameters
