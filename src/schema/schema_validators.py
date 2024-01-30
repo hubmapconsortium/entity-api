@@ -541,6 +541,29 @@ def validate_creation_action(property_key, normalized_entity_type, request, exis
 
 
 """
+Validate the provided value of the activity creation action before updating direct ancestors. Certain values prohibited
+Parameters
+----------
+property_key : str
+    The target property key
+normalized_type : str
+    Submission
+request: Flask request object
+    The instance of Flask request passed in from application request
+existing_data_dict : dict
+    A dictionary that contains all existing entity properties
+new_data_dict : dict
+    The json data in request body, already after the regular validations
+"""
+def validate_not_invalid_creation_action(property_key, normalized_entity_type, request, existing_data_dict, new_data_dict):
+    prohibited_creation_action_values = ["Central Process", "Multi-Assay Split"]
+    entity_uuid = existing_data_dict.get('uuid')
+    creation_action = schema_neo4j_queries.get_entity_creation_action_activity(schema_manager.get_neo4j_driver_instance(), entity_uuid)
+    if creation_action and creation_action in prohibited_creation_action_values:
+        raise ValueError("Cannot update {} value if creation_action of parent activity is {}".format(property_key, ", ".join(prohibited_creation_action_values)))
+
+
+"""
 Validate that the user is in  Hubmap-Data-Admin before creating or updating field 'assigned_to_group_name'
 
 Parameters
