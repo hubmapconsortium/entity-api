@@ -363,6 +363,7 @@ ENTITIES:
           - validate_no_duplicates_in_list
         before_property_update_validators:
           - validate_no_duplicates_in_list
+          - validate_not_invalid_creation_action
         transient: true
         exposed: false
         description: "The uuids of source entities from which this new entity is derived.  Used to pass source entity ids in on POST or PUT calls used to create the linkages."
@@ -633,6 +634,7 @@ ENTITIES:
           - validate_no_duplicates_in_list
         before_property_update_validators:
           - validate_no_duplicates_in_list
+          - validate_not_invalid_creation_action
         transient: true
         exposed: false
         description: "The uuids of source entities from which this new entity is derived.  Used to pass source entity ids in on POST or PUT calls used to create the linkages."
