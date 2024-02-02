@@ -1719,7 +1719,7 @@ Get all siblings of the given entity
 The gateway treats this endpoint as public accessible
 
 Result filtering based on query string
-For example: /siblings/<id>?property=uuid
+For example: /entities/<id>/siblings?property=uuid
 
 Parameters
 ----------
@@ -1731,7 +1731,7 @@ Returns
 json
     A list of all the siblings of the target entity
 """
-@app.route('/siblings/<id>', methods = ['GET'])
+@app.route('/entities/<id>/siblings', methods = ['GET'])
 def get_siblings(id):
     final_result = []
 
