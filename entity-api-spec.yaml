@@ -1544,7 +1544,7 @@ paths:
           description: The target entity could not be found
         '500':
           description: Internal error
-  '/tuplets/{id}':
+  '/entities/{id}/tuplets':
     get:
       summary: Get the tuplets list for an Entity.  The tuplets have the same parent activity node.
       parameters:
