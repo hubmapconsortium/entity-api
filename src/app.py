@@ -1815,7 +1815,11 @@ def get_siblings(id):
         'title',
         'next_revision_uuid',
         'previous_revision_uuid',
-        'associated_collection'
+        'associated_collection',
+        'creation_action',
+        'local_directory_rel_path',
+        'previous_revision_uuids',
+        'next_revision_uuids'
     ]
 
     complete_entities_list = schema_manager.get_complete_entities_list(token, sibling_list, properties_to_skip)
