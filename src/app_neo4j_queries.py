@@ -670,6 +670,37 @@ def get_associated_organs_from_dataset(neo4j_driver, dataset_uuid):
 
     return results
 
+def get_associated_organs_donors_samples_uuids_from_dataset(neo4j_driver, dataset_uuid):
+    """
+    Return a dict of 'samples', 'organs', and 'donors' as arrays for uuids associated with the 'dataset_uuid'.
+
+    :param neo4j_driver:
+    :param dataset_uuid:
+    :return: {samples: [...], organs: [...], donors: [...]}
+    """
+    logger.info("======get_associated_organ_donor_sample_uuids_from_dataset()======")
+
+    sample_query: str = \
+        "MATCH (ds:Dataset)<-[*]-(s:Sample) " \
+        f"WHERE ds.uuid='{dataset_uuid}' AND NOT s.sample_category = 'organ' " \
+        "RETURN DISTINCT s.uuid"
+    organ_query: str = \
+        f"MATCH (ds:Dataset)<-[*]-(o:Sample) " \
+        f"WHERE ds.uuid='{dataset_uuid}' AND o.sample_category = 'organ' " \
+        "RETURN DISTINCT o.uuid"
+    donor_query: str = \
+        "MATCH (ds:Dataset)<-[*]-(d:Donor) " \
+        f"WHERE ds.uuid='{dataset_uuid}' " \
+        "RETURN DISTINCT d.uuid"
+
+    results: dict = {}
+    with neo4j_driver.session() as session:
+        results['samples'] = session.read_transaction(schema_neo4j_queries.execute_readonly_tx, sample_query)
+        results['organs'] = session.read_transaction(schema_neo4j_queries.execute_readonly_tx, organ_query)
+        results['donors'] = session.read_transaction(schema_neo4j_queries.execute_readonly_tx, donor_query)
+    return results
+
+
 """
 Retrieve all the provenance information about each dataset. Each dataset's prov-info is given by a dictionary. 
 Certain fields such as first sample where there can be multiple nearest datasets in the provenance above a given

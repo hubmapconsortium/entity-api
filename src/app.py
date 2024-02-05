@@ -2626,6 +2626,29 @@ def get_associated_organs_from_dataset(id):
 
     return jsonify(final_result)
 
+@app.route('/datasets/<id>/organs-donors-samples-uuids', methods=['GET'])
+def get_associated_organs_donors_samples_uuids_from_dataset(id):
+    # Token is not required, but if an invalid token provided,
+    # we need to tell the client with a 401 error
+    validate_token_if_auth_header_exists(request)
+
+    # Use the internal token to query the target entity
+    # since public entities don't require user token
+    token = get_internal_token()
+
+    # Query target entity against uuid-api and neo4j and return as a dict if exists
+    entity_dict = query_target_entity(id, token)
+
+    # Only for Dataset
+    if not schema_manager.entity_type_instanceof(entity_dict['entity_type'], 'Dataset'):
+        bad_request_error("The entity of given id is not a Dataset or Publication")
+
+    result = \
+        app_neo4j_queries.get_associated_organs_donors_samples_uuids_from_dataset(neo4j_driver_instance,
+                                                                                  entity_dict['uuid'])
+
+    return jsonify(result)
+
 
 """
 Get the complete provenance info for all datasets
