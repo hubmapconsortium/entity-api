@@ -1902,7 +1902,7 @@ paths:
                     items:
                       type: string
                       description: organ uuid
-                  donorss:
+                  donors:
                     type: array
                     items:
                       type: string
