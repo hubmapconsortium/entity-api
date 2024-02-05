@@ -1492,7 +1492,7 @@ paths:
           description: The target entity could not be found
         '500':
           description: Internal error
-  '/siblings/{id}':
+  '/entities/{id}/siblings':
     get:
       summary: Get the siblings list for an Entity.  The siblings have the same direct ancestor.  This list does not include all nodes whom have common ancestors, only the direct ancestor.
       parameters:
