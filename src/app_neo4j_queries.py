@@ -1155,3 +1155,48 @@ def get_siblings(neo4j_driver, uuid, status, prop_key, include_revisions):
                 # Convert the list of nodes to a list of dicts
                 results = schema_neo4j_queries.nodes_to_dicts(record[record_field_name])
     return results
+
+
+"""
+Get all tuplets by uuid
+
+Parameters
+----------
+neo4j_driver : neo4j.Driver object
+    The neo4j database connection pool
+uuid : str
+    The uuid of target entity 
+property_key : str
+    A target property key for result filtering
+
+Returns
+-------
+dict
+    A list of unique tuplet dictionaries returned from the Cypher query
+"""
+def get_tuplets(neo4j_driver, uuid, status, prop_key):
+    tuplet_uuids = schema_neo4j_queries.get_tuplets(neo4j_driver, uuid, property_key='uuid')
+    tuplets_uuids_string = str(tuplet_uuids)
+    status_query_string = ""
+    prop_query_string = f"RETURN apoc.coll.toSet(COLLECT(e)) AS {record_field_name}"
+    if status is not None:
+        status_query_string = f"AND (NOT e:Dataset OR TOLOWER(e.status) = '{status}') "
+    if prop_key is not None:
+        prop_query_string = f"RETURN apoc.coll.toSet(COLLECT(e.{prop_key})) AS {record_field_name}"
+    results = []
+    query = ("MATCH (e:Entity) "
+             f"WHERE e.uuid IN {tuplets_uuids_string} "
+             f"{status_query_string}"
+             f"{prop_query_string}")
+
+    with neo4j_driver.session() as session:
+        record = session.read_transaction(schema_neo4j_queries.execute_readonly_tx, query)
+
+        if record and record[record_field_name]:
+            if prop_key:
+                # Just return the list of property values from each entity node
+                results = record[record_field_name]
+            else:
+                # Convert the list of nodes to a list of dicts
+                results = schema_neo4j_queries.nodes_to_dicts(record[record_field_name])
+    return results
