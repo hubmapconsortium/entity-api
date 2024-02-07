@@ -288,6 +288,8 @@ def generate_triggered_data(trigger_type, normalized_class, user_token, existing
     # The ordering of properties of this entity class defined in the yaml schema
     # decides the ordering of which trigger method gets to run first
     properties = schema_section[normalized_class]['properties']
+    # Remove null properties such as those not inherited from a superclass
+    properties = remove_none_values(properties)
 
     # Set each property value and put all resulting data into a dictionary for:
     # before_create_trigger|before_update_trigger|on_read_trigger
