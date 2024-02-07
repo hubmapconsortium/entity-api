@@ -1874,49 +1874,6 @@ paths:
           description: The target dataset could not be found
         '500':
           description: Internal error
-  '/datasets/{id}/organs-donors-samples-uuids':
-    get:
-      summary: Return a dict of 'samples', 'organs', and 'donors' as arrays for uuids associated with the Dataset id'.
-      parameters:
-        - name: id
-          in: path
-          description: The unique identifier of entity. This identifier can be either an HuBMAP ID (e.g. HBM123.ABCD.456) or UUID.
-          required: true
-          schema:
-            type: string
-      responses:
-        '200':
-          description: Object of 'samples', 'organs', and 'donors' uuids as arrays.
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  samples:
-                    type: array
-                    items:
-                      type: string
-                      description: sample uuid
-                  organs:
-                    type: array
-                    items:
-                      type: string
-                      description: organ uuid
-                  donors:
-                    type: array
-                    items:
-                      type: string
-                      description: donor uuid
-        '400':
-          description: Invalid or misformatted entity identifier, or the given entity is not a Dataset
-        '401':
-          description: The user's token has expired or the user did not supply a valid token
-        '403':
-          description: The user is not authorized to query the revision number of the given dataset.
-        '404':
-          description: The target dataset could not be found
-        '500':
-          description: Internal error
   '/datasets/{id}/revisions':
     get:
       summary: 'From a given ID of a versioned dataset, retrieve a list of every dataset in the chain ordered from most recent to oldest. The revision number, as well as the dataset uuid will be included. An optional parameter ?include_dataset=true will include the full dataset for each revision as well. Public/Consortium access rules apply, if is for a non-public dataset and no token or a token without membership in HuBMAP-Read group is sent with the request then a 403 response should be returned. If the given id is published, but later revisions are not and the user is not in HuBMAP-Read group, only published revisions will be returned. The field next_revision_uuid will not be returned if the next revision is unpublished'
@@ -1950,6 +1907,93 @@ paths:
                     description: The number in the revision chain of this dataset where 1 is the oldest revision
                   dataset:
                     $ref: '#/components/schemas/Dataset'
+        '400':
+          description: Invalid or misformatted entity identifier, or the given entity is not a Dataset
+        '401':
+          description: The user's token has expired or the user did not supply a valid token
+        '403':
+          description: The user is not authorized to query the revision number of the given dataset.
+        '404':
+          description: The target dataset could not be found
+        '500':
+          description: Internal error
+  '/datasets/{id}/organs':
+    get:
+      summary: Retrieve a list of all of the smples that are organs that are associated with the dataset id
+      parameters:
+        - name: id
+          in: path
+          description: The unique identifier of entity.  This identifier can be either an HuBMAP ID (e.g. HBM123.ABCD.456) or UUID
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: A list of entity_type == Sample with sample_category == organ associated with the dataset id
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Sample'
+        '400':
+          description: Invalid or misformatted entity identifier, or the given entity is not a Dataset
+        '401':
+          description: The user's token has expired or the user did not supply a valid token
+        '403':
+          description: The user is not authorized to query the revision number of the given dataset.
+        '404':
+          description: The target dataset could not be found
+        '500':
+          description: Internal error
+  '/datasets/{id}/samples':
+    get:
+      summary: Retrieve a list of all of the samples that are not organs that are associated with the dataset id
+      parameters:
+        - name: id
+          in: path
+          description: The unique identifier of entity.  This identifier can be either an HuBMAP ID (e.g. HBM123.ABCD.456) or UUID
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: A list of entity_type == Sample with sample_category != organ associated with the dataset id
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Sample'
+        '400':
+          description: Invalid or misformatted entity identifier, or the given entity is not a Dataset
+        '401':
+          description: The user's token has expired or the user did not supply a valid token
+        '403':
+          description: The user is not authorized to query the revision number of the given dataset.
+        '404':
+          description: The target dataset could not be found
+        '500':
+          description: Internal error
+  '/datasets/{id}/donors':
+    get:
+      summary: Retrieve a list of all of the donors that are associated with the dataset id
+      parameters:
+        - name: id
+          in: path
+          description: The unique identifier of entity.  This identifier can be either an HuBMAP ID (e.g. HBM123.ABCD.456) or UUID
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: A list of entity_type == Donor that are associated with the dataset id
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Donor'
         '400':
           description: Invalid or misformatted entity identifier, or the given entity is not a Dataset
         '401':

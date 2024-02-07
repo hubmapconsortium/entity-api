@@ -2626,8 +2626,8 @@ def get_associated_organs_from_dataset(id):
 
     return jsonify(final_result)
 
-@app.route('/datasets/<id>/organs-donors-samples-uuids', methods=['GET'])
-def get_associated_organs_donors_samples_uuids_from_dataset(id):
+@app.route('/datasets/<id>/samples', methods=['GET'])
+def get_associated_samples_from_dataset(id):
     # Token is not required, but if an invalid token provided,
     # we need to tell the client with a 401 error
     validate_token_if_auth_header_exists(request)
@@ -2638,17 +2638,71 @@ def get_associated_organs_donors_samples_uuids_from_dataset(id):
 
     # Query target entity against uuid-api and neo4j and return as a dict if exists
     entity_dict = query_target_entity(id, token)
+    normalized_entity_type = entity_dict['entity_type']
 
     # Only for Dataset
-    if not schema_manager.entity_type_instanceof(entity_dict['entity_type'], 'Dataset'):
+    if not schema_manager.entity_type_instanceof(normalized_entity_type, 'Dataset'):
         bad_request_error("The entity of given id is not a Dataset or Publication")
 
-    result = \
-        app_neo4j_queries.get_associated_organs_donors_samples_uuids_from_dataset(neo4j_driver_instance,
-                                                                                  entity_dict['uuid'])
+    # published/public datasets don't require token
+    if entity_dict['status'].lower() != DATASET_STATUS_PUBLISHED:
+        # Token is required and the user must belong to HuBMAP-READ group
+        token = get_user_token(request, non_public_access_required=True)
 
-    return jsonify(result)
+    # By now, either the entity is public accessible or
+    # the user token has the correct access level
+    associated_samples = app_neo4j_queries.get_associated_samples_from_dataset(neo4j_driver_instance, entity_dict['uuid'])
 
+    # If there are zero items in the list associated organs, then there are no associated
+    # Organs and a 404 will be returned.
+    if len(associated_samples) < 1:
+        not_found_error("the dataset does not have any associated organs")
+
+    complete_entities_list = schema_manager.get_complete_entities_list(token, associated_samples)
+
+    # Final result after normalization
+    final_result = schema_manager.normalize_entities_list_for_response(complete_entities_list)
+
+    return jsonify(final_result)
+
+@app.route('/datasets/<id>/donors', methods=['GET'])
+def get_associated_donors_from_dataset(id):
+    # Token is not required, but if an invalid token provided,
+    # we need to tell the client with a 401 error
+    validate_token_if_auth_header_exists(request)
+
+    # Use the internal token to query the target entity
+    # since public entities don't require user token
+    token = get_internal_token()
+
+    # Query target entity against uuid-api and neo4j and return as a dict if exists
+    entity_dict = query_target_entity(id, token)
+    normalized_entity_type = entity_dict['entity_type']
+
+    # Only for Dataset
+    if not schema_manager.entity_type_instanceof(normalized_entity_type, 'Dataset'):
+        bad_request_error("The entity of given id is not a Dataset or Publication")
+
+    # published/public datasets don't require token
+    if entity_dict['status'].lower() != DATASET_STATUS_PUBLISHED:
+        # Token is required and the user must belong to HuBMAP-READ group
+        token = get_user_token(request, non_public_access_required=True)
+
+    # By now, either the entity is public accessible or
+    # the user token has the correct access level
+    associated_donors = app_neo4j_queries.get_associated_donors_from_dataset(neo4j_driver_instance, entity_dict['uuid'])
+
+    # If there are zero items in the list associated organs, then there are no associated
+    # Organs and a 404 will be returned.
+    if len(associated_donors) < 1:
+        not_found_error("the dataset does not have any associated organs")
+
+    complete_entities_list = schema_manager.get_complete_entities_list(token, associated_donors)
+
+    # Final result after normalization
+    final_result = schema_manager.normalize_entities_list_for_response(complete_entities_list)
+
+    return jsonify(final_result)
 
 """
 Get the complete provenance info for all datasets
