@@ -134,7 +134,9 @@ def load_provenance_schema(valid_yaml_file):
         schema_dict = yaml.safe_load(file)
 
         logger.info(f"Provenance Schema yaml file loaded successfully from {valid_yaml_file} :)")
-
+        # For entities with properties set to None/Null, remove them as these represent private values not inherited by subclass
+        for entity in schema_dict['ENTITIES']:
+            schema_dict['ENTITIES'][entity]['properties'] = remove_none_values(schema_dict['ENTITIES'][entity]['properties'])
         return schema_dict
 
 
@@ -288,8 +290,6 @@ def generate_triggered_data(trigger_type, normalized_class, user_token, existing
     # The ordering of properties of this entity class defined in the yaml schema
     # decides the ordering of which trigger method gets to run first
     properties = schema_section[normalized_class]['properties']
-    # Remove null properties such as those not inherited from a superclass
-    properties = remove_none_values(properties)
 
     # Set each property value and put all resulting data into a dictionary for:
     # before_create_trigger|before_update_trigger|on_read_trigger
@@ -469,8 +469,8 @@ def remove_none_values(merged_dict):
     for k, v in merged_dict.items():
         # Only keep the properties whose value is not None
         if v is not None:
-            filtered_dict[k] = v 
-
+            filtered_dict[k] = v
+    print(filtered_dict)
     return filtered_dict
 
 
