@@ -2593,8 +2593,7 @@ def get_associated_organs_from_dataset(id):
     # we need to tell the client with a 401 error
     validate_token_if_auth_header_exists(request)
 
-    # Use the internal token to query the target entity
-    # since public entities don't require user token
+    # Use the internal token to query the target entity since public entities don't require user token
     token = get_internal_token()
 
     # Query target entity against uuid-api and neo4j and return as a dict if exists
@@ -2614,7 +2613,7 @@ def get_associated_organs_from_dataset(id):
     # the user token has the correct access level
     associated_organs = app_neo4j_queries.get_associated_organs_from_dataset(neo4j_driver_instance, entity_dict['uuid'])
 
-    # If there are zero items in the list associated organs, then there are no associated
+    # If there are zero items in the list associated_organs, then there are no associated
     # Organs and a 404 will be returned.
     if len(associated_organs) < 1:
         not_found_error("the dataset does not have any associated organs")
@@ -2649,14 +2648,13 @@ def get_associated_samples_from_dataset(id):
         # Token is required and the user must belong to HuBMAP-READ group
         token = get_user_token(request, non_public_access_required=True)
 
-    # By now, either the entity is public accessible or
-    # the user token has the correct access level
+    # By now, either the entity is public accessible or the user token has the correct access level
     associated_samples = app_neo4j_queries.get_associated_samples_from_dataset(neo4j_driver_instance, entity_dict['uuid'])
 
-    # If there are zero items in the list associated organs, then there are no associated
-    # Organs and a 404 will be returned.
+    # If there are zero items in the list associated_samples, then there are no associated
+    # samples and a 404 will be returned.
     if len(associated_samples) < 1:
-        not_found_error("the dataset does not have any associated organs")
+        not_found_error("the dataset does not have any associated samples")
 
     complete_entities_list = schema_manager.get_complete_entities_list(token, associated_samples)
 
@@ -2688,14 +2686,13 @@ def get_associated_donors_from_dataset(id):
         # Token is required and the user must belong to HuBMAP-READ group
         token = get_user_token(request, non_public_access_required=True)
 
-    # By now, either the entity is public accessible or
-    # the user token has the correct access level
+    # By now, either the entity is public accessible or the user token has the correct access level
     associated_donors = app_neo4j_queries.get_associated_donors_from_dataset(neo4j_driver_instance, entity_dict['uuid'])
 
-    # If there are zero items in the list associated organs, then there are no associated
-    # Organs and a 404 will be returned.
+    # If there are zero items in the list associated_donors, then there are no associated
+    # donors and a 404 will be returned.
     if len(associated_donors) < 1:
-        not_found_error("the dataset does not have any associated organs")
+        not_found_error("the dataset does not have any associated donors")
 
     complete_entities_list = schema_manager.get_complete_entities_list(token, associated_donors)
 
