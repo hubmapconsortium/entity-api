@@ -1962,6 +1962,93 @@ paths:
           description: The target dataset could not be found
         '500':
           description: Internal error
+  '/datasets/{id}/organs':
+    get:
+      summary: Retrieve a list of all of the smples that are organs that are associated with the dataset id
+      parameters:
+        - name: id
+          in: path
+          description: The unique identifier of entity.  This identifier can be either an HuBMAP ID (e.g. HBM123.ABCD.456) or UUID
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: A list of entity_type == Sample with sample_category == organ associated with the dataset id
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Sample'
+        '400':
+          description: Invalid or misformatted entity identifier, or the given entity is not a Dataset
+        '401':
+          description: The user's token has expired or the user did not supply a valid token
+        '403':
+          description: The user is not authorized to query the revision number of the given dataset.
+        '404':
+          description: The target dataset could not be found
+        '500':
+          description: Internal error
+  '/datasets/{id}/samples':
+    get:
+      summary: Retrieve a list of all of the samples that are not organs that are associated with the dataset id
+      parameters:
+        - name: id
+          in: path
+          description: The unique identifier of entity.  This identifier can be either an HuBMAP ID (e.g. HBM123.ABCD.456) or UUID
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: A list of entity_type == Sample with sample_category != organ associated with the dataset id
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Sample'
+        '400':
+          description: Invalid or misformatted entity identifier, or the given entity is not a Dataset
+        '401':
+          description: The user's token has expired or the user did not supply a valid token
+        '403':
+          description: The user is not authorized to query the revision number of the given dataset.
+        '404':
+          description: The target dataset could not be found
+        '500':
+          description: Internal error
+  '/datasets/{id}/donors':
+    get:
+      summary: Retrieve a list of all of the donors that are associated with the dataset id
+      parameters:
+        - name: id
+          in: path
+          description: The unique identifier of entity.  This identifier can be either an HuBMAP ID (e.g. HBM123.ABCD.456) or UUID
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: A list of entity_type == Donor that are associated with the dataset id
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Donor'
+        '400':
+          description: Invalid or misformatted entity identifier, or the given entity is not a Dataset
+        '401':
+          description: The user's token has expired or the user did not supply a valid token
+        '403':
+          description: The user is not authorized to query the revision number of the given dataset.
+        '404':
+          description: The target dataset could not be found
+        '500':
+          description: Internal error
   '/datasets/{id}/retract':
     put:
       summary: 'Retracts a dataset after it has been published. Requires a json body with a single field {retraction_reason: string}. The dataset for the given id is modified to include this new retraction_reason field and sets the dataset property sub_status to Retracted. The complete modified dataset is returned. Requires that the dataset being retracted has already been published (dataset.status == Published. Requires a user token with membership in the HuBMAP-Data-Admin group otherwise then a 403 will be returned.'

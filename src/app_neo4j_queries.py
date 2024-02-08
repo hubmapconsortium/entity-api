@@ -670,6 +670,44 @@ def get_associated_organs_from_dataset(neo4j_driver, dataset_uuid):
 
     return results
 
+def get_associated_samples_from_dataset(neo4j_driver, dataset_uuid):
+    results = []
+
+    # specimen_type -> sample_category 12/15/2022
+    query = (f"MATCH (ds:Dataset)<-[*]-(sample:Sample) "
+             f"WHERE ds.uuid='{dataset_uuid}' AND NOT sample.sample_category = 'organ' "
+             f"RETURN apoc.coll.toSet(COLLECT(sample)) AS {record_field_name}")
+
+    logger.info("======get_associated_samples_from_dataset() query======")
+    logger.info(query)
+
+    with neo4j_driver.session() as session:
+        record = session.read_transaction(schema_neo4j_queries.execute_readonly_tx, query)
+
+        if record and record[record_field_name]:
+            results = schema_neo4j_queries.nodes_to_dicts(record[record_field_name])
+
+    return results
+
+def get_associated_donors_from_dataset(neo4j_driver, dataset_uuid):
+    results = []
+
+    # specimen_type -> sample_category 12/15/2022
+    query = (f"MATCH (ds:Dataset)<-[*]-(donor:Donor) "
+             f"WHERE ds.uuid='{dataset_uuid}'"
+             f"RETURN apoc.coll.toSet(COLLECT(donor)) AS {record_field_name}")
+
+    logger.info("======get_associated_donors_from_dataset() query======")
+    logger.info(query)
+
+    with neo4j_driver.session() as session:
+        record = session.read_transaction(schema_neo4j_queries.execute_readonly_tx, query)
+
+        if record and record[record_field_name]:
+            results = schema_neo4j_queries.nodes_to_dicts(record[record_field_name])
+
+    return results
+
 """
 Retrieve all the provenance information about each dataset. Each dataset's prov-info is given by a dictionary. 
 Certain fields such as first sample where there can be multiple nearest datasets in the provenance above a given
