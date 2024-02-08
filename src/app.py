@@ -2625,6 +2625,21 @@ def get_associated_organs_from_dataset(id):
 
     return jsonify(final_result)
 
+"""
+Get all samples associated with a given dataset
+
+The gateway treats this endpoint as public accessible
+
+Parameters
+----------
+id : str
+    The HuBMAP ID (e.g. HBM123.ABCD.456) or UUID of given entity
+
+Returns
+-------
+json
+    a list of all the samples associated with the target dataset
+"""
 @app.route('/datasets/<id>/samples', methods=['GET'])
 def get_associated_samples_from_dataset(id):
     # Token is not required, but if an invalid token provided,
@@ -2663,6 +2678,21 @@ def get_associated_samples_from_dataset(id):
 
     return jsonify(final_result)
 
+"""
+Get all donors associated with a given dataset
+
+The gateway treats this endpoint as public accessible
+
+Parameters
+----------
+id : str
+    The HuBMAP ID (e.g. HBM123.ABCD.456) or UUID of given entity
+
+Returns
+-------
+json
+    a list of all the donors associated with the target dataset
+"""
 @app.route('/datasets/<id>/donors', methods=['GET'])
 def get_associated_donors_from_dataset(id):
     # Token is not required, but if an invalid token provided,
