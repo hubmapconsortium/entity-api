@@ -470,7 +470,7 @@ def remove_none_values(merged_dict):
         # Only keep the properties whose value is not None
         if v is not None:
             filtered_dict[k] = v
-    print(filtered_dict)
+
     return filtered_dict
 
 
