@@ -270,10 +270,7 @@ ENTITIES:
     derivation:
       source: true
       target: true
-    properties:
-      <<: *shared_properties
-      <<: *shared_entity_properties
-      <<: *doi_properties
+    properties: &shared_dataset_properties
       antibodies:
         type: list
         description: "A list of antibodies used in the assay that created the dataset"
@@ -545,63 +542,11 @@ ENTITIES:
       <<: *shared_properties
       <<: *shared_entity_properties
       <<: *doi_properties
-      antibodies:
-        type: list
-        description: "A list of antibodies used in the assay that created the dataset"
-      description:
-        type: string
-        description: "Free text description of the dataset"
-      dataset_info:
-        type: string
-        description: "Additional information about the dataset, which can be used to find this dataset, including lab specific (non-PHI) identifiers."
-      # The Dataset.data_access_level is based on Dataset.status and Dataset.contains_human_genetic_sequences
-      creation_action:
-        type: string
-        transient: true
-        immutable: true
-        on_read_trigger: get_creation_action_activity
-        description: "The activity that was performed."
-        before_property_create_validators:
-          - validate_creation_action
-      data_access_level:
-        type: string
-        generated: true
-        description: "One of the values: public, consortium, protected. Only Dataset may have protected value"
-        before_create_trigger: set_data_access_level
-      # When contains_human_genetic_sequences is true, even if status is 'Published', the data_access_level is still 'protected'
-      contains_human_genetic_sequences:
-        type: boolean
-        required_on_create: true # Only required for create via POST, not update via PUT
-        description: "True if the data contains any human genetic sequence information."
-      error_message:
-        type: string
-        description: "An open text field that holds the last error message that arose from pipeline validation or analysis."
-      status:
-        type: string
-        before_property_update_validators:
-          - validate_application_header_before_property_update
-          - validate_dataset_status_value
-          - validate_status_changed
-        generated: true
-        description: "One of: New|Processing|QA|Published|Error|Hold|Invalid"
-        before_create_trigger: set_dataset_status_new
-        after_create_trigger: set_status_history
-        after_update_trigger: set_status_history
+      <<: *shared_dataset_properties
       title:
         type: string
         description: "The title of the publication."
         required_on_create: true # Only required for create via POST, not update via PUT
-      lab_dataset_id:
-        type: string
-        description: "A name or identifier used by the lab who is uploading the data to cross reference the data locally"
-      data_types:
-        before_property_create_validators:
-          - validate_no_duplicates_in_list
-        before_property_update_validators:
-          - validate_no_duplicates_in_list
-        type: list
-        required_on_create: false
-        description: "The data or assay types contained in this dataset as a json array of strings.  Each is an assay code from [assay types](https://github.com/hubmapconsortium/search-api/blob/main/src/search-schema/data/definitions/enums/assay_types.yaml)."
       dataset_type:
         before_create_trigger: set_publication_dataset_type
         before_property_create_validators:
@@ -612,174 +557,6 @@ ENTITIES:
         generated: true
         immutable: true
         description: "The assay types of this Dataset. Valid values are from UBKG are queried by schema_manager.get_valueset_dataset_type() using the Ontology API."
-      collections:
-        type: list
-        transient: true
-        generated: true
-        description: "A list of collections that this dataset belongs to. Will be returned in response"
-        on_read_trigger: get_dataset_collections
-      upload:
-        type: json_string # dict
-        transient: true
-        generated: true
-        description: "The Upload that this dataset is associated with. Will be returned in response"
-        on_read_trigger: get_dataset_upload
-      contributors:
-        type: list
-        description: "A list of people who contributed to the creation of this dataset.  Returned as an array of contributor where the structure of a contributor is"
-      direct_ancestor_uuids:
-        required_on_create: true # Only required for create via POST, not update via PUT
-        type: list
-        before_property_create_validators:
-          - validate_no_duplicates_in_list
-        before_property_update_validators:
-          - validate_no_duplicates_in_list
-          - validate_not_invalid_creation_action
-        transient: true
-        exposed: false
-        description: "The uuids of source entities from which this new entity is derived.  Used to pass source entity ids in on POST or PUT calls used to create the linkages."
-        # Note: link_dataset_to_direct_ancestors() will always delete all the old linkages first
-        after_create_trigger: link_dataset_to_direct_ancestors
-        after_update_trigger: link_dataset_to_direct_ancestors
-      direct_ancestors:
-        type: list
-        description: "A list of direct parent ancensters (one level above) that the Dataset was derived from."
-        generated: true
-        transient: true
-        on_read_trigger: get_dataset_direct_ancestors
-      published_timestamp:
-        type: integer
-        immutable: true
-        generated: true
-        description: "The timestamp of when the dataset was published.  The format is an integer representing milliseconds since midnight, Jan 1, 1970.  Cannot be set directly must be set with the /datasets/<id>/publish method."
-      published_user_displayname:
-        type: string
-        generated: true
-        immutable: true
-        description: "The name of the authenticated user or process that published the data.  Cannot be set directly must be set with the /datasets/<id>/publish method."
-      published_user_sub:
-        type: string
-        generated: true
-        immutable: true
-        description: "The subject id as provided by the authorization mechanism for the person or process authenticated when the dataset was publised.  Cannot be set directly must be set with the /datasets/<id>/publish method."
-      published_user_email:
-        type: string
-        generated: true
-        immutable: true
-        description: "The email address provided by the authorization mechanism for the person or process authenticated when published.  Cannot be set directly must be set with the /datasets/<id>/publish method."
-      pipeline_message:
-        #todo: where is this attribute sourced from?  Is it stored in the database? <- Not in neo4j
-        type: string
-      ingest_metadata:
-        type: json_string # dict
-        description: "The metadata returned from the processing at data submission time."
-      local_directory_rel_path:
-        # Example: protected/<TMC>/<uuid>
-        type: string
-        generated: true
-        transient: true
-        description: "The path on the local file system, relative to the base data directory, where the data is stored."
-        on_read_trigger: get_local_directory_rel_path
-      run_id:
-        type: string
-      ingest_id:
-        type: string
-      # A user who is a member of multiple groups HAS to send in the group_uuid
-      group_uuid:
-        type: string
-        immutable: true
-        description: "The uuid of globus group which the user who created this entity is a member of.  This is required on Create/POST if the user creating the Donor is a member of more than one write group.  This property cannot be set via PUT (only on Create/POST)."
-        before_create_trigger: set_group_uuid #method that, if group_uuid is not already set looks for membership in a single "data provider" group and sets to that. Otherwise if not set and no single "provider group" membership throws error
-      # Must set in neo4j
-      group_name:
-        # It's not being mapped in the current version, what to do for the existing entities?
-        type: string
-        generated: true
-        immutable: true
-        description: "The displayname of globus group which the user who created this entity is a member of"
-        before_create_trigger: set_group_name #same as group_uuid, except set group_name
-      previous_revision_uuid:
-        type:
-          - string
-          - list
-        transient: true
-        immutable: true
-        description: "The uuid of previous revision dataset"
-        after_create_trigger: link_to_previous_revision
-        on_read_trigger: get_previous_revision_uuid
-      previous_revision_uuids:
-        type: list
-        generated: true
-        transient: true
-        immutable: true
-        description: "The list of the uuids of previous revision datasets"
-        on_read_trigger: get_previous_revision_uuids
-      next_revision_uuid:
-        type: string
-        generated: true
-        transient: true
-        immutable: true
-        description: "The uuid of next revision dataset"
-        on_read_trigger: get_next_revision_uuid
-      next_revision_uuids:
-        type: list
-        generated: true
-        transient: true
-        immutable: true
-        description: "The list of the uuids of next revision datasets"
-        on_read_trigger: get_next_revision_uuids
-      # No like image and metadata files handling for Donor/Sample
-      # Dataset has only one thumbnail file
-      thumbnail_file:
-        generated: true
-        type: json_string
-        description: "The dataset thumbnail file detail. Stored in db as a stringfied json, e.g., {'filename': 'thumbnail.jpg', 'file_uuid': 'dadasdasdadda'}"
-        # The updated_peripherally tag is a temporary measure to correctly handle any attributes
-        # which are potentially updated by multiple triggers
-        updated_peripherally: true
-      thumbnail_file_to_add:
-        type: json_string
-        transient: true
-        exposed: false
-        description: 'Just a temporary file id. Provide as a json object with an temp_file_id like {"temp_file_id":"dzevgd6xjs4d5grmcp4n"}'
-        before_create_trigger: commit_thumbnail_file
-        # This before_update_trigger with the same commit process can be used by ingest-api to update the dataset via PUT call
-        before_update_trigger: commit_thumbnail_file
-        # The updated_peripherally tag is a temporary measure to correctly handle any attributes
-        # which are potentially updated by multiple triggers
-        updated_peripherally: true
-      thumbnail_file_to_remove:
-        # This is only valid on update via a PUT request
-        type: string
-        transient: true
-        exposed: false
-        description: 'The thumbnail image file previously uploaded to delete. Provide as a string of the file_uuid like: "232934234234234234234270c0ea6c51d604a850558ef2247d0b4"'
-        before_update_trigger: delete_thumbnail_file
-        # The updated_peripherally tag is a temporary measure to correctly handle any attributes
-        # which are potentially updated by multiple triggers
-        updated_peripherally: true
-      retraction_reason:
-        type: string
-        before_property_update_validators:
-          - validate_if_retraction_permitted
-          - validate_sub_status_provided
-        description: 'Information recorded about why a the dataset was retracted.'
-      sub_status:
-        type: string
-        before_property_update_validators:
-          - validate_if_retraction_permitted
-          - validate_retraction_reason_provided
-          - validate_retracted_dataset_sub_status_value
-        description: 'A sub-status provided to further define the status. The only current allowable value is "Retracted"'
-      provider_info:
-        type: string
-        description: 'Information recorded about the data provider before an analysis pipeline is run on the data.'
-      dbgap_sra_experiment_url:
-        type: string
-        description: 'A URL linking the dataset to the associated uploaded data at dbGaP.'
-      dbgap_study_url:
-        type: string
-        description: 'A URL linking the dataset to the particular study on dbGap it belongs to'
       publication_date:
         type: string
         description: 'The date of publication'
@@ -830,11 +607,8 @@ ENTITIES:
         description: "The uuid of the associated collection for a given publication"
         after_create_trigger: link_publication_to_associated_collection
         after_update_trigger: link_publication_to_associated_collection
-      status_history:
-        type: list
-        description: "A list of all status change events. Each entry in the list is a dictionary containing the change_timestamp, changed_by_email, previous_status, new_status"
-        generated: true
-        immutable: true
+      assigned_to_group_name: null # This assigned_to_group_name is Dataset specific, Publication doesn't have it
+      ingest_task: null # This ingest_task is Dataset specific, Publication doesn't have it
 
   ############################################# Donor #############################################
   Donor:

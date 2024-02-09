@@ -134,7 +134,9 @@ def load_provenance_schema(valid_yaml_file):
         schema_dict = yaml.safe_load(file)
 
         logger.info(f"Provenance Schema yaml file loaded successfully from {valid_yaml_file} :)")
-
+        # For entities with properties set to None/Null, remove them as these represent private values not inherited by subclass
+        for entity in schema_dict['ENTITIES']:
+            schema_dict['ENTITIES'][entity]['properties'] = remove_none_values(schema_dict['ENTITIES'][entity]['properties'])
         return schema_dict
 
 
@@ -467,7 +469,7 @@ def remove_none_values(merged_dict):
     for k, v in merged_dict.items():
         # Only keep the properties whose value is not None
         if v is not None:
-            filtered_dict[k] = v 
+            filtered_dict[k] = v
 
     return filtered_dict
 
