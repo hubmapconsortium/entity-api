@@ -3837,9 +3837,9 @@ def multiple_components():
         if direct_ancestor_dict.get('entity_type').lower() != "dataset":
             bad_request_error(f"Direct ancestor is of type: {direct_ancestor_dict.get('entity_type')}. Must be of type 'dataset'.")
 
-    # validate that there are 2 and only 2 datasets in the dataset list
-    if len(json_data_dict.get('datasets')) != 2:
-        bad_request_error(f"'datasets' field must contain 2 component datasets.")
+    # validate that there is at least one component dataset
+    if len(json_data_dict.get('datasets')) < 1:
+        bad_request_error(f"'datasets' field must contain at leawst 1 dataset.")
 
     # Validate all datasets using existing schema with triggers and validators
     for dataset in json_data_dict.get('datasets'):
