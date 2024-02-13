@@ -271,6 +271,9 @@ ENTITIES:
       source: true
       target: true
     properties: &shared_dataset_properties
+      <<: *shared_properties
+      <<: *shared_entity_properties
+      <<: *doi_properties
       antibodies:
         type: list
         description: "A list of antibodies used in the assay that created the dataset"
@@ -539,9 +542,6 @@ ENTITIES:
       source: true
       target: true
     properties:
-      <<: *shared_properties
-      <<: *shared_entity_properties
-      <<: *doi_properties
       <<: *shared_dataset_properties
       title:
         type: string
