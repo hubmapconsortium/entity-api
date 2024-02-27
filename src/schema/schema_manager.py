@@ -243,7 +243,7 @@ def entity_instanceof(entity_uuid: str, entity_class: str) -> bool:
     :return: True or False
     """
     entity_type: str =\
-        schema_neo4j_queries.get_entity_type(get_neo4j_driver_instance(), entity_uuid)
+        schema_neo4j_queries.get_entity_type(get_neo4j_driver_instance(), entity_uuid.strip())
     return entity_type_instanceof(entity_type, entity_class)
 
 
