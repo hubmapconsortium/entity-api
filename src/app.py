@@ -471,7 +471,8 @@ def get_ancestor_organs(id):
 @app.route('/entities/<id>/instanceof/<type>', methods=['GET'])
 def get_entities_instanceof(id, type):
     try:
-        instanceof: bool = schema_manager.entity_instanceof(id, type)
+        uuid = schema_manager.get_hubmap_ids(id.strip())['uuid']
+        instanceof: bool = schema_manager.entity_instanceof(uuid, type)
     except:
         bad_request_error("Unable to process request")
     return make_response(jsonify({'instanceof': instanceof}), 200)
