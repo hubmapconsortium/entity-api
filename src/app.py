@@ -4772,7 +4772,7 @@ def query_target_entity(id, user_token):
 
     try:
         # Get cached ids if exist otherwise retrieve from UUID-API
-        hubmap_ids = schema_manager.get_hubmap_ids(id)
+        hubmap_ids = schema_manager.get_hubmap_ids(id.strip())
 
         # Get the target uuid if all good
         uuid = hubmap_ids['hm_uuid']
