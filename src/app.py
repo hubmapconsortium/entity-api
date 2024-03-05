@@ -473,6 +473,14 @@ def get_entities_instanceof(id, type):
     try:
         uuid = schema_manager.get_hubmap_ids(id.strip())['uuid']
         instanceof: bool = schema_manager.entity_instanceof(uuid, type)
+    except requests.exceptions.RequestException as e:
+        status_code = e.response.status_code
+        if status_code == 400:
+            bad_request_error(e.response.text)
+        if status_code == 404:
+            not_found_error(e.response.text)
+        else:
+            internal_server_error(e.response.text)
     except:
         bad_request_error("Unable to process request")
     return make_response(jsonify({'instanceof': instanceof}), 200)
