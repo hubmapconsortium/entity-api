@@ -280,7 +280,9 @@ new_data_dict : dict
 """
 def validate_dataset_status_value(property_key, normalized_entity_type, request, existing_data_dict, new_data_dict):
     # Use lowercase for comparison
-    accepted_status_values = ['new', 'processing', 'published', 'qa', 'error', 'hold', 'invalid', 'submitted']
+    accepted_status_values = [
+        'new', 'processing', 'published', 'qa', 'error', 'hold', 'invalid', 'submitted', 'incomplete'
+    ]
     new_status = new_data_dict[property_key].lower()
 
     if new_status not in accepted_status_values:
@@ -456,7 +458,9 @@ new_data_dict : dict
 """
 def validate_upload_status_value(property_key, normalized_entity_type, request, existing_data_dict, new_data_dict):
     # Use lowercase for comparison
-    accepted_status_values = ['new', 'valid', 'invalid', 'error', 'reorganized', 'processing', 'submitted']
+    accepted_status_values = [
+        'new', 'valid', 'invalid', 'error', 'reorganized', 'processing', 'submitted', 'incomplete'
+    ]
     new_status = new_data_dict[property_key].lower()
 
     if new_status not in accepted_status_values:
@@ -481,7 +485,7 @@ new_data_dict : dict
 """
 def validate_sample_category(property_key, normalized_entity_type, request, existing_data_dict, new_data_dict):
     defined_tissue_types = ["organ", "block", "section", "suspension"]
-    sample_category = new_data_dict[property_key]
+    sample_category = new_data_dict[property_key].lower()
 
     if sample_category not in defined_tissue_types:
         raise ValueError(f"Invalid sample_category: {sample_category}")

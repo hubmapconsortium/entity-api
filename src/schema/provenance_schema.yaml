@@ -312,7 +312,7 @@ ENTITIES:
           - validate_dataset_status_value
           - validate_status_changed
         generated: true
-        description: "One of: New|Processing|QA|Published|Error|Hold|Invalid|Submitted"
+        description: "One of: New|Processing|Published|QA|Error|Hold|Invalid|Submitted|Incomplete"
         before_create_trigger: set_dataset_status_new
         after_create_trigger: set_status_history
         after_update_trigger: set_status_history
@@ -959,7 +959,7 @@ ENTITIES:
           - validate_status_changed
         type: string
         generated: true
-        description: "One of: New|Valid|Invalid|Error|Reorganized|Processing"
+        description: "One of: New|Valid|Invalid|Error|Reorganized|Processing|Submitted|Incomplete"
         # Trigger method will set the status to "New" on create
         before_create_trigger: set_upload_status_new
         after_create_trigger: set_status_history
