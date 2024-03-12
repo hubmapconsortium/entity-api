@@ -3,7 +3,7 @@
 # - type: data type of the property, one of the following: string|integer|boolean|list|json_string
 # - generated: whether the property is auto generated (either with a  `before_create_trigger` or not) or user provided, default to false
 # - required_on_create: whether the property is required from user reqeust JSON for entity creation via POST
-# - immutable: whether the property can NOT be updated once being created, default to false
+# - immutable: true indicates the property can NOT be updated after the entity is created, default to false
 # - transient: whether the property to persist in database or not, default to false
 # - exposed: whether the property gets returned to the user or not, default to true
 # - trigger types: before_create_trigger|after_create_trigger|before_update_trigger|after_update_trigger|on_read_trigger, one property can have none (default) or more than one triggers
@@ -457,6 +457,28 @@ ENTITIES:
         immutable: true
         description: "The list of the uuids of next revision datasets"
         on_read_trigger: get_next_revision_uuids
+      superseded_associated_processed_component_uuids:
+        type: list
+        # This property gets set via a PUT by entity-api /entities/{{dataset_uuid}} to point to the Multi-Assay Dataset
+        # superseding the entity with this attribute, so we can't define it as `immutable: true`.
+        # Modifications to an existing attribute are rejected using a validation trigger.
+        immutable: false
+        description: "List of uuids of existing Datasets used to construct this Multi-Assay Dataset, when present"
+        before_property_create_validators:
+          - verify_multi_assay_dataset_components
+        before_property_update_validators:
+          - verify_multi_assay_dataset_components
+      new_associated_multi_assay_uuid:
+        type: string
+        # This property gets set via a PUT by entity-api /entities/{{dataset_uuid}} to point to the Multi-Assay Dataset
+        # superseding the entity with this attribute, so we can't define it as `immutable: true`.
+        # Modifications to an existing attribute are rejected using a validation trigger.
+        immutable: false
+        description: "The uuid of the Multi-Assay Dataset constructed using this Dataset, when present"
+        before_property_create_validators:
+          - verify_multi_assay_dataset_components
+        before_property_update_validators:
+          - verify_multi_assay_dataset_components
       # No like image and metadata files handling for Donor/Sample
       # Dataset has only one thumbnail file
       thumbnail_file:

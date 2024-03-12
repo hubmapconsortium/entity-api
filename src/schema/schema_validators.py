@@ -46,7 +46,6 @@ def validate_application_header_before_entity_create(normalized_entity_type, req
 
 
 """
-@TODO-KBKBKB redo doc...
 Validate the specified value for a Dataset's dataset_type is in the valueset UBKG recognizes. 
 
 Parameters
@@ -626,6 +625,56 @@ def validate_group_name(property_key, normalized_entity_type, request, existing_
         raise ValueError("Invalid group in 'assigned_to_group_name'. Must be a data provider")
 
 
+"""
+Trigger event method to verify tracking fields new_associated_multi_assay_uuid and
+superseded_associated_processed_component_uuids are set coherently on Multi-Assay Datasets and
+their component Datasets.
+
+Parameters
+----------
+property_key : str
+    The target property key
+normalized_type : str
+    One of the types defined in the schema yaml: Dataset
+user_token: str
+    The user's globus nexus token
+existing_data_dict : dict
+    A dictionary that contains all existing entity properties as Neo4j data types.
+    N.B. elements are not Python data types and must be converted with utilities like schema_manager.convert_str_literal()
+new_data_dict : dict
+    The request input data as Python data structures converted from JSON, which has passed schema validation, entity
+    validation, and possibly other property validations.
+"""
+
+def verify_multi_assay_dataset_components(property_key, normalized_type, user_token, existing_data_dict, new_data_dict):
+
+    if  'superseded_associated_processed_component_uuids' in existing_data_dict \
+        and 'superseded_associated_processed_component_uuids' in new_data_dict:
+        raise ValueError(   f"'superseded_associated_processed_component_uuids' is already set on"
+                            f" {existing_data_dict['uuid']}.")
+    if  'new_associated_multi_assay_uuid' in existing_data_dict \
+        and 'new_associated_multi_assay_uuid' in new_data_dict:
+        raise ValueError(   f"'new_associated_multi_assay_uuid' is already set on"
+                            f" {existing_data_dict['uuid']}.")
+    if  'superseded_associated_processed_component_uuids' in new_data_dict \
+        and 'new_associated_multi_assay_uuid' in new_data_dict:
+        raise ValueError(   f"'superseded_associated_processed_component_uuids' and 'new_associated_multi_assay_uuid'"
+                            f" cannot both be specified on a single Dataset.")
+    if  'superseded_associated_processed_component_uuids' in new_data_dict \
+        and 'new_associated_multi_assay_uuid' in existing_data_dict:
+        raise ValueError( f"'superseded_associated_processed_component_uuids' cannot be set on"
+                        f" existing Dataset {existing_data_dict['uuid']} because it is a component Dataset of"
+                        f" {existing_data_dict['new_associated_multi_assay_uuid']}.")
+    if  'new_associated_multi_assay_uuid' in new_data_dict \
+        and 'superseded_associated_processed_component_uuids' in existing_data_dict:
+        # Convert the string from Neo4j the Python list
+        supersededComponentDatasets = schema_manager.convert_str_literal(existing_data_dict['superseded_associated_processed_component_uuids'])
+        raise ValueError( f"'new_associated_multi_assay_uuid' cannot be set on"
+                        f" existing Dataset {existing_data_dict['uuid']} because it is a Multi-Assay Dataset"
+                        f" with {len(supersededComponentDatasets)}"
+                        f" component Datasets it supersedes.")
+    # fall out successfully if no raise() occurred.
+    return
 
 ####################################################################################################
 ## Internal Functions
