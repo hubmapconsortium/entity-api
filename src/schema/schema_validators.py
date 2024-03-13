@@ -682,8 +682,7 @@ def verify_multi_assay_dataset_components(property_key, normalized_type, user_to
                                 f" {new_data_dict['new_associated_multi_assay_uuid']}"
                                 f" does not exist.")
     if  'superseded_associated_processed_component_uuids' in new_data_dict:
-        proposedComponentsList = schema_manager.convert_str_literal(new_data_dict['superseded_associated_processed_component_uuids'])
-        for uuid in proposedComponentsList:
+        for uuid in new_data_dict['superseded_associated_processed_component_uuids']:
             proposedComponentDataset = schema_neo4j_queries.get_entity( schema_manager.get_neo4j_driver_instance()
                                                                         , uuid)
             if len(proposedComponentDataset) < 1:
