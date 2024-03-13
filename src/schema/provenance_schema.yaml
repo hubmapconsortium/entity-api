@@ -631,6 +631,8 @@ ENTITIES:
         after_update_trigger: link_publication_to_associated_collection
       assigned_to_group_name: null # This assigned_to_group_name is Dataset specific, Publication doesn't have it
       ingest_task: null # This ingest_task is Dataset specific, Publication doesn't have it
+      new_associated_multi_assay_uuid: null # Dataset-only attribute of Multi-Assay Dataset relationships
+      superseded_associated_processed_component_uuids: null # Dataset-only attribute of Multi-Assay Dataset relationships
 
   ############################################# Donor #############################################
   Donor:

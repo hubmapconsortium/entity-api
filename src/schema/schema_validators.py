@@ -673,6 +673,23 @@ def verify_multi_assay_dataset_components(property_key, normalized_type, user_to
                         f" existing Dataset {existing_data_dict['uuid']} because it is a Multi-Assay Dataset"
                         f" with {len(supersededComponentDatasets)}"
                         f" component Datasets it supersedes.")
+    # If no contradictions above have caused a ValueError, check if new data contains UUIDs for valid entities.
+    if  'new_associated_multi_assay_uuid' in new_data_dict:
+        proposedMultiAssayDataset = schema_neo4j_queries.get_entity(schema_manager.get_neo4j_driver_instance()
+                                                                    , new_data_dict['new_associated_multi_assay_uuid'])
+        if len(proposedMultiAssayDataset) < 1:
+            raise ValueError(   f"'new_associated_multi_assay_uuid' value"
+                                f" {new_data_dict['new_associated_multi_assay_uuid']}"
+                                f" does not exist.")
+    if  'superseded_associated_processed_component_uuids' in new_data_dict:
+        proposedComponentsList = schema_manager.convert_str_literal(new_data_dict['superseded_associated_processed_component_uuids'])
+        for uuid in proposedComponentsList:
+            proposedComponentDataset = schema_neo4j_queries.get_entity( schema_manager.get_neo4j_driver_instance()
+                                                                        , uuid)
+            if len(proposedComponentDataset) < 1:
+                raise ValueError(f"'superseded_associated_processed_component_uuids' entry with value"
+                                 f" {uuid} does not exist.")
+
     # fall out successfully if no raise() occurred.
     return
 
