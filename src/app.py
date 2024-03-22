@@ -204,6 +204,7 @@ try:
                               app.config['UUID_API_URL'],
                               app.config['INGEST_API_URL'],
                               app.config['ONTOLOGY_API_URL'],
+                              app.config['ENTITY_API_URL'],
                               auth_helper_instance,
                               neo4j_driver_instance,
                               memcached_client_instance,
