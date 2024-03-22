@@ -1,4 +1,5 @@
 import ast
+import sys
 import yaml
 import logging
 import requests
@@ -31,6 +32,7 @@ requests.packages.urllib3.disable_warnings(category = InsecureRequestWarning)
 _schema = None
 _uuid_api_url = None
 _ingest_api_url = None
+_entity_api_url = None
 _ontology_api_url = None
 _auth_helper = None
 _neo4j_driver = None
@@ -69,6 +71,7 @@ def initialize(valid_yaml_file,
                uuid_api_url,
                ingest_api_url,
                ontology_api_url,
+               entity_api_url,
                auth_helper_instance,
                neo4j_driver_instance,
                memcached_client_instance,
@@ -78,6 +81,7 @@ def initialize(valid_yaml_file,
     global _uuid_api_url
     global _ingest_api_url
     global _ontology_api_url
+    global _entity_api_url
     global _auth_helper
     global _neo4j_driver
     global _memcached_client
@@ -105,6 +109,12 @@ def initialize(valid_yaml_file,
         logger.critical(msg=msg)
         raise Exception(msg)
 
+    if entity_api_url is not None:
+        _entity_api_url = entity_api_url
+    else:
+        msg = f"Unable to initialize schema manager with entity_api_url={entity_api_url}."
+        logger.critical(msg=msg)
+        raise Exception(msg)
     # Get the helper instances
     _auth_helper = auth_helper_instance
     _neo4j_driver = neo4j_driver_instance
@@ -507,6 +517,25 @@ def remove_transient_and_none_values(merged_dict, normalized_entity_type):
     return filtered_dict
 
 
+"""
+Update entity via HTTP call to entity-api
+This is useful when a change in one entity necessitates changes in another, while allowing the normal triggers
+and validators to execute
+
+Parameters
+----------
+uuid : string
+    The uuid of the entity being updated
+data : dict
+    A dict representation of the json_data_dict for the updated entity
+token : string
+    The globus groups token
+"""
+def update_entity(uuid, data, token):
+    url = _entity_api_url + SchemaConstants.ENTITY_API_UPDATE_ENDPOINT +  '/' + uuid
+    header = _create_request_headers(token)
+    header['X-Hubmap-Application'] = 'ingest-api'
+    response = requests.put(url=url, headers=header, json=data)
 """
 Generate the complete entity record by running the read triggers
 
