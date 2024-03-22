@@ -534,7 +534,7 @@ token : string
 def update_entity(uuid, data, token):
     url = _entity_api_url + SchemaConstants.ENTITY_API_UPDATE_ENDPOINT +  '/' + uuid
     header = _create_request_headers(token)
-    header['X-Hubmap-Application'] = 'ingest-api'
+    header[schemaConstants.HUBMAP_APP_HEADER] = INGEST_API_APP
     response = requests.put(url=url, headers=header, json=data)
 """
 Generate the complete entity record by running the read triggers
