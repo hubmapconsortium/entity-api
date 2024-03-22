@@ -1,5 +1,4 @@
 import ast
-import sys
 import yaml
 import logging
 import requests
