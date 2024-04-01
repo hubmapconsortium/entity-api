@@ -26,3 +26,22 @@ class DataVisibilityEnum(Enum):
     # Since initial release just requires public/non-public, add
     # another entry indicating non-public.
     NONPUBLIC = 'nonpublic'
+
+# Define an enumeration to classify metadata scope which can be returned.
+class MetadataScopeEnum(Enum):
+    # Legacy notion of complete metadata for an entity includes generated
+    # data populated by triggers.
+    COMPLETE = 'complete_metadata'
+    # Index metadata is for storage in Open Search documents, and should not
+    # include data which must be generated and then removed, nor any data which
+    # is not stored in an index document.
+    INDEX = 'index_metadata'
+
+# Define an enumeration of accepted trigger types.
+class TriggerTypeEnum(Enum):
+    ON_READ = 'on_read_trigger'
+    ON_INDEX = 'on_index_trigger'
+    BEFORE_CREATE = 'before_create_trigger'
+    BEFORE_UPDATE = 'before_update_trigger'
+    AFTER_CREATE = 'after_create_trigger'
+    AFTER_UPDATE = 'after_update_trigger'

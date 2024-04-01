@@ -261,6 +261,7 @@ ENTITIES:
         description: "The datasets that are contained in the collection."
         # A few time-consuming properties (with read triggers) of each dataset are excluded
         on_read_trigger: get_collection_datasets
+        # No on_index_trigger to include datasets in the OpenSearch document for a Collection
 
   ############################################# Dataset #############################################
   Dataset:
@@ -282,6 +283,7 @@ ENTITIES:
         transient: true
         immutable: true
         on_read_trigger: get_creation_action_activity
+        on_index_trigger: get_creation_action_activity
         description: "The activity that was performed."
         before_property_create_validators:
           - validate_creation_action
@@ -322,6 +324,7 @@ ENTITIES:
         immutable: true # Disallow update via PUT
         description: "The auto generated dataset title."
         on_read_trigger: get_dataset_title
+        on_index_trigger: get_dataset_title
       lab_dataset_id:
         type: string
         description: "A name or identifier used by the lab who is uploading the data to cross reference the data locally"
@@ -347,12 +350,14 @@ ENTITIES:
         generated: true
         description: "A list of collections that this dataset belongs to. Will be returned in response"
         on_read_trigger: get_dataset_collections
+        # No on_index_trigger to include collections in the OpenSearch document for a Dataset
       upload:
         type: json_string # dict
         transient: true
         generated: true
         description: "The Upload that this dataset is associated with. Will be returned in response"
         on_read_trigger: get_dataset_upload
+        # No on_index_trigger to include upload in the OpenSearch document for a Dataset
       contributors:
         type: list
         description: "A list of people who contributed to the creation of this dataset.  Returned as an array of contributor where the structure of a contributor is"
@@ -376,6 +381,7 @@ ENTITIES:
         generated: true
         transient: true
         on_read_trigger: get_dataset_direct_ancestors
+        # No on_index_trigger to include direct_ancestors in the OpenSearch document for a Dataset
       published_timestamp:
         type: integer
         immutable: true
@@ -409,6 +415,7 @@ ENTITIES:
         transient: true
         description: "The path on the local file system, relative to the base data directory, where the data is stored."
         on_read_trigger: get_local_directory_rel_path
+        # No on_index_trigger to include local_directory_rel_path in the OpenSearch document for a Dataset
       run_id:
         type: string
       ingest_id:
@@ -436,6 +443,7 @@ ENTITIES:
         description: "The uuid of previous revision dataset"
         after_create_trigger: link_to_previous_revision
         on_read_trigger: get_previous_revision_uuid
+        # No on_index_trigger to include previous_revision_uuid in the OpenSearch document for a Dataset
       previous_revision_uuids:
         type: list
         generated: true
@@ -443,6 +451,7 @@ ENTITIES:
         immutable: true
         description: "The list of the uuids of previous revision datasets"
         on_read_trigger: get_previous_revision_uuids
+        # No on_index_trigger to include previous_revision_uuids in the OpenSearch document for a Dataset
       next_revision_uuid:
         type: string
         generated: true
@@ -450,6 +459,7 @@ ENTITIES:
         immutable: true
         description: "The uuid of next revision dataset"
         on_read_trigger: get_next_revision_uuid
+        # No on_index_trigger to include next_revision_uuid in the OpenSearch document for a Dataset
       next_revision_uuids:
         type: list
         generated: true
@@ -457,6 +467,7 @@ ENTITIES:
         immutable: true
         description: "The list of the uuids of next revision datasets"
         on_read_trigger: get_next_revision_uuids
+        # No on_index_trigger to include next_revision_uuids in the OpenSearch document for a Dataset
       superseded_associated_processed_component_uuids:
         type: list
         # This property gets set via a PUT by entity-api /entities/{{dataset_uuid}} to point to the Multi-Assay Dataset
@@ -621,6 +632,7 @@ ENTITIES:
         generated: true
         transient: true
         on_read_trigger: get_publication_associated_collection
+        # No on_index_trigger to include associated_collection in the OpenSearch document for a Publication
         description: "The collection from which this publication uses data"
       associated_collection_uuid:
         type: string
@@ -810,6 +822,7 @@ ENTITIES:
         generated: true
         transient: true
         on_read_trigger: get_sample_direct_ancestor
+        # No on_index_trigger to include direct_ancestor in the OpenSearch document for a Sample
         description: "The entitiy directly above this sample in the provenance graph (direct parent)."
       # No submission_id for Dataset, Collection, and Upload
       # Only Donor and Sample have this property
@@ -1007,6 +1020,7 @@ ENTITIES:
         description: "The datasets that are contained in this Upload."
         # A few time-consuming properties (with read triggers) of each dataset are excluded
         on_read_trigger: get_upload_datasets
+        # No on_index_trigger to include datasets in the OpenSearch document for an Upload
       status_history:
         type: list
         description: "A list of all status change events. Each entry in the list is a dictionary containing the change_timestamp, changed_by_email, previous_status, new_status"
