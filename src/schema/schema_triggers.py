@@ -1456,6 +1456,10 @@ def sync_component_dataset_status(property_key, normalized_type, user_token, exi
         creation_action = schema_neo4j_queries.get_entity_creation_action_activity(schema_manager.get_neo4j_driver_instance(), child_uuid)
         if creation_action == 'Multi-Assay Split':
             schema_manager.update_entity(child_uuid, status_body, user_token)
+            url = schema_manager.get_entity_api_url + SchemaConstants.ENTITY_API_UPDATE_ENDPOINT + '/' + child_uuid
+            header = _create_request_headers(user_token)
+            header[schemaConstants.HUBMAP_APP_HEADER] = schemaConstants.INGEST_API_APP
+            response = requests.put(url=url, headers=header, json=status_body)
 
 
 ####################################################################################################

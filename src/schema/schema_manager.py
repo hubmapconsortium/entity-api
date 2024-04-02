@@ -517,25 +517,6 @@ def remove_transient_and_none_values(merged_dict, normalized_entity_type):
 
 
 """
-Update entity via HTTP call to entity-api
-This is useful when a change in one entity necessitates changes in another, while allowing the normal triggers
-and validators to execute
-
-Parameters
-----------
-uuid : string
-    The uuid of the entity being updated
-data : dict
-    A dict representation of the json_data_dict for the updated entity
-token : string
-    The globus groups token
-"""
-def update_entity(uuid, data, token):
-    url = _entity_api_url + SchemaConstants.ENTITY_API_UPDATE_ENDPOINT +  '/' + uuid
-    header = _create_request_headers(token)
-    header[schemaConstants.HUBMAP_APP_HEADER] = INGEST_API_APP
-    response = requests.put(url=url, headers=header, json=data)
-"""
 Generate the complete entity record by running the read triggers
 
 Parameters
@@ -1727,6 +1708,22 @@ def get_ingest_api_url():
     global _ingest_api_url
     
     return _ingest_api_url
+
+
+"""
+Get the entity-api URL to be used by trigger methods
+
+Returns
+-------
+str
+    The entity-api URL
+"""
+
+
+def get_entity_api_url():
+    global _entity_api_url
+
+    return _entity_api_url
 
 
 """
