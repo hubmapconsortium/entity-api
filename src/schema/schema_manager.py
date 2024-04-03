@@ -31,6 +31,7 @@ requests.packages.urllib3.disable_warnings(category = InsecureRequestWarning)
 _schema = None
 _uuid_api_url = None
 _ingest_api_url = None
+_entity_api_url = None
 _ontology_api_url = None
 _auth_helper = None
 _neo4j_driver = None
@@ -69,6 +70,7 @@ def initialize(valid_yaml_file,
                uuid_api_url,
                ingest_api_url,
                ontology_api_url,
+               entity_api_url,
                auth_helper_instance,
                neo4j_driver_instance,
                memcached_client_instance,
@@ -78,6 +80,7 @@ def initialize(valid_yaml_file,
     global _uuid_api_url
     global _ingest_api_url
     global _ontology_api_url
+    global _entity_api_url
     global _auth_helper
     global _neo4j_driver
     global _memcached_client
@@ -105,6 +108,12 @@ def initialize(valid_yaml_file,
         logger.critical(msg=msg)
         raise Exception(msg)
 
+    if entity_api_url is not None:
+        _entity_api_url = entity_api_url
+    else:
+        msg = f"Unable to initialize schema manager with entity_api_url={entity_api_url}."
+        logger.critical(msg=msg)
+        raise Exception(msg)
     # Get the helper instances
     _auth_helper = auth_helper_instance
     _neo4j_driver = neo4j_driver_instance
@@ -1699,6 +1708,22 @@ def get_ingest_api_url():
     global _ingest_api_url
     
     return _ingest_api_url
+
+
+"""
+Get the entity-api URL to be used by trigger methods
+
+Returns
+-------
+str
+    The entity-api URL
+"""
+
+
+def get_entity_api_url():
+    global _entity_api_url
+
+    return _entity_api_url
 
 
 """
