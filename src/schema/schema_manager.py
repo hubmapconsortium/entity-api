@@ -15,6 +15,8 @@ from schema import schema_errors
 from schema import schema_triggers
 from schema import schema_validators
 from schema.schema_constants import SchemaConstants
+from schema.schema_constants import MetadataScopeEnum
+from schema.schema_constants import TriggerTypeEnum
 
 # HuBMAP commons
 from hubmap_commons.hm_auth import AuthHelper
@@ -154,7 +156,7 @@ def load_provenance_schema(valid_yaml_file):
 ####################################################################################################
 
 """
-Get a list of all the supported types in the schmea yaml
+Get a list of all the supported types in the schema yaml
 
 Returns
 -------
@@ -172,7 +174,7 @@ def get_all_types():
 
 
 """
-Get a list of all the supported entity types in the schmea yaml
+Get a list of all the supported entity types in the schema yaml
 
 Returns
 -------
@@ -198,7 +200,7 @@ normalized_entity_class : str
 Returns
 -------
 string or None
-    One of the normalized entity classes if defined (currently only Publucation has Dataset as superclass). None otherwise
+    One of the normalized entity classes if defined (currently only Publication has Dataset as superclass). None otherwise
 """
 def get_entity_superclass(normalized_entity_class):
     normalized_superclass = None
@@ -279,7 +281,8 @@ Returns
 dict
     A dictionary of trigger event methods generated data
 """
-def generate_triggered_data(trigger_type, normalized_class, user_token, existing_data_dict, new_data_dict, properties_to_skip = []):
+def generate_triggered_data(trigger_type: TriggerTypeEnum, normalized_class, user_token, existing_data_dict
+                            , new_data_dict, properties_to_skip = []):
     global _schema
 
     schema_section = None
@@ -307,22 +310,22 @@ def generate_triggered_data(trigger_type, normalized_class, user_token, existing
     for key in properties:
         # Among those properties that have the target trigger type,
         # we can skip the ones specified in the `properties_to_skip` by not running their triggers
-        if (trigger_type in properties[key]) and (key not in properties_to_skip):
+        if (trigger_type.value in properties[key]) and (key not in properties_to_skip):
             # 'after_create_trigger' and 'after_update_trigger' don't generate property values
             # E.g., create relationships between nodes in neo4j
             # So just return the empty trigger_generated_data_dict
-            if trigger_type in ['after_create_trigger', 'after_update_trigger']:
+            if trigger_type in [TriggerTypeEnum.AFTER_CREATE, TriggerTypeEnum.AFTER_UPDATE]:
                 # Only call the triggers if the propery key presents from the incoming data
                 # E.g., 'direct_ancestor_uuid' for Sample, 'dataset_uuids' for Collection
                 # This `existing_data_dict` is the newly created or updated entity dict
                 if key in existing_data_dict:
-                    trigger_method_name = properties[key][trigger_type]
+                    trigger_method_name = properties[key][trigger_type.value]
 
                     try:
                         # Get the target trigger method defined in the schema_triggers.py module
                         trigger_method_to_call = getattr(schema_triggers, trigger_method_name)
                         
-                        logger.info(f"To run {trigger_type}: {trigger_method_name} defined for {normalized_class}")
+                        logger.info(f"To run {trigger_type.value}: {trigger_method_name} defined for {normalized_class}")
 
                         # No return values for 'after_create_trigger' and 'after_update_trigger'
                         # because the property value is already set and stored in neo4j
@@ -330,25 +333,24 @@ def generate_triggered_data(trigger_type, normalized_class, user_token, existing
                         # Use {} since no incoming new_data_dict 
                         trigger_method_to_call(key, normalized_class, user_token, existing_data_dict, {})
                     except Exception:
-                        msg = f"Failed to call the {trigger_type} method: {trigger_method_name}"
+                        msg = f"Failed to call the {trigger_type.value} method: {trigger_method_name}"
                         # Log the full stack trace, prepend a line with our message
                         logger.exception(msg)
 
-                        if trigger_type == 'after_create_trigger':
+                        if trigger_type == TriggerTypeEnum.AFTER_CREATE:
                             raise schema_errors.AfterCreateTriggerException
-                        elif trigger_type == 'after_update_trigger':
+                        elif trigger_type.value == TriggerTypeEnum.AFTER_UPDATE:
                             raise schema_errors.AfterUpdateTriggerException
-            elif trigger_type in ['before_update_trigger']:
+            elif trigger_type in [TriggerTypeEnum.BEFORE_UPDATE]:
                 # IMPORTANT! Call the triggers for the properties:
                 # Case 1: specified in request JSON to be updated explicitly
                 # Case 2: defined as `auto_update: true` in the schema yaml, meaning will always be updated if the entity gets updated
                 if (key in new_data_dict) or (('auto_update' in properties[key]) and properties[key]['auto_update']):
-                    trigger_method_name = properties[key][trigger_type]
-
+                    trigger_method_name = properties[key][trigger_type.value]
                     try:
                         trigger_method_to_call = getattr(schema_triggers, trigger_method_name)
 
-                        logger.info(f"To run {trigger_type}: {trigger_method_name} defined for {normalized_class}")
+                        logger.info(f"To run {trigger_type.value}: {trigger_method_name} defined for {normalized_class}")
 
                         # Will set the trigger return value as the property value by default
                         # Unless the return value is to be assigned to another property different target key
@@ -376,12 +378,12 @@ def generate_triggered_data(trigger_type, normalized_class, user_token, existing
                                 trigger_generated_data_dict[key] = None
                     # If something wrong with file upload
                     except schema_errors.FileUploadException as e:
-                        msg = f"Failed to call the {trigger_type} method: {trigger_method_name}"
+                        msg = f"Failed to call the {trigger_type.value} method: {trigger_method_name}"
                         # Log the full stack trace, prepend a line with our message
                         logger.exception(msg)
                         raise schema_errors.FileUploadException(e)
                     except Exception as e:
-                        msg = f"Failed to call the {trigger_type} method: {trigger_method_name}"
+                        msg = f"Failed to call the {trigger_type.value} method: {trigger_method_name}"
                         # Log the full stack trace, prepend a line with our message
                         logger.exception(msg)
 
@@ -390,12 +392,12 @@ def generate_triggered_data(trigger_type, normalized_class, user_token, existing
                         raise schema_errors.BeforeUpdateTriggerException
             else:
                 # Handling of all other trigger types: before_create_trigger|on_read_trigger
-                trigger_method_name = properties[key][trigger_type]
+                trigger_method_name = properties[key][trigger_type.value]
 
                 try:
                     trigger_method_to_call = getattr(schema_triggers, trigger_method_name)
 
-                    logger.info(f"To run {trigger_type}: {trigger_method_name} defined for {normalized_class}")
+                    logger.info(f"To run {trigger_type.value}: {trigger_method_name} defined for {normalized_class}")
 
                     # Will set the trigger return value as the property value by default
                     # Unless the return value is to be assigned to another property different target key
@@ -422,31 +424,31 @@ def generate_triggered_data(trigger_type, normalized_class, user_token, existing
                         if key != target_key:
                             trigger_generated_data_dict[key] = None
                 except schema_errors.NoDataProviderGroupException as e:
-                    msg = f"Failed to call the {trigger_type} method: {trigger_method_name}"
+                    msg = f"Failed to call the {trigger_type.value} method: {trigger_method_name}"
                     # Log the full stack trace, prepend a line with our message
                     logger.exception(msg)
                     raise schema_errors.NoDataProviderGroupException
                 except schema_errors.MultipleDataProviderGroupException as e:
-                    msg = f"Failed to call the {trigger_type} method: {trigger_method_name}"
+                    msg = f"Failed to call the {trigger_type.value} method: {trigger_method_name}"
                     # Log the full stack trace, prepend a line with our message
                     logger.exception(msg)
                     raise schema_errors.MultipleDataProviderGroupException
                 except schema_errors.UnmatchedDataProviderGroupException as e:
-                    msg = f"Failed to call the {trigger_type} method: {trigger_method_name}"
+                    msg = f"Failed to call the {trigger_type.value} method: {trigger_method_name}"
                     # Log the full stack trace, prepend a line with our message
                     logger.exception(msg)
                     raise schema_errors.UnmatchedDataProviderGroupException
                 # If something wrong with file upload
                 except schema_errors.FileUploadException as e:
-                    msg = f"Failed to call the {trigger_type} method: {trigger_method_name}"
+                    msg = f"Failed to call the {trigger_type.value} method: {trigger_method_name}"
                     # Log the full stack trace, prepend a line with our message
                     logger.exception(msg)
                     raise schema_errors.FileUploadException(e)
                 except Exception as e:
-                    msg = f"Failed to call the {trigger_type} method: {trigger_method_name}"
+                    msg = f"Failed to call the {trigger_type.value} method: {trigger_method_name}"
                     # Log the full stack trace, prepend a line with our message
                     logger.exception(msg)
-                    if trigger_type == 'before_create_trigger':
+                    if trigger_type == TriggerTypeEnum.BEFORE_CREATE:
                         # We can't create/update the entity 
                         # without successfully executing this trigger method
                         raise schema_errors.BeforeCreateTriggerException
@@ -561,7 +563,12 @@ def get_complete_entity_result(token, entity_dict, properties_to_skip = []):
             # No error handling here since if a 'on_read_trigger' method fails, 
             # the property value will be the error message
             # Pass {} since no new_data_dict for 'on_read_trigger'
-            generated_on_read_trigger_data_dict = generate_triggered_data('on_read_trigger', entity_type, token, entity_dict, {}, properties_to_skip)
+            generated_on_read_trigger_data_dict = generate_triggered_data(  trigger_type=TriggerTypeEnum.ON_READ
+                                                                            , normalized_class=entity_type
+                                                                            , user_token=token
+                                                                            , existing_data_dict=entity_dict
+                                                                            , new_data_dict={}
+                                                                            , properties_to_skip=properties_to_skip)
 
             # Merge the entity info and the generated on read data into one dictionary
             complete_entity_dict = {**entity_dict, **generated_on_read_trigger_data_dict}
@@ -590,6 +597,140 @@ def get_complete_entity_result(token, entity_dict, properties_to_skip = []):
 
     # One final return
     return complete_entity
+
+"""
+Generate the entity metadata by reading Neo4j data and only running triggers for data which will go into an
+OpenSearch document. Any data from Neo4j which will not go into the OSS document must also be removed e.g.
+local_directory_rel_path.
+
+Parameters
+----------
+token: str
+    Either the user's globus nexus token or the internal token
+entity_dict : dict
+    The entity dict based on neo4j record
+properties_to_skip : list
+    Any properties to skip running triggers
+
+Returns
+-------
+dict
+    A dictionary of metadata to be included in an OpenSearch index document for the entity.
+"""
+def get_index_metadata(token, entity_dict, properties_to_skip=[]):
+    metadata_dict = _get_metadata_result(   token=token
+                                            ,entity_dict=entity_dict
+                                            ,metadata_scope=MetadataScopeEnum.INDEX
+                                            ,properties_to_skip=properties_to_skip)
+    return metadata_dict
+
+"""
+Generate the entity metadata by reading Neo4j data and appropriate triggers based upon the scope of
+metadata requested e.g. complete data for a another service, indexing data for an OpenSearch document, etc.
+
+Parameters
+----------
+token: str
+    Either the user's globus nexus token or the internal token
+entity_dict : dict
+    The entity dict based on neo4j record
+metadata_scope:
+    A recognized scope from the SchemaConstants, controlling the triggers which are fired and elements
+    from Neo4j which are retained.
+properties_to_skip : list
+    Any properties to skip running triggers
+
+Returns
+-------
+dict
+    A dictionary of metadata appropriate for the metadata_scope argument value.
+"""
+def _get_metadata_result(token, entity_dict, metadata_scope:MetadataScopeEnum, properties_to_skip=[]):
+    global _memcached_client
+    global _memcached_prefix
+
+    complete_entity = {}
+
+    # In case entity_dict is None or
+    # an incorrectly created entity that doesn't have the `entity_type` property
+    if entity_dict and ('entity_type' in entity_dict) and ('uuid' in entity_dict):
+        entity_uuid = entity_dict['uuid']
+        entity_type = entity_dict['entity_type']
+        cache_result = None
+
+        # Need both client and prefix when fetching the cache
+        # Do NOT fetch cache if properties_to_skip is specified
+        if _memcached_client and _memcached_prefix and (not properties_to_skip):
+            cache_key = f'{_memcached_prefix}_complete_index_{entity_uuid}'
+            cache_result = _memcached_client.get(cache_key)
+
+        # Use the cached data if found and still valid
+        # Otherwise, calculate and add to cache
+        if cache_result is None:
+            if _memcached_client and _memcached_prefix:
+                logger.info(
+                    f'Cache of complete entity of {entity_type} {entity_uuid} not found or expired at time {datetime.now()}')
+
+            if metadata_scope == MetadataScopeEnum.COMPLETE:
+                # No error handling here since if a 'on_read_trigger' method fails,
+                # the property value will be the error message
+                # Pass {} since no new_data_dict for 'on_read_trigger'
+                #generated_on_read_trigger_data_dict = generate_triggered_data('on_read_trigger', entity_type, token,
+                #                                                              entity_dict, {}, properties_to_skip)
+                generated_on_read_trigger_data_dict = generate_triggered_data(  trigger_type=TriggerTypeEnum.ON_READ
+                                                                                , normalized_class=entity_type
+                                                                                , user_token=token
+                                                                                , existing_data_dict=entity_dict
+                                                                                , new_data_dict={}
+                                                                                , properties_to_skip=properties_to_skip)
+
+                # Merge the entity info and the generated on read data into one dictionary
+                complete_entity_dict = {**entity_dict, **generated_on_read_trigger_data_dict}
+
+                # Remove properties of None value
+                metadata_dict = remove_none_values(complete_entity_dict)
+            elif metadata_scope == MetadataScopeEnum.INDEX:
+                # No error handling here since if a 'on_index_trigger' method fails,
+                # the property value will be the error message
+                # Pass {} since no new_data_dict for 'on_index_trigger'
+                generated_on_index_trigger_data_dict = generate_triggered_data( trigger_type=TriggerTypeEnum.ON_INDEX
+                                                                                , normalized_class=entity_type
+                                                                                , user_token=token
+                                                                                , existing_data_dict=entity_dict
+                                                                                , new_data_dict={}
+                                                                                , properties_to_skip=properties_to_skip)
+
+                # Merge the entity info and the generated on read data into one dictionary
+                complete_entity_dict = {**entity_dict, **generated_on_index_trigger_data_dict}
+
+                # Remove properties of None value
+                metadata_dict = remove_none_values(complete_entity_dict)
+            else:
+                # Merge the entity info and the generated on read data into one dictionary
+                metadata_dict = {**entity_dict}
+
+            # Need both client and prefix when creating the cache
+            # Do NOT cache when properties_to_skip is specified
+            if _memcached_client and _memcached_prefix and (not properties_to_skip):
+                logger.info(f'Creating complete entity cache of {entity_type} {entity_uuid} at time {datetime.now()}')
+
+                cache_key = f'{_memcached_prefix}_complete_index_{entity_uuid}'
+                _memcached_client.set(cache_key, metadata_dict, expire=SchemaConstants.MEMCACHED_TTL)
+
+                logger.debug(
+                    f"Following is the complete {entity_type} cache created at time {datetime.now()} using key {cache_key}:")
+                logger.debug(metadata_dict)
+        else:
+            logger.info(f'Using complete entity cache of {entity_type} {entity_uuid} at time {datetime.now()}')
+            logger.debug(cache_result)
+
+            metadata_dict = cache_result
+    else:
+        # Just return the original entity_dict otherwise
+        metadata_dict = entity_dict
+
+    # One final return
+    return metadata_dict
 
 
 """
@@ -706,6 +847,106 @@ def normalize_entity_result_for_response(entity_dict, properties_to_exclude = []
 
     return normalized_entity
 
+"""
+Normalize the entity result to got into the OpenSearch index by filtering out properties that are not defined in
+the yaml schema, properties marked as `exposed: false` in the yaml schema, and properties lacking `indexed: true`
+marking in the yaml schema.
+
+Parameters
+----------
+entity_dict : dict
+    Either a neo4j node converted dict or metadata dict generated from get_index_metadata()
+properties_to_exclude : list
+    Any additional properties to exclude from the response
+
+Returns
+-------
+dict
+    An entity metadata dictionary with keys that are all normalized
+"""
+def normalize_document_result_for_response(entity_dict, properties_to_exclude=[]):
+    return _normalize_metadata( entity_dict=entity_dict
+                                , metadata_scope=MetadataScopeEnum.INDEX
+                                , properties_to_skip=properties_to_exclude)
+
+"""
+Normalize the entity result by filtering the properties to those appropriate for the
+scope of metadata requested e.g. complete data for a another service, indexing data for an OpenSearch document, etc.
+
+Properties that are not defined in the yaml schema and properties marked as `exposed: false` in the yaml schema are
+removed. Properties are also filter based upon the metadata_scope argument e.g. properties lacking `indexed: true`
+marking in the yaml schema are removed when `metadata_scope` has a value of `MetadataScopeEnum.INDEX`.
+
+Parameters
+----------
+entity_dict : dict
+    Either a neo4j node converted dict or metadata dict generated from get_index_metadata()
+metadata_scope:
+    A recognized scope from the SchemaConstants, controlling the triggers which are fired and elements
+    from Neo4j which are retained.  Default is MetadataScopeEnum.INDEX.
+properties_to_exclude : list
+    Any additional properties to exclude from the response
+
+Returns
+-------
+dict
+    An entity metadata dictionary with keys that are all normalized appropriately for the metadata_scope argument value.
+"""
+def _normalize_metadata(entity_dict, metadata_scope:MetadataScopeEnum, properties_to_skip=[]):
+    global _schema
+
+    # When the entity_dict is unavailable or the entity was incorrectly created, do not
+    # try to normalize.
+    if not entity_dict or 'entity_type' not in entity_dict:
+        return {}
+
+    normalized_metadata = {}
+
+    normalized_entity_type = entity_dict['entity_type']
+    properties = _schema['ENTITIES'][normalized_entity_type]['properties']
+
+    for key in entity_dict:
+        # Only return the properties defined in the schema yaml
+        # Exclude additional schema yaml properties, if specified
+        if  key not in properties:
+            # Skip Neo4j entity properties not found in the schema yaml
+            continue
+        if  key in properties_to_skip:
+            # Skip properties if directed by the calling function
+            continue
+        if  entity_dict[key] is None:
+            # Do not include properties in the metadata if they are empty
+            continue
+        if  'exposed' in properties[key] and \
+            properties[key]['exposed'] is False:
+            # Do not include properties in the metadata if they are not exposed
+            continue
+        if  metadata_scope is MetadataScopeEnum.INDEX and \
+            'indexed' in properties[key] and \
+            properties[key]['indexed'] is False:
+            # Do not include properties in metadata for indexing if they are not True i.e. False or non-boolean
+            continue
+        # Only run convert_str_literal() on string representation of Python dict and list with removing control characters
+        # No convertion for string representation of Python string, meaning that can still contain control characters
+        if entity_dict[key] and (properties[key]['type'] in ['list', 'json_string']):
+            logger.info(
+                f"Executing convert_str_literal() on {normalized_entity_type}.{key} of uuid: {entity_dict['uuid']}")
+
+            # Safely evaluate a string containing a Python dict or list literal
+            # Only convert to Python list/dict when the string literal is not empty
+            # instead of returning the json-as-string or array-as-string
+            # convert_str_literal() also removes those control chars to avoid SyntaxError
+            entity_dict[key] = convert_str_literal(entity_dict[key])
+
+        # Add the target key with correct value of data type to the normalized_entity dict
+        normalized_metadata[key] = entity_dict[key]
+
+        # After possible modification to entity_dict[key] prior to assigning to normalized_metadata[key], remove
+        # the normalized_metadata entry for the key if it is an empty string, dictionary, or list.
+        if (isinstance(normalized_metadata[key], (str, dict, list)) and (not normalized_metadata[key])):
+            normalized_metadata.pop(key)
+
+    return normalized_metadata
 
 """
 Normalize the given list of complete entity results by removing properties that are not defined in the yaml schema
@@ -932,7 +1173,7 @@ def execute_property_level_validators(validator_type, normalized_entity_type, re
                     logger.exception(f"{msg}. {str(uve)}")
                     raise uve
                 except Exception as e:
-                    msg = f"Unexpected exception @TODO-KBKBKB calling {validator_type} method: {validator_method_name} defined for entity {normalized_entity_type} on property {key}"
+                    msg = f"Unexpected exception calling {validator_type} method: {validator_method_name} defined for entity {normalized_entity_type} on property {key}"
                     # Log the full stack trace, prepend a line with our message
                     logger.exception(f"{msg}. {str(e)}")
                     raise e
@@ -1022,16 +1263,10 @@ Parameters
 trigger_type : str
     One of the trigger types: on_create_trigger, on_update_trigger, on_read_trigger
 """
-def validate_trigger_type(trigger_type):
-    accepted_trigger_types = ['on_read_trigger', 
-                              'before_create_trigger', 
-                              'before_update_trigger', 
-                              'after_create_trigger', 
-                              'after_update_trigger']
-    separator = ', '
+def validate_trigger_type(trigger_type:TriggerTypeEnum):
 
-    if trigger_type.lower() not in accepted_trigger_types:
-        msg = f"Invalid trigger type: {trigger_type}. The trigger type must be one of the following: {separator.join(accepted_trigger_types)}"
+    if trigger_type not in TriggerTypeEnum:
+        msg = f"Invalid trigger type: {trigger_type}. The trigger type must be one of the following: {', '.join([t.value for t in TriggerTypeEnum])}"
         # Log the full stack trace, prepend a line with our message
         logger.exception(msg)
         raise ValueError(msg)
@@ -1312,7 +1547,6 @@ parent_vocabulary_valueset_code: A code from parent_vocabulary_sab which is the 
 value_preferred_vocabulary_sab: The source vocabulary (SAB) preferred for each term in the dataset.  It is common, but
 not required, that parent_vocabulary_sab and value_preferred_vocabulary_sab are the same i.e. specify a parent code
 from the HUBMAP vocabulary and return terms from the HUBMAP vocabulary.
-@TODO-KBKBKB determine if it is advisable to check the "sab" element of each term dictionary the Ontology API returns or if UBKG assures coverage such that we would never get a "sab" element which did not match value_preferred_vocabulary_sab.
 
 Returns
 -------
@@ -1691,7 +1925,11 @@ def generate_activity_data(normalized_entity_type, user_token, user_info_dict):
     data_dict_for_activity = {**user_info_dict, **normalized_entity_type_dict, **new_ids_dict_list[0]}
 
     # Generate property values for Activity node
-    generated_activity_data_dict = generate_triggered_data('before_create_trigger', normalized_activity_type, user_token, {}, data_dict_for_activity)
+    generated_activity_data_dict = generate_triggered_data( trigger_type=TriggerTypeEnum.BEFORE_CREATE
+                                                            , normalized_class=normalized_activity_type
+                                                            , user_token=user_token
+                                                            , existing_data_dict={}
+                                                            , new_data_dict=data_dict_for_activity)
 
     return generated_activity_data_dict
 
@@ -1896,7 +2134,7 @@ def delete_memcached_cache(uuids_list):
         for uuid in uuids_list:
             cache_keys.append(f'{_memcached_prefix}_neo4j_{uuid}')
             cache_keys.append(f'{_memcached_prefix}_complete_{uuid}')
-
+            cache_keys.append(f'{_memcached_prefix}_complete_index_{uuid}')
         _memcached_client.delete_many(cache_keys)
 
         logger.info(f"Deleted cache by key: {', '.join(cache_keys)}")
