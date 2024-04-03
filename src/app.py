@@ -5105,12 +5105,7 @@ def _get_metadata_by_id(entity_id:str=None, metadata_scope:MetadataScopeEnum=Met
         forbidden_error(f"The requested {normalized_entity_type} has non-public data."
                         f"  A Globus token with access permission is required.")
 
-    property_exclusion_list = ['local_directory_rel_path'] if metadata_scope==MetadataScopeEnum.INDEX else []
-    # #final_result = schema_manager.normalize_entity_result_for_response(entity_dict)
-    # final_result = schema_manager.normalize_entity_result_for_response( entity_dict=metadata_dict
-    #                                                                     , properties_to_exclude=property_exclusion_list)
-    final_result = schema_manager.normalize_document_result_for_response(   entity_dict=metadata_dict
-                                                                            , properties_to_exclude=property_exclusion_list)
+    final_result = schema_manager.normalize_document_result_for_response(entity_dict=metadata_dict)
 
     # Result filtering based on query string
     # The `data_access_level` property is available in all entities Donor/Sample/Dataset

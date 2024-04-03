@@ -898,9 +898,11 @@ def _normalize_metadata(entity_dict, metadata_scope:MetadataScopeEnum, propertie
 
     for key in entity_dict:
         # Only return the properties defined in the schema yaml
-        # Exclude additional properties if specified
-        if  key in properties and \
-            key in properties_to_skip:
+        # Exclude additional schema yaml properties, if specified
+        if  key not in properties:
+            # Skip Neo4j entity properties not found in the schema yaml
+            continue
+        if  key in properties_to_skip:
             # Skip properties if directed by the calling function
             continue
         if  entity_dict[key] is None:

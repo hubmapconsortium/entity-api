@@ -413,6 +413,9 @@ ENTITIES:
         type: string
         generated: true
         transient: true
+        # This attribute should not go in the index ever in the way it comes from Neo4j, but also is not
+        # needed now.  So simply excluded it from the index rather than trigger fixing it up & then skipping it.
+        indexed: false
         description: "The path on the local file system, relative to the base data directory, where the data is stored."
         on_read_trigger: get_local_directory_rel_path
         # No on_index_trigger to include local_directory_rel_path in the OpenSearch document for a Dataset
@@ -443,8 +446,8 @@ ENTITIES:
         description: "The uuid of previous revision dataset"
         after_create_trigger: link_to_previous_revision
         on_read_trigger: get_previous_revision_uuid
-        # No on_index_trigger to include previous_revision_uuid in the OpenSearch document for a Dataset
-      previous_revision_uuids:
+        on_index_trigger: get_previous_revision_uuid
+      previous_revision_uuidsprevious_revision_uuids:
         type: list
         generated: true
         transient: true
@@ -459,7 +462,7 @@ ENTITIES:
         immutable: true
         description: "The uuid of next revision dataset"
         on_read_trigger: get_next_revision_uuid
-        # No on_index_trigger to include next_revision_uuid in the OpenSearch document for a Dataset
+        on_index_trigger: get_next_revision_uuid
       next_revision_uuids:
         type: list
         generated: true
@@ -632,7 +635,7 @@ ENTITIES:
         generated: true
         transient: true
         on_read_trigger: get_publication_associated_collection
-        # No on_index_trigger to include associated_collection in the OpenSearch document for a Publication
+        on_index_trigger: get_publication_associated_collection
         description: "The collection from which this publication uses data"
       associated_collection_uuid:
         type: string
