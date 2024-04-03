@@ -447,7 +447,7 @@ ENTITIES:
         after_create_trigger: link_to_previous_revision
         on_read_trigger: get_previous_revision_uuid
         on_index_trigger: get_previous_revision_uuid
-      previous_revision_uuidsprevious_revision_uuids:
+      previous_revision_uuids:
         type: list
         generated: true
         transient: true
