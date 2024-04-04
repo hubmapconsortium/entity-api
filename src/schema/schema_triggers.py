@@ -1458,6 +1458,7 @@ def sync_component_dataset_status(property_key, normalized_type, user_token, exi
             url = schema_manager.get_entity_api_url() + SchemaConstants.ENTITY_API_UPDATE_ENDPOINT + '/' + child_uuid
             header = schema_manager._create_request_headers(user_token)
             header[SchemaConstants.HUBMAP_APP_HEADER] = SchemaConstants.INGEST_API_APP
+            header[SchemaConstants.INTERNAL_TRIGGER] = SchemaConstants.COMPONENT_DATASET
             response = requests.put(url=url, headers=header, json=status_body)
 
 
