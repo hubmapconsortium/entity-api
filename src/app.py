@@ -4472,7 +4472,7 @@ def create_multiple_samples_details(request, normalized_entity_type, user_token,
     # A bit performance improvement
     try:
         # Use {} since no existing dict
-        generated_before_create_trigger_data_dict = schema_manager.generate_triggered_data( rigger_type=TriggerTypeEnum.BEFORE_CREATE
+        generated_before_create_trigger_data_dict = schema_manager.generate_triggered_data( trigger_type=TriggerTypeEnum.BEFORE_CREATE
                                                                                             , normalized_class=normalized_entity_type
                                                                                             , user_token=user_token
                                                                                             , existing_data_dict={}
