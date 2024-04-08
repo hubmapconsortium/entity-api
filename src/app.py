@@ -1,5 +1,6 @@
 import collections
 import yaml
+from typing import List
 from datetime import datetime
 from flask import Flask, g, jsonify, abort, request, Response, redirect, make_response
 from neo4j.exceptions import TransactionError
@@ -1224,6 +1225,9 @@ def update_entity(id):
     # Get the entity dict from cache if exists
     # Otherwise query against uuid-api and neo4j to get the entity dict if the id exists
     entity_dict = query_target_entity(id, user_token)
+
+    # Check that the user has the correct access to modify this entity
+    validate_user_update_privilege(entity_dict, user_token)
 
     # Normalize user provided entity_type
     normalized_entity_type = schema_manager.normalize_entity_type(entity_dict['entity_type'])
@@ -4201,6 +4205,34 @@ def user_in_hubmap_read_group(request):
 
 
     return (hubmap_read_group_uuid in user_info['hmgroupids'])
+
+
+"""
+Check if a user has valid access to update a given entity
+
+Parameters
+----------
+entity : dict
+    The entity that is attempting to be updated
+user_token : str 
+    The token passed in via the request header that will be used to authenticate
+"""
+def validate_user_update_privilege(entity, user_token):
+    # A user has update privileges if they are a data admin or are in the same group that registered the entity
+    is_admin = auth_helper_instance.has_data_admin_privs(user_token)
+
+    if isinstance(is_admin, Response):
+        abort(is_admin)
+
+    user_write_groups: List[dict] = auth_helper_instance.get_user_write_groups(user_token)
+
+    if isinstance(user_write_groups, Response):
+        abort(user_write_groups)
+
+    user_group_uuids = [d['uuid'] for d in user_write_groups]
+    if entity['group_uuid'] not in user_group_uuids and is_admin is False:
+        forbidden_error(f"User does not have write privileges for this entity. "
+                        f"Reach out to the help desk (help@hubmapconsortium.org) to request access to group: {entity['group_uuid']}.")
 
 
 """
