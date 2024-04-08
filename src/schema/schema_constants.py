@@ -3,14 +3,17 @@ class SchemaConstants(object):
     MEMCACHED_TTL = 7200
 
     INGEST_API_APP = 'ingest-api'
+    COMPONENT_DATASET = 'component-dataset'
     INGEST_PIPELINE_APP = 'ingest-pipeline'
     HUBMAP_APP_HEADER = 'X-Hubmap-Application'
+    INTERNAL_TRIGGER = 'X-Internal-Trigger'
     DATASET_STATUS_PUBLISHED = 'published'
 
     ACCESS_LEVEL_PUBLIC = 'public'
     ACCESS_LEVEL_CONSORTIUM = 'consortium'
     ACCESS_LEVEL_PROTECTED = 'protected'
 
+    ENTITY_API_UPDATE_ENDPOINT = '/entities'
     UUID_API_ID_ENDPOINT = '/uuid'
     INGEST_API_FILE_COMMIT_ENDPOINT = '/file-commit'
     INGEST_API_FILE_REMOVE_ENDPOINT = '/file-remove'

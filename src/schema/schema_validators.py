@@ -95,6 +95,38 @@ def validate_no_duplicates_in_list(property_key, normalized_entity_type, request
     if len(set(target_list)) != len(target_list):
         raise ValueError(f"The {property_key} field must only contain unique items")
 
+
+"""
+Validate that a given dataset is not a component of a multi-assay split parent dataset fore allowing status to be 
+updated. If a component dataset needs to be updated, update it via its parent multi-assay dataset
+
+Parameters
+----------
+property_key : str
+    The target property key
+normalized_type : str
+    Submission
+request: Flask request object
+    The instance of Flask request passed in from application request
+existing_data_dict : dict
+    A dictionary that contains all existing entity properties
+new_data_dict : dict
+    The json data in request body, already after the regular validations
+"""
+
+
+def validate_dataset_not_component(property_key, normalized_entity_type, request, existing_data_dict, new_data_dict):
+    headers = request.headers
+    if not headers.get(SchemaConstants.INTERNAL_TRIGGER) == SchemaConstants.COMPONENT_DATASET:
+        neo4j_driver_instance = schema_manager.get_neo4j_driver_instance()
+        uuid = existing_data_dict['uuid']
+        creation_action = schema_neo4j_queries.get_entity_creation_action_activity(neo4j_driver_instance, uuid)
+        if creation_action == 'Multi-Assay Split':
+            raise ValueError(f"Unable to modify existing {existing_data_dict['entity_type']}"
+                             f" {existing_data_dict['uuid']}. Can not change status on component datasets directly. Status"
+                             f"change must occur on parent multi-assay split dataset")
+
+
 """
 If an entity has a DOI, do not allow it to be updated 
 """

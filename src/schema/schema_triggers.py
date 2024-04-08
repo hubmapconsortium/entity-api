@@ -1402,6 +1402,66 @@ def delete_thumbnail_file(property_key, normalized_type, user_token, existing_da
     return generated_dict
 
 
+"""
+Trigger event method that calls related functions involved with updating the status value 
+
+Parameters
+----------
+property_key : str
+    The target property key
+normalized_type : str
+    One of the types defined in the schema yaml: Dataset
+user_token: str
+    The user's globus nexus token
+existing_data_dict : dict
+    A dictionary that contains all existing entity properties
+new_data_dict : dict
+    A merged dictionary that contains all possible input data to be used
+"""
+
+def update_status(property_key, normalized_type, user_token, existing_data_dict, new_data_dict):
+    # execute set_status_history
+    set_status_history(property_key, normalized_type, user_token, existing_data_dict, new_data_dict)
+
+    #execute sync_component_dataset_status
+    sync_component_dataset_status(property_key, normalized_type, user_token, existing_data_dict, new_data_dict)
+
+
+"""
+Function that changes the status of component datasets when their parent multi-assay dataset's status changes 
+
+Parameters
+----------
+property_key : str
+    The target property key
+normalized_type : str
+    One of the types defined in the schema yaml: Dataset
+user_token: str
+    The user's globus nexus token
+existing_data_dict : dict
+    A dictionary that contains all existing entity properties
+new_data_dict : dict
+    A merged dictionary that contains all possible input data to be used
+"""
+def sync_component_dataset_status(property_key, normalized_type, user_token, existing_data_dict, new_data_dict):
+    if 'uuid' not in existing_data_dict:
+        raise KeyError("Missing 'uuid' key in 'existing_data_dict' during calling 'link_dataset_to_direct_ancestors()' trigger method.")
+    uuid = existing_data_dict['uuid']
+    if 'status' not in existing_data_dict:
+        raise KeyError("Missing 'status' key in 'existing_data_dict' during calling 'link_dataset_to_direct_ancestors()' trigger method.")
+    status = existing_data_dict['status']
+    children_uuids_list = schema_neo4j_queries.get_children(schema_manager.get_neo4j_driver_instance(), uuid, property_key='uuid')
+    status_body = {"status": status}
+    for child_uuid in children_uuids_list:
+        creation_action = schema_neo4j_queries.get_entity_creation_action_activity(schema_manager.get_neo4j_driver_instance(), child_uuid)
+        if creation_action == 'Multi-Assay Split':
+            url = schema_manager.get_entity_api_url() + SchemaConstants.ENTITY_API_UPDATE_ENDPOINT + '/' + child_uuid
+            header = schema_manager._create_request_headers(user_token)
+            header[SchemaConstants.HUBMAP_APP_HEADER] = SchemaConstants.INGEST_API_APP
+            header[SchemaConstants.INTERNAL_TRIGGER] = SchemaConstants.COMPONENT_DATASET
+            response = requests.put(url=url, headers=header, json=status_body)
+
+
 ####################################################################################################
 ## Trigger methods specific to Donor - DO NOT RENAME
 ####################################################################################################

@@ -32,6 +32,11 @@ INGEST_API_URL = 'https://ingest-api.dev.hubmapconsortium.org'
 # Works regardless of the trailing slash
 ONTOLOGY_API_URL = 'https://ontology-api.dev.hubmapconsortium.org'
 
+# URL for talking to Entity API (default for Localhost)
+# This is the same URL base where entity-api is running. This is useful in places where a call for one entity
+# necessitates subsequent calls for other entities.
+ENTITY_API_URL = 'http://localhost:5002'
+
 # A list of URLs for talking to multiple Search API instances (default value used for docker deployment, no token needed)
 # Works regardless of the trailing slash /
 SEARCH_API_URL_LIST = ['http://search-api:8080']
