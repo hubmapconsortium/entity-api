@@ -1038,7 +1038,7 @@ def validate_json_data_against_schema(json_data_dict, normalized_entity_type, ex
         for key in schema_keys:
             # By default, the schema treats all entity properties as optional on creation. 
             # Use `required_on_create: true` to mark a property as required for creating a new entity
-            if ('required_on_create' in properties[key]) and properties[key]['required_on_create'] and ('trigger' not in properties[key]):
+            if ('required_on_create' in properties[key]) and properties[key]['required_on_create']:
                 if key not in json_data_keys:
                     missing_required_keys_on_create.append(key)
                 else:
