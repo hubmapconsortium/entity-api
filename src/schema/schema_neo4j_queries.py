@@ -542,7 +542,7 @@ def get_entity_type(neo4j_driver, entity_uuid: str) -> str:
 
 
 def get_entity_creation_action_activity(neo4j_driver, entity_uuid: str) -> str:
-    query: str = f"MATCH (ds {{uuid:'{entity_uuid}'}})<-[:ACTIVITY_OUTPUT]-(a:Activity) RETURN a.creation_action"
+    query: str = f"MATCH (ds:Dataset {{uuid:'{entity_uuid}'}})<-[:ACTIVITY_OUTPUT]-(a:Activity) RETURN a.creation_action"
 
     logger.info("======get_entity_creation_action() query======")
     logger.info(query)
@@ -1347,16 +1347,16 @@ def get_sample_direct_ancestor(neo4j_driver, uuid, property_key = None):
     result = {}
 
     if property_key:
-        query = (f"MATCH (e:Entity)<-[:ACTIVITY_OUTPUT]-(:Activity)<-[:ACTIVITY_INPUT]-(parent:Entity) "
+        query = (f"MATCH (s:Sample)<-[:ACTIVITY_OUTPUT]-(:Activity)<-[:ACTIVITY_INPUT]-(parent:Entity) "
                  # Filter out the Lab entity if it's the ancestor
-                 f"WHERE e.uuid='{uuid}' AND parent.entity_type <> 'Lab' "
+                 f"WHERE s.uuid='{uuid}' AND parent.entity_type <> 'Lab' "
                  # COLLECT() returns a list
                  # apoc.coll.toSet() reruns a set containing unique nodes
                  f"RETURN parent.{property_key} AS {record_field_name}")
     else:
-        query = (f"MATCH (e:Entity)<-[:ACTIVITY_OUTPUT]-(:Activity)<-[:ACTIVITY_INPUT]-(parent:Entity) "
+        query = (f"MATCH (s:Sample)<-[:ACTIVITY_OUTPUT]-(:Activity)<-[:ACTIVITY_INPUT]-(parent:Entity) "
                  # Filter out the Lab entity if it's the ancestor
-                 f"WHERE e.uuid='{uuid}' AND parent.entity_type <> 'Lab' "
+                 f"WHERE s.uuid='{uuid}' AND parent.entity_type <> 'Lab' "
                  # COLLECT() returns a list
                  # apoc.coll.toSet() reruns a set containing unique nodes
                  f"RETURN parent AS {record_field_name}")
