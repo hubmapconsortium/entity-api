@@ -40,6 +40,7 @@ _neo4j_driver = None
 _memcached_client = None
 _memcached_prefix = None
 
+ONTOLOGY_API_ORGAN_TYPES_ENDPOINT = '/organs/by-code?application_context=HUBMAP'
 
 ####################################################################################################
 ## Provenance yaml schema initialization
@@ -1506,7 +1507,6 @@ def get_hubmap_ids(id):
 
         # Also bubble up the error message from uuid-api
         raise requests.exceptions.RequestException(response.text)
-
 
 """
 Helper function to use the Ontology API to retrieve a valueset from UBKG containing
