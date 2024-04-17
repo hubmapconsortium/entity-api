@@ -74,6 +74,76 @@ str: The string of normalized entity type
 def set_entity_type(property_key, normalized_type, user_token, existing_data_dict, new_data_dict):
     return property_key, normalized_type
 
+"""
+Trigger event method to set the display_subtype appropriate for a given entity.  The display_subtype is not
+a stored field in Neo4j, but added to different entity types per the rules that follow primarily for
+storage in the corresponding Elasticsearch document.
+
+# Upload: "Data Upload"
+# Donor: "Donor"
+# Sample: if sample_category == 'organ' the display name linked to the corresponding description of
+organ code. Otherwise sample_category code as the display name for Block, Section, or Suspension.
+# Dataset: the display names linked to the values in dataset_type as a comma separated list
+Parameters
+----------
+property_key : str
+    The target property key of the value to be generated
+normalized_type : str
+    One of the types defined in the schema yaml: Activity, Collection, Donor, Sample, Dataset, Upload, Publication
+user_token: str
+    The user's globus nexus token
+existing_data_dict : dict
+    A dictionary that contains all existing entity properties
+new_data_dict : dict
+    A merged dictionary that contains all possible input data to be used
+
+Returns
+-------
+str: The target property key
+str: The string of normalized entity type
+"""
+def generate_display_subtype(property_key, normalized_type, user_token, existing_data_dict, new_data_dict):
+    logger.info(f"Start executing generate_display_subtype() for"
+                f" normalized_type={normalized_type}"
+                f" with existing_data_dict['uuid']={existing_data_dict['uuid']}.")
+
+    entity_type = normalized_type
+    display_subtype = '{unknown}'
+
+    if entity_type == 'Upload':
+        display_subtype = 'Data Upload'
+    elif entity_type == 'Donor':
+        display_subtype = 'Donor'
+    elif entity_type == 'Sample':
+        if 'sample_category' in existing_data_dict:
+            if existing_data_dict['sample_category'].lower() == 'organ':
+                if 'organ' in existing_data_dict:
+                    known_organ_types = schema_manager.get_organ_types()
+                    if existing_data_dict['organ'] in known_organ_types.keys():
+                        display_subtype = known_organ_types[existing_data_dict['organ']]
+                    else:
+                        raise Exception(
+                            f"Unable retrieve organ type ontology information for organ_type_code={existing_data_dict['organ']}.")
+                else:
+                    logger.error(
+                        f"Missing missing organ when sample_category is set of Sample with uuid: {existing_data_dict['uuid']}")
+            else:
+                display_subtype = str.capitalize(existing_data_dict['sample_category'])
+        else:
+            logger.error(f"Missing sample_category of Sample with uuid: {existing_data_dict['uuid']}")
+    elif entity_type in ['Dataset', 'Publication']:
+        if 'dataset_type' in existing_data_dict:
+            display_subtype = existing_data_dict['dataset_type']
+        else:
+            logger.error(f"Missing dataset_type of Dataset with uuid: {existing_data_dict['uuid']}")
+    else:
+        # Do nothing
+        logger.error(   f"Invalid entity_type: {entity_type}."
+                        f" Only generate display_subtype for Upload/Donor/Sample/Dataset")
+
+    logger.info("Finished executing generate_display_subtype()")
+
+    return property_key, display_subtype
 
 """
 Trigger event method of getting user sub
