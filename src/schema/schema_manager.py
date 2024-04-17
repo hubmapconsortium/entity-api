@@ -40,8 +40,6 @@ _neo4j_driver = None
 _memcached_client = None
 _memcached_prefix = None
 
-ONTOLOGY_API_ORGAN_TYPES_ENDPOINT = '/organs/by-code?application_context=HUBMAP'
-
 ####################################################################################################
 ## Provenance yaml schema initialization
 ####################################################################################################

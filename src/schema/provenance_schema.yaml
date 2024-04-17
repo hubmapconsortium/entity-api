@@ -600,12 +600,6 @@ ENTITIES:
         generated: true
         immutable: true
         description: "The assay types of this Dataset. Valid values are from UBKG are queried by schema_manager.get_valueset_dataset_type() using the Ontology API."
-      display_subtype:
-        type: string
-        description: "Value not stored in Neo4j, but added to Elasticsearch document"
-        generated: true # Disallow entry from users via POST
-        immutable: true # Disallow update via PUT
-        on_index_trigger: generate_display_subtype
       publication_date:
         type: string
         description: 'The date of publication'
