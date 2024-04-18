@@ -337,12 +337,6 @@ ENTITIES:
         type: list
         required_on_create: false
         description: "The data or assay types contained in this dataset as a json array of strings.  Each is an assay code from [assay types](https://github.com/hubmapconsortium/search-api/blob/main/src/search-schema/data/definitions/enums/assay_types.yaml)."
-      display_subtype:
-        type: string
-        description: "Value not stored in Neo4j, but added to Elasticsearch document"
-        generated: true # Disallow entry from users via POST
-        immutable: true # Disallow update via PUT
-        on_index_trigger: generate_display_subtype
       dataset_type:
         before_property_create_validators:
           - validate_recognized_dataset_type
@@ -707,12 +701,6 @@ ENTITIES:
         # The updated_peripherally tag is a temporary measure to correctly handle any attributes
         # which are potentially updated by multiple triggers
         updated_peripherally: true
-      display_subtype:
-        type: string
-        description: "Value not stored in Neo4j, but added to Elasticsearch document"
-        generated: true # Disallow entry from users via POST
-        immutable: true # Disallow update via PUT
-        on_index_trigger: generate_display_subtype
       metadata:
         type: json_string # dict
         description: "Donor metadata coded as described here: <get donor metadata doc from Chuck>"
@@ -785,12 +773,6 @@ ENTITIES:
         generated: true
         description: "One of the values: public, consortium, protected. Only Dataset may have protected value"
         before_create_trigger: set_data_access_level
-      display_subtype:
-        type: string
-        description: "Value not stored in Neo4j, but added to Elasticsearch document"
-        generated: true # Disallow entry from users via POST
-        immutable: true # Disallow update via PUT
-        on_index_trigger: generate_display_subtype
       sample_category:
         type: string
         required_on_create: true # Only require for cerate via POST, not update via PUT
@@ -1023,12 +1005,6 @@ ENTITIES:
         before_create_trigger: set_upload_status_new
         after_create_trigger: set_status_history
         after_update_trigger: set_status_history
-      display_subtype:
-        type: string
-        description: "Value not stored in Neo4j, but added to Elasticsearch document"
-        generated: true # Disallow entry from users via POST
-        immutable: true # Disallow update via PUT
-        on_index_trigger: generate_display_subtype
       validation_message:
         type: string
         description: A message from the validation tools describing what is invalid with the upload.
