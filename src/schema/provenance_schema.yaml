@@ -94,7 +94,7 @@ ACTIVITIES:
       <<: *shared_properties
       creation_action:
         type: string
-        indexed: true
+        indexed: false
         description: "The activity that was performed."
         before_create_trigger: set_activity_creation_action
 
@@ -503,7 +503,7 @@ ENTITIES:
         generated: true
         transient: true
         immutable: true
-        indexed: true
+        indexed: false
         description: "The list of the uuids of previous revision datasets"
         on_read_trigger: get_previous_revision_uuids
         # No on_index_trigger to include previous_revision_uuids in the OpenSearch document for a Dataset
@@ -521,7 +521,7 @@ ENTITIES:
         generated: true
         transient: true
         immutable: true
-        indexed: true
+        indexed: false
         description: "The list of the uuids of next revision datasets"
         on_read_trigger: get_next_revision_uuids
         # No on_index_trigger to include next_revision_uuids in the OpenSearch document for a Dataset
