@@ -114,16 +114,13 @@ Returns
 boolean 
 """
 def dataset_has_component_children(neo4j_driver, dataset_uuid):
-    query = (f"MATCH (ds1:Dataset)<-[:ACTIVITY_OUTPUT]-(a:Activity)<-[:ACTIVITY_INPUT]-(ds2:Dataset) "
-             f"WHERE ds2.uuid = '{dataset_uuid}' "
-             f"RETURN a.creation_action as {record_field_name}")
+    query = (f"MATCH p=(ds1:Dataset)<-[:ACTIVITY_OUTPUT]-(a:Activity)<-[:ACTIVITY_INPUT]-(ds2:Dataset) "
+             f"WHERE ds2.uuid = '{dataset_uuid}' AND a.creation_action = 'Multi-Assay Split' "
+             f"RETURN (count(p) > 0) as {record_field_name}")
+
     with neo4j_driver.session() as session:
-        components_list = session.run(query).data()
-    for component in components_list:
-        creation_action = component.get('result')
-        if creation_action == 'Multi-Assay Split':
-            return True
-    return False
+        result = session.run(query).value()
+    return result[0]
 
 """
 Retrieve the ancestor organ(s) of a given entity
