@@ -203,7 +203,7 @@ try:
 
     # The schema_manager is a singleton module
     # Pass in auth_helper_instance, neo4j_driver instance, and memcached_client_instance
-    schema_manager.initialize(app.config['SCHEMA_YAML_FILE'],
+    schema_manager.initialize(_schema_yaml_file,
                               app.config['UUID_API_URL'],
                               app.config['INGEST_API_URL'],
                               app.config['ONTOLOGY_API_URL'],
@@ -216,7 +216,8 @@ try:
     logger.info('Initialized schema_manager module successfully :)')
 # Use a broad catch-all here
 except Exception:
-    msg = 'Failed to initialize the schema_manager module :('
+    msg =   f"Failed to initialize the schema_manager module with" \
+            f" _schema_yaml_file={_schema_yaml_file}."
     # Log the full stack trace, prepend a line with our message
     logger.exception(msg)
 
