@@ -43,24 +43,28 @@ shared_properties: &shared_properties
     type: integer
     generated: true # Disallow user input from request json when being created
     immutable: true # Disallow update of this property when the entity is being updated
+    indexed: true
     description: "The timestamp of when the node was created.  The format is an integer representing milliseconds since midnight Jan 1, 1970"
     before_create_trigger: set_timestamp
   created_by_user_displayname:
     type: string
     generated: true
     immutable: true
+    indexed: true
     description: "The name of the person or process authenticated when creating the object"
     before_create_trigger: set_user_displayname
   created_by_user_email:
     type: string
     generated: true
     immutable: true
+    indexed: true
     description: "The email address of the person or process authenticated when creating the object."
     before_create_trigger: set_user_email
   created_by_user_sub:
     type: string
     generated: true
     immutable: true
+    indexed: false
     description: "The subject id as provided by the authorization mechanism for the person or process authenticated when creating the object."
     before_create_trigger: set_user_sub
   ###### ID properties ######
@@ -68,12 +72,14 @@ shared_properties: &shared_properties
     type: string
     generated: true
     immutable: true
+    indexed: true
     description: "The HuBMAP unique identifier, intended for internal software use only.  This is a 32 digit hexadecimal uuid e.g. 461bbfdc353a2673e381f632510b0f17"
     before_create_trigger: set_uuid
   hubmap_id:
     type: string
     generated: true
     immutable: true
+    indexed: true
     description: "A HuBMAP Consortium wide unique identifier randomly generated in the format HBM###.ABCD.### for every entity."
     before_create_trigger: set_hubmap_id
 
@@ -88,6 +94,7 @@ ACTIVITIES:
       <<: *shared_properties
       creation_action:
         type: string
+        indexed: false
         description: "The activity that was performed."
         before_create_trigger: set_activity_creation_action
 
@@ -102,6 +109,7 @@ doi_properties: &doi_properties
     # This property gets set via a PUT by ingest-api after the DOI is created via DataCite
     # So we can't define it as `immutable: true`
     type: string
+    indexed: true
     description: "The doi of the registered entity. e.g. 10.35079/hbm289.pcbm.487"
     before_property_create_validators:
      - verify_DOI_pair
@@ -113,6 +121,7 @@ doi_properties: &doi_properties
     # This property gets set via a PUT by ingest-api after the DOI is created via DataCite
     # So we can't define it as `immutable: true`
     type: string
+    indexed: true
     description: "The url from the doi registry for this entity. e.g. https://doi.org/10.35079/hbm289.pcbm.487"
     before_property_create_validators:
      - verify_DOI_pair
@@ -123,9 +132,11 @@ doi_properties: &doi_properties
   # Currently creators and contacts are only available for public Collections
   creators:
     type: list
+    indexed: true
     description: "A list of the people who created the entity with full name, email, ORCID iD, institution, etc.. This is analogous to the author list on a publication."
   contacts:
-    type: list 
+    type: list
+    indexed: true
     description: "A list of the people who are the main contacts to get information about the entity."
   # To-DO
   # creator_ids:
@@ -141,6 +152,7 @@ shared_entity_properties: &shared_entity_properties
   last_modified_timestamp:
     type: integer
     generated: true
+    indexed: true
     auto_update: true # Will always update automatically if the entity gets updated, different from `immutable: false` (can be updated by users or not) 
     description: "The timestamp of when the object was last modified.  The format is an integer representing milliseconds since midnight, Jan 1, 1970"
     # Set on both create and update
@@ -151,6 +163,7 @@ shared_entity_properties: &shared_entity_properties
   last_modified_user_sub:
     type: string
     generated: true
+    indexed: false
     auto_update: true
     description: "The subject id of the user who last modified the entity as provided by the authorization mechanism for the person or process authenticated when the object was modified."
     # Set on both create and update
@@ -159,6 +172,7 @@ shared_entity_properties: &shared_entity_properties
   last_modified_user_email:
     type: string
     generated: true
+    indexed: false
     auto_update: true
     description: "The email address of the person or process authenticated when the object was last modified."
     # Set on both create and update
@@ -167,6 +181,7 @@ shared_entity_properties: &shared_entity_properties
   last_modified_user_displayname:
     type: string
     generated: true
+    indexed: false
     auto_update: true
     description: "The name of the person or process authenticated when the object was last modified."
     # Set on both create and update
@@ -177,10 +192,9 @@ shared_entity_properties: &shared_entity_properties
     type: string
     generated: true
     immutable: true
+    indexed: true
     description: "One of the normalized entity types: Dataset, Collection, Sample, Donor"
-    before_create_trigger: set_entity_type 
-
-  
+    before_create_trigger: set_entity_type
 
 ENTITIES:
   ############################################# Collection #############################################
@@ -200,6 +214,7 @@ ENTITIES:
       ###### DOI properties with entity-specific validations + copies of validations in doi_properties ######
       registered_doi:
         type: string
+        indexed: true
         description: "See description in doi_properties section above"
         before_property_create_validators:
           - verify_DOI_pair
@@ -212,6 +227,7 @@ ENTITIES:
           - halt_DOI_if_unpublished_dataset
       doi_url:
         type: string
+        indexed: true
         description: "See description in doi_properties section above"
         before_property_create_validators:
           - verify_DOI_pair
@@ -225,23 +241,28 @@ ENTITIES:
       # Creators and contacts are required for a Collection to be public
       creators:
         type: list
+        indexed: true
         description: "See description in doi_properties section above"
       contacts:
         type: list
+        indexed: true
         description: "See description in doi_properties section above"
 
       ###### entity-specific validations ######
       title:
         type: string
+        indexed: true
         description: "The title of the Collection."
         required_on_create: true
       description:
         type: string
+        indexed: true
         description: "Free text description of the collection"
         required_on_create: true
       ###### Transient properties ######
       dataset_uuids:
         type: list
+        indexed: false
         before_property_create_validators:
           - validate_no_duplicates_in_list
           - collection_entities_are_existing_datasets
@@ -258,6 +279,7 @@ ENTITIES:
         type: list
         transient: true
         generated: true
+        indexed: false
         description: "The datasets that are contained in the collection."
         # A few time-consuming properties (with read triggers) of each dataset are excluded
         on_read_trigger: get_collection_datasets
@@ -277,11 +299,13 @@ ENTITIES:
       <<: *doi_properties
       antibodies:
         type: list
+        indexed: false
         description: "A list of antibodies used in the assay that created the dataset"
       creation_action:
         type: string
         transient: true
         immutable: true
+        indexed: true
         on_read_trigger: get_creation_action_activity
         on_index_trigger: get_creation_action_activity
         description: "The activity that was performed."
@@ -289,23 +313,28 @@ ENTITIES:
           - validate_creation_action
       description:
         type: string
+        indexed: true
         description: "Free text description of the dataset"
       dataset_info:
         type: string
+        indexed: true
         description: "Additional information about the dataset, which can be used to find this dataset, including lab specific (non-PHI) identifiers."
       # The Dataset.data_access_level is based on Dataset.status and Dataset.contains_human_genetic_sequences
       data_access_level:
         type: string
         generated: true
+        indexed: true
         description: "One of the values: public, consortium, protected. Only Dataset may have protected value"
         before_create_trigger: set_data_access_level
       # When contains_human_genetic_sequences is true, even if status is 'Published', the data_access_level is still 'protected'
       contains_human_genetic_sequences:
         type: boolean
+        indexed: true
         required_on_create: true # Only required for create via POST, not update via PUT
         description: "True if the data contains any human genetic sequence information."
       error_message:
         type: string
+        indexed: true
         description: "An open text field that holds the last error message that arose from pipeline validation or analysis."
       status:
         type: string
@@ -315,6 +344,7 @@ ENTITIES:
           - validate_status_changed
           - validate_dataset_not_component
         generated: true
+        indexed: true
         description: "One of: New|Processing|Published|QA|Error|Hold|Invalid|Submitted|Incomplete"
         before_create_trigger: set_dataset_status_new
         after_create_trigger: set_status_history
@@ -323,11 +353,13 @@ ENTITIES:
         type: string
         generated: true # Disallow entry from users via POST
         immutable: true # Disallow update via PUT
+        indexed: true
         description: "The auto generated dataset title."
         on_read_trigger: get_dataset_title
         on_index_trigger: get_dataset_title
       lab_dataset_id:
         type: string
+        indexed: true
         description: "A name or identifier used by the lab who is uploading the data to cross reference the data locally"
       data_types:
         before_property_create_validators:
@@ -335,6 +367,7 @@ ENTITIES:
         before_property_update_validators:
           - validate_no_duplicates_in_list
         type: list
+        indexed: true
         required_on_create: false
         description: "The data or assay types contained in this dataset as a json array of strings.  Each is an assay code from [assay types](https://github.com/hubmapconsortium/search-api/blob/main/src/search-schema/data/definitions/enums/assay_types.yaml)."
       dataset_type:
@@ -343,12 +376,14 @@ ENTITIES:
         before_property_update_validators:
           - validate_recognized_dataset_type
         type: string
+        indexed: true
         required_on_create: true # Required for create via POST, not update via PUT
         description: "The assay types of this Dataset. Valid values are from UBKG are queried by schema_manager.get_valueset_dataset_type() using the Ontology API."
       collections:
         type: list
         transient: true
         generated: true
+        indexed: false
         description: "A list of collections that this dataset belongs to. Will be returned in response"
         on_read_trigger: get_dataset_collections
         # No on_index_trigger to include collections in the OpenSearch document for a Dataset
@@ -356,11 +391,13 @@ ENTITIES:
         type: json_string # dict
         transient: true
         generated: true
+        indexed: false
         description: "The Upload that this dataset is associated with. Will be returned in response"
         on_read_trigger: get_dataset_upload
         # No on_index_trigger to include upload in the OpenSearch document for a Dataset
       contributors:
         type: list
+        indexed: true
         description: "A list of people who contributed to the creation of this dataset.  Returned as an array of contributor where the structure of a contributor is"
       direct_ancestor_uuids:
         required_on_create: true # Only required for create via POST, not update via PUT
@@ -372,42 +409,50 @@ ENTITIES:
           - validate_not_invalid_creation_action
         transient: true
         exposed: false
+        indexed: false
         description: "The uuids of source entities from which this new entity is derived.  Used to pass source entity ids in on POST or PUT calls used to create the linkages."
         # Note: link_dataset_to_direct_ancestors() will always delete all the old linkages first
         after_create_trigger: link_dataset_to_direct_ancestors
         after_update_trigger: link_dataset_to_direct_ancestors
       direct_ancestors:
         type: list
-        description: "A list of direct parent ancensters (one level above) that the Dataset was derived from."
+        description: "A list of direct parent ancestors (one level above) that the Dataset was derived from."
         generated: true
         transient: true
+        indexed: false
         on_read_trigger: get_dataset_direct_ancestors
         # No on_index_trigger to include direct_ancestors in the OpenSearch document for a Dataset
       published_timestamp:
         type: integer
         immutable: true
         generated: true
+        indexed: true
         description: "The timestamp of when the dataset was published.  The format is an integer representing milliseconds since midnight, Jan 1, 1970.  Cannot be set directly must be set with the /datasets/<id>/publish method."
       published_user_displayname:
         type: string
         generated: true
         immutable: true
+        indexed: false
         description: "The name of the authenticated user or process that published the data.  Cannot be set directly must be set with the /datasets/<id>/publish method."
       published_user_sub:
         type: string
         generated: true
         immutable: true
+        indexed: false
         description: "The subject id as provided by the authorization mechanism for the person or process authenticated when the dataset was publised.  Cannot be set directly must be set with the /datasets/<id>/publish method."
       published_user_email:
         type: string
         generated: true
         immutable: true
+        indexed: false
         description: "The email address provided by the authorization mechanism for the person or process authenticated when published.  Cannot be set directly must be set with the /datasets/<id>/publish method."
       pipeline_message:
         #todo: where is this attribute sourced from?  Is it stored in the database? <- Not in neo4j
         type: string
+        indexed: false
       ingest_metadata:
         type: json_string # dict
+        indexed: true
         description: "The metadata returned from the processing at data submission time."
       local_directory_rel_path:
         # Example: protected/<TMC>/<uuid>
@@ -422,12 +467,15 @@ ENTITIES:
         # No on_index_trigger to include local_directory_rel_path in the OpenSearch document for a Dataset
       run_id:
         type: string
+        indexed: false
       ingest_id:
         type: string
+        indexed: false
       # A user who is a member of multiple groups HAS to send in the group_uuid 
       group_uuid:
         type: string
         immutable: true
+        indexed: true
         description: "The uuid of globus group which the user who created this entity is a member of.  This is required on Create/POST if the user creating the Donor is a member of more than one write group.  This property cannot be set via PUT (only on Create/POST)."
         before_create_trigger: set_group_uuid #method that, if group_uuid is not already set looks for membership in a single "data provider" group and sets to that. Otherwise if not set and no single "provider group" membership throws error
       # Must set in neo4j
@@ -436,6 +484,7 @@ ENTITIES:
         type: string
         generated: true
         immutable: true
+        indexed: true
         description: "The displayname of globus group which the user who created this entity is a member of"
         before_create_trigger: set_group_name #same as group_uuid, except set group_name
       previous_revision_uuid:
@@ -444,6 +493,7 @@ ENTITIES:
           - list
         transient: true
         immutable: true
+        indexed: true
         description: "The uuid of previous revision dataset"
         after_create_trigger: link_to_previous_revision
         on_read_trigger: get_previous_revision_uuid
@@ -453,6 +503,7 @@ ENTITIES:
         generated: true
         transient: true
         immutable: true
+        indexed: false
         description: "The list of the uuids of previous revision datasets"
         on_read_trigger: get_previous_revision_uuids
         # No on_index_trigger to include previous_revision_uuids in the OpenSearch document for a Dataset
@@ -461,6 +512,7 @@ ENTITIES:
         generated: true
         transient: true
         immutable: true
+        indexed: true
         description: "The uuid of next revision dataset"
         on_read_trigger: get_next_revision_uuid
         on_index_trigger: get_next_revision_uuid
@@ -469,6 +521,7 @@ ENTITIES:
         generated: true
         transient: true
         immutable: true
+        indexed: false
         description: "The list of the uuids of next revision datasets"
         on_read_trigger: get_next_revision_uuids
         # No on_index_trigger to include next_revision_uuids in the OpenSearch document for a Dataset
@@ -478,6 +531,7 @@ ENTITIES:
         # superseding the entity with this attribute, so we can't define it as `immutable: true`.
         # Modifications to an existing attribute are rejected using a validation trigger.
         immutable: false
+        indexed: true
         description: "List of uuids of existing Datasets used to construct this Multi-Assay Dataset, when present"
         before_property_create_validators:
           - verify_multi_assay_dataset_components
@@ -489,6 +543,7 @@ ENTITIES:
         # superseding the entity with this attribute, so we can't define it as `immutable: true`.
         # Modifications to an existing attribute are rejected using a validation trigger.
         immutable: false
+        indexed: true
         description: "The uuid of the Multi-Assay Dataset constructed using this Dataset, when present"
         before_property_create_validators:
           - verify_multi_assay_dataset_components
@@ -498,6 +553,7 @@ ENTITIES:
       # Dataset has only one thumbnail file
       thumbnail_file:
         generated: true
+        indexed: true
         type: json_string
         description: "The dataset thumbnail file detail. Stored in db as a stringfied json, e.g., {'filename': 'thumbnail.jpg', 'file_uuid': 'dadasdasdadda'}"
         # The updated_peripherally tag is a temporary measure to correctly handle any attributes
@@ -507,6 +563,7 @@ ENTITIES:
         type: json_string 
         transient: true
         exposed: false
+        indexed: false
         description: 'Just a temporary file id. Provide as a json object with an temp_file_id like {"temp_file_id":"dzevgd6xjs4d5grmcp4n"}'
         before_create_trigger: commit_thumbnail_file
         # This before_update_trigger with the same commit process can be used by ingest-api to update the dataset via PUT call
@@ -519,6 +576,7 @@ ENTITIES:
         type: string 
         transient: true
         exposed: false
+        indexed: false
         description: 'The thumbnail image file previously uploaded to delete. Provide as a string of the file_uuid like: "232934234234234234234270c0ea6c51d604a850558ef2247d0b4"'
         before_update_trigger: delete_thumbnail_file
         # The updated_peripherally tag is a temporary measure to correctly handle any attributes
@@ -526,12 +584,14 @@ ENTITIES:
         updated_peripherally: true
       retraction_reason:
         type: string
+        indexed: true
         before_property_update_validators:
           - validate_if_retraction_permitted
           - validate_sub_status_provided
         description: 'Information recorded about why a the dataset was retracted.'
       sub_status:
         type: string
+        indexed: true
         before_property_update_validators:
           - validate_if_retraction_permitted
           - validate_retraction_reason_provided
@@ -539,20 +599,25 @@ ENTITIES:
         description: 'A sub-status provided to further define the status. The only current allowable value is "Retracted"'
       provider_info:
         type: string
+        indexed: true
         description: 'Information recorded about the data provider before an analysis pipeline is run on the data.'
       dbgap_sra_experiment_url:
         type: string
+        indexed: true
         description: 'A URL linking the dataset to the associated uploaded data at dbGaP.'
       dbgap_study_url:
         type: string
+        indexed: true
         description: 'A URL linking the dataset to the particular study on dbGap it belongs to'
       status_history:
         type: list
         description: "A list of all status change events. Each entry in the list is a dictionary containing the change_timestamp, changed_by_email, previous_status, new_status"
         generated: true
+        indexed: false
         immutable: true
       assigned_to_group_name:
         type: string
+        indexed: false
         description: The group who is responsible for the next step in the ingest process
         before_property_create_validators:
           - validate_in_admin_group
@@ -562,6 +627,7 @@ ENTITIES:
           - validate_group_name
       ingest_task:
         type: string
+        indexed: false
         description: A description of the next task in the ingest process
         before_property_create_validators:
           - validate_in_admin_group
@@ -582,6 +648,7 @@ ENTITIES:
       <<: *shared_dataset_properties
       title:
         type: string
+        indexed: true
         description: "The title of the publication."
         required_on_create: true # Only required for create via POST, not update via PUT
       dataset_type:
@@ -593,9 +660,11 @@ ENTITIES:
         type: string
         generated: true
         immutable: true
+        indexed: true
         description: "The assay types of this Dataset. Valid values are from UBKG are queried by schema_manager.get_valueset_dataset_type() using the Ontology API."
       publication_date:
         type: string
+        indexed: true
         description: 'The date of publication'
         required_on_create: true # Only required for create via POST, not update via PUT
         before_property_create_validators:
@@ -606,35 +675,44 @@ ENTITIES:
         before_update_trigger: set_publication_date
       publication_doi:
         type: string
+        indexed: true
         description: 'The doi of the publication. (##.####/[alpha-numeric-string])'
       publication_url:
         type: string
+        indexed: true
         description: 'The URL at the publishers server for print/pre-print (http(s)://[alpha-numeric-string].[alpha-numeric-string].[...])'
         required_on_create: true # Only required for create via POST, not update via PUT
       publication_venue:
         type: string
+        indexed: true
         description: 'The venue of the publication, journal, conference, preprint server, etc...'
         required_on_create: true # Only required for create via POST, not update via PUT
       volume:
         type: integer
+        indexed: true
         description: 'The volume number of a journal that it was published in.'
       issue:
         type: integer
+        indexed: true
         description: 'The issue number of the journal that it was published in.'
       pages_or_article_num:
         type: string
+        indexed: true
         description: 'The pages or the article number in the publication journal e.g., "23", "23-49", "e1003424".'
       publication_status:
         type: boolean
+        indexed: true
         required_on_create: true
         description: 'A boolean representing if the publication has been published yet or not.  (Published in the target/venue journal/proceeding/etc.. NOT published in the sense of Dataset publication)'
       omap_doi:
         type: string
+        indexed: true
         description: 'A DOI pointing to an Organ Mapping Antibody Panel relevant to this publication'
       associated_collection:
         type: json_string # dict
         generated: true
         transient: true
+        indexed: true
         on_read_trigger: get_publication_associated_collection
         on_index_trigger: get_publication_associated_collection
         description: "The collection from which this publication uses data"
@@ -642,6 +720,7 @@ ENTITIES:
         type: string
         transient: true
         exposed: false
+        indexed: false
         description: "The uuid of the associated collection for a given publication"
         after_create_trigger: link_publication_to_associated_collection
         after_update_trigger: link_publication_to_associated_collection
@@ -662,18 +741,21 @@ ENTITIES:
       <<: *doi_properties
       description:
         type: string
+        indexed: true
         description: "Free text description of the donor"
       # A Donor is public only if any dataset below it in the provenance hierarchy is published
       # (i.e. Dataset.status == "Published")
       data_access_level:
         type: string
         generated: true
+        indexed: true
         description: "One of the values: public, consortium"
         before_create_trigger: set_data_access_level
       image_files:
         # This property has no before_create_trigger method, but will be created via `image_files_to_add` and updated via `image_files_to_delete`
         type: list 
         generated: true # Disallow direct user input from create via POST, but can be used for update via PUT
+        indexed: false
         description: "List of uploaded image files and descriptions of the files. Stored in db as a stringfied json array."
         # Only file descriptions are allowed to be updated directly using this property
         # Adding or deleting files must via the other two properties
@@ -685,6 +767,7 @@ ENTITIES:
         type: list 
         transient: true
         exposed: false
+        indexed: false
         description: 'List of temporary file ids with an optional description. Provide as a json array with an temp_file_id and description attribute for each element like {"files": [{"temp_file_id":"dzevgd6xjs4d5grmcp4n","description":"This is image file one"},{"temp_file_id":"yrahjadfhadf","description":"This is image file two"}]}'
         before_create_trigger: commit_image_files
         before_update_trigger: commit_image_files
@@ -696,6 +779,7 @@ ENTITIES:
         type: list 
         transient: true
         exposed: false
+        indexed: false
         description: 'List of image files previously uploaded to delete. Provide as a json array of the file_uuids of the file like: ["232934234234234234234270c0ea6c51d604a850558ef2247d0b4", "230948203482234234234a57bfe9c056d08a0f8e6cd612baa3bfa"]'
         before_update_trigger: delete_image_files
         # The updated_peripherally tag is a temporary measure to correctly handle any attributes
@@ -703,13 +787,16 @@ ENTITIES:
         updated_peripherally: true
       metadata:
         type: json_string # dict
+        indexed: true
         description: "Donor metadata coded as described here: <get donor metadata doc from Chuck>"
       protocol_url:
         type: string
+        indexed: true
         required_on_create: true # Only required for create via POST, not update via PUT
         description: "The protocols.io doi url pointing the protocol describing the donor selection, inclusion/exclusion criteria"
       lab_donor_id:
         type: string
+        indexed: true
         description: "A lab specific identifier for the donor."
       # No submission_id for Dataset, Collection, and Upload
       # Only Donor and Sample have this property
@@ -717,12 +804,14 @@ ENTITIES:
         type: string
         immutable: true
         generated: true
+        indexed: true
         description: "The hubmap internal id with embedded semantic information e.g.: VAN0003. This id is generated at creation time which tracks the lab, donor, organ and sample hierarchy per the following: https://docs.google.com/document/d/1DjHgmqWF1VA5-3mfzLFNfabbzmc8KLSG9xWx1DDLlzo/edit?usp=sharing"
         before_create_trigger: set_submission_id
       # A user who is a member of multiple groups HAS to send in the group_uuid 
       group_uuid:
         type: string
         immutable: true
+        indexed: true
         description: "The uuid of globus group which the user who created this entity is a member of.  This is required on Create/POST if the user creating the Donor is a member of more than one write group.  This property cannot be set via PUT (only on Create/POST)."
         before_create_trigger: set_group_uuid #method that, if group_uuid is not already set looks for membership in a single "data provider" group and sets to that. Otherwise if not set and no single "provider group" membership throws error.  This field is also used to link (Neo4j relationship) to the correct Lab node on creation.
         # Note: link_donor_to_lab() will always delete all the old linkages first
@@ -732,25 +821,30 @@ ENTITIES:
         type: string
         generated: true
         immutable: true
+        indexed: true
         description: "The displayname of globus group which the user who created this entity is a member of"
         before_create_trigger: set_group_name
         #todo: map to provenance_group_name in ES - ? In the current version it's not mapped
       portal_metadata_upload_files:
-        type: json_string 
+        type: json_string
+        indexed: true
         description: "list of relative paths to metadata files"
         #todo: migrate to new attribute (set, maybe) representing a single uploaded sample_metadata.tsv file using the now file upload methods.  Leave this in place for now, but add new attribute(s) to support new methon.  Need to do a design session.
       next_identifier:
         type: string
         immutable: true
         exposed: false
+        indexed: false
         description: "Internal count of child samples, used for generating the submission id of the children. This field is not exposed via the api."
         #todo: add new yaml attribute, exposed that defaults to true. When false the attribute is not returned in ws response
       label:
         type: string
+        indexed: true
         description: "Lab provided, de-identified name for the donor"
       open_consent:
         type: boolean
-        descrption: "True if the donor was consented to allow public, open access to any data, identified or not, derived from the donor's tissue.  Otherwise false."
+        indexed: false
+        description: "True if the donor was consented to allow public, open access to any data, identified or not, derived from the donor's tissue.  Otherwise false."
 
 
   ############################################# Sample #############################################
@@ -765,16 +859,19 @@ ENTITIES:
       <<: *doi_properties
       description:
         type: string
+        indexed: true
         description: "Free text description of the sample"
       # A Sample is public only if any dataset below it in the provenance hierarchy is published
       # (i.e. Dataset.status == "Published")
       data_access_level:
         type: string
         generated: true
+        indexed: true
         description: "One of the values: public, consortium, protected. Only Dataset may have protected value"
         before_create_trigger: set_data_access_level
       sample_category:
         type: string
+        indexed: true
         required_on_create: true # Only require for cerate via POST, not update via PUT
         description: "A code representing the type of specimen. Must be an organ, block, section, or suspension"
         before_property_create_validators:
@@ -783,20 +880,24 @@ ENTITIES:
           - validate_sample_category
       portal_metadata_upload_files:
         type: json_string
+        indexed: true
         description: "A list of relative paths to metadata files"
         #todo: migrate to new attribute (set, maybe) representing a single uploaded sample_metadata.tsv file using the now file upload methods.  Leave this in place for now, but add new attribute(s) to support new methon.  Need to do a design session.
       protocol_url:
         type: string
+        indexed: true
         required_on_create: true
         description: "The protocols.io doi url pointing the protocol under wich the sample was obtained and/or prepared."
       image_file_metadata:
         #todo: migrate to new attribute set as above portal_metadata_upload files
         type: json_string
+        indexed: true
         description: "A list of uploaded image files and descriptions of the files."
       # A user who is a member of multiple groups HAS to send in the group_uuid 
       group_uuid:
         type: string
         immutable: true
+        indexed: true
         description: "The uuid of globus group which the user who created this entity is a member of.  This is required on Create/POST if the user creating the Donor is a member of more than one write group.  This property cannot be set via PUT (only on Create/POST)."
         before_create_trigger: set_group_uuid #method that, if group_uuid is not already set looks for membership in a single "data provider" group and sets to that. Otherwise if not set and no single "provider group" membership throws error.  This field is also used to link (Neo4j relationship) to the correct Lab node on creation.
       # Must set in neo4j
@@ -804,19 +905,23 @@ ENTITIES:
         type: string
         generated: true
         immutable: true
+        indexed: true
         description: "The displayname of globus group which the user who created this entity is a member of"
         before_create_trigger: set_group_name
       organ:
         type: string
+        indexed: true
         description: "Organ code specifier, only set if sample_type == organ.  Valid values found in: [organ types](https://github.com/hubmapconsortium/search-api/blob/main/src/search-schema/data/definitions/enums/organ_types.yaml)"
       organ_other:
         type: string
+        indexed: true
         description: The organ type provided by the user if "other" organ type is selected
       direct_ancestor_uuid:
         type: string
         required_on_create: true # Creating the hubmap ids via uuid-api requires `parent_ids`
         transient: true
         exposed: false
+        indexed: false
         description: "The uuid of source entity from which this new entity is derived from. Used on creation or edit to create an action and relationship to the ancestor.  The direct ancestor must be a Donor or Sample.  If the direct ancestor is a Donor, the sample must be of type organ."
         # Note: link_sample_to_direct_ancestor() will always delete all the old linkages first
         after_create_trigger: link_sample_to_direct_ancestor
@@ -825,6 +930,7 @@ ENTITIES:
         type: json_string # dict
         generated: true
         transient: true
+        indexed: false
         on_read_trigger: get_sample_direct_ancestor
         # No on_index_trigger to include direct_ancestor in the OpenSearch document for a Sample
         description: "The entitiy directly above this sample in the provenance graph (direct parent)."
@@ -834,30 +940,37 @@ ENTITIES:
         type: string
         generated: true
         immutable: true
+        indexed: true
         description: "The hubmap internal id with embedded semantic information e.g.: VAN0003-LK-1-10.  This id is generated at creation time which tracks the lab, donor, organ and sample hierarchy per the following: https://docs.google.com/document/d/1DjHgmqWF1VA5-3mfzLFNfabbzmc8KLSG9xWx1DDLlzo/edit?usp=sharing"
         before_create_trigger: set_submission_id
       lab_tissue_sample_id:
         type: string
+        indexed: true
         description: "Lab specific id for the sample."
       next_identifier:
         type: string
         immutable: true
         exposed: false # For internal use only
+        indexed: false
         description: "Internal count of child samples, used for generating the submission id of the children. This field is not exposed via the api."
         #todo: add new yaml attribute, exposed that defaults to true.  When false the attribute is not returned in ws response
       metadata:
         type: json_string
+        indexed: true
         description: "The sample specific metadata derived from the uploaded sample_metadata.tsv file"
       rui_location:
         type: json_string
+        indexed: true
         description: "The sample location and orientation in the ancestor organ as specified in the RUI tool."
       visit:
         type: string
+        indexed: true
         description: "The visit id for the donor/patient when the sample was obtained."
       image_files:
         # This property has no before_create_trigger method, but will be created via `image_files_to_add` and updated via `image_files_to_remove`
         type: list 
         generated: true # Disallow direct user input from create via POST, but can be used for update via PUT
+        indexed: false
         description: "List of uploaded image files and descriptions of the files. Stored in db as a stringfied json array."
         # Only file descriptions are allowed to be updated directly using this property
         # Adding or deleting files must via the other two properties
@@ -869,6 +982,7 @@ ENTITIES:
         type: list 
         transient: true
         exposed: false
+        indexed: false
         description: 'List of temporary file ids with an optional description. Provide as a json array with an temp_file_id and description attribute for each element like {"files": [{"temp_file_id":"dzevgd6xjs4d5grmcp4n","description":"This is image file one"},{"temp_file_id":"yrahjadfhadf","description":"This is image file two"}]}'
         before_create_trigger: commit_image_files
         before_update_trigger: commit_image_files
@@ -880,6 +994,7 @@ ENTITIES:
         type: list 
         transient: true
         exposed: false
+        indexed: false
         description: 'List of image files previously uploaded to delete. Provide as a json array of the file_uuids of the file like: ["232934234234234234234270c0ea6c51d604a850558ef2247d0b4", "230948203482234234234a57bfe9c056d08a0f8e6cd612baa3bfa"]'
         before_update_trigger: delete_image_files
         # The updated_peripherally tag is a temporary measure to correctly handle any attributes
@@ -889,6 +1004,7 @@ ENTITIES:
         # This property has no before_create_trigger method, but will be created via `metadata_files_to_add` and updated via `metadata_files_to_remove`
         type: list 
         generated: true # Disallow direct user input from create via POST, but can be used for update via PUT
+        indexed: false
         description: "List of uploaded image files and descriptions of the files. Stored in db as a stringfied json array."
         # Only file descriptions are allowed to be updated directly using this property
         # Adding or deleting files must via the other two properties
@@ -900,6 +1016,7 @@ ENTITIES:
         type: list 
         transient: true
         exposed: false
+        indexed: false
         description: 'List of temporary file ids with an optional description. Provide as a json array with an temp_file_id and description attribute for each element like {"files": [{"temp_file_id":"dzevgd6xjs4d5grmcp4n","description":"This is image file one"},{"temp_file_id":"yrahjadfhadf","description":"This is image file two"}]}'
         before_create_trigger: commit_metadata_files
         before_update_trigger: commit_metadata_files
@@ -911,6 +1028,7 @@ ENTITIES:
         type: list 
         transient: true
         exposed: false
+        indexed: false
         description: 'List of image files previously uploaded to delete. Provide as a json array of the file_uuids of the file like: ["232934234234234234234270c0ea6c51d604a850558ef2247d0b4", "230948203482234234234a57bfe9c056d08a0f8e6cd612baa3bfa"]'
         before_update_trigger: delete_metadata_files
         # The updated_peripherally tag is a temporary measure to correctly handle any attributes
@@ -918,6 +1036,7 @@ ENTITIES:
         updated_peripherally: true
       thumbnail_file:
         generated: true
+        indexed: true
         type: json_string
         description: "The thumbnail file detail. Stored in db as a stringfied json, e.g., {'filename': 'thumbnail.jpg', 'file_uuid': 'dadasdasdadda'}"
         # The updated_peripherally tag is a temporary measure to correctly handle any attributes
@@ -927,6 +1046,7 @@ ENTITIES:
         type: json_string 
         transient: true
         exposed: false
+        indexed: false
         description: 'Just a temporary file id. Provide as a json object with an temp_file_id like {"temp_file_id":"dzevgd6xjs4d5grmcp4n"}'
         before_create_trigger: commit_thumbnail_file
         # This before_update_trigger with the same commit process can be used by ingest-api to update the dataset via PUT call
@@ -939,6 +1059,7 @@ ENTITIES:
         type: string 
         transient: true
         exposed: false
+        indexed: false
         description: 'The thumbnail image file previously uploaded to delete. Provide as a string of the file_uuid like: "232934234234234234234270c0ea6c51d604a850558ef2247d0b4"'
         before_update_trigger: delete_thumbnail_file
         # The updated_peripherally tag is a temporary measure to correctly handle any attributes
@@ -960,9 +1081,11 @@ ENTITIES:
       <<: *shared_entity_properties
       description:
         type: string
+        indexed: true
         description: "Free text description of the data being submitted."
       title:
         type: string
+        indexed: true
         required_on_create: true
         description: "Title of the datasets, a sentence or less"
       status:
@@ -972,6 +1095,7 @@ ENTITIES:
           - validate_status_changed
         type: string
         generated: true
+        indexed: true
         description: "One of: New|Valid|Invalid|Error|Reorganized|Processing|Submitted|Incomplete"
         # Trigger method will set the status to "New" on create
         before_create_trigger: set_upload_status_new
@@ -979,10 +1103,12 @@ ENTITIES:
         after_update_trigger: set_status_history
       validation_message:
         type: string
+        indexed: false
         description: A message from the validation tools describing what is invalid with the upload.
       group_uuid:
         type: string
         immutable: true
+        indexed: true
         description: "The uuid of globus group which the user who created this entity is a member of.  This is required on Create/POST if the user creating the Donor is a member of more than one write group.  This property cannot be set via PUT (only on Create/POST)."
         before_create_trigger: set_group_uuid #method that, if group_uuid is not already set looks for membership in a single "data provider" group and sets to that. Otherwise if not set and no single "provider group" membership throws error.  This field is also used to link (Neo4j relationship) to the correct Lab node on creation.
         # Note: link_upload_to_lab() will always delete all the old linkages first
@@ -992,6 +1118,7 @@ ENTITIES:
         type: string
         generated: true
         immutable: true
+        indexed: true
         description: "The displayname of globus group which the user who created this entity is a member of"
         before_create_trigger: set_group_name
       #transient attribute used to pass in a list of dataset ids to be linked to the Submission node
@@ -1001,6 +1128,7 @@ ENTITIES:
         before_property_update_validators:
           - validate_no_duplicates_in_list
         generated: true # Disallow user input from request json when being created
+        indexed: false
         transient: true
         exposed: false
         description: 'List of datasets to add to the Upload. Provide as a json array of the dataset uuids like: ["232934234234234234234270c0ea6c51d604a850558ef2247d0b4", "230948203482234234234a57bfe9c056d08a0f8e6cd612baa3bfa"]'
@@ -1012,6 +1140,7 @@ ENTITIES:
         before_property_update_validators:
           - validate_no_duplicates_in_list
         generated: true # Disallow user input from request json when being created
+        indexed: false
         transient: true
         exposed: false
         description: 'List of datasets to remove from a Upload. Provide as a json array of the dataset uuids like: ["232934234234234234234270c0ea6c51d604a850558ef2247d0b4", "230948203482234234234a57bfe9c056d08a0f8e6cd612baa3bfa"]'
@@ -1020,6 +1149,7 @@ ENTITIES:
       datasets:
         type: list
         generated: true # Disallow user input from request json when being created
+        indexed: false
         transient: true
         description: "The datasets that are contained in this Upload."
         # A few time-consuming properties (with read triggers) of each dataset are excluded
@@ -1029,10 +1159,12 @@ ENTITIES:
         type: list
         description: "A list of all status change events. Each entry in the list is a dictionary containing the change_timestamp, changed_by_email, previous_status, new_status"
         generated: true
+        indexed: false
         immutable: true
       assigned_to_group_name:
         type: string
         description: The group who is responsible for the next step in the ingest process
+        indexed: false
         before_property_create_validators:
           - validate_in_admin_group
           - validate_group_name
@@ -1042,6 +1174,7 @@ ENTITIES:
       ingest_task:
         type: string
         description: A description of the next task in the ingest process
+        indexed: false
         before_property_create_validators:
           - validate_in_admin_group
         before_property_update_validators:
