@@ -3978,13 +3978,14 @@ def multiple_components():
     direct_ancestor_uuids = json_data_dict.get('direct_ancestor_uuids')
     if direct_ancestor_uuids is None or not isinstance(direct_ancestor_uuids, list) or len(direct_ancestor_uuids) !=1:
         bad_request_error(f"Required field 'direct_ancestor_uuids' must be a list. This list may only contain 1 item: a string representing the uuid of the direct ancestor")
-
     # validate existence of direct ancestors.
     for direct_ancestor_uuid in direct_ancestor_uuids:
         direct_ancestor_dict = query_target_entity(direct_ancestor_uuid, user_token)
         if direct_ancestor_dict.get('entity_type').lower() != "dataset":
             bad_request_error(f"Direct ancestor is of type: {direct_ancestor_dict.get('entity_type')}. Must be of type 'dataset'.")
-
+        dataset_has_component_children = app_neo4j_queries.dataset_has_component_children(neo4j_driver_instance, direct_ancestor_uuid)
+        if dataset_has_component_children:
+            bad_request_error(f"The dataset with uuid {direct_ancestor_uuid} already has component children dataset(s)")
     # validate that there is at least one component dataset
     if len(json_data_dict.get('datasets')) < 1:
         bad_request_error(f"'datasets' field must contain at leawst 1 dataset.")
