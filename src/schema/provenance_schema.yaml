@@ -285,6 +285,25 @@ ENTITIES:
         on_read_trigger: get_collection_datasets
         # No on_index_trigger to include datasets in the OpenSearch document for a Collection
 
+      # Added group_uuid and group_name for Collection - 4/30/2024 by Zhou
+      # A user who is a member of multiple groups HAS to send in the group_uuid 
+      group_uuid:
+        type: string
+        immutable: true
+        indexed: true
+        description: "The uuid of globus group which the user who created this entity is a member of.  This is required on Create/POST if the user creating the Donor is a member of more than one write group.  This property cannot be set via PUT (only on Create/POST)."
+        before_create_trigger: set_group_uuid #method that, if group_uuid is not already set looks for membership in a single "data provider" group and sets to that. Otherwise if not set and no single "provider group" membership throws error
+      # Must set in neo4j
+      group_name:
+        # It's not being mapped in the current version, what to do for the existing entities?
+        type: string
+        generated: true
+        immutable: true
+        indexed: true
+        description: "The displayname of globus group which the user who created this entity is a member of"
+        before_create_trigger: set_group_name #same as group_uuid, except set group_name
+
+
   ############################################# Dataset #############################################
   Dataset:
     # Only allowed applications can create new Dataset via POST
