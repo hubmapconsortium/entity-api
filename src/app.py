@@ -356,7 +356,7 @@ def get_user_groups():
 
 
 """
-Delete ALL the following cached data from Memcached, Data Admin access is required in AWS API Gateway:
+Delete ALL the following cached data from Memcached, Data-Admin access is required in AWS API Gateway:
     - cached individual entity dict
     - cached IDs dict from uuid-api
     - cached yaml content from github raw URLs
@@ -381,7 +381,7 @@ def flush_all_cache():
 
 
 """
-Delete the cached data from Memcached for a given entity, Data Admin access is required in AWS API Gateway
+Delete the cached data from Memcached for a given entity, HuBMAP-Read access is required in AWS API Gateway
 
 Parameters
 ----------
