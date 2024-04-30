@@ -445,17 +445,11 @@ ENTITIES:
         transient: true
         immutable: true
         description: "The uuid of previous revision dataset"
+        before_property_create_validators:
+          - validate_if_revision_is_unique
         after_create_trigger: link_to_previous_revision
         on_read_trigger: get_previous_revision_uuid
         on_index_trigger: get_previous_revision_uuid
-      previous_revision_uuids:
-        type: list
-        generated: true
-        transient: true
-        immutable: true
-        description: "The list of the uuids of previous revision datasets"
-        on_read_trigger: get_previous_revision_uuids
-        # No on_index_trigger to include previous_revision_uuids in the OpenSearch document for a Dataset
       next_revision_uuid:
         type: string
         generated: true
@@ -464,14 +458,6 @@ ENTITIES:
         description: "The uuid of next revision dataset"
         on_read_trigger: get_next_revision_uuid
         on_index_trigger: get_next_revision_uuid
-      next_revision_uuids:
-        type: list
-        generated: true
-        transient: true
-        immutable: true
-        description: "The list of the uuids of next revision datasets"
-        on_read_trigger: get_next_revision_uuids
-        # No on_index_trigger to include next_revision_uuids in the OpenSearch document for a Dataset
       superseded_associated_processed_component_uuids:
         type: list
         # This property gets set via a PUT by entity-api /entities/{{dataset_uuid}} to point to the Multi-Assay Dataset
