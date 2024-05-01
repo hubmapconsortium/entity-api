@@ -153,7 +153,7 @@ shared_entity_properties: &shared_entity_properties
     type: integer
     generated: true
     indexed: true
-    auto_update: true # Will always update automatically if the entity gets updated, different from `immutable: false` (can be updated by users or not) 
+    auto_update: true # Will always update automatically if the entity gets updated, different from `immutable: false` (can be updated by users or not)
     description: "The timestamp of when the object was last modified.  The format is an integer representing milliseconds since midnight, Jan 1, 1970"
     # Set on both create and update
     # These two properties will have the same timestamp due to the use of 
@@ -490,7 +490,7 @@ ENTITIES:
       ingest_id:
         type: string
         indexed: false
-      # A user who is a member of multiple groups HAS to send in the group_uuid 
+      # A user who is a member of multiple groups HAS to send in the group_uuid
       group_uuid:
         type: string
         immutable: true
@@ -507,25 +507,16 @@ ENTITIES:
         description: "The displayname of globus group which the user who created this entity is a member of"
         before_create_trigger: set_group_name #same as group_uuid, except set group_name
       previous_revision_uuid:
-        type:
-          - string
-          - list
+        type: string
         transient: true
         immutable: true
         indexed: true
         description: "The uuid of previous revision dataset"
+        before_property_create_validators:
+          - validate_if_revision_is_unique
         after_create_trigger: link_to_previous_revision
         on_read_trigger: get_previous_revision_uuid
         on_index_trigger: get_previous_revision_uuid
-      previous_revision_uuids:
-        type: list
-        generated: true
-        transient: true
-        immutable: true
-        indexed: false
-        description: "The list of the uuids of previous revision datasets"
-        on_read_trigger: get_previous_revision_uuids
-        # No on_index_trigger to include previous_revision_uuids in the OpenSearch document for a Dataset
       next_revision_uuid:
         type: string
         generated: true
@@ -535,15 +526,6 @@ ENTITIES:
         description: "The uuid of next revision dataset"
         on_read_trigger: get_next_revision_uuid
         on_index_trigger: get_next_revision_uuid
-      next_revision_uuids:
-        type: list
-        generated: true
-        transient: true
-        immutable: true
-        indexed: false
-        description: "The list of the uuids of next revision datasets"
-        on_read_trigger: get_next_revision_uuids
-        # No on_index_trigger to include next_revision_uuids in the OpenSearch document for a Dataset
       superseded_associated_processed_component_uuids:
         type: list
         # This property gets set via a PUT by entity-api /entities/{{dataset_uuid}} to point to the Multi-Assay Dataset

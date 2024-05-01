@@ -128,6 +128,18 @@ def validate_dataset_not_component(property_key, normalized_entity_type, request
 
 
 """
+If the provided previous revision is already a revision of another dataset, disallow
+"""
+def validate_if_revision_is_unique(property_key, normalized_entity_type, request, existing_data_dict, new_data_dict):
+    previous_revision = new_data_dict['previous_revision_uuid']
+    neo4j_driver_instance = schema_manager.get_neo4j_driver_instance()
+    next_revision = schema_neo4j_queries.get_next_revision_uuid(neo4j_driver_instance, previous_revision)
+    if next_revision:
+        raise ValueError(f"Dataset marked as previous revision is already the previous revision of another dataset. "
+                         f"Each dataset may only be the previous revision of one other dataset")
+
+
+"""
 If an entity has a DOI, do not allow it to be updated 
 """
 def halt_update_if_DOI_exists(property_key, normalized_entity_type, request, existing_data_dict, new_data_dict):
