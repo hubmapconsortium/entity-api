@@ -1028,29 +1028,23 @@ def create_entity(entity_type):
 
         # Also check existence of the previous revision dataset if specified
         if 'previous_revision_uuid' in json_data_dict:
-            if isinstance(json_data_dict['previous_revision_uuid'], list):
-                if len(json_data_dict['previous_revision_uuid']) > 1:
-                    bad_request_error(f"Multiple previous revision uuids were provided. Only one is allowed")
-                previous_revision_list = json_data_dict['previous_revision_uuid']
-            else:
-                previous_revision_list = [json_data_dict['previous_revision_uuid']]
-            for previous_revision in previous_revision_list:
-                previous_version_dict = query_target_entity(previous_revision, user_token)
+            previous_revision = json_data_dict['previous_revision_uuid']
+            previous_version_dict = query_target_entity(previous_revision, user_token)
 
-                # Make sure the previous version entity is either a Dataset or Sample (and publication 2/17/23)
-                if not schema_manager.entity_type_instanceof(previous_version_dict['entity_type'], 'Dataset'):
-                    bad_request_error(f"The previous_revision_uuid specified for this dataset must be either a Dataset or Sample or Publication")
+            # Make sure the previous version entity is either a Dataset or Sample (and publication 2/17/23)
+            if not schema_manager.entity_type_instanceof(previous_version_dict['entity_type'], 'Dataset'):
+                bad_request_error(f"The previous_revision_uuid specified for this dataset must be either a Dataset or Sample or Publication")
 
-                next_revision_is_latest = app_neo4j_queries.is_next_revision_latest(neo4j_driver_instance, previous_version_dict['uuid'])
+            next_revision_is_latest = app_neo4j_queries.is_next_revision_latest(neo4j_driver_instance, previous_version_dict['uuid'])
 
-                # As long as the list is not empty, tell the users to use a different 'previous_revision_uuid'
-                if not next_revision_is_latest:
-                    bad_request_error(f"The previous_revision_uuid specified for this dataset has already had a next revision")
+            # As long as the list is not empty, tell the users to use a different 'previous_revision_uuid'
+            if not next_revision_is_latest:
+                bad_request_error(f"The previous_revision_uuid specified for this dataset has already had a next revision")
 
-                # Only published datasets can have revisions made of them. Verify that that status of the Dataset specified
-                # by previous_revision_uuid is published. Else, bad request error.
-                if previous_version_dict['status'].lower() != DATASET_STATUS_PUBLISHED:
-                    bad_request_error(f"The previous_revision_uuid specified for this dataset must be 'Published' in order to create a new revision from it")
+            # Only published datasets can have revisions made of them. Verify that that status of the Dataset specified
+            # by previous_revision_uuid is published. Else, bad request error.
+            if previous_version_dict['status'].lower() != DATASET_STATUS_PUBLISHED:
+                bad_request_error(f"The previous_revision_uuid specified for this dataset must be 'Published' in order to create a new revision from it")
 
     # If the preceding "additional validations" did not raise an error,
     # generate 'before_create_trigger' data and create the entity details in Neo4j

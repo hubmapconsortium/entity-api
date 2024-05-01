@@ -488,9 +488,7 @@ ENTITIES:
         description: "The displayname of globus group which the user who created this entity is a member of"
         before_create_trigger: set_group_name #same as group_uuid, except set group_name
       previous_revision_uuid:
-        type:
-          - string
-          - list
+        type: string
         transient: true
         immutable: true
         indexed: true

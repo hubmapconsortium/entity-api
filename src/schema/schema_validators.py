@@ -133,15 +133,10 @@ If the provided previous revision is already a revision of another dataset, disa
 def validate_if_revision_is_unique(property_key, normalized_entity_type, request, existing_data_dict, new_data_dict):
     previous_revision = new_data_dict['previous_revision_uuid']
     neo4j_driver_instance = schema_manager.get_neo4j_driver_instance()
-    if isinstance(previous_revision, list):
-        previous_revision_uuid = previous_revision[0]
-    else:
-        previous_revision_uuid = previous_revision
-    next_revision = schema_neo4j_queries.get_next_revision_uuid(neo4j_driver_instance, previous_revision_uuid)
+    next_revision = schema_neo4j_queries.get_next_revision_uuid(neo4j_driver_instance, previous_revision)
     if next_revision:
         raise ValueError(f"Dataset marked as previous revision is already the previous revision of another dataset. "
                          f"Each dataset may only be the previous revision of one other dataset")
-
 
 
 """
