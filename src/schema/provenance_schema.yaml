@@ -6,7 +6,8 @@
 # - immutable: true indicates the property can NOT be updated after the entity is created, default to false
 # - transient: whether the property to persist in database or not, default to false
 # - exposed: whether the property gets returned to the user or not, default to true
-# - trigger types: before_create_trigger|after_create_trigger|before_update_trigger|after_update_trigger|on_read_trigger, one property can have none (default) or more than one triggers
+# - indexed: whether the property gets indexed into Elasticsearch/Opensearch or not, default to true
+# - trigger types: before_create_trigger|after_create_trigger|before_update_trigger|after_update_trigger|on_read_trigger|on_index_trigger, one property can have none (default) or more than one triggers
 # - updated_peripherally: a temporary measure to correctly handle any attributes which are potentially updated by multiple triggers
 
 # Entity level validator: 
@@ -34,6 +35,7 @@
 # - If a property has `exposed: false`, it doesn't need any `on_read_trigger` method
 # - If a property has `on_read_trigger`, it must be `transient: true`, meaning it's not stored in neo4j and only available during response
 # - If a property is `transient: true`, it can have `on_read_trigger` or not have one (when `exposed: false`)
+# - If a property has `on_index_trigger`, it must be marked as `indexed: true`
 
 ############################################# Schema #############################################
 # Shared properties across ACTIVITIES and ENTITIES
