@@ -6,7 +6,7 @@
 # - immutable: true indicates the property can NOT be updated after the entity is created, default to false
 # - transient: whether the property to persist in database or not, default to false
 # - exposed: whether the property gets returned to the user or not, default to true
-# - indexed: whether the property gets indexed into Elasticsearch/Opensearch or not, default to true
+# - indexed: whether the property gets indexed into Elasticsearch/Opensearch or not, default to true. Applicable to the specialized `GET /documents/<id>` endpoint
 # - trigger types: before_create_trigger|after_create_trigger|before_update_trigger|after_update_trigger|on_read_trigger|on_index_trigger, one property can have none (default) or more than one triggers
 # - updated_peripherally: a temporary measure to correctly handle any attributes which are potentially updated by multiple triggers
 
