@@ -555,7 +555,7 @@ def _get_entity_visibility(normalized_entity_type, entity_dict):
     if schema_manager.entity_type_instanceof(normalized_entity_type, 'Dataset') and \
        entity_dict['status'].lower() == DATASET_STATUS_PUBLISHED:
         entity_visibility=DataVisibilityEnum.PUBLIC
-    elif normalized_entity_type == 'Collection' and \
+    elif schema_manager.entity_type_instanceof(normalized_entity_type, 'Collection') and \
         'registered_doi' in entity_dict and \
         'doi_url' in entity_dict and \
         'contacts' in entity_dict and \
@@ -1076,7 +1076,7 @@ def create_entity(entity_type):
             'previous_revision_uuid', 
             'next_revision_uuid'
         ]
-    elif normalized_entity_type in ['Upload', 'Collection']:
+    elif normalized_entity_type in ['Upload', 'Collection', 'Epicollection']:
         properties_to_skip = [
             'datasets'
         ]
@@ -1321,7 +1321,7 @@ def update_entity(id):
         # Handle linkages update via `after_update_trigger` methods
         if has_dataset_uuids_to_link or has_dataset_uuids_to_unlink or has_updated_status:
             after_update(normalized_entity_type, user_token, merged_updated_dict)
-    elif normalized_entity_type == 'Collection':
+    elif schema_manager.entity_type_instanceof(normalized_entity_type, 'Collection'):
         entity_visibility = _get_entity_visibility(  normalized_entity_type=normalized_entity_type
                                                     ,entity_dict=entity_dict)
         # Prohibit update of an existing Collection if it meets criteria of being visible to public e.g. has DOI.
@@ -1434,7 +1434,7 @@ def get_ancestors(id):
     uuid = entity_dict['uuid']
 
     # Collection doesn't have ancestors via Activity nodes
-    if normalized_entity_type == 'Collection':
+    if schema_manager.entity_type_instanceof(normalized_entity_type, 'Collection'):
         bad_request_error(f"Unsupported entity type of id {id}: {normalized_entity_type}")
 
     if schema_manager.entity_type_instanceof(normalized_entity_type, 'Dataset'):
@@ -1610,7 +1610,7 @@ def get_parents(id):
     uuid = entity_dict['uuid']
 
     # Collection doesn't have ancestors via Activity nodes
-    if normalized_entity_type == 'Collection':
+    if schema_manager.entity_type_instanceof(normalized_entity_type, 'Collection'):
         bad_request_error(f"Unsupported entity type of id {id}: {normalized_entity_type}")
 
     if schema_manager.entity_type_instanceof(normalized_entity_type, 'Dataset'):
@@ -1786,7 +1786,7 @@ def get_siblings(id):
     uuid = entity_dict['uuid']
 
     # Collection doesn't have ancestors via Activity nodes
-    if normalized_entity_type == 'Collection':
+    if schema_manager.entity_type_instanceof(normalized_entity_type, 'Collection'):
         bad_request_error(f"Unsupported entity type of id {id}: {normalized_entity_type}")
 
     if schema_manager.entity_type_instanceof(normalized_entity_type, 'Dataset'):
@@ -1900,7 +1900,7 @@ def get_tuplets(id):
     uuid = entity_dict['uuid']
 
     # Collection doesn't have ancestors via Activity nodes
-    if normalized_entity_type == 'Collection':
+    if schema_manager.entity_type_instanceof(normalized_entity_type, 'Collection'):
         bad_request_error(f"Unsupported entity type of id {id}: {normalized_entity_type}")
 
     if schema_manager.entity_type_instanceof(normalized_entity_type, 'Dataset'):
@@ -2120,7 +2120,7 @@ def doi_redirect(id):
     entity_type = entity_dict['entity_type']
 
     # Only for collection
-    if entity_type not in ['Collection', 'Dataset', 'Publication']:
+    if entity_type not in ['Collection', 'Epicollection', 'Dataset', 'Publication']:
         bad_request_error("The target entity of the specified id must be a Collection or Dataset or Publication")
 
     uuid = entity_dict['uuid']
