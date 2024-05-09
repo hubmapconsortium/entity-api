@@ -1356,7 +1356,7 @@ def update_entity(id):
             'previous_revision_uuid', 
             'next_revision_uuid'
         ]
-    elif normalized_entity_type in ['Upload', 'Collection']:
+    elif normalized_entity_type in ['Upload', 'Collection', 'Epicollection']:
         properties_to_skip = [
             'datasets'
         ]
