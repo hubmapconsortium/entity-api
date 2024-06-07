@@ -500,7 +500,7 @@ def get_dataset_organ_and_donor_info(neo4j_driver, uuid):
     with neo4j_driver.session() as session:
         # To improve the query performance, we implement the two-step queries to drastically reduce the DB hits
         sample_query = (f"MATCH (e:Dataset)<-[:ACTIVITY_INPUT|ACTIVITY_OUTPUT*]-(s:Sample) "
-                        f"WHERE e.uuid='{uuid}' AND s.sample_category='organ' AND EXISTS(s.organ) "
+                        f"WHERE e.uuid='{uuid}' AND s.sample_category='organ' AND s.organ IS NOT NULL "
                         f"RETURN DISTINCT s.organ AS organ_name, s.uuid AS sample_uuid")
 
         logger.info("======get_dataset_organ_and_donor_info() sample_query======")
@@ -513,7 +513,7 @@ def get_dataset_organ_and_donor_info(neo4j_driver, uuid):
             sample_uuid = sample_record['sample_uuid']
 
             donor_query = (f"MATCH (s:Sample)<-[:ACTIVITY_OUTPUT]-(a:Activity)<-[:ACTIVITY_INPUT]-(d:Donor) "
-                           f"WHERE s.uuid='{sample_uuid}' AND s.sample_category='organ' AND EXISTS(s.organ) "
+                           f"WHERE s.uuid='{sample_uuid}' AND s.sample_category='organ' AND s.organ IS NOT NULL "
                            f"RETURN DISTINCT d.metadata AS donor_metadata")
 
             logger.info("======get_dataset_organ_and_donor_info() donor_query======")

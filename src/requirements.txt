@@ -1,7 +1,6 @@
 Flask==3.0.3
-neo4j==4.4
+neo4j==5.20.0
 prov==2.0.0
-
 Werkzeug==3.0.3
 
 # For interacting with memcached
