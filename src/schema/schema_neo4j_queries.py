@@ -432,6 +432,105 @@ def get_descendants(neo4j_driver, uuid, property_key = None):
 
 
 """
+Get all collections by uuid
+
+Parameters
+----------
+neo4j_driver : neo4j.Driver object
+    The neo4j database connection pool
+uuid : str
+    The uuid of target entity 
+property_key : str
+    A target property key for result filtering
+
+Returns
+-------
+list
+    A list of unique collection dictionaries returned from the Cypher query
+"""
+def get_collections(neo4j_driver, uuid, property_key = None):
+    results = []
+
+    if property_key:
+        query = (f"MATCH (c:Collection)<-[:IN_COLLECTION]-(ds:Dataset) "
+                 f"WHERE ds.uuid='{uuid}' "
+                 # COLLECT() returns a list
+                 # apoc.coll.toSet() reruns a set containing unique nodes
+                 f"RETURN apoc.coll.toSet(COLLECT(c.{property_key})) AS {record_field_name}")
+    else:
+        query = (f"MATCH (c:Collection)<-[:IN_COLLECTION]-(ds:Dataset) "
+                 f"WHERE ds.uuid='{uuid}' "
+                 # COLLECT() returns a list
+                 # apoc.coll.toSet() reruns a set containing unique nodes
+                 f"RETURN apoc.coll.toSet(COLLECT(c)) AS {record_field_name}")
+
+    logger.info("======get_collections() query======")
+    logger.info(query)
+
+    with neo4j_driver.session() as session:
+        record = session.read_transaction(execute_readonly_tx, query)
+
+        if record and record[record_field_name]:
+            if property_key:
+                # Just return the list of property values from each entity node
+                results = record[record_field_name]
+            else:
+                # Convert the list of nodes to a list of dicts
+                results = nodes_to_dicts(record[record_field_name])
+
+    return results
+
+
+
+"""
+Get all uploads by uuid
+
+Parameters
+----------
+neo4j_driver : neo4j.Driver object
+    The neo4j database connection pool
+uuid : str
+    The uuid of target entity 
+property_key : str
+    A target property key for result filtering
+
+Returns
+-------
+list
+    A list of unique upload dictionaries returned from the Cypher query
+"""
+def get_uploads(neo4j_driver, uuid, property_key = None):
+    results = []
+    if property_key:
+        query = (f"MATCH (u:Upload)<-[:IN_UPLOAD]-(ds:Dataset) "
+                 f"WHERE ds.uuid='{uuid}' "
+                 # COLLECT() returns a list
+                 # apoc.coll.toSet() reruns a set containing unique nodes
+                 f"RETURN apoc.coll.toSet(COLLECT(u.{property_key})) AS {record_field_name}")
+    else:
+        query = (f"MATCH (u:Upload)<-[:IN_UPLOAD]-(ds:Dataset) "
+                 f"WHERE ds.uuid='{uuid}' "
+                 # COLLECT() returns a list
+                 # apoc.coll.toSet() reruns a set containing unique nodes
+                 f"RETURN apoc.coll.toSet(COLLECT(u)) AS {record_field_name}")
+
+    logger.info("======get_uploads() query======")
+    logger.info(query)
+
+    with neo4j_driver.session() as session:
+        record = session.read_transaction(execute_readonly_tx, query)
+        if record and record[record_field_name]:
+            if property_key:
+                # Just return the list of property values from each entity node
+                results = record[record_field_name]
+            else:
+                # Convert the list of nodes to a list of dicts
+                results = nodes_to_dicts(record[record_field_name])
+
+    return results
+
+
+"""
 Get the direct ancestors uuids of a given dataset by uuid
 
 Parameters
