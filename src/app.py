@@ -2095,6 +2095,188 @@ def get_next_revisions(id):
 
     return jsonify(final_result)
 
+
+"""
+Get all collections of the given entity
+
+The gateway treats this endpoint as public accessible
+
+Result filtering based on query string
+For example: /entities/<id>/collections?property=uuid
+
+Parameters
+----------
+id : str
+    The HuBMAP ID (e.g. HBM123.ABCD.456) or UUID of given entity 
+
+Returns
+-------
+json
+    A list of all the collections of the target entity
+"""
+@app.route('/entities/<id>/collections', methods = ['GET'])
+def get_collections(id):
+    final_result = []
+
+    # Token is not required, but if an invalid token provided,
+    # we need to tell the client with a 401 error
+    validate_token_if_auth_header_exists(request)
+
+    # Use the internal token to query the target entity
+    # since public entities don't require user token
+    token = get_internal_token()
+
+    # Get the entity dict from cache if exists
+    # Otherwise query against uuid-api and neo4j to get the entity dict if the id exists
+    entity_dict = query_target_entity(id, token)
+    normalized_entity_type = entity_dict['entity_type']
+    uuid = entity_dict['uuid']
+
+    if not schema_manager.entity_type_instanceof(normalized_entity_type, 'Dataset'):
+        bad_request_error(f"Unsupported entity type of id {id}: {normalized_entity_type}")
+
+    if entity_dict['status'].lower() != DATASET_STATUS_PUBLISHED:
+        # Token is required and the user must belong to HuBMAP-READ group
+        token = get_user_token(request, non_public_access_required = True)
+
+    # By now, either the entity is public accessible or the user token has the correct access level
+    # Result filtering based on query string
+    if bool(request.args):
+        property_key = request.args.get('property')
+
+        if property_key is not None:
+            result_filtering_accepted_property_keys = ['uuid']
+
+            # Validate the target property
+            if property_key not in result_filtering_accepted_property_keys:
+                bad_request_error(f"Only the following property keys are supported in the query string: {COMMA_SEPARATOR.join(result_filtering_accepted_property_keys)}")
+
+            # Only return a list of the filtered property value of each entity
+            property_list = schema_neo4j_queries.get_collections(neo4j_driver_instance, uuid, property_key)
+
+            # Final result
+            final_result = property_list
+        else:
+            bad_request_error("The specified query string is not supported. Use '?property=<key>' to filter the result")
+    # Return all the details if no property filtering
+    else:
+        collection_list = schema_neo4j_queries.get_collections(neo4j_driver_instance, uuid)
+
+        # Generate trigger data
+        # Skip some of the properties that are time-consuming to generate via triggers
+        # Also skip next_revision_uuid and previous_revision_uuid for Dataset to avoid additional
+        # checks when the target Dataset is public but the revisions are not public
+        properties_to_skip = [
+            # Properties to skip for Sample
+            'direct_ancestor',
+            # Properties to skip for Dataset
+            'direct_ancestors',
+            'collections',
+            'upload',
+            'title',
+            'next_revision_uuid',
+            'previous_revision_uuid'
+        ]
+
+        complete_entities_list = schema_manager.get_complete_entities_list(token, collection_list, properties_to_skip)
+
+        # Final result after normalization
+        final_result = schema_manager.normalize_entities_list_for_response(complete_entities_list)
+
+    return jsonify(final_result)
+
+
+"""
+Get all uploads of the given entity
+
+The gateway treats this endpoint as public accessible
+
+Result filtering based on query string
+For example: /entities/<id>/uploads?property=uuid
+
+Parameters
+----------
+id : str
+    The HuBMAP ID (e.g. HBM123.ABCD.456) or UUID of given entity 
+
+Returns
+-------
+json
+    A list of all the uploads of the target entity
+"""
+@app.route('/entities/<id>/uploads', methods = ['GET'])
+def get_uploads(id):
+    final_result = []
+
+    # Token is not required, but if an invalid token provided,
+    # we need to tell the client with a 401 error
+    validate_token_if_auth_header_exists(request)
+
+    # Use the internal token to query the target entity
+    # since public entities don't require user token
+    token = get_internal_token()
+
+    # Get the entity dict from cache if exists
+    # Otherwise query against uuid-api and neo4j to get the entity dict if the id exists
+    entity_dict = query_target_entity(id, token)
+    normalized_entity_type = entity_dict['entity_type']
+    uuid = entity_dict['uuid']
+
+    if not schema_manager.entity_type_instanceof(normalized_entity_type, 'Dataset'):
+        bad_request_error(f"Unsupported entity type of id {id}: {normalized_entity_type}")
+
+    if entity_dict['status'].lower() != DATASET_STATUS_PUBLISHED:
+        # Token is required and the user must belong to HuBMAP-READ group
+        token = get_user_token(request, non_public_access_required = True)
+
+    # By now, either the entity is public accessible or the user token has the correct access level
+    # Result filtering based on query string
+    if bool(request.args):
+        property_key = request.args.get('property')
+
+        if property_key is not None:
+            result_filtering_accepted_property_keys = ['uuid']
+
+            # Validate the target property
+            if property_key not in result_filtering_accepted_property_keys:
+                bad_request_error(f"Only the following property keys are supported in the query string: {COMMA_SEPARATOR.join(result_filtering_accepted_property_keys)}")
+
+            # Only return a list of the filtered property value of each entity
+            property_list = schema_neo4j_queries.get_uploads(neo4j_driver_instance, uuid, property_key)
+
+            # Final result
+            final_result = property_list
+        else:
+            bad_request_error("The specified query string is not supported. Use '?property=<key>' to filter the result")
+    # Return all the details if no property filtering
+    else:
+        uploads_list = schema_neo4j_queries.get_uploads(neo4j_driver_instance, uuid)
+
+        # Generate trigger data
+        # Skip some of the properties that are time-consuming to generate via triggers
+        # Also skip next_revision_uuid and previous_revision_uuid for Dataset to avoid additional
+        # checks when the target Dataset is public but the revisions are not public
+        properties_to_skip = [
+            # Properties to skip for Sample
+            'direct_ancestor',
+            # Properties to skip for Dataset
+            'direct_ancestors',
+            'collections',
+            'upload',
+            'title',
+            'next_revision_uuid',
+            'previous_revision_uuid'
+        ]
+
+        complete_entities_list = schema_manager.get_complete_entities_list(token, uploads_list, properties_to_skip)
+
+        # Final result after normalization
+        final_result = schema_manager.normalize_entities_list_for_response(complete_entities_list)
+
+    return jsonify(final_result)
+
+
+
 """
 Redirect a request from a doi service for a dataset or collection
 
