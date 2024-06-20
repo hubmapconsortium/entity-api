@@ -206,7 +206,7 @@ ENTITIES:
       source: false
       target: false
     # Collection doesn't actually need data_access_level property
-    properties:
+    properties: &shared_collection_properties
       <<: *shared_properties
       <<: *shared_entity_properties
       # Because Collection-specific validation is needed for some
@@ -1182,3 +1182,15 @@ ENTITIES:
           - validate_in_admin_group
         before_property_update_validators:
           - validate_in_admin_group
+
+
+  ############################################# EPICollection #############################################
+  Epicollection:
+    # This superclass property is optional
+    superclass: Collection
+    # EPICollection can not be derivation source but not target
+    derivation:
+      source: false
+      target: false
+    properties:
+      <<: *shared_collection_properties

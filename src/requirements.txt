@@ -1,11 +1,7 @@
-Flask==2.1.3
-neo4j==4.4
+Flask==3.0.3
+neo4j==5.20.0
 prov==2.0.0
-
-# Flask 2.1.3 installs the latest Werkzeug==3.0.0 (released on 9/30/2023) and causing import issues 
-# Use a pinned version 2.3.7 (the latest release before 3.0.0) to mitigate temporaryly
-# Will upgrade Flask to newer version later on across all APIs. 10/3/2023 - Zhou
-Werkzeug==2.3.7
+Werkzeug==3.0.3
 
 # For interacting with memcached
 pymemcache==4.0.0
@@ -14,14 +10,14 @@ pymemcache==4.0.0
 nested-lookup==0.2.22
 
 # The commons package requires requests>=2.22.0 and PyYAML>=5.3.1
-requests==2.25.1
+requests==2.32.0
 PyYAML==5.4.1
 
 # Use the published package from PyPI as default
 # Use the branch name of commons from github for testing new changes made in commons from different branch
 # Default is main branch specified in docker-compose.development.yml if not set
 # git+https://github.com/hubmapconsortium/commons.git@${COMMONS_BRANCH}#egg=hubmap-commons
-hubmap-commons==2.1.12
+hubmap-commons==2.1.15
 
 # For unit test
 nose2==0.10.0
