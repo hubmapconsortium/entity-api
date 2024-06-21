@@ -1589,6 +1589,7 @@ paths:
           description: The target entity could not be found
         '500':
           description: Internal error
+        '404':
   '/entities/{id}/provenance':
     get:
       summary: 'Get Provenance Data for Entity.  This returns a PROV JSON compliant representation of the entity''s provenance. Refer to this document for more information regarding [PROV JSON format](https://www.w3.org/Submission/2013/SUBM-prov-json-20130424/)'
