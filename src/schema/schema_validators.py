@@ -585,7 +585,16 @@ def validate_creation_action(property_key, normalized_entity_type, request, exis
         raise ValueError("Invalid {} value. Accepted values are: {}".format(property_key, ", ".join(accepted_creation_action_values)))
     if creation_action == '':
         raise ValueError(f"The property {property_key} cannot be empty, when specified.")
-
+    if creation_action == 'external process':
+        if normalized_entity_type.lower() != "dataset":
+            raise ValueError(f"Only datasets are allowed to have creation_action of 'external_process'. Provided entity is a {normalized_entity_type}")
+        direct_ancestor_uuids = new_data_dict.get('direct_ancestor_uuids')
+        for ancestor_uuid in direct_ancestor_uuids:
+            ancestor = schema_neo4j_queries.get_entity(schema_manager.get_neo4j_driver_instance(), ancestor_uuid)
+            ancestor_type = ancestor['entity_type']
+            if ancestor_type.lower() != "dataset":
+                raise ValueError(f"If creation_action is 'external process', all direct ancesotrs must be of type 'dataset'. Ancestor with uuid {ancestor_uuid} has entity type of '{ancestor_type}'")
+           
 
 """
 Validate the provided value of the activity creation action before updating direct ancestors. Certain values prohibited
