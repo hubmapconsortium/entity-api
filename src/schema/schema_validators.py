@@ -579,13 +579,19 @@ new_data_dict : dict
     The json data in request body, already after the regular validations
 """
 def validate_creation_action(property_key, normalized_entity_type, request, existing_data_dict, new_data_dict):
-    accepted_creation_action_values = ["central process", "lab process"]
+    accepted_creation_action_values = ["central process", "lab process", "external process"]
     creation_action = new_data_dict[property_key].lower()
     if creation_action and creation_action not in accepted_creation_action_values:
         raise ValueError("Invalid {} value. Accepted values are: {}".format(property_key, ", ".join(accepted_creation_action_values)))
     if creation_action == '':
         raise ValueError(f"The property {property_key} cannot be empty, when specified.")
-
+    if creation_action == 'external process':
+        direct_ancestor_uuids = new_data_dict.get('direct_ancestor_uuids')
+        entity_types_dict = schema_neo4j_queries.filter_ancestors_by_type(schema_manager.get_neo4j_driver_instance(), direct_ancestor_uuids, "dataset")
+        if entity_types_dict:
+            raise ValueError(f"If 'creation_action' field is given, all ancestor uuids must belong to datasets. The following entities belong to non-dataset entities \
+                             {entity_types_dict}")
+        
 
 """
 Validate the provided value of the activity creation action before updating direct ancestors. Certain values prohibited
