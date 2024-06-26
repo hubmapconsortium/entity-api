@@ -589,12 +589,11 @@ def validate_creation_action(property_key, normalized_entity_type, request, exis
         if normalized_entity_type.lower() != "dataset":
             raise ValueError(f"Only datasets are allowed to have creation_action of 'external_process'. Provided entity is a {normalized_entity_type}")
         direct_ancestor_uuids = new_data_dict.get('direct_ancestor_uuids')
-        for ancestor_uuid in direct_ancestor_uuids:
-            ancestor = schema_neo4j_queries.get_entity(schema_manager.get_neo4j_driver_instance(), ancestor_uuid)
-            ancestor_type = ancestor['entity_type']
-            if ancestor_type.lower() != "dataset":
-                raise ValueError(f"If creation_action is 'external process', all direct ancesotrs must be of type 'dataset'. Ancestor with uuid {ancestor_uuid} has entity type of '{ancestor_type}'")
-           
+        entity_types_dict = schema_neo4j_queries.filter_ancestors_by_type(schema_manager.get_neo4j_driver_instance(), direct_ancestor_uuids, "dataset")
+        if entity_types_dict:
+            raise ValueError(f"If 'creation_action' field is given, all ancestor uuids must belong to datasets. The following entities belong to non-dataset entities \
+                             {entity_types_dict}")
+        
 
 """
 Validate the provided value of the activity creation action before updating direct ancestors. Certain values prohibited
