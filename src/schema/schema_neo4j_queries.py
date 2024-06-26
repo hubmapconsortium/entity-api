@@ -122,6 +122,8 @@ neo4j_driver : neo4j.Driver object
     The neo4j database connection pool
 direct_ancestor_uuids : list
     List of the uuids to be filtered
+entity_type : string
+    The entity to be excluded
 
 Returns
 -------
@@ -129,9 +131,8 @@ dict
     A dictionary of entity uuids that don't pass the filter, grouped by entity_type
 """
 def filter_ancestors_by_type(neo4j_driver, direct_ancestor_uuids, entity_type):
-    uuids_str = ", ".join([f'"{uuid}"' for uuid in direct_ancestor_uuids])
     query = (f"MATCH (e:Entity) "
-             f"WHERE e.uuid in [{uuids_str}] AND toLower(e.entity_type) <> '{entity_type.lower()}' "
+             f"WHERE e.uuid in {direct_ancestor_uuids} AND toLower(e.entity_type) <> '{entity_type.lower()}' "
              f"RETURN e.entity_type AS entity_type, collect(e.uuid) AS uuids")
     logger.info("======filter_ancestors_by_type======")
     logger.info(query)
