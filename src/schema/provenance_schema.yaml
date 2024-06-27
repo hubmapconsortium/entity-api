@@ -281,11 +281,11 @@ ENTITIES:
         type: list
         transient: true
         generated: true
-        indexed: false
+        indexed: true
         description: "The datasets that are contained in the collection."
         # A few time-consuming properties (with read triggers) of each dataset are excluded
         on_read_trigger: get_collection_datasets
-        # No on_index_trigger to include datasets in the OpenSearch document for a Collection
+        on_index_trigger: get_collection_datasets
 
       # Added group_uuid and group_name for Collection - 4/30/2024 by Zhou
       # A user who is a member of multiple groups HAS to send in the group_uuid 
@@ -1152,12 +1152,12 @@ ENTITIES:
       datasets:
         type: list
         generated: true # Disallow user input from request json when being created
-        indexed: false
+        indexed: true
         transient: true
         description: "The datasets that are contained in this Upload."
         # A few time-consuming properties (with read triggers) of each dataset are excluded
         on_read_trigger: get_upload_datasets
-        # No on_index_trigger to include datasets in the OpenSearch document for an Upload
+        on_index_trigger: get_upload_datasets
       status_history:
         type: list
         description: "A list of all status change events. Each entry in the list is a dictionary containing the change_timestamp, changed_by_email, previous_status, new_status"
