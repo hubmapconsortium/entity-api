@@ -1589,6 +1589,80 @@ paths:
           description: The target entity could not be found
         '500':
           description: Internal error
+  'entities/{id}/collections':
+    get:
+      summary: Get the list of all collections the Entity belongs to.
+      parameters:
+        - name: id
+          in: path
+          description: The unique identifier of entity.  This identifier can be either an HuBMAP ID (e.g. HBM123.ABCD.456) or UUID
+          required: true
+          schema:
+            type: string
+        - name: property
+          in: query
+          description: A case insensitive string. Any value besides 'uuid' will raise an error. If property=uuid is provided, rather than entire dictionary representations of each node, only the list of matching uuid's will be returned
+          required: false
+          schema:
+            type: string
+            enum: [ 'uuid' ]
+      responses:
+        '200':
+          description: An array of collection entities is returned
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  anyOf:
+                    - $ref: '#/components/schemas/Collection'
+        '400':
+          description: Invalid or misformatted entity identifier
+        '401':
+          description: The user's token has expired or the user did not supply a valid token
+        '403':
+          description: The user is not authorized to access the entity.
+        '404':
+          description: The target entity could not be found
+        '500':
+          description: Internal error
+  'entities/{id}/uploads':
+    get:
+      summary: Get the list of all uploads the Entity belongs to.
+      parameters:
+        - name: id
+          in: path
+          description: The unique identifier of entity.  This identifier can be either an HuBMAP ID (e.g. HBM123.ABCD.456) or UUID
+          required: true
+          schema:
+            type: string
+        - name: property
+          in: query
+          description: A case insensitive string. Any value besides 'uuid' will raise an error. If property=uuid is provided, rather than entire dictionary representations of each node, only the list of matching uuid's will be returned
+          required: false
+          schema:
+            type: string
+            enum: [ 'uuid' ]
+      responses:
+        '200':
+          description: An array of upload entities is returned
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  anyOf:
+                    - $ref: '#/components/schemas/Upload'
+        '400':
+          description: Invalid or misformatted entity identifier
+        '401':
+          description: The user's token has expired or the user did not supply a valid token
+        '403':
+          description: The user is not authorized to access the entity.
+        '404':
+          description: The target entity could not be found
+        '500':
+          description: Internal error
   '/entities/{id}/provenance':
     get:
       summary: 'Get Provenance Data for Entity.  This returns a PROV JSON compliant representation of the entity''s provenance. Refer to this document for more information regarding [PROV JSON format](https://www.w3.org/Submission/2013/SUBM-prov-json-20130424/)'
