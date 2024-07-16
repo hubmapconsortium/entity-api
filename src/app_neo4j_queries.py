@@ -1263,3 +1263,27 @@ def get_tuplets(neo4j_driver, uuid, status, prop_key):
                 # Convert the list of nodes to a list of dicts
                 results = schema_neo4j_queries.nodes_to_dicts(record[record_field_name])
     return results
+
+# Verify all UUIDs in a list are found as Neo4j node identifiers.
+# Return True if all list entries are found, and raise an exception if one or more
+# entries are not found when expected to be in the Neo4j graph.
+def uuids_all_exist(neo4j_driver, uuids:list):
+    expected_match_count = len(uuids)
+
+    cypher_IN_clause_string = "'"+"\',\'".join(uuids)+"'"
+    record_field_name = 'match_count'
+    query = (f"MATCH(e: Entity) WHERE e.uuid IN [{cypher_IN_clause_string}] RETURN COUNT(e) AS {record_field_name}")
+
+    with neo4j_driver.session() as session:
+        record = session.read_transaction( schema_neo4j_queries.execute_readonly_tx
+                                           , query)
+
+    if not record or not record[record_field_name]:
+        raise Exception(f"Failure retrieving a Neo4j result to verify"
+                        f" {expected_match_count} uuids exist as node identifiers in graph.")
+    else:
+        match_count = record[record_field_name]
+
+    if (expected_match_count == match_count): return True
+    raise Exception(f"For {expected_match_count} uuids, only found {match_count}"
+                    f" exist as node identifiers in the Neo4j graph.")

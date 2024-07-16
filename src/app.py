@@ -988,10 +988,16 @@ def create_entity(entity_type):
     # Additional validation for Dataset entities
     if schema_manager.entity_type_instanceof(normalized_entity_type, 'Dataset'):
         # Adding publication to the check for direct ancestors. Derek-Furst 2/17/23
-        # `direct_ancestor_uuids` is required for creating new Dataset
-        # Check existence of those direct ancestors
-        for direct_ancestor_uuid in json_data_dict['direct_ancestor_uuids']:
-            direct_ancestor_dict = query_target_entity(direct_ancestor_uuid, user_token)
+        #
+        # `direct_ancestor_uuids` is required for creating new Dataset.
+        # Verify all of the direct ancestor UUIDs exist in the Neo4j graph.
+        # Form an error response if an Exception is raised.
+        try:
+            app_neo4j_queries.uuids_all_exist(  neo4j_driver=neo4j_driver_instance
+                                                , uuids=json_data_dict['direct_ancestor_uuids'])
+        except Exception as e:
+            return Response(response=   f"Verifying existence of {len(json_data_dict['direct_ancestor_uuids'])}"
+                                        f" ancestor IDs caused: '{str(e)}'")
 
         # Also check existence of the previous revision dataset if specified
         if 'previous_revision_uuid' in json_data_dict:
@@ -1241,9 +1247,16 @@ def update_entity(id):
         if ('direct_ancestor_uuids' in json_data_dict) and (json_data_dict['direct_ancestor_uuids']):
             has_direct_ancestor_uuids = True
 
-            # Check existence of those source entities
-            for direct_ancestor_uuid in json_data_dict['direct_ancestor_uuids']:
-                direct_ancestor_dict = query_target_entity(direct_ancestor_uuid, user_token)
+            # `direct_ancestor_uuids` is required for updating a Dataset.
+            # Verify all of the direct ancestor UUIDs exist in the Neo4j graph.
+            # Form an error response if an Exception is raised.
+            try:
+                app_neo4j_queries.uuids_all_exist(neo4j_driver=neo4j_driver_instance
+                                                  , uuids=json_data_dict['direct_ancestor_uuids'])
+            except Exception as e:
+                return Response(response=f"Verifying existence of {len(json_data_dict['direct_ancestor_uuids'])}"
+                                         " ancestor IDs caused: '{str(e)}'")
+
         if ('associated_collection_uuid' in json_data_dict) and (json_data_dict['associated_collection_uuid']):
             has_associated_collection_uuid = True
 
