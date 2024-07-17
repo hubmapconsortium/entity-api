@@ -1270,9 +1270,8 @@ def get_tuplets(neo4j_driver, uuid, status, prop_key):
 def uuids_all_exist(neo4j_driver, uuids:list):
     expected_match_count = len(uuids)
 
-    cypher_IN_clause_string = "'"+"\',\'".join(uuids)+"'"
     record_field_name = 'match_count'
-    query = (f"MATCH(e: Entity) WHERE e.uuid IN [{cypher_IN_clause_string}] RETURN COUNT(e) AS {record_field_name}")
+    query = (f"MATCH(e: Entity) WHERE e.uuid IN {uuids} RETURN COUNT(e) AS {record_field_name}")
 
     with neo4j_driver.session() as session:
         record = session.read_transaction( schema_neo4j_queries.execute_readonly_tx

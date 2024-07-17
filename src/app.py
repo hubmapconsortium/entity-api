@@ -996,7 +996,7 @@ def create_entity(entity_type):
             app_neo4j_queries.uuids_all_exist(  neo4j_driver=neo4j_driver_instance
                                                 , uuids=json_data_dict['direct_ancestor_uuids'])
         except Exception as e:
-            return Response(response=   f"Verifying existence of {len(json_data_dict['direct_ancestor_uuids'])}"
+            bad_request_error(err_msg=  f"Verifying existence of {len(json_data_dict['direct_ancestor_uuids'])}"
                                         f" ancestor IDs caused: '{str(e)}'")
 
         # Also check existence of the previous revision dataset if specified
@@ -1254,8 +1254,8 @@ def update_entity(id):
                 app_neo4j_queries.uuids_all_exist(neo4j_driver=neo4j_driver_instance
                                                   , uuids=json_data_dict['direct_ancestor_uuids'])
             except Exception as e:
-                return Response(response=f"Verifying existence of {len(json_data_dict['direct_ancestor_uuids'])}"
-                                         " ancestor IDs caused: '{str(e)}'")
+                bad_request_error(err_msg=  f"Verifying existence of {len(json_data_dict['direct_ancestor_uuids'])}"
+                                            f" ancestor IDs caused: '{str(e)}'")
 
         if ('associated_collection_uuid' in json_data_dict) and (json_data_dict['associated_collection_uuid']):
             has_associated_collection_uuid = True
