@@ -721,8 +721,9 @@ def link_entity_to_direct_ancestors(neo4j_driver, entity_uuid, direct_ancestor_u
             create_relationship_tx(tx, activity_uuid, entity_uuid, 'ACTIVITY_OUTPUT', '->')
 
             # Create relationship from each ancestor entity node to this Activity node
-            for direct_ancestor_uuid in direct_ancestor_uuids:
-                create_relationship_tx(tx, direct_ancestor_uuid, activity_uuid, 'ACTIVITY_INPUT', '->')
+            create_outgoing_activity_relationships_tx(tx=tx
+                                                      , source_node_uuids=direct_ancestor_uuids
+                                                      , activity_node_uuid=activity_uuid)
                     
             tx.commit()
     except TransactionError as te:
@@ -1727,13 +1728,36 @@ def create_relationship_tx(tx, source_node_uuid, target_node_uuid, relationship,
     query = (f"MATCH (s), (t) "
              f"WHERE s.uuid = '{source_node_uuid}' AND t.uuid = '{target_node_uuid}' "
              f"CREATE (s){incoming}[r:{relationship}]{outgoing}(t) "
-             f"RETURN type(r) AS {record_field_name}") 
+             f"RETURN type(r) AS {record_field_name}")
 
     logger.info("======create_relationship_tx() query======")
     logger.info(query)
 
     result = tx.run(query)
 
+"""
+Execute one query to create all outgoing relationships from each node whose
+identifier is in the source node list to the target Activity node in neo4j
+
+Parameters
+----------
+tx : neo4j.Transaction object
+    The neo4j.Transaction object instance
+source_node_uuids : list
+    A list of UUIDs used as node identifiers for source nodes related to target_node_uuid.
+target_node_uuid : str
+    The uuid of target Activity node
+"""
+def create_outgoing_activity_relationships_tx(tx, source_node_uuids:list, activity_node_uuid:str):
+    # N.B. Neo4j CQL CREATE command supports only directional relationships
+    query = (f"MATCH (e:Entity), (a:Activity)"
+             f" WHERE e.uuid IN {source_node_uuids} AND a.uuid = '{activity_node_uuid}'"
+             f" CREATE (e) - [r:ACTIVITY_INPUT]->(a)")
+
+    logger.info("======create_outgoing_activity_relationships_tx() query======")
+    logger.info(query)
+
+    result = tx.run(query)
 
 """
 Execute a unit of work in a managed read transaction
