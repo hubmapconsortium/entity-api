@@ -4,6 +4,7 @@ from typing import List
 from datetime import datetime
 from flask import Flask, g, jsonify, abort, request, Response, redirect, make_response
 from neo4j.exceptions import TransactionError
+from werkzeug.exceptions import NotFound, Forbidden, BadRequest, NotAcceptable, Unauthorized, InternalServerError
 import os
 import re
 import csv
@@ -34,6 +35,10 @@ from schema.schema_constants import SchemaConstants
 from schema.schema_constants import DataVisibilityEnum
 from schema.schema_constants import MetadataScopeEnum
 from schema.schema_constants import TriggerTypeEnum
+from lib.constraints import get_constraints_by_ancestor, get_constraints_by_descendant, build_constraint, build_constraint_unit
+# from lib.ontology import initialize_ubkg, init_ontology, Ontology, UbkgSDK
+
+
 
 # HuBMAP commons
 from hubmap_commons import string_helper
@@ -113,6 +118,32 @@ def http_not_found(e):
 @app.errorhandler(500)
 def http_internal_server_error(e):
     return jsonify(error = str(e)), 500
+
+
+# ####################################################################################################
+# ## UBKG Ontology and REST initialization
+# ####################################################################################################
+
+# def get_http_exceptions_classes():
+#     return [NotFound, Forbidden, BadRequest, NotAcceptable, Unauthorized, InternalServerError]
+
+# def abort_err_handler(e):
+#     return jsonify(error=str(e)), e.code
+
+# try:
+#     for exception in get_http_exceptions_classes():
+#         app.register_error_handler(exception, abort_err_handler)
+#     app.ubkg = initialize_ubkg(app.config)
+#     with app.app_context():
+#         init_ontology()
+#         Ontology.modify_entities_cache()
+
+#     logger.info("Initialized ubkg module successfully :)")
+# # Use a broad catch-all here
+# except Exception:
+#     msg = "Failed to initialize the ubkg module"
+#     # Log the full stack trace, prepend a line with our message
+#     logger.exception(msg)
 
 
 ####################################################################################################
@@ -2243,6 +2274,75 @@ def get_uploads(id):
     return jsonify(final_result)
 
 
+"""
+Retrieves and validates constraints based on definitions within lib.constraints
+
+Authentication
+-------
+No token is required
+
+Query Paramters
+-------
+N/A
+
+Request Body
+-------
+Requires a json list in the request body matching the following example
+Example:
+            [{
+<required>      "ancestors": {
+<required>            "entity_type": "sample",
+<optional>            "sub_type": ["organ"],
+<optional>            "sub_type_val": ["BD"],
+                 },
+<required>      "descendants": {
+<required>           "entity_type": "sample",
+<optional>           "sub_type": ["suspension"]
+                 }
+             }]
+Returns
+--------
+JSON
+"""
+@app.route('/constraints', methods=['POST'])
+def validate_constraints():
+    if not request.is_json:
+        bad_request_error("A json body and appropriate Content-Type header are required")
+    json_entry = request.get_json()
+    is_match = request.values.get('match')
+    order = request.values.get('order')
+    use_case = request.values.get('filter')
+    report_type = request.values.get('report_type')
+
+    results = []
+    final_result = {
+        'code': 200,
+        'description': {},
+        'name': "ok"
+    }
+
+    index = 0
+    for constraint in json_entry:
+        index += 1
+        if order == 'descendants':
+            result = get_constraints_by_descendant(constraint, bool(is_match), use_case)
+        else:
+            result = get_constraints_by_ancestor(constraint, bool(is_match), use_case)
+        if result.get('code') != 200:
+            final_result = {
+                'code': 400,
+                'name': 'Bad Request'
+            }
+
+        if report_type == 'ln_err':
+            if result.get('code') != 200:
+                results.append(_ln_err({'msg': result.get('name'), 'data': result.get('description')}, index))
+        else:
+            results.append(result)
+
+    final_result['description'] = results
+    return make_response(final_result, int(final_result.get('code')), {"Content-Type": "application/json"})
+
 
 """
 Redirect a request from a doi service for a dataset or collection
@@ -4308,6 +4408,31 @@ def get_user_token(request, non_public_access_required = False):
             forbidden_error("Access not granted")
 
     return user_token
+
+
+"""
+Formats error into dict
+
+error : str
+    the detail of the error
+
+row : int
+    the row number where the error occurred
+
+column : str
+    the column in the csv/tsv where the error occurred
+
+Returns
+-------
+ dict
+"""
+def _ln_err(error, row: int = None, column: str = None):
+    return {
+        'column': column,
+        'error': error,
+        'row': row
+    }
+
 
 
 """
