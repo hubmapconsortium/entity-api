@@ -35,7 +35,7 @@ from schema.schema_constants import SchemaConstants
 from schema.schema_constants import DataVisibilityEnum
 from schema.schema_constants import MetadataScopeEnum
 from schema.schema_constants import TriggerTypeEnum
-from lib.constraints import get_constraints_by_ancestor, get_constraints_by_descendant, build_constraint, build_constraint_unit
+from metadata_constraints import get_constraints
 # from lib.ontology import initialize_ubkg, init_ontology, Ontology, UbkgSDK
 
 
@@ -118,33 +118,6 @@ def http_not_found(e):
 @app.errorhandler(500)
 def http_internal_server_error(e):
     return jsonify(error = str(e)), 500
-
-
-# ####################################################################################################
-# ## UBKG Ontology and REST initialization
-# ####################################################################################################
-
-# def get_http_exceptions_classes():
-#     return [NotFound, Forbidden, BadRequest, NotAcceptable, Unauthorized, InternalServerError]
-
-# def abort_err_handler(e):
-#     return jsonify(error=str(e)), e.code
-
-# try:
-#     for exception in get_http_exceptions_classes():
-#         app.register_error_handler(exception, abort_err_handler)
-#     app.ubkg = initialize_ubkg(app.config)
-#     with app.app_context():
-#         init_ontology()
-#         Ontology.modify_entities_cache()
-
-#     logger.info("Initialized ubkg module successfully :)")
-# # Use a broad catch-all here
-# except Exception:
-#     msg = "Failed to initialize the ubkg module"
-#     # Log the full stack trace, prepend a line with our message
-#     logger.exception(msg)
-
 
 ####################################################################################################
 ## AuthHelper initialization
@@ -2324,8 +2297,6 @@ def validate_constraints():
     json_entry = request.get_json()
     is_match = request.values.get('match')
     order = request.values.get('order')
-    use_case = request.values.get('filter')
-    report_type = request.values.get('report_type')
 
     results = []
     final_result = {
@@ -2338,20 +2309,16 @@ def validate_constraints():
     for constraint in json_entry:
         index += 1
         if order == 'descendants':
-            result = get_constraints_by_descendant(constraint, bool(is_match), use_case)
+            result = get_constraints(constraint, 'descendants', 'ancestors', is_match)
         else:
-            result = get_constraints_by_ancestor(constraint, bool(is_match), use_case)
+            result = get_constraints(constraint, 'ancestors', 'descendants', is_match)
         if result.get('code') != 200:
             final_result = {
                 'code': 400,
                 'name': 'Bad Request'
             }
 
-        if report_type == 'ln_err':
-            if result.get('code') != 200:
-                results.append(_ln_err({'msg': result.get('name'), 'data': result.get('description')}, index))
-        else:
-            results.append(result)
+        results.append(result)
 
     final_result['description'] = results
     return make_response(final_result, int(final_result.get('code')), {"Content-Type": "application/json"})
