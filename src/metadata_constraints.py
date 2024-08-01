@@ -1,5 +1,4 @@
 from deepdiff import DeepDiff
-from flask import abort
 
 def build_constraint(ancestor: dict, descendants: list[dict]) -> dict:
     return {
