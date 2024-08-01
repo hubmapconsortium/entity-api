@@ -2,7 +2,7 @@ import collections
 import yaml
 from typing import List
 from datetime import datetime
-from flask import Flask, g, jsonify, abort, request, Response, redirect, make_response``
+from flask import Flask, g, jsonify, abort, request, Response, redirect, make_response
 from neo4j.exceptions import TransactionError
 import os
 import re
