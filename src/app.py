@@ -2,7 +2,7 @@ import collections
 import yaml
 from typing import List
 from datetime import datetime
-from flask import Flask, g, jsonify, abort, request, Response, redirect, make_response
+from flask import Flask, g, jsonify, abort, request, Response, redirect, make_response``
 from neo4j.exceptions import TransactionError
 import os
 import re
@@ -34,6 +34,10 @@ from schema.schema_constants import SchemaConstants
 from schema.schema_constants import DataVisibilityEnum
 from schema.schema_constants import MetadataScopeEnum
 from schema.schema_constants import TriggerTypeEnum
+from metadata_constraints import get_constraints
+# from lib.ontology import initialize_ubkg, init_ontology, Ontology, UbkgSDK
+
+
 
 # HuBMAP commons
 from hubmap_commons import string_helper
@@ -113,7 +117,6 @@ def http_not_found(e):
 @app.errorhandler(500)
 def http_internal_server_error(e):
     return jsonify(error = str(e)), 500
-
 
 ####################################################################################################
 ## AuthHelper initialization
@@ -2255,6 +2258,69 @@ def get_uploads(id):
 
     return jsonify(final_result)
 
+
+"""
+Retrieves and validates constraints based on definitions within lib.constraints
+
+Authentication
+-------
+No token is required
+
+Query Paramters
+-------
+N/A
+
+Request Body
+-------
+Requires a json list in the request body matching the following example
+Example:
+            [{
+<required>      "ancestors": {
+<required>            "entity_type": "sample",
+<optional>            "sub_type": ["organ"],
+<optional>            "sub_type_val": ["BD"],
+                 },
+<required>      "descendants": {
+<required>           "entity_type": "sample",
+<optional>           "sub_type": ["suspension"]
+                 }
+             }]
+Returns
+--------
+JSON
+"""
+@app.route('/constraints', methods=['POST'])
+def validate_constraints():
+    if not request.is_json:
+        bad_request_error("A json body and appropriate Content-Type header are required")
+    json_entry = request.get_json()
+    is_match = request.values.get('match')
+    order = request.values.get('order')
+
+    results = []
+    final_result = {
+        'code': 200,
+        'description': {},
+        'name': "ok"
+    }
+
+    index = 0
+    for constraint in json_entry:
+        index += 1
+        if order == 'descendants':
+            result = get_constraints(constraint, 'descendants', 'ancestors', is_match)
+        else:
+            result = get_constraints(constraint, 'ancestors', 'descendants', is_match)
+        if result.get('code') != 200:
+            final_result = {
+                'code': 400,
+                'name': 'Bad Request'
+            }
+
+        results.append(result)
+
+    final_result['description'] = results
+    return make_response(final_result, int(final_result.get('code')), {"Content-Type": "application/json"})
 
 
 """

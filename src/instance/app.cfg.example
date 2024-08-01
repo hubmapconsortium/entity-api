@@ -64,3 +64,4 @@ DOI_REDIRECT_URL = 'https://portal.hubmapconsortium.org/browse/<entity_type>/<id
 # OLD: https://raw.githubusercontent.com/hubmapconsortium/ccf-releases/main/reference-entity-ids.tsv
 # New URL in use since 7/2/2024 following the HRA 2.1 release
 REDIRECTION_INFO_URL = 'https://cdn.humanatlas.io/digital-objects/reference-entity-ids.tsv'
+
