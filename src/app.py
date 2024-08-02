@@ -1,4 +1,3 @@
-import sys
 import collections
 import yaml
 from typing import List
