@@ -583,10 +583,7 @@ def validate_id_not_in_direct_ancestor(property_key, normalized_entity_type, req
     if 'uuid' not in existing_data_dict:
         raise KeyError("Missing 'uuid' key in 'existing_data_dict' during calling 'validate_id_not_in_direct_ancestor()' validator method.")
     entity_uuid = existing_data_dict.get("uuid")
-    if property_key == 'direct_ancestor_uuid':
-        ancestors = new_data_dict.get('direct_ancestor_uuid')
-    elif property_key == 'direct_ancestor_uuids':
-        ancestors = new_data_dict.get('direct_ancestor_uuids')
+    ancestors = new_data_dict.get(property_key)
     if entity_uuid in ancestors:
         raise ValueError(f"Entity uuid may not be included in {property_key}.")
     
