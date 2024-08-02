@@ -428,6 +428,7 @@ ENTITIES:
         before_property_update_validators:
           - validate_no_duplicates_in_list
           - validate_not_invalid_creation_action
+          - validate_id_not_in_direct_ancestor
         transient: true
         exposed: false
         indexed: false
@@ -966,6 +967,8 @@ ENTITIES:
         # Note: link_sample_to_direct_ancestor() will always delete all the old linkages first
         after_create_trigger: link_sample_to_direct_ancestor
         after_update_trigger: link_sample_to_direct_ancestor
+        before_property_update_validators:
+          - validate_id_not_in_direct_ancestor
       direct_ancestor:
         type: json_string # dict
         generated: true
