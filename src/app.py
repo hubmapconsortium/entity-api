@@ -4213,6 +4213,34 @@ def multiple_components():
     return jsonify(normalized_complete_entity_list)
 
 
+# Bulk update the entities in the entity-api.
+#
+# This function supports request throttling and retries.
+#
+# Parameters
+# ----------
+# entity_updates : dict
+#     The dictionary of entity updates. The key is the uuid and the value is the
+#     update dictionary.
+# token : str
+#     The groups token for the request.
+# entity_api_url : str
+#     The url of the entity-api.
+# total_tries : int, optional
+#     The number of total requests to be made for each update, by default 3.
+# throttle : float, optional
+#     The time to wait between requests and retries, by default 5.
+# after_each_callback : Callable[[int], None], optional
+#     A callback function to be called after each update, by default None. The index
+#     of the update is passed as a parameter to the callback.
+#
+# Returns
+# -------
+# dict
+#     The results of the bulk update. The key is the uuid of the entity. If
+#     successful, the value is a dictionary with "success" as True and "data" as the
+#     entity data. If failed, the value is a dictionary with "success" as False and
+#     "data" as the error message.
 def bulk_update_entities(
     entity_updates: dict,
     token: str,
@@ -4221,38 +4249,9 @@ def bulk_update_entities(
     throttle: float = 5,
     after_each_callback: Optional[Callable[[int], None]] = None,
 ) -> dict:
-    """Bulk update the entities in the entity-api.
-
-    This function supports request throttling and retries.
-
-    Parameters
-    ----------
-    entity_updates : dict
-        The dictionary of entity updates. The key is the uuid and the value is the
-        update dictionary.
-    token : str
-        The groups token for the request.
-    entity_api_url : str
-        The url of the entity-api.
-    total_tries : int, optional
-        The number of total requests to be made for each update, by default 3.
-    throttle : float, optional
-        The time to wait between requests and retries, by default 5.
-    after_each_callback : Callable[[int], None], optional
-        A callback function to be called after each update, by default None. The index
-        of the update is passed as a parameter to the callback.
-
-    Returns
-    -------
-    dict
-        The results of the bulk update. The key is the uuid of the entity. If
-        successful, the value is a dictionary with "success" as True and "data" as the
-        entity data. If failed, the value is a dictionary with "success" as False and
-        "data" as the error message.
-    """
     headers = {
         "Authorization": f"Bearer {token}",
-        "X-Application": "entity-api",
+        "X-Application": SchemaConstants.ENTITY_API_APP,
     }
     # create a session with retries
     session = requests.Session()
@@ -4294,10 +4293,8 @@ def bulk_update_entities(
     return results
 
 
+# For this call to work READ_ONLY_MODE = False in the app.cfg file.
 def update_datasets_uploads(entity_updates: list, token: str, entity_api_url: str) -> None:
-    """
-    For this call to work READ_ONLY_MODE = False in the app.cfg file.
-    """
     update_payload = {ds.pop("uuid"): ds for ds in entity_updates}
 
     # send the dataset/upload updates to entity-api
@@ -4311,6 +4308,14 @@ def update_datasets_uploads(entity_updates: list, token: str, entity_api_url: st
 ENTITY_BULK_UPDATE_FIELDS_ACCEPTED = ['uuid', 'status', 'ingest_task', 'assigned_to_group_name']
 
 
+# New endpoints (PUT /datasets and PUT /uploads) to handle the bulk updating of entities see Issue: #698
+# https://github.com/hubmapconsortium/entity-api/issues/698
+#
+# This is used by Data Ingest Board application for now.
+#
+# Shirey: With this use case we're not worried about a lot of concurrent calls to this endpoint (only one user,
+# Brendan, will be ever using it). Just start a thread on request and loop through the Datasets/Uploads to change
+# with a 5 second delay or so between them to allow some time for reindexing.
 @app.route('/datasets', methods=['PUT'])
 @app.route('/uploads', methods=['PUT'])
 def entity_bulk_update():
