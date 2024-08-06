@@ -1,3 +1,4 @@
+from typing import Iterable, List, Optional, Union
 from neo4j.exceptions import TransactionError
 import logging
 import json
@@ -1286,3 +1287,49 @@ def uuids_all_exist(neo4j_driver, uuids:list):
     if (expected_match_count == match_count): return True
     raise Exception(f"For {expected_match_count} uuids, only found {match_count}"
                     f" exist as node identifiers in the Neo4j graph.")
+
+
+def get_entities_by_uuid(neo4j_driver,
+                         uuids: Union[str, Iterable],
+                         fields: Union[dict, Iterable, None] = None) -> Optional[list]:
+    """Get the entities from the neo4j database with the given uuids.
+    Parameters
+    ----------
+    uuids : Union[str, Iterable]
+        The uuid(s) of the entities to get.
+    fields : Union[dict, Iterable, None], optional
+        The fields to return for each entity. If None, all fields are returned.
+        If a dict, the keys are the database fields to return and the values are the names to return them as.
+        If an iterable, the fields to return. Defaults to None.
+    Returns
+    -------
+    Optional[List[neo4j.Record]]:
+        The entity records with the given uuids, or None if no datasets were found.
+        The specified fields are returned for each entity.
+    Raises
+    ------
+    ValueError
+        If fields is not a dict, an iterable, or None.
+    """
+    if isinstance(uuids, str):
+        uuids = [uuids]
+    if not isinstance(uuids, list):
+        uuids = list(uuids)
+
+    if fields is None or len(fields) == 0:
+        return_stmt = 'e'
+    elif isinstance(fields, dict):
+        return_stmt = ', '.join([f'e.{field} AS {name}' for field, name in fields.items()])
+    elif isinstance(fields, Iterable):
+        return_stmt = ', '.join([f'e.{field} AS {field}' for field in fields])
+    else:
+        raise ValueError("fields must be a dict or an iterable")
+
+    with neo4j_driver.session() as session:
+        length = len(uuids)
+        query = "MATCH (e:Entity) WHERE e.uuid IN $uuids RETURN " + return_stmt
+        records = session.run(query, uuids=uuids).fetch(length)
+        if records is None or len(records) == 0:
+            return None
+
+        return records

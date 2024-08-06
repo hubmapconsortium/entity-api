@@ -3,6 +3,7 @@ class SchemaConstants(object):
     MEMCACHED_TTL = 7200
 
     INGEST_API_APP = 'ingest-api'
+    ENTITY_API_APP = 'entity-api'
     COMPONENT_DATASET = 'component-dataset'
     INGEST_PIPELINE_APP = 'ingest-pipeline'
     HUBMAP_APP_HEADER = 'X-Hubmap-Application'
