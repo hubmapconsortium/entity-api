@@ -2540,12 +2540,9 @@ paths:
         content:
           application/json:
             schema:
-              type: object
-              properties:
-                entities:
-                  type: array
-                  items:
-                    $ref: '#/components/schemas/Dataset'
+              type: array
+              items:
+                $ref: '#/components/schemas/Dataset'
       responses:
         '202':
           description: request is being processed
@@ -2553,9 +2550,8 @@ paths:
             application/json:
               schema:
                 type: array
-                properties:
-                  uuid:
-                    type: string
+                items:
+                  type: string
                   description: The uuids of the entities being processed
         '500':
           description: Internal error
@@ -2567,12 +2563,9 @@ paths:
         content:
           application/json:
             schema:
-              type: object
-              properties:
-                entities:
-                  type: array
-                  items:
-                    $ref: '#/components/schemas/Upload'
+              type: array
+              items:
+                $ref: '#/components/schemas/Upload'
       responses:
         '202':
           description: request is being processed
@@ -2580,9 +2573,8 @@ paths:
             application/json:
               schema:
                 type: array
-                properties:
-                  uuid:
-                    type: string
+                items:
+                  type: string
                   description: The uuids of the entities being processed
         '500':
           description: Internal error

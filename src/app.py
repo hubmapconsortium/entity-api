@@ -4359,6 +4359,7 @@ def bulk_update_entities(
             if idx < len(entity_updates) - 1:
                 time.sleep(throttle)
 
+    logger.info(f"bulk_update_entities() results: {results}")
     return results
 
 
@@ -4385,6 +4386,17 @@ ENTITY_BULK_UPDATE_FIELDS_ACCEPTED = ['uuid', 'status', 'ingest_task', 'assigned
 # Shirey: With this use case we're not worried about a lot of concurrent calls to this endpoint (only one user,
 # Brendan, will be ever using it). Just start a thread on request and loop through the Datasets/Uploads to change
 # with a 5 second delay or so between them to allow some time for reindexing.
+#
+# Example call
+# 1) pick Dataset entities to change by querying Neo4J...
+# URL: http://18.205.215.12:7474/browser/
+# query: MATCH (e:Dataset {entity_type: 'Dataset'}) RETURN e.uuid, e.status, e.ingest_task, e.assigned_to_group_name LIMIT 100
+#
+# curl --request PUT \
+#  --url ${ENTITY_API}/datasets \
+#  --header "Content-Type: application/json" \
+#  --header "Authorization: Bearer ${TOKEN}" \
+#  --data '[{"uuid":"6ce8d4515bc87213e787397c2b4d2f99", "assigned_to_group_name":"TMC - Cal Tech"}, {"uuid":"a44a78bfbe0e702cdc172707b6061a16", "assigned_to_group_name":"TMC - Cal Tech"}]'
 @app.route('/datasets', methods=['PUT'])
 @app.route('/uploads', methods=['PUT'])
 def entity_bulk_update():
@@ -4395,7 +4407,7 @@ def entity_bulk_update():
     validate_token_if_auth_header_exists(request)
     require_json(request)
 
-    entities = request.get_json().get('entities')
+    entities = request.get_json()
     if entities is None or not isinstance(entities, list) or len(entities) == 0:
         bad_request_error("Request object field 'entities' is either missing, "
                           "does not contain a list, or contains an empty list")
@@ -4637,7 +4649,7 @@ def validate_user_update_privilege(entity, user_token):
     user_group_uuids = [d['uuid'] for d in user_write_groups]
     if entity.get('group_uuid') not in user_group_uuids and is_admin is False:
         forbidden_error(f"User does not have write privileges for this entity. "
-                        f"Reach out to the help desk (help@hubmapconsortium.org) to request access to group: {entity['group_uuid']}.")
+                        "Please reach out to the help desk (help@hubmapconsortium.org) to request access.")
 
 
 """
