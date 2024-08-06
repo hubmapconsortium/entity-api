@@ -561,6 +561,33 @@ def validate_publication_date(property_key, normalized_entity_type, request, exi
         date_obj = datetime.fromisoformat(new_data_dict[property_key])
     except ValueError:
         raise ValueError(f"Invalid {property_key} format, must be YYYY-MM-DD")
+   
+    
+"""
+Validate that the id for the given entity is not included in the direct ancestor uuid's to prevent loops.
+
+Parameters
+----------
+property_key : str
+    The target property key
+normalized_type : str
+    Submission
+request: Flask request object
+    The instance of Flask request passed in from application request
+existing_data_dict : dict
+    A dictionary that contains all existing entity properties
+new_data_dict : dict
+    The json data in request body, already after the regular validations
+"""
+def validate_id_not_in_direct_ancestor(property_key, normalized_entity_type, request, existing_data_dict, new_data_dict):
+    if 'uuid' not in existing_data_dict:
+        raise KeyError("Missing 'uuid' key in 'existing_data_dict' during calling 'validate_id_not_in_direct_ancestor()' validator method.")
+    entity_uuid = existing_data_dict.get("uuid")
+    ancestors = new_data_dict.get(property_key)
+    if entity_uuid in ancestors:
+        raise ValueError(f"Entity uuid may not be included in {property_key}.")
+    
+
 
 """
 Validate the provided value of the activity creation action. Only very specific
