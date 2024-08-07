@@ -4251,7 +4251,7 @@ def bulk_update_entities(
 ) -> dict:
     headers = {
         "Authorization": f"Bearer {token}",
-        "X-Application": SchemaConstants.ENTITY_API_APP,
+        "X-Hubmap-Application": SchemaConstants.ENTITY_API_APP,
     }
     # create a session with retries
     session = requests.Session()
