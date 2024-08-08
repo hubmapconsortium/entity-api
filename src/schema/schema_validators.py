@@ -31,11 +31,13 @@ request: Flask request
     The instance of Flask request passed in from application request
 """
 def validate_application_header_before_entity_create(normalized_entity_type, request):
-    # A list of applications allowed to create this new entity
-    # Currently only ingest-api and ingest-pipeline are allowed
-    # to create or update Dataset and Upload
+    # A list of applications allowed to create this new entity or update Dataset and Upload
     # Use lowercase for comparison
-    applications_allowed = [SchemaConstants.INGEST_API_APP, SchemaConstants.INGEST_PIPELINE_APP]
+    applications_allowed = [
+        SchemaConstants.INGEST_API_APP,
+        SchemaConstants.INGEST_PIPELINE_APP,
+        SchemaConstants.ENTITY_API_APP
+    ]
 
     _validate_application_header(applications_allowed, request.headers)
 
@@ -296,11 +298,13 @@ new_data_dict : dict
     The json data in request body, already after the regular validations
 """
 def validate_application_header_before_property_update(property_key, normalized_entity_type, request, existing_data_dict, new_data_dict):
-    # A list of applications allowed to update this property
-    # Currently only ingest-api and ingest-pipeline are allowed
-    # to update Dataset.status or Upload.status
+    # A list of applications allowed to update Dataset.status or Upload.status
     # Use lowercase for comparison
-    applications_allowed = [SchemaConstants.INGEST_API_APP, SchemaConstants.INGEST_PIPELINE_APP]
+    applications_allowed = [
+        SchemaConstants.INGEST_API_APP,
+        SchemaConstants.INGEST_PIPELINE_APP,
+        SchemaConstants.ENTITY_API_APP
+    ]
 
     _validate_application_header(applications_allowed, request.headers)
 
