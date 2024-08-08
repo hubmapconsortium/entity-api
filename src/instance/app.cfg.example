@@ -8,6 +8,18 @@ SCHEMA_YAML_FILE = '/usr/src/app/src/schema/provenance_schema.yaml'
 APP_CLIENT_ID = ''
 APP_CLIENT_SECRET = ''
 
+# AWS credentials for access such as S3 and presigned URLs
+# https://boto3.amazonaws.com/v1/documentation/api/latest/guide/credentials.html
+AWS_ACCESS_KEY_ID = ''
+AWS_SECRET_ACCESS_KEY = ''
+AWS_S3_BUCKET_NAME = 'hm-api-responses' #_DevTest'
+AWS_S3_OBJECT_PREFIX = 'Dev_entity-api_'
+AWS_OBJECT_URL_EXPIRATION_IN_SECS = 60*60 # 1 hour
+# Large response threshold, as determined by len() for the character set, above
+# which responses will be stashed in an S3 bucket and a pre-signed URL
+# returned in the response to avoid the AWS Gateway 10Mb constraint
+LARGE_RESPONSE_THRESHOLD = 9*(2**20) + 900*(2**10) #9.9Mb
+
 # Neo4j connection (default value used for docker localhost deployment)
 # Point to remote neo4j for dev/test/stage/prod deployment
 NEO4J_URI = 'bolt://hubmap-neo4j-localhost:7687'
