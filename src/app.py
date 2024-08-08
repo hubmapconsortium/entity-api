@@ -46,7 +46,7 @@ from hubmap_commons import file_helper as hm_file_helper
 from hubmap_commons import neo4j_driver
 from hubmap_commons.hm_auth import AuthHelper
 from hubmap_commons.exceptions import HTTPException
-
+from hubmap_commons.S3_worker import S3Worker
 
 # Root logger configuration
 global logger
@@ -67,6 +67,13 @@ app.config['UUID_API_URL'] = app.config['UUID_API_URL'].strip('/')
 app.config['INGEST_API_URL'] = app.config['INGEST_API_URL'].strip('/')
 app.config['ONTOLOGY_API_URL'] = app.config['ONTOLOGY_API_URL'].strip('/')
 app.config['SEARCH_API_URL_LIST'] = [url.strip('/') for url in app.config['SEARCH_API_URL_LIST']]
+
+S3_settings_dict = {'large_response_threshold': app.config['LARGE_RESPONSE_THRESHOLD']
+                    , 'aws_access_key_id': app.config['AWS_ACCESS_KEY_ID']
+                    , 'aws_secret_access_key': app.config['AWS_SECRET_ACCESS_KEY']
+                    , 'aws_s3_bucket_name': app.config['AWS_S3_BUCKET_NAME']
+                    , 'aws_object_url_expiration_in_secs': app.config['AWS_OBJECT_URL_EXPIRATION_IN_SECS']
+                    , 'service_configured_obj_prefix': app.config['AWS_S3_OBJECT_PREFIX']}
 
 # This mode when set True disables the PUT and POST calls, used on STAGE to make entity-api READ-ONLY 
 # to prevent developers from creating new UUIDs and new entities or updating existing entities
@@ -225,6 +232,20 @@ except Exception:
     # Log the full stack trace, prepend a line with our message
     logger.exception(msg)
 
+####################################################################################################
+## Initialize an S3Worker from hubmap-commons
+####################################################################################################
+
+try:
+    anS3Worker = S3Worker(ACCESS_KEY_ID=S3_settings_dict['aws_access_key_id']
+                          , SECRET_ACCESS_KEY=S3_settings_dict['aws_secret_access_key']
+                          , S3_BUCKET_NAME=S3_settings_dict['aws_s3_bucket_name']
+                          , S3_OBJECT_URL_EXPIRATION_IN_SECS=S3_settings_dict['aws_object_url_expiration_in_secs']
+                          , LARGE_RESPONSE_THRESHOLD=S3_settings_dict['large_response_threshold']
+                          , SERVICE_S3_OBJ_PREFIX=S3_settings_dict['service_configured_obj_prefix'])
+    logger.info("anS3Worker initialized")
+except Exception as s3exception:
+    logger.critical(s3exception, exc_info=True)
 
 ####################################################################################################
 ## REFERENCE DOI Redirection
@@ -3135,6 +3156,11 @@ Query Parameters
 
 Returns
 -------
+If the response is small enough to be returned directly through the gateway, an HTTP 200 response code will be
+returned.  If the response is too large to pass through the gateway, and HTTP 303 response code will be returned, and
+the response body will contain a URL to an AWS S3 Object.  The Object must be retrieved by following the URL before
+it expires.
+
 json
     an array of each datatset's provenance info
 tsv
@@ -3142,6 +3168,8 @@ tsv
 """
 @app.route('/datasets/prov-info', methods=['GET'])
 def get_prov_info():
+    global anS3Worker
+
     # String constants
     HEADER_DATASET_UUID = 'dataset_uuid'
     HEADER_DATASET_HUBMAP_ID = 'dataset_hubmap_id'
@@ -3415,24 +3443,38 @@ def get_prov_info():
         # Each dataset's dictionary is added to the list to be returned
         dataset_prov_list.append(internal_dict)
 
-    # Determine whether the size of the returned data exceeds or nearly exceeds the AWS Gateway 10MB maximum size. If it
-    # is greater than 9437184 bytes Return a 400 and prompt the user to reduce the size of the output by applying optional
-    # argument filters.
-    dataset_prov_json_encode = json.dumps(dataset_prov_list).encode('utf-8')
-    if len(dataset_prov_json_encode) > 9437184:
-        bad_request_error(
-            "Request generated a response over the 10MB limit.  Sub-select the results using a query parameter.")
-
-    # if return_json is true, this dictionary is ready to be returned already
+    # Establish a string for the Response which can be checked to
+    # see if it is small enough to return directly or must be stashed in S3.
     if return_json:
-        return jsonify(dataset_prov_list)
-
-    # if return_json is false, the data must be converted to be returned as a tsv
+        resp_body = json.dumps(dataset_prov_list).encode('utf-8')
     else:
+        # If return_json is false, convert the data to a TSV
         new_tsv_file = StringIO()
         writer = csv.DictWriter(new_tsv_file, fieldnames=headers, delimiter='\t')
         writer.writeheader()
         writer.writerows(dataset_prov_list)
+        new_tsv_file.seek(0)
+        resp_body = new_tsv_file.read()
+
+    # Check the size of what is to be returned through the AWS Gateway, and replace it with
+    # a response that links to an Object in the AWS S3 Bucket, if appropriate.
+    try:
+        s3_url = anS3Worker.stash_response_body_if_big(resp_body)
+        if s3_url is not None:
+            return Response(response=s3_url
+                            , status=303)  # See Other
+    except Exception as s3exception:
+        logger.error(f"Error using anS3Worker to handle len(resp_body)="
+                     f"{len(resp_body)}.")
+        logger.error(s3exception, exc_info=True)
+        return Response(response=f"Unexpected error storing large results in S3. See logs."
+                        , status=500)
+
+    # Return a regular response through the AWS Gateway
+    if return_json:
+        return jsonify(dataset_prov_list)
+    else:
+        # Return the TSV as an attachment, since it will is small enough to fit through the AWS Gateway.
         new_tsv_file.seek(0)
         output = Response(new_tsv_file, mimetype='text/tsv')
         output.headers['Content-Disposition'] = 'attachment; filename=prov-info.tsv'
@@ -3460,10 +3502,15 @@ id : string
 
 Returns
 -------
+If the response is small enough to be returned directly through the gateway, an HTTP 200 response code will be
+returned.  If the response is too large to pass through the gateway, and HTTP 303 response code will be returned, and
+the response body will contain a URL to an AWS S3 Object.  The Object must be retrieved by following the URL before
+it expires.
+
 json
-    an array of each datatset's provenance info
+    A dictionary of the Datatset's provenance info
 tsv
-    a text file of tab separated values where each row is a dataset and the columns include all its prov info
+    A text file of tab separated prov info values for the Dataset, including a row of column headings.
 """
 @app.route('/datasets/<id>/prov-info', methods=['GET'])
 def get_prov_info_for_dataset(id):
@@ -3716,18 +3763,42 @@ def get_prov_info_for_dataset(id):
 
     dataset_prov_list.append(internal_dict)
 
+    # Establish a string for the Response which can be checked to
+    # see if it is small enough to return directly or must be stashed in S3.
     if return_json:
-        return jsonify(dataset_prov_list[0])
+        resp_body = json.dumps(dataset_prov_list).encode('utf-8')
     else:
+        # If return_json is false, convert the data to a TSV
         new_tsv_file = StringIO()
         writer = csv.DictWriter(new_tsv_file, fieldnames=headers, delimiter='\t')
         writer.writeheader()
         writer.writerows(dataset_prov_list)
         new_tsv_file.seek(0)
+        resp_body = new_tsv_file.read()
+
+    # Check the size of what is to be returned through the AWS Gateway, and replace it with
+    # a response that links to an Object in the AWS S3 Bucket, if appropriate.
+    try:
+        s3_url = anS3Worker.stash_response_body_if_big(resp_body)
+        if s3_url is not None:
+            return Response(response=s3_url
+                            , status=303)  # See Other
+    except Exception as s3exception:
+        logger.error(f"Error using anS3Worker to handle len(resp_body)="
+                     f"{len(resp_body)}.")
+        logger.error(s3exception, exc_info=True)
+        return Response(response=f"Unexpected error storing large results in S3. See logs."
+                        , status=500)
+
+    # Return a regular response through the AWS Gateway
+    if return_json:
+        return jsonify(dataset_prov_list[0])
+    else:
+        # Return the TSV as an attachment, since it will is small enough to fit through the AWS Gateway.
+        new_tsv_file.seek(0)
         output = Response(new_tsv_file, mimetype='text/tsv')
         output.headers['Content-Disposition'] = 'attachment; filename=prov-info.tsv'
         return output
-
 
 """
 Get the information needed to generate the sankey on software-docs as a json.
@@ -3824,11 +3895,18 @@ Query Parameters
 
 Returns
 -------
+If the response is small enough to be returned directly through the gateway, an HTTP 200 response code will be
+returned.  If the response is too large to pass through the gateway, and HTTP 303 response code will be returned, and
+the response body will contain a URL to an AWS S3 Object.  The Object must be retrieved by following the URL before
+it expires.
+
 json
     an array of each datatset's provenance info
 """
 @app.route('/samples/prov-info', methods=['GET'])
 def get_sample_prov_info():
+    global anS3Worker
+
     # String Constants
     HEADER_SAMPLE_UUID = "sample_uuid"
     HEADER_SAMPLE_LAB_ID = "lab_id_or_name"
@@ -3947,15 +4025,22 @@ def get_sample_prov_info():
         # Each sample's dictionary is added to the list to be returned
         sample_prov_list.append(internal_dict)
 
-    # Determine whether the size of the returned data exceeds or nearly exceeds the AWS Gateway 10MB maximum size. If it
-    # is greater than 9437184 bytes Return a 400 and prompt the user to reduce the size of the output by applying optional
-    # argument filters.
-    sample_prov_json_encode = json.dumps(sample_prov_list).encode('utf-8')
-    if len(sample_prov_json_encode) > 9437184:
-        bad_request_error(
-            "Request generated a response over the 10MB limit.  Sub-select the results using a query parameter.")
-    return jsonify(sample_prov_list)
+    # Check the size of what is to be returned through the AWS Gateway, and replace it with
+    # a response that links to an Object in the AWS S3 Bucket, if appropriate.
+    try:
+        s3_url = anS3Worker.stash_response_body_if_big(json.dumps(sample_prov_list).encode('utf-8'))
+        if s3_url is not None:
+            return Response(response=s3_url
+                            , status=303)  # See Other
+    except Exception as s3exception:
+        logger.error(f"Error using anS3Worker to handle len(json.dumps(sample_prov_list).encode('utf-8'))="
+                     f"{len(json.dumps(sample_prov_list).encode('utf-8'))}.")
+        logger.error(s3exception, exc_info=True)
+        return Response(response=f"Unexpected error storing large results in S3. See logs."
+                        , status=500)
 
+    # Return a regular response through the AWS Gateway
+    return jsonify(sample_prov_list)
 
 """
 Retrieve all unpublished datasets (datasets with status value other than 'Published' or 'Hold')
@@ -5583,7 +5668,6 @@ def _get_metadata_by_id(entity_id:str=None, metadata_scope:MetadataScopeEnum=Met
     else:
         # Response with the dict
         return final_result
-
 
 ####################################################################################################
 ## For local development/testing
