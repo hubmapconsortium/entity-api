@@ -4338,10 +4338,6 @@ def entity_bulk_update():
 
     validate_token_if_auth_header_exists(request)
     require_json(request)
-    try:
-        schema_validators.validate_application_header_before_property_update(request)
-    except Exception as e:
-        bad_request_error(str(e))
 
     entities = request.get_json()
     if entities is None or not isinstance(entities, list) or len(entities) == 0:

@@ -286,11 +286,19 @@ Validate the provided value of Dataset.status on update via PUT
 
 Parameters
 ----------
+property_key : str
+    The target property key
+normalized_type : str
+    Dataset
 request: Flask request object
     The instance of Flask request passed in from application request
+existing_data_dict : dict
+    A dictionary that contains all existing entity properties
+new_data_dict : dict
+    The json data in request body, already after the regular validations
 """
-def validate_application_header_before_property_update(request):
-    # A list of applications allowed to update Dataset.status or Upload.status.
+def validate_application_header_before_property_update(property_key, normalized_entity_type, request, existing_data_dict, new_data_dict):
+    # A list of applications allowed to update Dataset.status or Upload.status
     # Use lowercase for comparison
     applications_allowed = [
         SchemaConstants.INGEST_API_APP,
