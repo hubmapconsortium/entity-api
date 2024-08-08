@@ -4328,7 +4328,7 @@ ENTITY_BULK_UPDATE_FIELDS_ACCEPTED = ['uuid', 'status', 'ingest_task', 'assigned
 #  --header "Content-Type: application/json" \
 #  --header "Authorization: Bearer ${TOKEN}" \
 #  --header "X-Hubmap-Application: entity-api" \
-#  --data '[{"uuid":"6ce8d4515bc87213e787397c2b4d2f99", "assigned_to_group_name":"TMC - Cal Tech"}, {"uuid":"a44a78bfbe0e702cdc172707b6061a16", "assigned_to_group_name":"TMC - Cal Tech"}]'
+#  --data '[{"uuid":"f22a9ba97b79eefe6b152b4315e43c76", "status":"Error", "assigned_to_group_name":"TMC - Cal Tech"}, {"uuid":"e4b371ea3ed4c3ca77791b34b829803f", "status":"Error", "assigned_to_group_name":"TMC - Cal Tech"}]'
 @app.route('/datasets', methods=['PUT'])
 @app.route('/uploads', methods=['PUT'])
 def entity_bulk_update():
