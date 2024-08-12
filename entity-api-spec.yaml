@@ -2532,6 +2532,52 @@ paths:
 
         '500':
           description: Internal error
+  '/datasets':
+    put:
+      summary: Bulk updating of entity type dataset. it's only limited to the fields:: assigned_to_group_name, ingest_task, status
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                $ref: '#/components/schemas/Dataset'
+      responses:
+        '202':
+          description: request is being processed
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: string
+                  description: The uuids of the entities being processed
+        '500':
+          description: Internal error
+  '/uploads':
+    put:
+      summary: Bulk updating of entity type upload. it's only limited to the fields:: assigned_to_group_name, ingest_task, status
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                $ref: '#/components/schemas/Upload'
+      responses:
+        '202':
+          description: request is being processed
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: string
+                  description: The uuids of the entities being processed
+        '500':
+          description: Internal error
   '/samples/prov-info':
     get:
       summary: 'returns all provenance information for a each sample in a json format'

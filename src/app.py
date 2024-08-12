@@ -1,6 +1,5 @@
 import collections
-import yaml
-from typing import List
+from typing import Callable, List, Optional
 from datetime import datetime
 from flask import Flask, g, jsonify, abort, request, Response, redirect, make_response
 from neo4j.exceptions import TransactionError
@@ -8,6 +7,8 @@ import os
 import re
 import csv
 import requests
+from requests.adapters import HTTPAdapter, Retry
+import threading
 import urllib.request
 from io import StringIO
 # Don't confuse urllib (Python native library) with urllib3 (3rd-party library, requests also uses urllib3)
@@ -4212,6 +4213,173 @@ def multiple_components():
     return jsonify(normalized_complete_entity_list)
 
 
+# Bulk update the entities in the entity-api.
+#
+# This function supports request throttling and retries.
+#
+# Parameters
+# ----------
+# entity_updates : dict
+#     The dictionary of entity updates. The key is the uuid and the value is the
+#     update dictionary.
+# token : str
+#     The groups token for the request.
+# entity_api_url : str
+#     The url of the entity-api.
+# total_tries : int, optional
+#     The number of total requests to be made for each update, by default 3.
+# throttle : float, optional
+#     The time to wait between requests and retries, by default 5.
+# after_each_callback : Callable[[int], None], optional
+#     A callback function to be called after each update, by default None. The index
+#     of the update is passed as a parameter to the callback.
+#
+# Returns
+# -------
+# dict
+#     The results of the bulk update. The key is the uuid of the entity. If
+#     successful, the value is a dictionary with "success" as True and "data" as the
+#     entity data. If failed, the value is a dictionary with "success" as False and
+#     "data" as the error message.
+def bulk_update_entities(
+    entity_updates: dict,
+    token: str,
+    entity_api_url: str,
+    total_tries: int = 3,
+    throttle: float = 5,
+    after_each_callback: Optional[Callable[[int], None]] = None,
+) -> dict:
+    headers = {
+        "Authorization": f"Bearer {token}",
+        SchemaConstants.HUBMAP_APP_HEADER: SchemaConstants.ENTITY_API_APP,
+    }
+    # create a session with retries
+    session = requests.Session()
+    session.headers = headers
+    retries = Retry(
+        total=total_tries,
+        backoff_factor=throttle,
+        status_forcelist=[500, 502, 503, 504],
+    )
+    session.mount(entity_api_url, HTTPAdapter(max_retries=retries))
+
+    results = {}
+    with session as s:
+        for idx, (uuid, payload) in enumerate(entity_updates.items()):
+            try:
+                # https://github.com/hubmapconsortium/entity-api/issues/698#issuecomment-2260799700
+                # yuanzhou: When you iterate over the target uuids make individual PUT /entities/<uuid> calls.
+                # The main reason we use the PUT call rather than direct neo4j query is because the entity update
+                # needs to go through the schema trigger methods and generate corresponding values programmatically
+                # before sending over to neo4j.
+                # The PUT call returns the response immediately while the backend updating may be still going on.
+                res = s.put(
+                    f"{entity_api_url}/entities/{uuid}", json=payload, timeout=15
+                )
+                results[uuid] = {
+                    "success": res.ok,
+                    "data": res.json() if res.ok else res.json().get("error"),
+                }
+            except requests.exceptions.RequestException as e:
+                logger.error(f"Failed to update entity {uuid}: {e}")
+                results[uuid] = {"success": False, "data": str(e)}
+
+            if after_each_callback:
+                after_each_callback(idx)
+
+            if idx < len(entity_updates) - 1:
+                time.sleep(throttle)
+
+    logger.info(f"bulk_update_entities() results: {results}")
+    return results
+
+
+# For this call to work READ_ONLY_MODE = False in the app.cfg file.
+def update_datasets_uploads(entity_updates: list, token: str, entity_api_url: str) -> None:
+    update_payload = {ds.pop("uuid"): ds for ds in entity_updates}
+
+    # send the dataset/upload updates to entity-api
+    update_res = bulk_update_entities(update_payload, token, entity_api_url)
+
+    for uuid, res in update_res.items():
+        if not res["success"]:
+            logger.error(f"Failed to update entity {uuid}: {res['data']}")
+
+
+ENTITY_BULK_UPDATE_FIELDS_ACCEPTED = ['uuid', 'status', 'ingest_task', 'assigned_to_group_name']
+
+
+# New endpoints (PUT /datasets and PUT /uploads) to handle the bulk updating of entities see Issue: #698
+# https://github.com/hubmapconsortium/entity-api/issues/698
+#
+# This is used by Data Ingest Board application for now.
+#
+# Shirey: With this use case we're not worried about a lot of concurrent calls to this endpoint (only one user,
+# Brendan, will be ever using it). Just start a thread on request and loop through the Datasets/Uploads to change
+# with a 5 second delay or so between them to allow some time for reindexing.
+#
+# Example call
+# 1) pick Dataset entities to change by querying Neo4J...
+# URL: http://18.205.215.12:7474/browser/
+# query: MATCH (e:Dataset {entity_type: 'Dataset'}) RETURN e.uuid, e.status, e.ingest_task, e.assigned_to_group_name LIMIT 100
+#
+# curl --request PUT \
+#  --url ${ENTITY_API}/datasets \
+#  --header "Content-Type: application/json" \
+#  --header "Authorization: Bearer ${TOKEN}" \
+#  --header "X-Hubmap-Application: entity-api" \
+#  --data '[{"uuid":"f22a9ba97b79eefe6b152b4315e43c76", "status":"Error", "assigned_to_group_name":"TMC - Cal Tech"}, {"uuid":"e4b371ea3ed4c3ca77791b34b829803f", "status":"Error", "assigned_to_group_name":"TMC - Cal Tech"}]'
+@app.route('/datasets', methods=['PUT'])
+@app.route('/uploads', methods=['PUT'])
+def entity_bulk_update():
+    entity_type: str = 'dataset'
+    if request.path == "/uploads":
+        entity_type = "upload"
+
+    validate_token_if_auth_header_exists(request)
+    require_json(request)
+
+    entities = request.get_json()
+    if entities is None or not isinstance(entities, list) or len(entities) == 0:
+        bad_request_error("Request object field 'entities' is either missing, "
+                          "does not contain a list, or contains an empty list")
+
+    user_token: str = get_user_token(request)
+    for entity in entities:
+        validate_user_update_privilege(entity, user_token)
+
+    uuids = [e.get("uuid") for e in entities]
+    if None in uuids:
+        bad_request_error(f"All {entity_type}s must have a 'uuid' field")
+    if len(set(uuids)) != len(uuids):
+        bad_request_error(f"{entity_type}s must have unique 'uuid' fields")
+
+    if not all(set(e.keys()).issubset(ENTITY_BULK_UPDATE_FIELDS_ACCEPTED) for e in entities):
+        bad_request_error(
+            f"Some {entity_type}s have invalid fields. Acceptable fields are: " +
+            ", ".join(ENTITY_BULK_UPDATE_FIELDS_ACCEPTED)
+        )
+
+    uuids = set([e["uuid"] for e in entities])
+    try:
+        fields = {"uuid", "entity_type"}
+        db_entities = app_neo4j_queries.get_entities_by_uuid(neo4j_driver_instance, uuids, fields)
+    except Exception as e:
+        logger.error(f"Error while submitting datasets: {str(e)}")
+        bad_request_error(str(e))
+
+    diff = uuids.difference({e["uuid"] for e in db_entities if e["entity_type"].lower() == entity_type})
+    if len(diff) > 0:
+        bad_request_error(f"No {entity_type} found with the following uuids: {', '.join(diff)}")
+
+    entity_api_url = app.config["ENTITY_API_URL"].rstrip('/')
+    thread_instance =\
+        threading.Thread(target=update_datasets_uploads,
+                         args=(entities, user_token, entity_api_url))
+    thread_instance.start()
+
+    return jsonify(list(uuids)), 202
+
 
 ####################################################################################################
 ## Internal Functions
@@ -4382,9 +4550,9 @@ def validate_user_update_privilege(entity, user_token):
         abort(user_write_groups)
 
     user_group_uuids = [d['uuid'] for d in user_write_groups]
-    if entity['group_uuid'] not in user_group_uuids and is_admin is False:
+    if entity.get('group_uuid') not in user_group_uuids and is_admin is False:
         forbidden_error(f"User does not have write privileges for this entity. "
-                        f"Reach out to the help desk (help@hubmapconsortium.org) to request access to group: {entity['group_uuid']}.")
+                        "Please reach out to the help desk (help@hubmapconsortium.org) to request access.")
 
 
 """
