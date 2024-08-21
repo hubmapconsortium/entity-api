@@ -24,6 +24,7 @@ from hubmap_commons.hm_auth import AuthHelper
 from schema import schema_neo4j_queries
 
 logger = logging.getLogger(__name__)
+organ_types_dict = None
 
 # Suppress InsecureRequestWarning warning when requesting status on https with ssl cert verify disabled
 requests.packages.urllib3.disable_warnings(category = InsecureRequestWarning)
@@ -121,6 +122,8 @@ def initialize(valid_yaml_file,
     _neo4j_driver = neo4j_driver_instance
     _memcached_client = memcached_client_instance
     _memcached_prefix = memcached_prefix
+    global organ_types_dict
+    organ_types_dict = get_organ_types()
 
 
 ####################################################################################################

@@ -228,6 +228,8 @@ except Exception:
             f" _schema_yaml_file={_schema_yaml_file}."
     # Log the full stack trace, prepend a line with our message
     logger.exception(msg)
+organ_types_dict = schema_manager.organ_types_dict
+schema_triggers.set_organ_types_dict()
 
 ####################################################################################################
 ## Initialize an S3Worker from hubmap-commons
@@ -3157,7 +3159,6 @@ def get_prov_info():
     # Token is not required, but if an invalid token is provided,
     # we need to tell the client with a 401 error
     validate_token_if_auth_header_exists(request)
-    organ_types_dict = schema_manager.get_organ_types()
     if user_in_hubmap_read_group(request):
         published_only = False
 
@@ -3448,7 +3449,6 @@ def get_prov_info_for_dataset(id):
     # Token is not required, but if an invalid token provided,
     # we need to tell the client with a 401 error
     validate_token_if_auth_header_exists(request)
-    organ_types_dict = schema_manager.get_organ_types()
     # Use the internal token to query the target entity
     # since public entities don't require user token
     token = get_internal_token()
@@ -3761,10 +3761,6 @@ def sankey_data():
     HEADER_DATASET_DATASET_TYPE = 'dataset_dataset_type'
     HEADER_DATASET_STATUS = 'dataset_status'
 
-    # Parsing the organ types yaml has to be done here rather than calling schema.schema_triggers.get_organ_description
-    # because that would require using a urllib request for each dataset
-    organ_types_dict = schema_manager.get_organ_types()
-
     # As above, we parse te assay type yaml here rather than calling the special method for it because this avoids
     # having to access the resource for every dataset.
     assay_types_dict = schema_manager.get_assay_types()
@@ -3867,8 +3863,6 @@ def get_sample_prov_info():
 
     if user_in_hubmap_read_group(request):
         public_only = False
-
-    organ_types_dict = schema_manager.get_organ_types()
 
     # Processing and validating query parameters
     accepted_arguments = ['group_uuid']

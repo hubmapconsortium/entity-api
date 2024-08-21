@@ -17,6 +17,7 @@ from schema import schema_neo4j_queries
 from schema.schema_constants import SchemaConstants
 
 logger = logging.getLogger(__name__)
+organ_types_dict = None
 
 
 ####################################################################################################
@@ -49,6 +50,10 @@ def set_timestamp(property_key, normalized_type, user_token, existing_data_dict,
     # Will be proessed in app_neo4j_queries._build_properties_map() 
     # and schema_neo4j_queries._build_properties_map()
     return property_key, 'TIMESTAMP()'
+
+def set_organ_types_dict():
+    global organ_types_dict
+    organ_types_dict = schema_manager.organ_types_dict
 
 """
 Trigger event method of setting the entity type of a given entity
@@ -1016,7 +1021,6 @@ def get_dataset_title(property_key, normalized_type, user_token, existing_data_d
         try: 
             # The organ_name is the two-letter code only set for 'organ'
             # Convert the two-letter code to a description
-            organ_types_dict = schema_manager.get_organ_types()
             organ_desc = organ_types_dict[organ_name].lower()
         except (yaml.YAMLError, requests.exceptions.RequestException) as e:
             raise Exception(e)
