@@ -24,7 +24,6 @@ from hubmap_commons.hm_auth import AuthHelper
 from schema import schema_neo4j_queries
 
 logger = logging.getLogger(__name__)
-organ_types_dict = None
 
 # Suppress InsecureRequestWarning warning when requesting status on https with ssl cert verify disabled
 requests.packages.urllib3.disable_warnings(category = InsecureRequestWarning)
@@ -40,6 +39,7 @@ _auth_helper = None
 _neo4j_driver = None
 _memcached_client = None
 _memcached_prefix = None
+_organ_types = None
 
 
 ####################################################################################################
@@ -122,8 +122,6 @@ def initialize(valid_yaml_file,
     _neo4j_driver = neo4j_driver_instance
     _memcached_client = memcached_client_instance
     _memcached_prefix = memcached_prefix
-    global organ_types_dict
-    organ_types_dict = get_organ_types()
 
 
 ####################################################################################################
@@ -2163,29 +2161,34 @@ dict
 """
 def get_organ_types():
     global _ontology_api_url
+    global _organ_types
 
-    target_url = _ontology_api_url + SchemaConstants.ONTOLOGY_API_ORGAN_TYPES_ENDPOINT
+    if _organ_types is None:
+        target_url = _ontology_api_url + SchemaConstants.ONTOLOGY_API_ORGAN_TYPES_ENDPOINT
 
-    # Use Memcached to improve performance
-    response = make_request_get(target_url, internal_token_used = True)
+        # Use Memcached to improve performance
+        response = make_request_get(target_url, internal_token_used = True)
 
-    # Invoke .raise_for_status(), an HTTPError will be raised with certain status codes
-    response.raise_for_status()
+        # Invoke .raise_for_status(), an HTTPError will be raised with certain status codes
+        response.raise_for_status()
 
-    if response.status_code == 200:
-        return response.json()
+        if response.status_code == 200:
+            _organ_types = response.json()
+            return _organ_types
+        else:
+            # Log the full stack trace, prepend a line with our message
+            logger.exception("Unable to make a request to query the organ types via ontology-api")
+
+            logger.debug("======get_organ_types() status code from ontology-api======")
+            logger.debug(response.status_code)
+
+            logger.debug("======get_organ_types() response text from ontology-api======")
+            logger.debug(response.text)
+
+            # Also bubble up the error message from ontology-api
+            raise requests.exceptions.RequestException(response.text)
     else:
-        # Log the full stack trace, prepend a line with our message
-        logger.exception("Unable to make a request to query the organ types via ontology-api")
-
-        logger.debug("======get_organ_types() status code from ontology-api======")
-        logger.debug(response.status_code)
-
-        logger.debug("======get_organ_types() response text from ontology-api======")
-        logger.debug(response.text)
-
-        # Also bubble up the error message from ontology-api
-        raise requests.exceptions.RequestException(response.text)
+        return _organ_types
 
 
 """
