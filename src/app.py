@@ -581,9 +581,9 @@ def _get_entity_visibility(normalized_entity_type, entity_dict):
         'registered_doi' in entity_dict and \
         'doi_url' in entity_dict and \
         'contacts' in entity_dict and \
-        'creators' in entity_dict and \
+        'contributors' in entity_dict and \
         len(entity_dict['contacts']) > 0 and \
-        len(entity_dict['creators']) > 0:
+        len(entity_dict['contributors']) > 0:
             # Get the data_access_level for each Dataset in the Collection from Neo4j
             collection_dataset_statuses = schema_neo4j_queries.get_collection_datasets_statuses(neo4j_driver_instance
                                                                                                 ,entity_dict['uuid'])
