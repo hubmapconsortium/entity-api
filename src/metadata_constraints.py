@@ -1,3 +1,4 @@
+from typing import Dict, List, Optional
 from deepdiff import DeepDiff
 
 def build_constraint(ancestor: dict, descendants: list[dict]) -> dict:
@@ -7,7 +8,7 @@ def build_constraint(ancestor: dict, descendants: list[dict]) -> dict:
     }
 
 
-def build_constraint_unit(entity, sub_type: list = None, sub_type_val: list = None) -> dict:
+def build_constraint_unit(entity, sub_type: Optional[list] = None, sub_type_val: Optional[list] = None) -> dict:
     if type(sub_type) is list:
         sub_type.sort()
 
@@ -49,6 +50,35 @@ def build_sample_organ_constraints(entity, constraints=None):
     descendant = build_constraint_unit(entity, ['Organ'])
     constraints.append(build_constraint(ancestor, [descendant]))
 
+    # This is a workaround to allow an organ to be the ancestor of other entities; otherwise having an organ ancestor at all will throw a 400
+    # TODO: check list of valid descendants for organ
+    # TODO: these should all actually be defined on the descendant funcs but doing so would require building out all constraints
+    ancestor = build_constraint_unit(entity, ['Organ'])
+    descendant_block = build_constraint_unit("sample", ["block"])
+    descendant_suspension_bd = build_constraint_unit("sample", ["suspension"], ["BD"])
+    constraints.append(build_constraint(ancestor, [descendant_block, descendant_suspension_bd]))
+    return constraints
+
+def build_sample_block_constraints(entity, constraints=None):
+    del entity
+    if constraints is None:
+        constraints = []
+
+    return constraints
+
+
+def build_sample_suspension_constraints(entity, constraints=None):
+    del entity
+    if constraints is None:
+        constraints = []
+
+    return constraints
+
+def build_sample_section_constraints(entity, constraints=None):
+    del entity
+    if constraints is None:
+        constraints = []
+
     return constraints
 
 
@@ -64,6 +94,27 @@ def build_sample_constraints(entity) -> list:
     return build_all_sample_constraints(entity)
 
 
+def build_dataset_constraints(entity, constraints=None):
+    del entity
+    if constraints is None:
+        constraints = []
+
+    return constraints
+
+def build_publication_constraints(entity, constraints=None):
+    del entity
+    if constraints is None:
+        constraints = []
+
+    return constraints
+
+def build_upload_constraints(entity, constraints=None):
+    del entity
+    if constraints is None:
+        constraints = []
+
+    return constraints
+
 def enum_val_lower(member):
         return member.value.lower()
 
@@ -78,17 +129,19 @@ def determine_constraint_from_entity(constraint_unit) -> dict:
     if entity_type not in entities:
         error = f"No `entity_type` found with value `{entity_type}`"
     else:
+        _sub_type = f"{sub_type[0].replace(' ', '_')}_" if sub_type is not None else ''
+        func = f"build_{entity_type}_{_sub_type}constraints"
         try:
-            _sub_type = f"{sub_type[0].replace(' ', '_')}_" if sub_type is not None else ''
-            func = f"build_{entity_type}_{_sub_type}constraints"
             constraints = globals()[func.lower()](entity_type)
-        except Exception as e:
+        except KeyError:
+            func = f"build_{entity_type}_constraints"
+            constraints = globals()[func.lower()](entity_type)
+        except Exception:
             if sub_type:
                 sub_type_desc = sub_type[0]
                 error = f"Constraints could not be found with `sub_type`: `{sub_type_desc}`."
             else:
                 error = "Constraints could not be found."
-            func = f"build_{entity_type}_constraints"
     return {
         'constraints': constraints,
         'error': error
@@ -111,7 +164,11 @@ def validate_constraint_units_to_entry_units(entry_units, const_units) -> bool:
 
         match = False
         for const_unit in const_units:
-            if DeepDiff(entry_unit, const_unit, ignore_string_case=True, exclude_types=[type(None)]) == {}:
+            if const_unit.get("sub_type") or const_unit.get("sub_type_val"):
+                exclude_types = None
+            else:
+                exclude_types = [type(None)]
+            if DeepDiff(entry_unit, const_unit, ignore_string_case=True, exclude_types=exclude_types) == {}:
                 match = True
                 break
 
@@ -156,23 +213,28 @@ def validate_exclusions(entry, constraint, key) -> bool:
 def get_constraints(entry, key1, key2, is_match=False) -> dict:
     entry_key1 = get_constraint_unit(entry.get(key1))
     msg = f"Missing `{key1}` in request. Use orders=ancestors|descendants request param to specify. Default: ancestors"
-    result = {'code': 400, 'name': "Bad Request"} if is_match else {'code': 200, 'name': 'OK', 'description': 'Nothing to validate.'}
+    result = {'code': 400, 'name': "Bad Request"} if is_match else None
 
-    if entry_key1 is not None:
+    if entry_key1 is None:
+        result = {'code': 200, 'name': 'OK', 'description': 'Nothing to validate.'}
+    else:
         report = determine_constraint_from_entity(entry_key1)
-        constraints = report.get('constraints')
+        constraints = report.get('constraints', [])
         if report.get('error') is not None and not constraints:
             result = {'code': 400, 'name': "Bad Request", 'description': report.get('error')}
+        elif report.get('error') is None and not constraints:
+            result = {'code': 200, 'name': "No Constraints", 'description': f"No constraints exist for given {key1}: {entry_key1}"}
+        else:
+            for constraint in constraints:
+                const_key1 = get_constraint_unit(constraint.get(key1))
 
-        for constraint in constraints:
-            const_key1 = get_constraint_unit(constraint.get(key1))
-
-            if DeepDiff(entry_key1, const_key1, ignore_string_case=True, exclude_types=[type(None)]) == {}: # or validate_exclusions(entry_key1, const_key1, 'sub_type_val'):
+                if not DeepDiff(entry_key1, const_key1, ignore_string_case=True, exclude_types=[type(None)]) == {}: # or validate_exclusions(entry_key1, const_key1, 'sub_type_val'):
+                    continue
                 const_key2 = constraint.get(key2)
 
                 if is_match:
                     entry_key2 = entry.get(key2)
-                    v = validate_constraint_units_to_entry_units(entry_key2, const_key2) 
+                    v = validate_constraint_units_to_entry_units(entry_key2, const_key2)
                     if entry_key2 is not None and v:
                         result = {'code': 200, 'name': 'OK', 'description': const_key2}
                     else:
@@ -189,7 +251,6 @@ def get_constraints(entry, key1, key2, is_match=False) -> dict:
                     result = {'code': 200, 'name': 'OK', 'description': const_key2}
                 break
 
-            else:
-                result = {'code' :404, 'name': f"No matching constraints on given '{key1}"}
-
+    if not result:
+        result = {'code' :404, 'name': f"No matching constraints on given '{key1}"}
     return result
