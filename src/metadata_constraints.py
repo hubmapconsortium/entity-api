@@ -195,6 +195,10 @@ def get_constraint_unit_as_list(entry):
 # Validates based on exclusions. Example constraint:
 # build_constraint_unit(entity, [SpecimenCategory.BLOCK], ['!', Organs.BLOOD])
 def validate_exclusions(entry, constraint, key) -> bool:
+    if type(entry) is list:
+        entry = entry[0]
+    if type(constraint) is list:
+        constraint = constraint[0]
     if key == "entity_type":
         entry_key = [entry.get(key)]
     else:
@@ -240,7 +244,7 @@ def get_constraints(entry, key1, key2, is_match=False) -> dict:
                         result = {'code': 200, 'name': 'OK', 'description': const_key2}
                     else:
                         # This weeds out organ:dataset but allows all other organ-as-ancestor pairs
-                        included = validate_exclusions(entry_key2[0], const_key2[0], "entity_type")
+                        included = validate_exclusions(entry_key2, const_key2, "entity_type")
                         if included:
                             result = {'code': 200, 'name': "No Constraints", 'description': f"Exclusion constraint not triggered for given {key2} check. Entry: {entry_key2} / Excluded types: {const_key2}"}
                         else:
