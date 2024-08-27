@@ -1,4 +1,4 @@
-from typing import Dict, List, Optional
+from typing import Optional
 from deepdiff import DeepDiff
 
 def build_constraint(ancestor: dict, descendants: list[dict]) -> dict:
@@ -51,12 +51,10 @@ def build_sample_organ_constraints(entity, constraints=None):
     constraints.append(build_constraint(ancestor, [descendant]))
 
     # This is a workaround to allow an organ to be the ancestor of other entities; otherwise having an organ ancestor at all will throw a 400
-    # TODO: check list of valid descendants for organ
     # TODO: these should all actually be defined on the descendant funcs but doing so would require building out all constraints
     ancestor = build_constraint_unit(entity, ['Organ'])
-    descendant_block = build_constraint_unit("sample", ["block"])
-    descendant_suspension_bd = build_constraint_unit("sample", ["suspension"], ["BD"])
-    constraints.append(build_constraint(ancestor, [descendant_block, descendant_suspension_bd]))
+    descendant_dataset = build_constraint_unit(["!", "dataset"])
+    constraints.append(build_constraint(ancestor, [descendant_dataset]))
     return constraints
 
 def build_sample_block_constraints(entity, constraints=None):
@@ -197,7 +195,10 @@ def get_constraint_unit_as_list(entry):
 # Validates based on exclusions. Example constraint:
 # build_constraint_unit(entity, [SpecimenCategory.BLOCK], ['!', Organs.BLOOD])
 def validate_exclusions(entry, constraint, key) -> bool:
-    entry_key = get_constraint_unit_as_list(entry.get(key))
+    if key == "entity_type":
+        entry_key = [entry.get(key)]
+    else:
+        entry_key = get_constraint_unit_as_list(entry.get(key))
     const_key = get_constraint_unit_as_list(constraint.get(key))
 
     if len(const_key) > 0 and const_key[0] == "!":
@@ -238,15 +239,20 @@ def get_constraints(entry, key1, key2, is_match=False) -> dict:
                     if entry_key2 is not None and v:
                         result = {'code': 200, 'name': 'OK', 'description': const_key2}
                     else:
-                        entity_type = entry_key1.get('entity_type')
-                        entity_type = entity_type.title() if entity_type is not None else entity_type
-                        sub_type = entry_key1.get('sub_type')
-                        sub_type = ', '.join(sub_type) if sub_type is not None else ''
-                        msg = (
-                            f"This `{entity_type}` `{sub_type}` cannot be associated with the provided `{key1}` due to entity constraints. "
-                            f"Click the link to view valid entity types that can be `{key2}`"
-                        )
-                        result = {'code' :404, 'name': msg, 'description': const_key2}
+                        # This weeds out organ:dataset but allows all other organ-as-ancestor pairs
+                        included = validate_exclusions(entry_key2[0], const_key2[0], "entity_type")
+                        if included:
+                            result = {'code': 200, 'name': "No Constraints", 'description': f"Exclusion constraint not triggered for given {key2} check. Entry: {entry_key2} / Excluded types: {const_key2}"}
+                        else:
+                            entity_type = entry_key1.get('entity_type')
+                            entity_type = entity_type.title() if entity_type is not None else entity_type
+                            sub_type = entry_key1.get('sub_type')
+                            sub_type = ', '.join(sub_type) if sub_type is not None else ''
+                            msg = (
+                                f"This `{entity_type}` `{sub_type}` cannot be associated with the provided `{key1}` due to entity constraints. "
+                                f"Click the link to view valid entity types that can be `{key2}`"
+                            )
+                            result = {'code' :404, 'name': msg, 'description': const_key2}
                 else:
                     result = {'code': 200, 'name': 'OK', 'description': const_key2}
                 break
