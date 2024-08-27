@@ -3342,7 +3342,7 @@ def get_prov_info():
                 distinct_organ_uuid_list.append(item['uuid'])
 
                 organ_code = item['organ'].upper()
-                validate_organ_code(organ_code, organ_types_dict)
+                validate_organ_code(organ_code)
 
                 distinct_organ_type_list.append(organ_types_dict[organ_code].lower())
             internal_dict[HEADER_ORGAN_HUBMAP_ID] = distinct_organ_hubmap_id_list
@@ -3662,7 +3662,7 @@ def get_prov_info_for_dataset(id):
             distinct_organ_uuid_list.append(item['uuid'])
 
             organ_code = item['organ'].upper()
-            validate_organ_code(organ_code, organ_types_dict )
+            validate_organ_code(organ_code)
 
             distinct_organ_type_list.append(organ_types_dict[organ_code].lower())
         internal_dict[HEADER_ORGAN_HUBMAP_ID] = distinct_organ_hubmap_id_list
@@ -3858,7 +3858,7 @@ def sankey_data():
             internal_dict[HEADER_DATASET_GROUP_NAME] = dataset[HEADER_DATASET_GROUP_NAME]
 
             organ_code = dataset[HEADER_ORGAN_TYPE].upper()
-            validate_organ_code(organ_code, organ_types_dict)
+            validate_organ_code(organ_code)
 
             internal_dict[HEADER_ORGAN_TYPE] = organ_types_dict[organ_code].lower()
 
@@ -5554,9 +5554,8 @@ Parameters
 ----------
 organ_code : str
 """
-def validate_organ_code(organ_code, organ_types_dict=None):
-    if organ_types_dict is None:
-        organ_types_dict = schema_manager.get_organ_types()
+def validate_organ_code(organ_code):
+    organ_types_dict = schema_manager.get_organ_types()
     if not organ_code.isalpha() or not len(organ_code) == 2:
         internal_server_error(f"Invalid organ code {organ_code}. Must be 2-letter alphabetic code")
 
