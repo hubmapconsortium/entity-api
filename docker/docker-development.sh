@@ -106,13 +106,13 @@ else
         cp ../VERSION entity-api
         cp ../BUILD entity-api
 
-        docker-compose -f docker-compose.yml -f docker-compose.development.yml -p entity-api build
+	docker compose -f docker-compose.yml -f docker-compose.development.yml -p entity-api build
     elif [ "$1" = "start" ]; then
-        docker-compose -f docker-compose.yml -f docker-compose.development.yml -p entity-api up -d
+	docker compose -f docker-compose.yml -f docker-compose.development.yml -p entity-api up -d
     elif [ "$1" = "stop" ]; then
-        docker-compose -f docker-compose.yml -f docker-compose.development.yml -p entity-api stop
+        docker compose -f docker-compose.yml -f docker-compose.development.yml -p entity-api stop
     elif [ "$1" = "down" ]; then
-        docker-compose -f docker-compose.yml -f docker-compose.development.yml -p entity-api down
+        docker compose -f docker-compose.yml -f docker-compose.development.yml -p entity-api down
     fi
 fi
 
