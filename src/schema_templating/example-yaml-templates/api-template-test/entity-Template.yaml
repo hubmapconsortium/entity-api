@@ -855,7 +855,7 @@ x-ref-components:
           type: string
           readOnly: true
           description: "The url from the doi registry for this entity. e.g. https://doi.org/10.35079/hbm289.pcbm.487"
-        creators:
+        contributors:
           type: array
           items:
             $ref: '#/components/schemas/Person'

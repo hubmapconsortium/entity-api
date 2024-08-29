@@ -157,9 +157,9 @@ def halt_DOI_if_collection_missing_elements(property_key, normalized_entity_type
     if 'contacts' not in existing_data_dict:
         raise ValueError(f"Unable to modify existing {existing_data_dict['entity_type']}"
                          f" {existing_data_dict['uuid']} for DOI because it has no contacts.")
-    if 'creators' not in existing_data_dict:
+    if 'contributors' not in existing_data_dict:
         raise ValueError(f"Unable to modify existing {existing_data_dict['entity_type']}"
-                         f" {existing_data_dict['uuid']} for DOI because it has no creators.")
+                         f" {existing_data_dict['uuid']} for DOI because it has no contributors.")
     # Count up other validations to check 'datasets', since a transient property
 
 """

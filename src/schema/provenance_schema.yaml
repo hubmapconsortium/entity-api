@@ -240,8 +240,8 @@ ENTITIES:
           - halt_update_if_DOI_exists
           - halt_DOI_if_collection_missing_elements
           - halt_if_DOI_for_unpublished_dataset
-      # Creators and contacts are required for a Collection to be public
-      creators:
+      # Contributors and contacts are required for a Collection to be public
+      contributors:
         type: list
         indexed: true
         description: "See description in doi_properties section above"
