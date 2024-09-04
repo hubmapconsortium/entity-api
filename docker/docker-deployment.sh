@@ -56,11 +56,11 @@ else
     echo
 
     if [ "$1" = "start" ]; then
-        docker-compose -f docker-compose.yml -f docker-compose.deployment.yml -p entity-api up -d
+        docker compose -f docker-compose.yml -f docker-compose.deployment.yml -p entity-api up -d
     elif [ "$1" = "stop" ]; then
-        docker-compose -f docker-compose.yml -f docker-compose.deployment.yml -p entity-api stop
+        docker compose -f docker-compose.yml -f docker-compose.deployment.yml -p entity-api stop
     elif [ "$1" = "down" ]; then
-        docker-compose -f docker-compose.yml -f docker-compose.deployment.yml -p entity-api down
+        docker compose -f docker-compose.yml -f docker-compose.deployment.yml -p entity-api down
     fi
 fi
 
