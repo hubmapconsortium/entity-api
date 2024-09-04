@@ -159,37 +159,44 @@ def get_constraints(entry, key1, key2, is_match=False) -> dict:
     result = {'code': 400, 'name': "Bad Request"} if is_match else {'code': 200, 'name': 'OK', 'description': 'Nothing to validate.'}
 
     if entry_key1 is not None:
-        report = determine_constraint_from_entity(entry_key1)
-        constraints = report.get('constraints')
-        if report.get('error') is not None and not constraints:
-            result = {'code': 400, 'name': "Bad Request", 'description': report.get('error')}
+        """
+        We only are interested in validating the constraints of donors to verify that their descendants are Organ samples. 
+        For any other entity type, we are passing automatically with the message "Nothing to valiate". For donors, validation
+        Occurs as normal, with the constraint requiring a descendant that is an organ. 
+        """
+        if entry_key1['entity_type'].lower() == 'donor':
+            report = determine_constraint_from_entity(entry_key1)
+            constraints = report.get('constraints')
+            if report.get('error') is not None and not constraints:
+                result = {'code': 400, 'name': "Bad Request", 'description': report.get('error')}
 
-        for constraint in constraints:
-            const_key1 = get_constraint_unit(constraint.get(key1))
+            for constraint in constraints:
+                const_key1 = get_constraint_unit(constraint.get(key1))
 
-            if DeepDiff(entry_key1, const_key1, ignore_string_case=True, exclude_types=[type(None)]) == {}: # or validate_exclusions(entry_key1, const_key1, 'sub_type_val'):
-                const_key2 = constraint.get(key2)
+                if DeepDiff(entry_key1, const_key1, ignore_string_case=True, exclude_types=[type(None)]) == {}: # or validate_exclusions(entry_key1, const_key1, 'sub_type_val'):
+                    const_key2 = constraint.get(key2)
 
-                if is_match:
-                    entry_key2 = entry.get(key2)
-                    v = validate_constraint_units_to_entry_units(entry_key2, const_key2) 
-                    if entry_key2 is not None and v:
-                        result = {'code': 200, 'name': 'OK', 'description': const_key2}
+                    if is_match:
+                        entry_key2 = entry.get(key2)
+                        v = validate_constraint_units_to_entry_units(entry_key2, const_key2) 
+                        if entry_key2 is not None and v:
+                            result = {'code': 200, 'name': 'OK', 'description': const_key2}
+                        else:
+                            entity_type = entry_key1.get('entity_type')
+                            entity_type = entity_type.title() if entity_type is not None else entity_type
+                            sub_type = entry_key1.get('sub_type')
+                            sub_type = ', '.join(sub_type) if sub_type is not None else ''
+                            msg = (
+                                f"This `{entity_type}` `{sub_type}` cannot be associated with the provided `{key1}` due to entity constraints. "
+                                f"Click the link to view valid entity types that can be `{key2}`"
+                            )
+                            result = {'code' :404, 'name': msg, 'description': const_key2}
                     else:
-                        entity_type = entry_key1.get('entity_type')
-                        entity_type = entity_type.title() if entity_type is not None else entity_type
-                        sub_type = entry_key1.get('sub_type')
-                        sub_type = ', '.join(sub_type) if sub_type is not None else ''
-                        msg = (
-                            f"This `{entity_type}` `{sub_type}` cannot be associated with the provided `{key1}` due to entity constraints. "
-                            f"Click the link to view valid entity types that can be `{key2}`"
-                        )
-                        result = {'code' :404, 'name': msg, 'description': const_key2}
+                        result = {'code': 200, 'name': 'OK', 'description': const_key2}
+                    break
+
                 else:
-                    result = {'code': 200, 'name': 'OK', 'description': const_key2}
-                break
-
-            else:
-                result = {'code' :404, 'name': f"No matching constraints on given '{key1}"}
-
+                    result = {'code' :404, 'name': f"No matching constraints on given '{key1}"}
+        else:
+            result = {'code': 200, 'name': 'OK', 'description': 'Nothing to validate.'}
     return result
