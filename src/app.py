@@ -2316,9 +2316,8 @@ def validate_constraints():
     if not request.is_json:
         bad_request_error("A json body and appropriate Content-Type header are required")
     json_entry = request.get_json()
-    is_valid = constraints_json_is_valid(json_entry)
-    if is_valid is not True:
-        bad_request_error(is_valid)
+    if not isinstance(json_entry, list):
+        return "JSON body expects a list."
     is_match = request.values.get('match')
     order = request.values.get('order')
 
@@ -2329,9 +2328,7 @@ def validate_constraints():
         'name': "ok"
     }
 
-    index = 0
     for constraint in json_entry:
-        index += 1
         if order == 'descendants':
             result = get_constraints(constraint, 'descendants', 'ancestors', is_match)
         else:
@@ -4597,35 +4594,6 @@ err_msg : str
 """
 def internal_server_error(err_msg):
     abort(500, description = err_msg)
-
-
-"""
-Validates the incoming json for the endpoint /constraints. 
-Returns true if the json matches the required format. If 
-invalid, returns a string explaining why.
-"""
-def constraints_json_is_valid(json_entry):
-    if not isinstance(json_entry, list):
-        return "JSON body expects a list."
-    
-    for constraint in json_entry:
-        if not isinstance(constraint, dict):
-            return "Each constraint in the list must be a JSON object."
-
-        for key in constraint:
-            if key not in ["ancestors", "descendants"]:
-                return f"Invalid key '{key}'. Allowed keys are 'ancestors' and 'descendants'."
-            
-            value = constraint[key]
-            if isinstance(value, dict):
-                continue
-            elif isinstance(value, list):
-                for item in value:
-                    if not isinstance(item, dict):
-                        return f"The value for '{key}' must be represented as a JSON object or as a list of objects"
-            else:
-                return f"The value for '{key}' must be a JSON object or a list of JSON objects."
-    return True
 
 
 """
