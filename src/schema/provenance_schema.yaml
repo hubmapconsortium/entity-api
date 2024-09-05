@@ -131,8 +131,7 @@ doi_properties: &doi_properties
     before_property_update_validators:
      - verify_DOI_pair
      - halt_update_if_DOI_exists
-  # Currently creators and contacts are only available for public Collections
-  creators:
+  contributors:
     type: list
     indexed: true
     description: "A list of the people who created the entity with full name, email, ORCID iD, institution, etc.. This is analogous to the author list on a publication."
@@ -140,14 +139,6 @@ doi_properties: &doi_properties
     type: list
     indexed: true
     description: "A list of the people who are the main contacts to get information about the entity."
-  # To-DO
-  # creator_ids:
-  #   type: list
-  #   immutable: true
-  #   description: "A list of ids (will need to decide on uuid or orcid id) referencing the people who created the entity"
-  # contact_ids:
-  #   type: list
-  #   description: "A list of ids (will need to decide on uuid or orcid id) referencing the people who are the main contacts about this entity"
 
 shared_entity_properties: &shared_entity_properties 
   ###### Last Modified Properties #######
@@ -210,9 +201,7 @@ ENTITIES:
       <<: *shared_properties
       <<: *shared_entity_properties
       # Because Collection-specific validation is needed for some
-      # DOI fields, all validations from
-      # <<: *doi_properties
-      # are merged into this section
+      # DOI fields, we don't use the shared <<: *doi_properties here
       ###### DOI properties with entity-specific validations + copies of validations in doi_properties ######
       registered_doi:
         type: string
@@ -416,10 +405,6 @@ ENTITIES:
         description: "The Upload that this dataset is associated with. Will be returned in response"
         on_read_trigger: get_dataset_upload
         # No on_index_trigger to include upload in the OpenSearch document for a Dataset
-      contributors:
-        type: list
-        indexed: true
-        description: "A list of people who contributed to the creation of this dataset.  Returned as an array of contributor where the structure of a contributor is"
       direct_ancestor_uuids:
         required_on_create: true # Only required for create via POST, not update via PUT
         type: list
