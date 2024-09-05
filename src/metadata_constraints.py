@@ -1,8 +1,4 @@
 from deepdiff import DeepDiff
-from flask import abort
-
-def bad_request_error(err_msg):
-    abort(400, description = err_msg)
 
 def build_constraint(ancestor: dict, descendants: list[dict]) -> dict:
     return {
@@ -162,30 +158,32 @@ Validates the incoming json for the endpoint /constraints.
 Returns true if the json matches the required format. If 
 invalid, returns a string explaining why.
 """
-def constraints_json_is_valid(entry):
-    if not isinstance(entry, dict):
-        return "Each constraint in the list must be a JSON object."
+def constraints_json_is_valid(json_entry):
+    if not isinstance(json_entry, list):
+        return "JSON body expects a list."
+    
+    for constraint in json_entry:
+        if not isinstance(constraint, dict):
+            return "Each constraint in the list must be a JSON object."
 
-    for key in entry:
-        if key not in ["ancestors", "descendants"]:
-            return f"Invalid key '{key}'. Allowed keys are 'ancestors' and 'descendants'."
-        
-        value = entry[key]
-        if isinstance(value, dict):
-            continue
-        elif isinstance(value, list):
-            for item in value:
-                if not isinstance(item, dict):
-                    return f"The value for '{key}' must be represented as a JSON object or as a list of objects"
-        else:
-            return f"The value for '{key}' must be a JSON object or a list of JSON objects."
+        for key in constraint:
+            if key not in ["ancestors", "descendants"]:
+                return f"Invalid key '{key}'. Allowed keys are 'ancestors' and 'descendants'."
+            
+            value = constraint[key]
+            if isinstance(value, dict):
+                continue
+            elif isinstance(value, list):
+                for item in value:
+                    if not isinstance(item, dict):
+                        return f"The value for '{key}' must be represented as a JSON object or as a list of objects"
+            else:
+                return f"The value for '{key}' must be a JSON object or a list of JSON objects."
     return True
 
 
+
 def get_constraints(entry, key1, key2, is_match=False) -> dict:
-    is_valid = constraints_json_is_valid(entry)
-    if is_valid is not True:
-        bad_request_error(is_valid)
     entry_key1 = get_constraint_unit(entry.get(key1))
     msg = f"Missing `{key1}` in request. Use orders=ancestors|descendants request param to specify. Default: ancestors"
     result = {'code': 400, 'name': "Bad Request"} if is_match else {'code': 200, 'name': 'OK', 'description': 'Nothing to validate.'}
@@ -196,7 +194,7 @@ def get_constraints(entry, key1, key2, is_match=False) -> dict:
         For any other entity type, we are passing automatically with the message "Nothing to valiate". For donors, validation
         Occurs as normal, with the constraint requiring a descendant that is an organ. 
         """
-        if entry_key1['entity_type'].lower() == 'donor':
+        if entry_key1.get('entity_type') and entry_key1.get('entity_type').lower() == 'donor':
             report = determine_constraint_from_entity(entry_key1)
             constraints = report.get('constraints')
             if report.get('error') is not None and not constraints:

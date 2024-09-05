@@ -35,7 +35,7 @@ from schema.schema_constants import SchemaConstants
 from schema.schema_constants import DataVisibilityEnum
 from schema.schema_constants import MetadataScopeEnum
 from schema.schema_constants import TriggerTypeEnum
-from metadata_constraints import get_constraints
+from metadata_constraints import get_constraints, constraints_json_is_valid
 # from lib.ontology import initialize_ubkg, init_ontology, Ontology, UbkgSDK
 
 
@@ -2316,8 +2316,9 @@ def validate_constraints():
     if not request.is_json:
         bad_request_error("A json body and appropriate Content-Type header are required")
     json_entry = request.get_json()
-    if not isinstance(json_entry, list):
-        return "JSON body expects a list."
+    is_valid = constraints_json_is_valid(json_entry)
+    if is_valid is not True:
+        bad_request_error(is_valid)
     is_match = request.values.get('match')
     order = request.values.get('order')
 
