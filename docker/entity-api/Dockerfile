@@ -1,5 +1,5 @@
 # Parent image
-FROM hubmap/api-base-image:1.0.0
+FROM hubmap/api-base-image:1.1.0
 
 LABEL description="HuBMAP Entity API Service"
 
