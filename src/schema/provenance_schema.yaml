@@ -458,6 +458,7 @@ ENTITIES:
         type: string
         indexed: false
       ingest_metadata:
+        on_read_trigger: remove_ingest_metadata_lab_id
         type: json_string # dict
         indexed: true
         description: "The metadata returned from the processing at data submission time."
