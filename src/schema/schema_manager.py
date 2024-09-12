@@ -1,3 +1,4 @@
+import sys
 import ast
 import yaml
 import logging
@@ -257,6 +258,27 @@ def entity_instanceof(entity_uuid: str, entity_class: str) -> bool:
     entity_type: str =\
         schema_neo4j_queries.get_entity_type(get_neo4j_driver_instance(), entity_uuid.strip())
     return entity_type_instanceof(entity_type, entity_class)
+
+
+def get_fields_to_exclude(normalized_class=None):
+    # Determine the schema section based on class
+    excluded_fields = []
+    if normalized_class == 'Activity':
+        schema_section = _schema['ACTIVITIES']
+    else:
+        schema_section = _schema['ENTITIES']
+    exclude_list = schema_section[normalized_class].get('excluded_properties_from_public_response')
+    if exclude_list:
+        excluded_fields.extend(exclude_list)
+    return excluded_fields
+
+
+def exclude_properties_from_response(excluded_fields, json_body):
+    output_json = json_body.copy()
+    for field in excluded_fields:
+        if output_json.get(field):
+            del output_json[field]
+    return output_json    
 
 
 """

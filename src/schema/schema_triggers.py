@@ -9,7 +9,7 @@ from datetime import datetime
 from neo4j.exceptions import TransactionError
 
 # Use the current_app proxy, which points to the application handling the current activity
-from flask import current_app as app
+from flask import current_app as app, Response
 
 # Local modules
 from schema import schema_manager
@@ -1315,11 +1315,15 @@ def commit_thumbnail_file(property_key, normalized_type, user_token, existing_da
 
 def remove_ingest_metadata_lab_id(property_key, normalized_type, user_token, existing_data_dict, new_data_dict):
     DATASET_STATUS_PUBLISHED = SchemaConstants.DATASET_STATUS_PUBLISHED
-    is_public = existing_data_dict['status'].lower() == DATASET_STATUS_PUBLISHED
+    is_non_public = existing_data_dict['status'].lower() != DATASET_STATUS_PUBLISHED
     if isinstance(user_token, Response):
-        is_authorized = False
+        sys.exit(0)
+        is_unauthorized = True
     else:
-        is_authorized = user_in_hubmap_read_group(request) 
+        if user_in_hubmap_read_group(request):
+            is_unauthorized = True
+    ingest_metadata = existing_data_dict['ingest_metadata']
+    #if is_non_public or is_unauthorized:
     return property_key,
 
 
