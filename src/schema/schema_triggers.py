@@ -8,7 +8,7 @@ from datetime import datetime
 from neo4j.exceptions import TransactionError
 
 # Use the current_app proxy, which points to the application handling the current activity
-from flask import current_app as app, Response
+from flask import current_app as app
 
 # Local modules
 from schema import schema_manager
