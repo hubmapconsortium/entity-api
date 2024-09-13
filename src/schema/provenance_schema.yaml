@@ -302,6 +302,9 @@ ENTITIES:
     # Dataset can be either derivation source or target
     excluded_properties_from_public_response:
       - lab_dataset_id
+      - ingest_metadata:
+          metadata:
+            - lab_id
     derivation:
       source: true
       target: true
@@ -460,7 +463,6 @@ ENTITIES:
         type: string
         indexed: false
       ingest_metadata:
-        #on_read_trigger: remove_ingest_metadata_lab_id
         type: json_string # dict
         indexed: true
         description: "The metadata returned from the processing at data submission time."

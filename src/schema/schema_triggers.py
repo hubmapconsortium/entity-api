@@ -4,7 +4,6 @@ import json
 import yaml
 import logging
 import requests
-import sys
 from datetime import datetime
 from neo4j.exceptions import TransactionError
 
@@ -1312,19 +1311,6 @@ def commit_thumbnail_file(property_key, normalized_type, user_token, existing_da
         # No need to log
         raise
 
-
-def remove_ingest_metadata_lab_id(property_key, normalized_type, user_token, existing_data_dict, new_data_dict):
-    DATASET_STATUS_PUBLISHED = SchemaConstants.DATASET_STATUS_PUBLISHED
-    is_non_public = existing_data_dict['status'].lower() != DATASET_STATUS_PUBLISHED
-    if isinstance(user_token, Response):
-        sys.exit(0)
-        is_unauthorized = True
-    else:
-        if user_in_hubmap_read_group(request):
-            is_unauthorized = True
-    ingest_metadata = existing_data_dict['ingest_metadata']
-    #if is_non_public or is_unauthorized:
-    return property_key,
 
 
 """

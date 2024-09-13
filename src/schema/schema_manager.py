@@ -1,4 +1,3 @@
-import sys
 import ast
 import yaml
 import logging
@@ -275,10 +274,26 @@ def get_fields_to_exclude(normalized_class=None):
 
 def exclude_properties_from_response(excluded_fields, json_body):
     output_json = json_body.copy()
+
+    def delete_nested_field(data, nested_path):
+        if isinstance(nested_path, dict):
+            for key, value in nested_path.items():
+                if key in data:
+                    if isinstance(value, list):
+                        for nested_field in value:
+                            if isinstance(nested_field, dict):
+                                delete_nested_field(data[key], nested_field)
+                            elif nested_field in data[key]:
+                                del data[key][nested_field]
+                    elif isinstance(value, dict):
+                        delete_nested_field(data[key], value)
+        elif nested_path in data:
+            del data[nested_path]
+
     for field in excluded_fields:
-        if output_json.get(field):
-            del output_json[field]
-    return output_json    
+        delete_nested_field(output_json, field)
+    
+    return output_json
 
 
 """
