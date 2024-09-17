@@ -498,7 +498,7 @@ def get_ancestor_organs(id):
 
     # Final result after normalization
     final_result = schema_manager.normalize_entities_list_for_response(complete_entities_list)
-    if public_entity and user_in_hubmap_read_group(request) is False:
+    if public_entity and not user_in_hubmap_read_group(request):
         filtered_organs_list = []
         for organ in final_result:
             filtered_organs_list.append(schema_manager.exclude_properties_from_response(excluded_fields, organ))
@@ -1519,7 +1519,7 @@ def get_ancestors(id):
         for ancestor in final_result:
             ancestor_entity_type = ancestor.get('entity_type')
             fields_to_exclude = schema_manager.get_fields_to_exclude(ancestor_entity_type)
-            if public_entity and user_in_hubmap_read_group(request) is False:
+            if public_entity and not user_in_hubmap_read_group(request):
                 filtered_ancestor = schema_manager.exclude_properties_from_response(fields_to_exclude, ancestor)
                 filtered_final_result.append(filtered_ancestor)
             else:
@@ -1706,7 +1706,7 @@ def get_parents(id):
         for parent in final_result:
             parent_entity_type = parent.get('entity_type')
             fields_to_exclude = schema_manager.get_fields_to_exclude(parent_entity_type)
-            if public_entity and user_in_hubmap_read_group(request) is False:
+            if public_entity and not user_in_hubmap_read_group(request):
                 filtered_parent = schema_manager.exclude_properties_from_response(fields_to_exclude, parent)
                 filtered_final_result.append(filtered_parent)
             else:
@@ -1906,7 +1906,7 @@ def get_siblings(id):
     for sibling in final_result:
         sibling_entity_type = sibling.get('entity_type')
         fields_to_exclude = schema_manager.get_fields_to_exclude(sibling_entity_type)
-        if public_entity and user_in_hubmap_read_group(request) is False:
+        if public_entity and not user_in_hubmap_read_group(request):
             filtered_sibling = schema_manager.exclude_properties_from_response(fields_to_exclude, sibling)
             filtered_final_result.append(filtered_sibling)
         else:
@@ -2021,7 +2021,7 @@ def get_tuplets(id):
     for tuplet in final_result:
         tuple_entity_type = tuplet.get('entity_type')
         fields_to_exclude = schema_manager.get_fields_to_exclude(tuple_entity_type)
-        if public_entity and user_in_hubmap_read_group(request) is False:
+        if public_entity and not user_in_hubmap_read_group(request):
             filtered_tuplet = schema_manager.exclude_properties_from_response(fields_to_exclude, tuplet)
             filtered_final_result.append(filtered_tuplet)
         else:
@@ -2251,7 +2251,7 @@ def get_collections(id):
         for collection in final_result:
             collection_entity_type = collection.get('entity_type')
             fields_to_exclude = schema_manager.get_fields_to_exclude(collection_entity_type)
-            if public_entity and user_in_hubmap_read_group(request) is False:
+            if public_entity and not user_in_hubmap_read_group(request):
                 filtered_collection = schema_manager.exclude_properties_from_response(fields_to_exclude, collection)
                 datasets = filtered_collection.get('datasets')
                 filtered_datasets = []
@@ -3103,7 +3103,7 @@ def get_associated_organs_from_dataset(id):
 
     # Final result after normalization
     final_result = schema_manager.normalize_entities_list_for_response(complete_entities_list)
-    if public_entity and user_in_hubmap_read_group(request) is False:
+    if public_entity and not user_in_hubmap_read_group(request):
         filtered_organs_list = []
         for organ in final_result:
             filtered_organs_list.append(schema_manager.exclude_properties_from_response(excluded_fields, organ))
@@ -3162,7 +3162,7 @@ def get_associated_samples_from_dataset(id):
 
     # Final result after normalization
     final_result = schema_manager.normalize_entities_list_for_response(complete_entities_list)
-    if public_entity and user_in_hubmap_read_group(request) is False:
+    if public_entity and not user_in_hubmap_read_group(request):
         filtered_sample_list = []
         for sample in final_result:
             filtered_sample_list.append(schema_manager.exclude_properties_from_response(excluded_fields, sample))
@@ -3221,7 +3221,7 @@ def get_associated_donors_from_dataset(id):
 
     # Final result after normalization
     final_result = schema_manager.normalize_entities_list_for_response(complete_entities_list)
-    if public_entity and user_in_hubmap_read_group(request) is False:
+    if public_entity and not user_in_hubmap_read_group(request):
         filtered_donor_list = []
         for donor in final_result:
             filtered_donor_list.append(schema_manager.exclude_properties_from_response(excluded_fields, donor))
