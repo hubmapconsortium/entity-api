@@ -259,6 +259,20 @@ def entity_instanceof(entity_uuid: str, entity_class: str) -> bool:
     return entity_type_instanceof(entity_type, entity_class)
 
 
+"""
+Retrieves fields designated in the provenance schema yaml under 
+excluded_properties_from_public_response and returns the fields in a list
+
+Parameters
+----------
+normalized_class : str
+    the normalized entity type of the entity who's fields are to be removed
+
+Returns
+-------
+excluded_fields
+    A list of strings where each entry is a field to be excluded
+"""
 def get_fields_to_exclude(normalized_class=None):
     # Determine the schema section based on class
     excluded_fields = []
@@ -269,6 +283,21 @@ def get_fields_to_exclude(normalized_class=None):
     return excluded_fields
 
 
+"""
+Removes specified fields from an existing dictionary
+
+Parameters
+----------
+excluded_fields : list
+    A list of the fields to be excluded
+output_dict : dictionary
+    A dictionary representing the data to be modified
+
+Returns
+-------
+dict
+    The modified data with removed fields
+"""
 def exclude_properties_from_response(excluded_fields, output_dict):
     def delete_nested_field(data, nested_path):
         if isinstance(nested_path, dict):
