@@ -5749,7 +5749,8 @@ def _get_metadata_by_id(entity_id:str=None, metadata_scope:MetadataScopeEnum=Met
     else:
         # Response with the dict
         if public_entity and has_access is False:
-            final_result = schema_manager.exclude_properties_from_response(excluded_fields, final_result)
+            modified_final_result = schema_manager.exclude_properties_from_response(excluded_fields, final_result)
+            return modified_final_result
         return final_result
 
 ####################################################################################################

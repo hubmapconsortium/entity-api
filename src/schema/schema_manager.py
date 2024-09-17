@@ -262,19 +262,14 @@ def entity_instanceof(entity_uuid: str, entity_class: str) -> bool:
 def get_fields_to_exclude(normalized_class=None):
     # Determine the schema section based on class
     excluded_fields = []
-    if normalized_class == 'Activity':
-        schema_section = _schema['ACTIVITIES']
-    else:
-        schema_section = _schema['ENTITIES']
+    schema_section = _schema['ENTITIES']
     exclude_list = schema_section[normalized_class].get('excluded_properties_from_public_response')
     if exclude_list:
         excluded_fields.extend(exclude_list)
     return excluded_fields
 
 
-def exclude_properties_from_response(excluded_fields, json_body):
-    output_json = json_body.copy()
-
+def exclude_properties_from_response(excluded_fields, output_dict):
     def delete_nested_field(data, nested_path):
         if isinstance(nested_path, dict):
             for key, value in nested_path.items():
@@ -291,9 +286,9 @@ def exclude_properties_from_response(excluded_fields, json_body):
             del data[nested_path]
 
     for field in excluded_fields:
-        delete_nested_field(output_json, field)
+        delete_nested_field(output_dict, field)
     
-    return output_json
+    return output_dict
 
 
 """
