@@ -300,6 +300,11 @@ ENTITIES:
     # Only allowed applications can create new Dataset via POST
     before_entity_create_validator: validate_application_header_before_entity_create
     # Dataset can be either derivation source or target
+    excluded_properties_from_public_response:
+      - lab_dataset_id
+      - ingest_metadata:
+          metadata:
+            - lab_id
     derivation:
       source: true
       target: true
@@ -733,6 +738,9 @@ ENTITIES:
     derivation:
       source: false
       target: true
+    excluded_properties_from_public_response:
+      - lab_donor_id
+      - submission_id
     properties:
       <<: *shared_properties
       <<: *shared_entity_properties
@@ -851,6 +859,9 @@ ENTITIES:
     derivation:
       source: true
       target: true
+    excluded_properties_from_public_response:
+      - lab_tissue_sample_id
+      - submission_id
     properties:
       <<: *shared_properties
       <<: *shared_entity_properties

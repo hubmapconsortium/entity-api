@@ -1312,6 +1312,7 @@ def commit_thumbnail_file(property_key, normalized_type, user_token, existing_da
         raise
 
 
+
 """
 Trigger event method for removing the thumbnail file from a dataset during update
 
