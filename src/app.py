@@ -5691,7 +5691,7 @@ def _get_metadata_by_id(entity_id:str=None, metadata_scope:MetadataScopeEnum=Met
     public_entity = False
     has_access = True
     if entity_scope == DataVisibilityEnum.PUBLIC:
-        entity_scope = True
+        public_entity = True
         user_authorized = True
     else:
         # It's highly possible that there's no token provided
