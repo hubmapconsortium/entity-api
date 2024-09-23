@@ -228,7 +228,7 @@ ENTITIES:
           - verify_DOI_pair
           - halt_update_if_DOI_exists
           - halt_DOI_if_collection_missing_elements
-          - halt_if_DOI_for_unpublished_dataset
+          - halt_DOI_if_unpublished_dataset
       # Contributors and contacts are required for a Collection to be public
       contributors:
         type: list
