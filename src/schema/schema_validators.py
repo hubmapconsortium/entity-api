@@ -147,7 +147,7 @@ If an entity has a DOI, do not allow it to be updated
 def halt_update_if_DOI_exists(property_key, normalized_entity_type, request, existing_data_dict, new_data_dict):
     if 'doi_url' in existing_data_dict or 'registered_doi' in existing_data_dict:
         raise ValueError(f"Unable to modify existing {existing_data_dict['entity_type']}"
-                         f" {existing_data_dict['uuid']} due DOI.")
+                         f" {existing_data_dict['uuid']} due to DOI already exists.")
 
 """
 Do not allow a Collection to be created or updated with DOI information if it does not meet all the
