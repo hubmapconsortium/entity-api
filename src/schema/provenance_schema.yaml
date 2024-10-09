@@ -741,6 +741,7 @@ ENTITIES:
     excluded_properties_from_public_response:
       - lab_donor_id
       - submission_id
+      - label
     properties:
       <<: *shared_properties
       <<: *shared_entity_properties
