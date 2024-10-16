@@ -716,7 +716,7 @@ def get_entity_by_id(id):
         if public_entity and not user_in_hubmap_read_group(request):
             final_result = schema_manager.exclude_properties_from_response(fields_to_exclude, final_result)
         if normalized_entity_type == 'Collection':
-            for i, dataset in enumerate(final_result.get('datasets')):
+            for i, dataset in enumerate(final_result.get('datasets', [])):
                 if _get_entity_visibility(normalized_entity_type='Dataset', entity_dict=dataset) != DataVisibilityEnum.PUBLIC or user_in_hubmap_read_group(request):
                     # If the dataset is non-public, or if the user has read-group access, there is no need to remove fields, continue to the next dataset
                     continue
