@@ -19,7 +19,7 @@ cd docker
 ./docker-development.sh [check|config|build|start|stop|down]
 ```
 
-## Docker build for deployment on TEST/STAGE/PROD
+## Docker build for deployment on TEST/PROD
 
 ```
 cd docker
