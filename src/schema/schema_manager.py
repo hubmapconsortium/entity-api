@@ -1589,11 +1589,9 @@ List of String values for each element in the UBKG valueset for valid dataset_ty
 """
 def get_dataset_type_valueset_list():
     # Use the Ontology API to get JSON for allowed terms.
-    ubkg_valueset = get_valueset(parent_vocabulary_sab='HUBMAP'
-                                 ,parent_vocabulary_valueset_code='C003041'
-                                 ,value_preferred_vocabulary_sab='HUBMAP')
+    ubkg_valueset = get_valueset(ontology_app_context='HUBMAP')
     # Extract the term elements from the JSON into a list to be returned.
-    return [v['term'] for v in ubkg_valueset]
+    return [v['dataset_type'] for v in ubkg_valueset]
 
 """
 Use the Ontology API valueset endpoint to retrieve the UBKG valueset for a particular
@@ -1619,13 +1617,11 @@ JSON response from the Ontology API, which is a list of dictionaries, each conta
     ...
 ]
 """
-def get_valueset(parent_vocabulary_sab, parent_vocabulary_valueset_code, value_preferred_vocabulary_sab):
+def get_valueset(ontology_app_context):
     global _ontology_api_url
 
-    target_url = f"{_ontology_api_url}/valueset" \
-                 f"?parent_sab={parent_vocabulary_sab}" \
-                 f"&parent_code={parent_vocabulary_valueset_code}" \
-                 f"&child_sabs={value_preferred_vocabulary_sab}"
+    target_url = f"{_ontology_api_url}/dataset-types" \
+                 f"?application_context={ontology_app_context}"
 
     # Use Memcached to improve performance
     response = make_request_get(target_url, internal_token_used = True)
