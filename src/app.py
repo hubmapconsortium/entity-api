@@ -3338,13 +3338,6 @@ def get_prov_info():
     if user_in_hubmap_read_group(request):
         published_only = False
 
-    # Parsing the organ types yaml has to be done here rather than calling schema.schema_triggers.get_organ_description
-    # because that would require using a urllib request for each dataset
-
-    # As above, we parse te assay type yaml here rather than calling the special method for it because this avoids
-    # having to access the resource for every dataset.
-    assay_types_dict = schema_manager.get_assay_types()
-    
     # Processing and validating query parameters
     accepted_arguments = ['format', 'organ', 'has_rui_info', 'dataset_status', 'group_uuid']
     return_json = False
@@ -3705,13 +3698,6 @@ def get_prov_info_for_dataset(id):
         HEADER_PROCESSED_DATASET_STATUS, HEADER_PROCESSED_DATASET_PORTAL_URL, HEADER_DATASET_SAMPLES
     ]
 
-    # Parsing the organ types yaml has to be done here rather than calling schema.schema_triggers.get_organ_description
-    # because that would require using a urllib request for each dataset
-
-    # As above, we parse te assay type yaml here rather than calling the special method for it because this avoids
-    # having to access the resource for every dataset.
-    assay_types_dict = schema_manager.get_assay_types()
-
     hubmap_ids = schema_manager.get_hubmap_ids(id)
 
     # Get the target uuid if all good
@@ -3941,10 +3927,6 @@ def sankey_data():
     # Parsing the organ types yaml has to be done here rather than calling schema.schema_triggers.get_organ_description
     # because that would require using a urllib request for each dataset
     organ_types_dict = schema_manager.get_organ_types()
-
-    # As above, we parse te assay type yaml here rather than calling the special method for it because this avoids
-    # having to access the resource for every dataset.
-    assay_types_dict = schema_manager.get_assay_types()
 
     # Instantiation of the list dataset_sankey_list
     dataset_sankey_list = []
