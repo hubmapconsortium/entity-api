@@ -466,6 +466,18 @@ ENTITIES:
         type: json_string # dict
         indexed: true
         description: "The metadata returned from the processing at data submission time."
+      metadata:
+        type: json_string
+        indexed: true
+        description: "The metadata returned from the processing at data submission time."
+      files:
+        type: json_string
+        indexed: true
+        description: "The metadata files"
+      calculated_metadata:
+        type: json_string
+        indexed: true
+        description: "The calculated metadata"
       local_directory_rel_path:
         # Example: protected/<TMC>/<uuid>
         type: string
