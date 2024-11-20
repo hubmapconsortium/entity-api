@@ -1,7 +1,7 @@
 Flask==3.0.3
 neo4j==5.20.0
 prov==2.0.0
-Werkzeug==3.0.3
+Werkzeug==3.0.6
 deepdiff==7.0.1
 
 # For interacting with memcached
