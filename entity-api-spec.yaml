@@ -1123,7 +1123,16 @@ components:
           description: "The email address of the user who published the provided by the authorization mechanism for the person or process authenticated when published."
         ingest_metadata:
           type: object
-          description: "The metadata returned from the ingest pipeline processing at data submission time.  Provided as json."
+          description: "Information associated with running the ingest and processing pipelines."
+        metadata:
+          type: object
+          description: "Metadata associated with the ingested experimental data."
+        files:
+          type: array
+          description: "A list of files associated with the dataset."
+        calculated_metadata:
+          type: object
+          description: "Calculated metadata outputted from the processing pipeline."
         local_directory_rel_path:
           type: string
           readOnly: true
