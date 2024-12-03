@@ -464,11 +464,11 @@ ENTITIES:
       ingest_metadata:
         type: json_string # dict
         indexed: true
-        description: "The metadata returned from the processing at data submission time."
+        description: "Information associated with running the ingest and processing pipelines."
       metadata:
         type: json_string
         indexed: true
-        description: "The metadata returned from the processing at data submission time."
+        description: "Metadata associated with the ingested experimental data."
         before_property_create_validators:
           - validate_application_header_before_property_update
         before_property_update_validators:
