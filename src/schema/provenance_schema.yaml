@@ -302,9 +302,8 @@ ENTITIES:
     # Dataset can be either derivation source or target
     excluded_properties_from_public_response:
       - lab_dataset_id
-      - ingest_metadata:
-          metadata:
-            - lab_id
+      - metadata:
+        - lab_id
     derivation:
       source: true
       target: true
@@ -465,7 +464,31 @@ ENTITIES:
       ingest_metadata:
         type: json_string # dict
         indexed: true
-        description: "The metadata returned from the processing at data submission time."
+        description: "Information associated with running the ingest and processing pipelines."
+      metadata:
+        type: json_string
+        indexed: true
+        description: "Metadata associated with the ingested experimental data."
+        before_property_create_validators:
+          - validate_application_header_before_property_update
+        before_property_update_validators:
+          - validate_application_header_before_property_update
+      files:
+        type: list
+        indexed: true
+        before_property_create_validators:
+          - validate_application_header_before_property_update
+        before_property_update_validators:
+          - validate_application_header_before_property_update
+        description: "A list of files associated with the dataset." 
+      calculated_metadata:
+        type: json_string
+        indexed: true
+        before_property_create_validators:
+          - validate_application_header_before_property_update
+        before_property_update_validators:
+          - validate_application_header_before_property_update
+        description: "Calculated metadata outputted from the processing pipeline." 
       local_directory_rel_path:
         # Example: protected/<TMC>/<uuid>
         type: string
