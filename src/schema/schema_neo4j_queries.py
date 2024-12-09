@@ -1,4 +1,5 @@
 from neo4j.exceptions import TransactionError
+from schema.schema_constants import SchemaConstants
 import logging
 
 logger = logging.getLogger(__name__)
@@ -1184,9 +1185,10 @@ list
 def get_collection_datasets(neo4j_driver, uuid):
     results = []
 
+    fields_to_omit = SchemaConstants.DATASETS_OMITTED_FIELDS
     query = (f"MATCH (e:Dataset)-[:IN_COLLECTION]->(c:Collection) "
              f"WHERE c.uuid = '{uuid}' "
-             f"RETURN apoc.coll.toSet(COLLECT(e)) AS {record_field_name}")
+             f"RETURN COLLECT(apoc.create.vNode(labels(e), apoc.map.removeKeys(properties(e), {fields_to_omit}))) AS {record_field_name}")
 
     logger.info("======get_collection_datasets() query======")
     logger.info(query)
@@ -1389,7 +1391,7 @@ list
 """
 def get_upload_datasets(neo4j_driver, uuid, property_key = None):
     results = []
-
+    fields_to_omit = SchemaConstants.DATASETS_OMITTED_FIELDS
     if property_key:
         query = (f"MATCH (e:Dataset)-[:IN_UPLOAD]->(s:Upload) "
                  f"WHERE s.uuid = '{uuid}' "
@@ -1399,7 +1401,7 @@ def get_upload_datasets(neo4j_driver, uuid, property_key = None):
     else:
         query = (f"MATCH (e:Dataset)-[:IN_UPLOAD]->(s:Upload) "
                  f"WHERE s.uuid = '{uuid}' "
-                 f"RETURN apoc.coll.toSet(COLLECT(e)) AS {record_field_name}")
+                 f"RETURN COLLECT(apoc.create.vNode(labels(e), apoc.map.removeKeys(properties(e), {fields_to_omit}))) AS {record_field_name}")
 
     logger.info("======get_upload_datasets() query======")
     logger.info(query)
