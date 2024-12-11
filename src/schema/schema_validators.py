@@ -73,6 +73,34 @@ def validate_recognized_dataset_type(property_key, normalized_entity_type, reque
         raise ValueError(f"Proposed Dataset dataset_type '{proposed_dataset_type_prefix}'"
                          f" is not recognized in the existing ontology."
                          f" Valid values are: {str(target_list)}.")
+    
+
+"""
+Validate the specified value for an Upload's intended_dataset_type is in the valueset UBKG recognizes. 
+
+Parameters
+----------
+property_key : str
+    The target property key
+normalized_type : str
+    Submission
+request: Flask request object
+    The instance of Flask request passed in from application request
+existing_data_dict : dict
+    A dictionary that contains all existing entity properties
+new_data_dict : dict
+    The json data in request body, already after the regular validations
+"""
+def validate_intended_dataset_type(property_key, normalized_entity_type, request, existing_data_dict, new_data_dict):
+    # If the proposed Upload intended_dataset_type ends with something in square brackets, anything inside
+    # those square brackets are acceptable at the end of the string.  Simply validate the start.
+    proposed_dataset_type_prefix = re.sub(pattern='(\S)\s\[.*\]$', repl=r'\1', string=new_data_dict['intended_dataset_type'])
+    target_list = schema_manager.get_dataset_type_valueset_list()
+
+    if proposed_dataset_type_prefix not in target_list:
+        raise ValueError(f"Proposed Upload intended_dataset_type '{proposed_dataset_type_prefix}'"
+                         f" is not recognized in the existing ontology."
+                         f" Valid values are: {str(target_list)}.")
 
 
 """
