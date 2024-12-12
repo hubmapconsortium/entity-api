@@ -773,6 +773,12 @@ components:
         creation_action:
           type: string
           description: 'The associated action that represents the creation of that dataset'
+        intended_dataset_type:
+          type: string
+          description: 'The dataset type of the intended datasets that will be uploaded as part of the Upload.'
+        intended_organ:
+          type: string
+          description: 'The organ code representing the organ type that the data contained in the upload will be registered/associated with.'
     Upload:
       type: object
       properties:
