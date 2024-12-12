@@ -1193,6 +1193,7 @@ ENTITIES:
           - validate_in_admin_group
       intended_dataset_type:
         type: string
+        required_on_create: true
         indexed: true
         description: The dataset type of the intended datasets that will be uploaded as part of the Upload.
         before_property_create_validators:
@@ -1200,6 +1201,7 @@ ENTITIES:
         before_property_update_validators:
           - validate_intended_dataset_type
       intended_organ: 
+        required_on_create: true
         type: string
         indexed: true
         description: The organ code representing the organ type that the data contained in the upload will be registered/associated with.
