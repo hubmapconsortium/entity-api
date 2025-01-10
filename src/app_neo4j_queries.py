@@ -574,7 +574,13 @@ def get_provenance(neo4j_driver, uuid, depth):
     max_level_str = ''
     if depth is not None and len(str(depth)) > 0:
         max_level_str = f"maxLevel: {depth}, "
-
+    delimiter = ', '
+    entity_properties = ['group_uuid', 'created_by_user_displayname', 'created_by_user_sub', 'created_by_user_email', 'uuid', 'dataset_type', 'hubmap_id', 'entity_type', 'status', 'created_timestamp']
+    activity_properties = ['hubmap_id', 'created_by_user_displayname', 'created_by_user_sub', 'created_by_user_email', 'creation_action', 'uuid', 'status', 'created_timestamp']
+    entity_cypher_pairs_list = [f'{prop}: node.{prop}' for prop in entity_properties]
+    activity_cypher_pairs_list = [f'{prop}: node.{prop}' for prop in activity_properties]
+    entity_cypher_pairs_string = delimiter.join(entity_cypher_pairs_list)
+    activity_cypher_pairs_string = delimiter.join(activity_cypher_pairs_list)
     # More info on apoc.path.subgraphAll() procedure: https://neo4j.com/labs/apoc/4.0/graph-querying/expand-subgraph/
     query = (f"MATCH (n:Entity) "
              f"WHERE n.uuid = '{uuid}' "
@@ -582,8 +588,8 @@ def get_provenance(neo4j_driver, uuid, depth):
              f"YIELD nodes, relationships "
              f"WITH [node in nodes | "
              f"  CASE "
-             f"    WHEN 'Activity' IN labels(node) THEN node {{ created_by_user_displayname: node.created_by_user_displayname, created_by_user_sub: node.created_by_user_sub, created_by_user_email: node.created_by_user_email, creation_action: node.creation_action, uuid: node.uuid, status: node.status, created_timestamp: node.created_timestamp,  label: labels(node)[0] }} "
-             f"    WHEN 'Entity' IN labels(node) THEN node {{ group_uuid: node.group_uuid, created_by_user_displayname: node.created_by_user_displayname, created_by_user_sub: node.created_by_user_sub, created_by_user_email: node.created_by_user_email, uuid: node.uuid, dataset_type: node.dataset_type, hubmap_id: node.hubmap_id, entity_type: node.entity_type, status: node.status, created_timestamp: node.created_timestamp, label: labels(node)[0] }} "
+             f"    WHEN 'Activity' IN labels(node) THEN node {{{activity_cypher_pairs_string} ,  label: labels(node)[0] }} "
+             f"    WHEN 'Entity' IN labels(node) THEN node {{{entity_cypher_pairs_string} , label: labels(node)[0] }} "
              f"    ELSE node {{ label: labels(node)[0] }} "
              f"  END "
              f"] as nodes, "
