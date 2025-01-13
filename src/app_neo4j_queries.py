@@ -574,13 +574,25 @@ def get_provenance(neo4j_driver, uuid, depth):
     max_level_str = ''
     if depth is not None and len(str(depth)) > 0:
         max_level_str = f"maxLevel: {depth}, "
-
+    delimiter = ', '
+    entity_properties = ['group_uuid', 'created_by_user_displayname', 'created_by_user_sub', 'created_by_user_email', 'uuid', 'dataset_type', 'hubmap_id', 'entity_type', 'status', 'created_timestamp']
+    activity_properties = ['hubmap_id', 'created_by_user_displayname', 'created_by_user_sub', 'created_by_user_email', 'creation_action', 'uuid', 'status', 'created_timestamp']
+    entity_cypher_pairs_list = [f'{prop}: node.{prop}' for prop in entity_properties]
+    activity_cypher_pairs_list = [f'{prop}: node.{prop}' for prop in activity_properties]
+    entity_cypher_pairs_string = delimiter.join(entity_cypher_pairs_list)
+    activity_cypher_pairs_string = delimiter.join(activity_cypher_pairs_list)
     # More info on apoc.path.subgraphAll() procedure: https://neo4j.com/labs/apoc/4.0/graph-querying/expand-subgraph/
     query = (f"MATCH (n:Entity) "
              f"WHERE n.uuid = '{uuid}' "
              f"CALL apoc.path.subgraphAll(n, {{ {max_level_str} relationshipFilter:'<ACTIVITY_INPUT|<ACTIVITY_OUTPUT', labelFilter:'-Lab' }}) "
              f"YIELD nodes, relationships "
-             f"WITH [node in nodes | node {{ .*, label:labels(node)[0] }} ] as nodes, "
+             f"WITH [node in nodes | "
+             f"  CASE "
+             f"    WHEN 'Activity' IN labels(node) THEN node {{{activity_cypher_pairs_string} ,  label: labels(node)[0] }} "
+             f"    WHEN 'Entity' IN labels(node) THEN node {{{entity_cypher_pairs_string} , label: labels(node)[0] }} "
+             f"    ELSE node {{ label: labels(node)[0] }} "
+             f"  END "
+             f"] as nodes, "
              f"[rel in relationships | rel {{ .*, fromNode: {{ label:labels(startNode(rel))[0], uuid:startNode(rel).uuid }}, toNode: {{ label:labels(endNode(rel))[0], uuid:endNode(rel).uuid }}, rel_data: {{ type: type(rel) }} }} ] as rels "
              f"WITH {{ nodes:nodes, relationships:rels }} as json "
              f"RETURN json")

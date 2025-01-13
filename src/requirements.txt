@@ -1,6 +1,6 @@
 Flask==3.0.3
 neo4j==5.20.0
-prov==2.0.0
+prov==2.0.1
 Werkzeug==3.0.3
 deepdiff==7.0.1
 
