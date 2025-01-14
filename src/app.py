@@ -1,6 +1,6 @@
 import sys
 import collections
-from typing import Callable, List, Optional
+from typing import Callable, List, Optional, Annotated
 from datetime import datetime
 from flask import Flask, g, jsonify, abort, request, Response, redirect, make_response
 from neo4j.exceptions import TransactionError
@@ -38,8 +38,8 @@ from schema.schema_constants import MetadataScopeEnum
 from schema.schema_constants import TriggerTypeEnum
 from metadata_constraints import get_constraints, constraints_json_is_valid
 # from lib.ontology import initialize_ubkg, init_ontology, Ontology, UbkgSDK
-
-
+from entity_worker import EntityWorker
+import entity_exceptions as entityEx
 
 # HuBMAP commons
 from hubmap_commons import string_helper
@@ -247,6 +247,25 @@ try:
     logger.info("anS3Worker initialized")
 except Exception as s3exception:
     logger.critical(s3exception, exc_info=True)
+
+####################################################################################################
+## Initialize a "worker" for the service.
+## For initial transition to "worker" usage, pass in globals of app.py which would eventually
+## be only in the worker and not in app.py.
+####################################################################################################
+entity_worker = None
+try:
+    entity_worker = EntityWorker(   app_config=app.config
+                                    , schema_mgr = schema_manager
+                                    , memcached_client_instance = memcached_client_instance
+                                    , neo4j_driver_instance = neo4j_driver_instance)
+    logger.info("EntityWorker instantiated using app.cfg setting.")
+except Exception as e:
+    logger.critical(f"Unable to instantiate a EntityWorker during startup.")
+    print("Error instantiating a EntityWorker during startup.")
+    print(str(e))
+    logger.error(e, exc_info=True)
+    print("Check the log file for further information.")
 
 ####################################################################################################
 ## REFERENCE DOI Redirection
@@ -613,6 +632,68 @@ def _get_entity_visibility(normalized_entity_type, entity_dict):
          entity_dict['data_access_level'] == ACCESS_LEVEL_PUBLIC:
         entity_visibility = DataVisibilityEnum.PUBLIC
     return entity_visibility
+
+"""
+Retrieve the full provenance metadata information of a given entity by id, as
+produced for metadata.json files
+
+This endpoint as publicly accessible.  An HTTP 404 Response is returned if the requested Dataset is not found.
+
+Without presenting a token, only data for published Datasets may be requested. An HTTP 403 Response is
+returned if the requested Dataset is not published.
+
+When a token is presented that is not valid, and HTTP 401 Response is returned.
+
+When a valid token is presented for a member of the HuBMAP-Read Globus group, any Dataset can be requested.
+
+When a valid token is presented for a non-member of the HuBMAP-Read Globus group, only data for published Datasets
+may be requested. An HTTP 403 Response is returned if the requested Dataset is not published.
+
+Parameters
+----------
+id : str
+    The HuBMAP ID (e.g. HBM123.ABCD.456) or UUID of target entity 
+
+Returns
+-------
+json
+    Valid JSON for the full provenance metadata of the requested Dataset
+"""
+@app.route('/prov-metadata/<id>', methods = ['GET'])
+def get_provenance_metadata_by_id_for_auth_level(id:Annotated[str, 32]) -> str:
+
+    try:
+        # Get the user's token from the Request for later authorization to access non-public entities.
+        # If an invalid token is presented, reject with an HTTP 401 Response.
+        # N.B. None is a "valid" user_token which may be adequate for access to public data.
+        user_token = entity_worker.get_request_auth_token(request=request)
+
+        # Get the user's token from the Request for later authorization to access non-public entities.
+        user_info = entity_worker.get_request_user_info(request=request)
+
+        # Retrieve the expanded metadata for the entity.  If authorization of token or group membership
+        # does not allow access to the entity, exceptions will be raised describing the problem.
+        req_property_key = request.args.get('property') if request.args else None
+        expanded_entity_metadata = entity_worker.get_expanded_entity_metadata(entity_id=id
+                                                                              , valid_user_token=user_token
+                                                                              , user_info=user_info
+                                                                              , request_property_key=req_property_key)
+        return jsonify(expanded_entity_metadata)
+    except entityEx.EntityBadRequestException as e_400:
+        return jsonify({'error': e_400.message}), 400
+    except entityEx.EntityUnauthorizedException as e_401:
+        return jsonify({'error': e_401.message}), 401
+    except entityEx.EntityForbiddenException as e_403:
+        return jsonify({'error': e_403.message}), 403
+    except entityEx.EntityNotFoundException as e_404:
+        return jsonify({'error': e_404.message}), 404
+    except entityEx.EntityServerErrorException as e_500:
+        logger.exception(f"An unexpected error occurred during provenance metadata retrieval.")
+        return jsonify({'error': e_500.message}), 500
+    except Exception as e:
+        default_msg = 'An unexpected error occurred retrieving provenance metadata'
+        logger.exception(default_msg)
+        return jsonify({'error': default_msg}), 500
 
 """
 Retrieve the metadata information of a given entity by id
