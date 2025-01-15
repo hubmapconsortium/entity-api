@@ -141,7 +141,6 @@ class EntityWorker:
             # KBKBKB @TODO seems to indicate we will get None rather than any kind of Response...
             return False
 
-        # KBKBKB @TODO confirm hmgroupids can be not present e.g. for karl.burke.jhmi@gmail.com, and we do not need to be checking against user_info['aud'][1], where user_info['aud'][0] is 'groups.api.globus.org'
         return ('hmgroupids' in user_info and hubmap_read_group_uuid in user_info['hmgroupids'])
 
     def _get_entity_visibility(self, entity_dict):
@@ -273,7 +272,7 @@ class EntityWorker:
         All the properties or filtered property of the target entity
     """
     def _get_entity_by_id_for_auth_level(self, entity_id:Annotated[str, 32], valid_user_token:Annotated[str, 32]
-                                         , user_info:dict, property_key:str=None) -> str:
+                                         , user_info:dict, property_key:str=None) -> dict:
 
         # Use the internal token to query the target entity to assure it is returned. This way public
         # entities can be accessed even if valid_user_token is None.
@@ -327,12 +326,10 @@ class EntityWorker:
         if property_key is not None:
             # Validate the target property
             if property_key not in result_filtering_accepted_property_keys:
-                # bad_request_error(f"Only the following property keys are supported in the query string: {COMMA_SEPARATOR.join(result_filtering_accepted_property_keys)}")
                 raise entityEx.EntityBadRequestException(   f"Only the following property keys are supported in the query string:"
                                                             f" {COMMA_SEPARATOR.join(result_filtering_accepted_property_keys)}")
             if property_key == 'status' and \
                 not self.schemaMgr.entity_type_instanceof(normalized_entity_type, 'Dataset'):
-                # bad_request_error(f"Only Dataset or Publication supports 'status' property key in the query string")
                 raise entityEx.EntityBadRequestException(f"Only Dataset or Publication supports"
                                                          f" 'status' property key in the query string")
 
@@ -480,16 +477,9 @@ class EntityWorker:
             # The Response.data returns binary string, need to decode
             raise entityEx.EntityUnauthorizedException(user_info.get_data().decode())
 
-        # KBKBKB @TODO leave to call to follow up on HM Read Group,
-        # # By now the token is already a valid token
-        # # But we also need to ensure the user belongs to HuBMAP-Read group
-        # # in order to access the non-public entity
-        # # Return a 403 response if the user doesn't belong to HuBMAP-READ group
-        # if not user_in_hubmap_read_group(request):
-        #     forbidden_error("Access not granted")
         return request_token
 
-    def get_request_user_info(self, request):
+    def get_request_user_info_with_groups(self, request):
         try:
             # The property 'hmgroupids' is ALWAYS in the output with using schema_manager.get_user_info()
             # when the token in request is a groups token
@@ -559,7 +549,7 @@ class EntityWorker:
 
         # KBKBKB @TODO for future use of /datasets/<id>/organs endpoint of app.py needs.
 
-        dataset_dict = self._get_entity_by_id_for_auth_level(entity_id=entity_id
+        dataset_dict = self._get_entity_by_id_for_auth_level(entity_id=dataset_id
                                                              , valid_user_token=valid_user_token
                                                              , user_info=user_info)
         # Determine if the entity is publicly visible base on its data, only.
@@ -568,8 +558,11 @@ class EntityWorker:
         # _get_entity_visibility() to check.
         entity_scope = self._get_entity_visibility(entity_dict=dataset_dict)
 
-        associated_organ_list = app_neo4j_queries.get_associated_organs_from_dataset(   self.neo4jDriver,
-                                                                                        dataset_dict['uuid'])
+        associated_organ_list = self._get_dataset_associated_data(  dataset_dict=dataset_dict
+                                                                    , dataset_visibility=entity_scope
+                                                                    , valid_user_token=valid_user_token
+                                                                    , user_info=user_info
+                                                                    , associated_data='Organs')
 
         # If there are zero items in the list associated_organs, then there are no associated
         # Organs and a 404 will be returned.

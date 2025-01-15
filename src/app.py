@@ -669,14 +669,14 @@ def get_provenance_metadata_by_id_for_auth_level(id:Annotated[str, 32]) -> str:
         user_token = entity_worker.get_request_auth_token(request=request)
 
         # Get the user's token from the Request for later authorization to access non-public entities.
-        user_info = entity_worker.get_request_user_info(request=request)
+        user_info_with_groups = entity_worker.get_request_user_info_with_groups(request=request)
 
         # Retrieve the expanded metadata for the entity.  If authorization of token or group membership
         # does not allow access to the entity, exceptions will be raised describing the problem.
         req_property_key = request.args.get('property') if request.args else None
         expanded_entity_metadata = entity_worker.get_expanded_entity_metadata(entity_id=id
                                                                               , valid_user_token=user_token
-                                                                              , user_info=user_info
+                                                                              , user_info=user_info_with_groups
                                                                               , request_property_key=req_property_key)
         return jsonify(expanded_entity_metadata)
     except entityEx.EntityBadRequestException as e_400:
