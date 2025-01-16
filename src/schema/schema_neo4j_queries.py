@@ -178,7 +178,7 @@ def get_children(neo4j_driver, uuid, property_key = None):
                  f"WHERE e.uuid='{uuid}' AND e.entity_type <> 'Lab' "
                  # COLLECT() returns a list
                  # apoc.coll.toSet() reruns a set containing unique nodes
-                 f"RETURN apoc.coll.toSet(COLLECT(child)) AS {record_field_name}")
+                 f"RETURN apoc.coll.toSet(COLLECT(apoc.create.vNode(labels(child), apoc.map.removeKeys(properties(child), {fields_to_omit})))) AS {record_field_name}")
 
     logger.info("======get_children() query======")
     logger.info(query)
@@ -233,7 +233,7 @@ def get_parents(neo4j_driver, uuid, property_key = None):
                  f"WHERE e.uuid='{uuid}' AND parent.entity_type <> 'Lab' "
                  # COLLECT() returns a list
                  # apoc.coll.toSet() reruns a set containing unique nodes
-                 f"RETURN apoc.coll.toSet(COLLECT(parent)) AS {record_field_name}")
+                 f"RETURN apoc.coll.toSet(COLLECT(apoc.create.vNode(labels(parent), apoc.map.removeKeys(properties(parent), {fields_to_omit})))) AS {record_field_name}")
 
     logger.info("======get_parents() query======")
     logger.info(query)
@@ -401,7 +401,7 @@ def get_ancestors(neo4j_driver, uuid, property_key = None):
                  f"WHERE e.uuid='{uuid}' AND ancestor.entity_type <> 'Lab' "
                  # COLLECT() returns a list
                  # apoc.coll.toSet() reruns a set containing unique nodes
-                 f"RETURN apoc.coll.toSet(COLLECT(ancestor)) AS {record_field_name}")
+                 f"RETURN apoc.coll.toSet(COLLECT(apoc.create.vNode(labels(ancestor), apoc.map.removeKeys(properties(ancestor), {fields_to_omit})))) AS {record_field_name}")
 
     logger.info("======get_ancestors() query======")
     logger.info(query)
@@ -457,7 +457,7 @@ def get_descendants(neo4j_driver, uuid, property_key = None):
                  f"WHERE e.uuid='{uuid}' AND e.entity_type <> 'Lab' "
                  # COLLECT() returns a list
                  # apoc.coll.toSet() reruns a set containing unique nodes
-                 f"RETURN apoc.coll.toSet(COLLECT(descendant)) AS {record_field_name}")
+                 f"RETURN apoc.coll.toSet(COLLECT(apoc.create.vNode(labels(descendant), apoc.map.removeKeys(properties(descendant), {fields_to_omit})))) AS {record_field_name}")
 
     logger.info("======get_descendants() query======")
     logger.info(query)
