@@ -38,8 +38,8 @@ from schema.schema_constants import MetadataScopeEnum
 from schema.schema_constants import TriggerTypeEnum
 from metadata_constraints import get_constraints, constraints_json_is_valid
 # from lib.ontology import initialize_ubkg, init_ontology, Ontology, UbkgSDK
-from entity_worker import EntityWorker
-import entity_exceptions as entityEx
+from dev_entity_worker import EntityWorker
+import dev_entity_exceptions as entityEx
 
 # HuBMAP commons
 from hubmap_commons import string_helper
@@ -661,7 +661,7 @@ Returns
 json
     Valid JSON for the full provenance metadata of the requested Dataset
 '''
-@app.route('/prov-metadata/<id>', methods = ['GET'])
+@app.route('/datasets/<id>/prov-metadata', methods = ['GET'])
 def get_provenance_metadata_by_id_for_auth_level(id:Annotated[str, 32]) -> str:
 
     try:

@@ -15,7 +15,7 @@ from schema.schema_constants import DataVisibilityEnum
 from hubmap_commons.hm_auth import AuthHelper
 from hubmap_commons.S3_worker import S3Worker
 
-import entity_exceptions as entityEx
+import dev_entity_exceptions as entityEx
 
 COMMA_SEPARATOR = ','
 
