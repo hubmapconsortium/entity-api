@@ -193,10 +193,7 @@ def get_children(neo4j_driver, uuid, property_key = None):
             else:
                 # Convert the list of nodes to a list of dicts
                 results = nodes_to_dicts(record[record_field_name])
-                if fields_to_omit:
-                    for node_dict in results:
-                        for field in fields_to_omit:
-                            node_dict.pop(field, None)
+                
     return results
 
 
@@ -248,10 +245,6 @@ def get_parents(neo4j_driver, uuid, property_key = None):
             else:
                 # Convert the list of nodes to a list of dicts
                 results = nodes_to_dicts(record[record_field_name])
-                if fields_to_omit:
-                    for node_dict in results:
-                        for field in fields_to_omit:
-                            node_dict.pop(field, None)
 
     return results
 
@@ -417,11 +410,6 @@ def get_ancestors(neo4j_driver, uuid, property_key = None):
                 # Convert the list of nodes to a list of dicts
                 results = nodes_to_dicts(record[record_field_name])
 
-                if fields_to_omit:
-                    for node_dict in results:
-                        for field in fields_to_omit:
-                            node_dict.pop(field, None)
-
     return results
 
 """
@@ -472,10 +460,7 @@ def get_descendants(neo4j_driver, uuid, property_key = None):
             else:
                 # Convert the list of nodes to a list of dicts
                 results = nodes_to_dicts(record[record_field_name])
-                if fields_to_omit:
-                    for node_dict in results:
-                        for field in fields_to_omit:
-                            node_dict.pop(field, None)
+                
     return results
 
 
