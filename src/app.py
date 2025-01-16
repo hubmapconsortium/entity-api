@@ -259,13 +259,12 @@ try:
                                     , schema_mgr = schema_manager
                                     , memcached_client_instance = memcached_client_instance
                                     , neo4j_driver_instance = neo4j_driver_instance)
+    if not isinstance(entity_worker, EntityWorker):
+        raise Exception("Error instantiating a EntityWorker during startup.")
     logger.info("EntityWorker instantiated using app.cfg setting.")
 except Exception as e:
     logger.critical(f"Unable to instantiate a EntityWorker during startup.")
-    print("Error instantiating a EntityWorker during startup.")
-    print(str(e))
     logger.error(e, exc_info=True)
-    print("Check the log file for further information.")
 
 ####################################################################################################
 ## REFERENCE DOI Redirection
@@ -640,14 +639,11 @@ produced for metadata.json files.
 This endpoint as publicly accessible.  Without presenting a token, only data for
 published Datasets may be requested.
 
-Result filtering is supported based on query string
-For example: /prov-metadata/<id>?property=data_access_level
-
 When a valid token is presented, a member of the HuBMAP-Read Globus group is authorized to
 access any Dataset.  Otherwise, only access to published Datasets is authorized.
 
 An HTTP 400 Response is returned for reasons described in the error message, such as
-requesting data for a non-Dataset, filtering by an unsupported key, etc.
+requesting data for a non-Dataset.
  
 An HTTP 401 Response is returned when a token is presented that is not valid.
 
@@ -682,8 +678,7 @@ def get_provenance_metadata_by_id_for_auth_level(id:Annotated[str, 32]) -> str:
         req_property_key = request.args.get('property') if request.args else None
         expanded_entity_metadata = entity_worker.get_expanded_entity_metadata(entity_id=id
                                                                               , valid_user_token=user_token
-                                                                              , user_info=user_info
-                                                                              , request_property_key=req_property_key)
+                                                                              , user_info=user_info)
         return jsonify(expanded_entity_metadata)
     except entityEx.EntityBadRequestException as e_400:
         return jsonify({'error': e_400.message}), 400

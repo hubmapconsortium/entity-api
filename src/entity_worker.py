@@ -260,8 +260,7 @@ class EntityWorker:
         return entity_dict
 
     ''''
-    Retrieve the metadata information for an entity by id.  Results can also be
-    filtered to a single property for the entity, if in the supported list for filtering.
+    Retrieve the metadata information for an entity by id.
     
     Get target entity dict based upon the user's authorization. The full dictionary may be
     filtered down if credentials were not presented for full access.
@@ -274,17 +273,14 @@ class EntityWorker:
         Either the valid current token for an authenticated user or None.
     user_info : dict
         Information for the logged-in user to be used for authorization accessing non-public entities.
-    property_key : str
-        An entity property to be returned as the sole entry in the dictionary rather than
-        the complete entity dictionary.  Must from the valid values supported by this method.
         
     Returns
     -------
     dict
-        A dictionary containing all the properties the target entity or just the filtered property.
+        A dictionary containing all the properties the target entity.
     '''
     def _get_entity_by_id_for_auth_level(self, entity_id:Annotated[str, 32], valid_user_token:Annotated[str, 32]
-                                         , user_info:dict, property_key:str=None) -> dict:
+                                         , user_info:dict) -> dict:
 
         # Use the internal token to query the target entity to assure it is returned. This way public
         # entities can be accessed even if valid_user_token is None.
@@ -326,47 +322,23 @@ class EntityWorker:
         # Also normalize the result based on schema
         final_result = self.schemaMgr.normalize_entity_result_for_response(complete_dict)
 
-        # Result filtering based on query string
-        # The `data_access_level` property is available in all entities Donor/Sample/Dataset
-        # and this filter is being used by gateway to check the data_access_level for file assets
-        # The `status` property is only available in Dataset and being used by search-api for revision
-        result_filtering_accepted_property_keys = ['data_access_level', 'status']
+        # Identify fields in the entity based upon user's authorization
+        fields_to_exclude = self.schemaMgr.get_fields_to_exclude(normalized_entity_type)
 
-        # if bool(request.args):
-        #     property_key = request.args.get('property')
-
-        if property_key is not None:
-            # Validate the target property
-            if property_key not in result_filtering_accepted_property_keys:
-                raise entityEx.EntityBadRequestException(   f"Only the following property keys are supported in the query string:"
-                                                            f" {COMMA_SEPARATOR.join(result_filtering_accepted_property_keys)}")
-            if property_key == 'status' and \
-                not self.schemaMgr.entity_type_instanceof(normalized_entity_type, 'Dataset'):
-                raise entityEx.EntityBadRequestException(f"Only Dataset or Publication supports"
-                                                         f" 'status' property key in the query string")
-
-            # Return a dict containing only the requested property value
-            return {property_key: complete_dict[property_key]}
-        # else:
-        #     bad_request_error("The specified query string is not supported. Use '?property=<key>' to filter the result")
-        else:
-            # Identify fields in the entity based upon user's authorization
-            fields_to_exclude = self.schemaMgr.get_fields_to_exclude(normalized_entity_type)
-
-            # Response with the dict
-            #if public_entity and not user_in_hubmap_read_group(request):
-            if public_entity and not user_authorized:
-                final_result = self.schemaMgr.exclude_properties_from_response(fields_to_exclude, final_result)
-            if normalized_entity_type == 'Collection':
-                for i, dataset in enumerate(final_result.get('datasets', [])):
-                    if self._get_entity_visibility( entity_dict=dataset) != DataVisibilityEnum.PUBLIC \
-                            or user_authorized: # or user_in_hubmap_read_group(request):
-                        # If the dataset is public, or if the user has read-group access, there is
-                        # no need to remove fields, continue to the next dataset
-                        continue
-                    dataset_excluded_fields = self.schemaMgr.get_fields_to_exclude('Dataset')
-                    final_result.get('datasets')[i] = self.schemaMgr.exclude_properties_from_response(dataset_excluded_fields, dataset)
-            return final_result
+        # Response with the dict
+        #if public_entity and not user_in_hubmap_read_group(request):
+        if public_entity and not user_authorized:
+            final_result = self.schemaMgr.exclude_properties_from_response(fields_to_exclude, final_result)
+        if normalized_entity_type == 'Collection':
+            for i, dataset in enumerate(final_result.get('datasets', [])):
+                if self._get_entity_visibility( entity_dict=dataset) != DataVisibilityEnum.PUBLIC \
+                        or user_authorized: # or user_in_hubmap_read_group(request):
+                    # If the dataset is public, or if the user has read-group access, there is
+                    # no need to remove fields, continue to the next dataset
+                    continue
+                dataset_excluded_fields = self.schemaMgr.get_fields_to_exclude('Dataset')
+                final_result.get('datasets')[i] = self.schemaMgr.exclude_properties_from_response(dataset_excluded_fields, dataset)
+        return final_result
 
     '''
     Retrieve the metadata information for certain data associated with entity.  This method supports
@@ -393,7 +365,7 @@ class EntityWorker:
     Returns
     -------
     list
-        A dictionary containing all the properties the target entity or just the filtered property.
+        A dictionary containing all the properties the target entity.
     '''
     def _get_dataset_associated_data(   self, dataset_dict:dict, dataset_visibility:DataVisibilityEnum
                                         , valid_user_token:Annotated[str, 32], user_info:dict
@@ -561,7 +533,7 @@ class EntityWorker:
 
     ''''
     Retrieve expanded metadata information for an entity by id, including metadata for
-    associated data.  Results can also be filtered to a supported single property for the entity.
+    associated data.
 
     Get target entity dict based upon the user's authorization. The full dictionary may be
     filtered down if credentials were not presented for full access.
@@ -574,23 +546,19 @@ class EntityWorker:
         Either the valid current token for an authenticated user or None.
     user_info : dict
         Information for the logged-in user to be used for authorization accessing non-public entities.
-    request_property_key : str
-        An entity property to be returned as the sole entry in the dictionary rather than
-        the complete entity dictionary.  Must from the valid values supported for the entity type.
 
     Returns
     -------
     dict
-        A dictionary containing all the properties the target entity or just the filtered property.
+        A dictionary containing all the properties the target entity.
     '''
     def get_expanded_entity_metadata(self, entity_id:Annotated[str, 32], valid_user_token:Annotated[str, 32]
-                                     , user_info:dict, request_property_key:str) -> dict:
+                                     , user_info:dict) -> dict:
         # Retrieve the metadata dictionary for the entity, which will be expanded later to hold entries for the
         # associated data.
         expanded_entity_dict = self._get_entity_by_id_for_auth_level(entity_id=entity_id
                                                                      , valid_user_token=valid_user_token
-                                                                     , user_info=user_info
-                                                                     , property_key=request_property_key)
+                                                                     , user_info=user_info)
         # Determine if the entity is publicly visible base on its data, only.
         # To verify if a Collection is public, it is necessary to have its Datasets, which
         # are populated as triggered data.  So pull back the complete entity for
