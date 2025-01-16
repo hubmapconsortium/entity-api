@@ -1,9 +1,4 @@
 import logging
-import threading
-import json
-import unicodedata
-import re
-from contextlib import closing
 from datetime import datetime
 from typing import Annotated
 from requests.exceptions import RequestException
@@ -19,7 +14,6 @@ from schema.schema_constants import DataVisibilityEnum
 # HuBMAP commons
 from hubmap_commons.hm_auth import AuthHelper
 from hubmap_commons.S3_worker import S3Worker
-from hubmap_commons.string_helper import listToCommaSeparated
 
 import entity_exceptions as entityEx
 
@@ -37,7 +31,7 @@ class EntityWorker:
         self.logger = logging.getLogger('entity.service')
 
         if app_config is None:
-            raise entityEx.EntityConfigurationException("Configuration data loaded by the app must be passed to the worker.")
+            raise entityEx.EntityConfigurationException('Configuration data loaded by the app must be passed to the worker.')
         try:
             ####################################################################################################
             ## Load configuration variables used by this class
@@ -87,29 +81,29 @@ class EntityWorker:
                 raise entityEx.EntityConfigurationException(f"Unexpected error: {str(e)}")
 
         except KeyError as ke:
-            self.logger.error("Expected configuration failed to load %s from app_config=%s.",ke,app_config)
-            raise entityEx.EntityConfigurationException("Expected configuration failed to load. See the logs.")
+            self.logger.error(f"Expected configuration failed to load %s from app_config={app_config}"
+                              f" due to ke={str(ke)}")
+            raise entityEx.EntityConfigurationException('Expected configuration failed to load. See the logs.')
 
         if schema_mgr is None:
-            raise entityEx.EntityConfigurationException("A schema manager must be passed to the worker until it instantiates its own.")
+            raise entityEx.EntityConfigurationException('A schema manager must be passed to the worker until it instantiates its own.')
         else:
             self.schemaMgr = schema_mgr
 
         if neo4j_driver_instance is None:
-            raise entityEx.EntityConfigurationException(
-                "A Neo4j driver must be passed to the worker until it instantiates its own.")
+            raise entityEx.EntityConfigurationException('A Neo4j driver must be passed to the worker until it instantiates its own.')
         else:
             self.neo4jDriver = neo4j_driver_instance
 
         if memcached_client_instance is None:
-            self.logger.info("No cache client passed to the worker, running without memcache.")
+            self.logger.info('No cache client passed to the worker, running without memcache.')
         self.memcachedClient = memcached_client_instance
 
         ####################################################################################################
         ## AuthHelper initialization
         ####################################################################################################
         if not clientId  or not clientSecret:
-            raise entityEx.EntityConfigurationException("Globus client id and secret are required in AuthHelper")
+            raise entityEx.EntityConfigurationException('Globus client id and secret are required in AuthHelper')
         # Initialize AuthHelper class and ensure singleton
         try:
             if not AuthHelper.isInitialized():
@@ -143,6 +137,20 @@ class EntityWorker:
 
         return ('hmgroupids' in user_info and hubmap_read_group_uuid in user_info['hmgroupids'])
 
+    '''
+    Return the "visibility" of an entity as DataVisibilityEnum value.  Determination of
+    "public" or "non-public" is specific to entity type.
+    
+    Parameters
+    ----------
+    entity_dict : dict
+        A Python dictionary retrieved for the entity 
+    
+    Returns
+    -------
+    DataVisibilityEnum
+        A value identifying if the entity is public or non-public
+    '''
     def _get_entity_visibility(self, entity_dict):
         normalized_entity_type = entity_dict['entity_type']
         if normalized_entity_type not in self.schemaMgr.get_all_entity_types():
@@ -182,21 +190,20 @@ class EntityWorker:
             entity_visibility = DataVisibilityEnum.PUBLIC
         return entity_visibility
 
-    """
-    Get target entity dict from Neo4j query for the given id
+    '''
+    Get target entity dict from the cache or from Neo4j query for the given id. When caching enabled,
+    data retrieved from Neo4j will be cached.
 
     Parameters
     ----------
-    id : str
+    entity_id : str
         The uuid or hubmap_id of target entity
-    user_token: str
-        The user's globus groups token from the incoming request
 
     Returns
     -------
     dict
-        A dictionary of entity details either from cache or new neo4j lookup
-    """
+        A dictionary of entity details either from the cache or a neo4j query.
+    '''
     def _query_target_entity(self, entity_id):
         # Get the entity dict from cache if exists
         # Otherwise query against uuid-api and neo4j to get the entity dict if the entity_id exists
@@ -252,25 +259,30 @@ class EntityWorker:
         # One final return
         return entity_dict
 
-    """
-    KBKBKB @TODO revise after duplicating from app.py and modifying!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-    Retrieve the metadata information of a given entity by id
+    ''''
+    Retrieve the metadata information for an entity by id.  Results can also be
+    filtered to a single property for the entity, if in the supported list for filtering.
     
-    The gateway treats this endpoint as public accessible
-    
-    Result filtering is supported based on query string
-    For example: /entities/<id>?property=data_access_level
+    Get target entity dict based upon the user's authorization. The full dictionary may be
+    filtered down if credentials were not presented for full access.
     
     Parameters
     ----------
-    id : str
-        The HuBMAP ID (e.g. HBM123.ABCD.456) or UUID of target entity 
-    
+    entity_id : str
+        The HuBMAP ID (e.g. HBM123.ABCD.456) or UUID of target entity .
+    valid_user_token : str
+        Either the valid current token for an authenticated user or None.
+    user_info : dict
+        Information for the logged-in user to be used for authorization accessing non-public entities.
+    property_key : str
+        An entity property to be returned as the sole entry in the dictionary rather than
+        the complete entity dictionary.  Must from the valid values supported by this method.
+        
     Returns
     -------
-    json
-        All the properties or filtered property of the target entity
-    """
+    dict
+        A dictionary containing all the properties the target entity or just the filtered property.
+    '''
     def _get_entity_by_id_for_auth_level(self, entity_id:Annotated[str, 32], valid_user_token:Annotated[str, 32]
                                          , user_info:dict, property_key:str=None) -> dict:
 
@@ -333,9 +345,8 @@ class EntityWorker:
                 raise entityEx.EntityBadRequestException(f"Only Dataset or Publication supports"
                                                          f" 'status' property key in the query string")
 
-            # Response with the property value directly
-            # Don't use jsonify() on string value
-            return complete_dict[property_key]
+            # Return a dict containing only the requested property value
+            return {property_key: complete_dict[property_key]}
         # else:
         #     bad_request_error("The specified query string is not supported. Use '?property=<key>' to filter the result")
         else:
@@ -357,23 +368,45 @@ class EntityWorker:
                     final_result.get('datasets')[i] = self.schemaMgr.exclude_properties_from_response(dataset_excluded_fields, dataset)
             return final_result
 
-    """
-    KBKBKB entry point for new /prov-metadata endpoint of app.py
-    KBKBKB @TODO document
-
-    Formerly entity_json_dumps() of app.py for ingest-api 
-    """
+    '''
+    Retrieve the metadata information for certain data associated with entity.  This method supports
+    Dataset entities, and can get the associated data for organs, samples, or donors.
+    
+    Get associated data dict based upon the user's authorization. The associated data may be
+    filtered down if credentials were not presented for full access.
+    
+    Parameters
+    ----------
+    dataset_dict : dict
+        A dictionary containing all the properties the target entity.
+    dataset_visibility : DataVisibilityEnum
+        An indication of the entity itself is public or not, so the associated data can
+        be filtered to match the entity dictionary before being returned.
+    valid_user_token : str
+        Either the valid current token for an authenticated user or None.
+    user_info : dict
+        Information for the logged-in user to be used for authorization accessing non-public entities.
+    associated_data : str
+        A string indicating the associated property to be retrieved, which must be from
+        the values supported by this method.
+        
+    Returns
+    -------
+    list
+        A dictionary containing all the properties the target entity or just the filtered property.
+    '''
     def _get_dataset_associated_data(   self, dataset_dict:dict, dataset_visibility:DataVisibilityEnum
                                         , valid_user_token:Annotated[str, 32], user_info:dict
                                         , associated_data:str) -> list:
 
+        # Confirm the associated data requested is supported by this method.
         retrievable_associations = ['organs', 'samples', 'donors']
         if associated_data.lower() not in retrievable_associations:
             raise entityEx.EntityBadRequestException(   f"Dataset associated data cannot be retrieved for"
                                                         f" {associated_data}, only"
                                                         f" {COMMA_SEPARATOR.join(retrievable_associations)}.")
-        # Confirm the dictionary passed in is for a Dataset entity
-        # KBKBKB @TODO confirm if add Publication?
+
+        # Confirm the dictionary passed in is for a Dataset entity.
         if not self.schemaMgr.entity_type_instanceof(dataset_dict['entity_type'], 'Dataset'):
             raise entityEx.EntityBadRequestException(   f"'{dataset_dict['entity_type']}' for"
                                                         f" uuid={dataset_dict['uuid']} is not a Dataset or Publication,"
@@ -390,22 +423,24 @@ class EntityWorker:
             raise entityEx.EntityServerErrorException(f"Unexpected error retrieving '{associated_data}' for a Dataset")
 
         public_entity = (dataset_visibility is DataVisibilityEnum.PUBLIC)
-        # Initialize the user as authorized if the data is public.  Otherwise, the
+        # Initialize the user as authorized if the entity with associated data is public.  Otherwise, the
         # user is not authorized and credentials must be checked.
         if dataset_visibility is DataVisibilityEnum.PUBLIC:
             user_authorized = True
         else:
+            # If the entity is non-public, but the valid user token is None, authorization is forbidden.
             if valid_user_token is None:
                 raise entityEx.EntityForbiddenException(f"{dataset_dict['entity_type']} for"
                                                         f" {dataset_dict['uuid']} is not"
                                                         f" accessible without presenting a token.")
 
             user_authorized = self._user_in_hubmap_read_group(user_info=user_info)
+            # If the entity is non-public, but user token is not in the HuBMAP Read Group, authorization is forbidden.
             if not user_authorized:
                 raise entityEx.EntityForbiddenException(f"The requested Dataset has non-public data."
                                                         f"  A Globus token with access permission is required.")
 
-        # By now, either the entity is public accessible or the user token has the correct access level
+        # By now, either the entity is public accessible or the user has the correct access level
         if associated_data.lower() == 'organs':
             associated_entities = app_neo4j_queries.get_associated_organs_from_dataset( self.neo4jDriver,
                                                                                         dataset_dict['uuid'])
@@ -420,8 +455,7 @@ class EntityWorker:
                                 f" associated_data.lower()={associated_data.lower()} while retrieving from Neo4j.")
             raise entityEx.EntityServerErrorException(f"Unexpected error retrieving '{associated_data}' from the data store")
 
-        # If there are zero items in the list of associated_entities, return an empty list rather
-        # than retrieving.
+        # If there are zero items in the list of associated_entities, return an empty list rather than retrieving.
         if len(associated_entities) < 1:
             return []
 
@@ -445,18 +479,29 @@ class EntityWorker:
 
         return final_result
 
+    '''
+    Retrieve authentication bearer token presented on the request.  If no token is in the request, return None as
+    a valid user token value indicating public access.
+
+    Parameters
+    ----------
+    request : flask.request
+        The Flask http request object
+
+    Returns
+    -------
+    str
+        The bearer token presented on the request for authentication.
+    '''
     def get_request_auth_token(self, request) -> str:
         if 'Authorization' not in request.headers:
             return None
 
-        # No matter if token is required or not, when an invalid token provided,
-        # we need to tell the client with a 401 error
-        # HTTP header names are case-insensitive
-        # request.headers.get('Authorization') returns None if the header doesn't exist
-
         # Get user token from Authorization header
         # getAuthorizationTokens() also handles MAuthorization header but we are not using that here
         try:
+            # HTTP header names are case-insensitive
+            # request.headers.get('Authorization') returns None if the header doesn't exist
             request_token = self.authHelper.getAuthorizationTokens(request.headers)
         except Exception as e:
             msg = "Failed to parse the Authorization token by calling commons.auth_helper.getAuthorizationTokens()"
@@ -479,6 +524,20 @@ class EntityWorker:
 
         return request_token
 
+    '''
+    Retrieve authorization information for the bearer token presented on the request, including
+    Globus Group information.
+
+    Parameters
+    ----------
+    request : flask.request
+        The Flask http request object
+
+    Returns
+    -------
+    dict
+        The user information, including Globus Group data, which can be used for authorization.
+    '''
     def get_request_user_info_with_groups(self, request):
         try:
             # The property 'hmgroupids' is ALWAYS in the output with using schema_manager.get_user_info()
@@ -500,17 +559,34 @@ class EntityWorker:
             return None
         return user_info
 
+    ''''
+    Retrieve expanded metadata information for an entity by id, including metadata for
+    associated data.  Results can also be filtered to a supported single property for the entity.
+
+    Get target entity dict based upon the user's authorization. The full dictionary may be
+    filtered down if credentials were not presented for full access.
+
+    Parameters
+    ----------
+    entity_id : str
+        The HuBMAP ID (e.g. HBM123.ABCD.456) or UUID of target entity .
+    valid_user_token : str
+        Either the valid current token for an authenticated user or None.
+    user_info : dict
+        Information for the logged-in user to be used for authorization accessing non-public entities.
+    request_property_key : str
+        An entity property to be returned as the sole entry in the dictionary rather than
+        the complete entity dictionary.  Must from the valid values supported for the entity type.
+
+    Returns
+    -------
+    dict
+        A dictionary containing all the properties the target entity or just the filtered property.
+    '''
     def get_expanded_entity_metadata(self, entity_id:Annotated[str, 32], valid_user_token:Annotated[str, 32]
                                      , user_info:dict, request_property_key:str) -> dict:
-        """
-        Because entity and the content of the arrays returned from entity_instance.get_associated_*
-        contain user defined objects we need to turn them into simple python objects (e.g., dicts, lists, str)
-        before we can convert them wth json.dumps.
-
-        Here we create an expanded version of the entity associated with the dataset_uuid and return it as a json string.
-        """
-        # KBKBKB @TODO verify type on signature for valid_user_token
-
+        # Retrieve the metadata dictionary for the entity, which will be expanded later to hold entries for the
+        # associated data.
         expanded_entity_dict = self._get_entity_by_id_for_auth_level(entity_id=entity_id
                                                                      , valid_user_token=valid_user_token
                                                                      , user_info=user_info
@@ -520,6 +596,8 @@ class EntityWorker:
         # are populated as triggered data.  So pull back the complete entity for
         # _get_entity_visibility() to check.
         entity_scope = self._get_entity_visibility(entity_dict=expanded_entity_dict)
+
+        # Retrieve the associated data for the entity, and add it to the expanded dictionary.
         associated_organ_list = self._get_dataset_associated_data(  dataset_dict=expanded_entity_dict
                                                                     , dataset_visibility=entity_scope
                                                                     , valid_user_token=valid_user_token
@@ -542,12 +620,12 @@ class EntityWorker:
 
         expanded_entity_dict['donors'] = associated_donor_list
 
+        # Return the dictionary containing the entity metadata as well as metadata for the associated data.
         return expanded_entity_dict
 
+    # KBKBKB @TODO for future use of /datasets/<id>/organs endpoint of app.py needs.
     def get_organs_associated_with_dataset(self, dataset_id: Annotated[str, 32], valid_user_token: Annotated[str, 32]
         , user_info: dict) -> list:
-
-        # KBKBKB @TODO for future use of /datasets/<id>/organs endpoint of app.py needs.
 
         dataset_dict = self._get_entity_by_id_for_auth_level(entity_id=dataset_id
                                                              , valid_user_token=valid_user_token

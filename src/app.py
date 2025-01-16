@@ -633,21 +633,27 @@ def _get_entity_visibility(normalized_entity_type, entity_dict):
         entity_visibility = DataVisibilityEnum.PUBLIC
     return entity_visibility
 
-"""
+'''
 Retrieve the full provenance metadata information of a given entity by id, as
-produced for metadata.json files
+produced for metadata.json files.
 
-This endpoint as publicly accessible.  An HTTP 404 Response is returned if the requested Dataset is not found.
+This endpoint as publicly accessible.  Without presenting a token, only data for
+published Datasets may be requested.
 
-Without presenting a token, only data for published Datasets may be requested. An HTTP 403 Response is
-returned if the requested Dataset is not published.
+Result filtering is supported based on query string
+For example: /prov-metadata/<id>?property=data_access_level
 
-When a token is presented that is not valid, and HTTP 401 Response is returned.
+When a valid token is presented, a member of the HuBMAP-Read Globus group is authorized to
+access any Dataset.  Otherwise, only access to published Datasets is authorized.
 
-When a valid token is presented for a member of the HuBMAP-Read Globus group, any Dataset can be requested.
+An HTTP 400 Response is returned for reasons described in the error message, such as
+requesting data for a non-Dataset, filtering by an unsupported key, etc.
+ 
+An HTTP 401 Response is returned when a token is presented that is not valid.
 
-When a valid token is presented for a non-member of the HuBMAP-Read Globus group, only data for published Datasets
-may be requested. An HTTP 403 Response is returned if the requested Dataset is not published.
+An HTTP 403 Response is returned if user is not authorized to access the Dataset, as described above.
+  
+An HTTP 404 Response is returned if the requested Dataset is not found.
 
 Parameters
 ----------
@@ -658,7 +664,7 @@ Returns
 -------
 json
     Valid JSON for the full provenance metadata of the requested Dataset
-"""
+'''
 @app.route('/prov-metadata/<id>', methods = ['GET'])
 def get_provenance_metadata_by_id_for_auth_level(id:Annotated[str, 32]) -> str:
 
