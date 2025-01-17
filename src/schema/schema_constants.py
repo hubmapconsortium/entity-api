@@ -22,7 +22,7 @@ class SchemaConstants(object):
 
     DOI_BASE_URL = 'https://doi.org/'
 
-    DATASETS_OMITTED_FIELDS = ['ingest_metadata', 'metadata', 'files']
+    OMITTED_FIELDS = ['ingest_metadata', 'files']
 
 # Define an enumeration to classify an entity's visibility, which can be combined with
 # authorization info when verify operations on a request.
