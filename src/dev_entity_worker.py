@@ -119,6 +119,8 @@ class EntityWorker:
             raise entityEx.EntityConfigurationException(msg)
 
     def _user_in_hubmap_read_group(self, user_info):
+        if user_info is None:
+            return False
         try:
             # The property 'hmgroupids' is ALWAYS in the output with using schema_manager.get_user_info()
             # when the token in request is a groups token
@@ -300,16 +302,14 @@ class EntityWorker:
         entity_scope = self._get_entity_visibility(entity_dict=complete_dict)
         public_entity = (entity_scope is DataVisibilityEnum.PUBLIC)
 
-        # Initialize the user as authorized if the data is public.  Otherwise, the
-        # user is not authorized and credentials must be checked.
-        if public_entity:
-            user_authorized = True
-        else:
+        # Set a variable reflecting the user's authorization by being in the HuBMAP-READ Globus Group
+        user_authorized = self._user_in_hubmap_read_group(user_info=user_info)
+
+        # For non-public documents, reject the request if the user is not authorized
+        if not public_entity:
             if valid_user_token is None:
                 raise entityEx.EntityForbiddenException(f"{normalized_entity_type} for {entity_id} is not"
                                                         f" accessible without presenting a token.")
-
-            user_authorized = self._user_in_hubmap_read_group(user_info=user_info)
             if not user_authorized:
                 raise entityEx.EntityForbiddenException(f"The requested {normalized_entity_type} has non-public data."
                                                         f"  A Globus token with access permission is required.")
@@ -322,7 +322,7 @@ class EntityWorker:
         # Also normalize the result based on schema
         final_result = self.schemaMgr.normalize_entity_result_for_response(complete_dict)
 
-        # Identify fields in the entity based upon user's authorization
+        # Identify fields to exclude from non-authorized responses for the entity type.
         fields_to_exclude = self.schemaMgr.get_fields_to_exclude(normalized_entity_type)
 
         # Response with the dict
@@ -383,7 +383,7 @@ class EntityWorker:
             raise entityEx.EntityBadRequestException(   f"'{dataset_dict['entity_type']}' for"
                                                         f" uuid={dataset_dict['uuid']} is not a Dataset or Publication,"
                                                         f" so '{associated_data}' can not be retrieved for it.")
-        # Set up fields to be excluded when retrieving the organs associated with
+        # Set up fields to be excluded when retrieving the entities associated with
         # the Dataset.  Organs are one kind of Sample.
         if associated_data.lower() in ['organs', 'samples']:
             fields_to_exclude = self.schemaMgr.get_fields_to_exclude('Sample')
@@ -395,19 +395,16 @@ class EntityWorker:
             raise entityEx.EntityServerErrorException(f"Unexpected error retrieving '{associated_data}' for a Dataset")
 
         public_entity = (dataset_visibility is DataVisibilityEnum.PUBLIC)
-        # Initialize the user as authorized if the entity with associated data is public.  Otherwise, the
-        # user is not authorized and credentials must be checked.
-        if dataset_visibility is DataVisibilityEnum.PUBLIC:
-            user_authorized = True
-        else:
-            # If the entity is non-public, but the valid user token is None, authorization is forbidden.
+
+        # Set a variable reflecting the user's authorization by being in the HuBMAP-READ Globus Group
+        user_authorized = self._user_in_hubmap_read_group(user_info=user_info)
+
+        # For non-public documents, reject the request if the user is not authorized
+        if not public_entity:
             if valid_user_token is None:
                 raise entityEx.EntityForbiddenException(f"{dataset_dict['entity_type']} for"
                                                         f" {dataset_dict['uuid']} is not"
                                                         f" accessible without presenting a token.")
-
-            user_authorized = self._user_in_hubmap_read_group(user_info=user_info)
-            # If the entity is non-public, but user token is not in the HuBMAP Read Group, authorization is forbidden.
             if not user_authorized:
                 raise entityEx.EntityForbiddenException(f"The requested Dataset has non-public data."
                                                         f"  A Globus token with access permission is required.")
