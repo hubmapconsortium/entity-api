@@ -68,7 +68,8 @@ def validate_recognized_dataset_type(property_key, normalized_entity_type, reque
     # those square brackets are acceptable at the end of the string.  Simply validate the start.
     proposed_dataset_type_prefix = re.sub(pattern='(\S)\s\[.*\]$', repl=r'\1', string=new_data_dict['dataset_type'])
     target_list = schema_manager.get_dataset_type_valueset_list()
-
+    # TODO This is a temporary bypass because the UBKG does not support publication as a dataset_type yet. Remove once its added
+    target_list.append("Publication")
     if proposed_dataset_type_prefix not in target_list:
         raise ValueError(f"Proposed Dataset dataset_type '{proposed_dataset_type_prefix}'"
                          f" is not recognized in the existing ontology."
