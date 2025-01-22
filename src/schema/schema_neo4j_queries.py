@@ -164,7 +164,7 @@ dict
 """
 def get_children(neo4j_driver, uuid, property_key = None):
     results = []
-
+    fields_to_omit = SchemaConstants.OMITTED_FIELDS
     if property_key:
         query = (f"MATCH (e:Entity)-[:ACTIVITY_INPUT]->(:Activity)-[:ACTIVITY_OUTPUT]->(child:Entity) "
                  # The target entity can't be a Lab
@@ -178,7 +178,7 @@ def get_children(neo4j_driver, uuid, property_key = None):
                  f"WHERE e.uuid='{uuid}' AND e.entity_type <> 'Lab' "
                  # COLLECT() returns a list
                  # apoc.coll.toSet() reruns a set containing unique nodes
-                 f"RETURN apoc.coll.toSet(COLLECT(child)) AS {record_field_name}")
+                 f"RETURN apoc.coll.toSet(COLLECT(apoc.create.vNode(labels(child), apoc.map.removeKeys(properties(child), {fields_to_omit})))) AS {record_field_name}")
 
     logger.info("======get_children() query======")
     logger.info(query)
@@ -193,7 +193,7 @@ def get_children(neo4j_driver, uuid, property_key = None):
             else:
                 # Convert the list of nodes to a list of dicts
                 results = nodes_to_dicts(record[record_field_name])
-
+                
     return results
 
 
@@ -216,7 +216,7 @@ dict
 """
 def get_parents(neo4j_driver, uuid, property_key = None):
     results = []
-
+    fields_to_omit = SchemaConstants.OMITTED_FIELDS
     if property_key:
         query = (f"MATCH (e:Entity)<-[:ACTIVITY_OUTPUT]-(:Activity)<-[:ACTIVITY_INPUT]-(parent:Entity) "
                  # Filter out the Lab entities
@@ -230,7 +230,7 @@ def get_parents(neo4j_driver, uuid, property_key = None):
                  f"WHERE e.uuid='{uuid}' AND parent.entity_type <> 'Lab' "
                  # COLLECT() returns a list
                  # apoc.coll.toSet() reruns a set containing unique nodes
-                 f"RETURN apoc.coll.toSet(COLLECT(parent)) AS {record_field_name}")
+                 f"RETURN apoc.coll.toSet(COLLECT(apoc.create.vNode(labels(parent), apoc.map.removeKeys(properties(parent), {fields_to_omit})))) AS {record_field_name}")
 
     logger.info("======get_parents() query======")
     logger.info(query)
@@ -380,7 +380,7 @@ list
 """
 def get_ancestors(neo4j_driver, uuid, property_key = None):
     results = []
-
+    fields_to_omit = SchemaConstants.OMITTED_FIELDS
     if property_key:
         query = (f"MATCH (e:Entity)<-[:ACTIVITY_INPUT|ACTIVITY_OUTPUT*]-(ancestor:Entity) "
                  # Filter out the Lab entities
@@ -394,7 +394,7 @@ def get_ancestors(neo4j_driver, uuid, property_key = None):
                  f"WHERE e.uuid='{uuid}' AND ancestor.entity_type <> 'Lab' "
                  # COLLECT() returns a list
                  # apoc.coll.toSet() reruns a set containing unique nodes
-                 f"RETURN apoc.coll.toSet(COLLECT(ancestor)) AS {record_field_name}")
+                 f"RETURN apoc.coll.toSet(COLLECT(apoc.create.vNode(labels(ancestor), apoc.map.removeKeys(properties(ancestor), {fields_to_omit})))) AS {record_field_name}")
 
     logger.info("======get_ancestors() query======")
     logger.info(query)
@@ -431,7 +431,7 @@ dict
 """
 def get_descendants(neo4j_driver, uuid, property_key = None):
     results = []
-
+    fields_to_omit = SchemaConstants.OMITTED_FIELDS
     if property_key:
         query = (f"MATCH (e:Entity)-[:ACTIVITY_INPUT|ACTIVITY_OUTPUT*]->(descendant:Entity) "
                  # The target entity can't be a Lab
@@ -445,7 +445,7 @@ def get_descendants(neo4j_driver, uuid, property_key = None):
                  f"WHERE e.uuid='{uuid}' AND e.entity_type <> 'Lab' "
                  # COLLECT() returns a list
                  # apoc.coll.toSet() reruns a set containing unique nodes
-                 f"RETURN apoc.coll.toSet(COLLECT(descendant)) AS {record_field_name}")
+                 f"RETURN apoc.coll.toSet(COLLECT(apoc.create.vNode(labels(descendant), apoc.map.removeKeys(properties(descendant), {fields_to_omit})))) AS {record_field_name}")
 
     logger.info("======get_descendants() query======")
     logger.info(query)
@@ -460,7 +460,7 @@ def get_descendants(neo4j_driver, uuid, property_key = None):
             else:
                 # Convert the list of nodes to a list of dicts
                 results = nodes_to_dicts(record[record_field_name])
-
+                
     return results
 
 
@@ -1185,7 +1185,7 @@ list
 def get_collection_datasets(neo4j_driver, uuid):
     results = []
 
-    fields_to_omit = SchemaConstants.DATASETS_OMITTED_FIELDS
+    fields_to_omit = SchemaConstants.OMITTED_FIELDS
     query = (f"MATCH (e:Dataset)-[:IN_COLLECTION]->(c:Collection) "
              f"WHERE c.uuid = '{uuid}' "
              f"RETURN COLLECT(apoc.create.vNode(labels(e), apoc.map.removeKeys(properties(e), {fields_to_omit}))) AS {record_field_name}")
@@ -1391,7 +1391,7 @@ list
 """
 def get_upload_datasets(neo4j_driver, uuid, property_key = None):
     results = []
-    fields_to_omit = SchemaConstants.DATASETS_OMITTED_FIELDS
+    fields_to_omit = SchemaConstants.OMITTED_FIELDS
     if property_key:
         query = (f"MATCH (e:Dataset)-[:IN_UPLOAD]->(s:Upload) "
                  f"WHERE s.uuid = '{uuid}' "
