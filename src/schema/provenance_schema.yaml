@@ -192,6 +192,10 @@ shared_entity_properties: &shared_entity_properties
 ENTITIES:
   ############################################# Collection #############################################
   Collection:
+    excluded_properties_from_public_response:
+      - datasets:
+        - lab_dataset_id
+        - submission_id
     # Collection can not be derivation source but not target
     derivation:
       source: false
@@ -304,6 +308,12 @@ ENTITIES:
       - lab_dataset_id
       - metadata:
         - lab_id
+      - direct_ancestors:
+        - lab_tissue_sample_id
+        - submission_id
+        - lab_dataset_id
+        - metadata:
+          - lab_id
     derivation:
       source: true
       target: true
@@ -870,6 +880,11 @@ ENTITIES:
     excluded_properties_from_public_response:
       - lab_tissue_sample_id
       - submission_id
+      - direct_ancestor:
+        - lab_donor_id
+        - submission_id
+        - label
+        - lab_tissue_sample_id
     properties:
       <<: *shared_properties
       <<: *shared_entity_properties

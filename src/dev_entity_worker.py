@@ -329,15 +329,6 @@ class EntityWorker:
         #if public_entity and not user_in_hubmap_read_group(request):
         if public_entity and not user_authorized:
             final_result = self.schemaMgr.exclude_properties_from_response(fields_to_exclude, final_result)
-        if normalized_entity_type == 'Collection':
-            for i, dataset in enumerate(final_result.get('datasets', [])):
-                if self._get_entity_visibility( entity_dict=dataset) != DataVisibilityEnum.PUBLIC \
-                        or user_authorized: # or user_in_hubmap_read_group(request):
-                    # If the dataset is public, or if the user has read-group access, there is
-                    # no need to remove fields, continue to the next dataset
-                    continue
-                dataset_excluded_fields = self.schemaMgr.get_fields_to_exclude('Dataset')
-                final_result.get('datasets')[i] = self.schemaMgr.exclude_properties_from_response(dataset_excluded_fields, dataset)
         return final_result
 
     '''

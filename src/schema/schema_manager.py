@@ -306,13 +306,26 @@ def exclude_properties_from_response(excluded_fields, output_dict):
                     if isinstance(value, list):
                         for nested_field in value:
                             if isinstance(nested_field, dict):
-                                delete_nested_field(data[key], nested_field)
+                                if isinstance(data[key], list):
+                                    for item in data[key]:
+                                        delete_nested_field(item, nested_field)
+                                else:
+                                    delete_nested_field(data[key], nested_field)
+                            elif isinstance(data[key], list):
+                                for item in data[key]:
+                                    if nested_field in item:
+                                        del item[nested_field]
                             elif nested_field in data[key]:
                                 del data[key][nested_field]
                     elif isinstance(value, dict):
                         delete_nested_field(data[key], value)
         elif nested_path in data:
-            del data[nested_path]
+            if isinstance(data[nested_path], list):
+                for item in data[nested_path]:
+                    if nested_path in item:
+                        del item[nested_path]
+            else:
+                del data[nested_path]
 
     for field in excluded_fields:
         delete_nested_field(output_dict, field)
