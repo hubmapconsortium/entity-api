@@ -540,44 +540,50 @@ class EntityWorker:
     dict
         A dictionary containing all the properties the target entity.
     '''
-    def get_expanded_entity_metadata(self, entity_id:Annotated[str, 32], valid_user_token:Annotated[str, 32]
+    def get_expanded_dataset_metadata(self, dataset_id:Annotated[str, 32], valid_user_token:Annotated[str, 32]
                                      , user_info:dict) -> dict:
-        # Retrieve the metadata dictionary for the entity, which will be expanded later to hold entries for the
+        # Retrieve the metadata dictionary for the Dataset, which will be expanded later to hold entries for the
         # associated data.
-        expanded_entity_dict = self._get_entity_by_id_for_auth_level(entity_id=entity_id
+        expanded_dataset_dict = self._get_entity_by_id_for_auth_level(entity_id=dataset_id
                                                                      , valid_user_token=valid_user_token
                                                                      , user_info=user_info)
+        # Confirm the dataset_id passed in is for a Dataset entity.
+        if expanded_dataset_dict['entity_type'] not in ['Dataset','Publication']:
+            raise entityEx.EntityBadRequestException(   f"Only Dataset provenance metadata can be retrieved."
+                                                        f" An entity of type '{expanded_dataset_dict['entity_type']}'"
+                                                        f" for uuid={expanded_dataset_dict['uuid']} is not supported.")
+
         # Determine if the entity is publicly visible base on its data, only.
         # To verify if a Collection is public, it is necessary to have its Datasets, which
         # are populated as triggered data.  So pull back the complete entity for
         # _get_entity_visibility() to check.
-        entity_scope = self._get_entity_visibility(entity_dict=expanded_entity_dict)
+        dataset_scope = self._get_entity_visibility(entity_dict=expanded_dataset_dict)
 
         # Retrieve the associated data for the entity, and add it to the expanded dictionary.
-        associated_organ_list = self._get_dataset_associated_data(  dataset_dict=expanded_entity_dict
-                                                                    , dataset_visibility=entity_scope
+        associated_organ_list = self._get_dataset_associated_data(  dataset_dict=expanded_dataset_dict
+                                                                    , dataset_visibility=dataset_scope
                                                                     , valid_user_token=valid_user_token
                                                                     , user_info=user_info
                                                                     , associated_data='Organs')
-        expanded_entity_dict['organs'] = associated_organ_list
+        expanded_dataset_dict['organs'] = associated_organ_list
 
-        associated_sample_list = self._get_dataset_associated_data( dataset_dict=expanded_entity_dict
-                                                                    , dataset_visibility=entity_scope
+        associated_sample_list = self._get_dataset_associated_data( dataset_dict=expanded_dataset_dict
+                                                                    , dataset_visibility=dataset_scope
                                                                     , valid_user_token=valid_user_token
                                                                     , user_info=user_info
                                                                     , associated_data='Samples')
-        expanded_entity_dict['samples'] = associated_sample_list
+        expanded_dataset_dict['samples'] = associated_sample_list
 
-        associated_donor_list = self._get_dataset_associated_data(  dataset_dict=expanded_entity_dict
-                                                                    , dataset_visibility=entity_scope
+        associated_donor_list = self._get_dataset_associated_data(  dataset_dict=expanded_dataset_dict
+                                                                    , dataset_visibility=dataset_scope
                                                                     , valid_user_token=valid_user_token
                                                                     , user_info=user_info
                                                                     , associated_data='Donors')
 
-        expanded_entity_dict['donors'] = associated_donor_list
+        expanded_dataset_dict['donors'] = associated_donor_list
 
         # Return the dictionary containing the entity metadata as well as metadata for the associated data.
-        return expanded_entity_dict
+        return expanded_dataset_dict
 
     # KBKBKB @TODO for future use of /datasets/<id>/organs endpoint of app.py needs.
     def get_organs_associated_with_dataset(self, dataset_id: Annotated[str, 32], valid_user_token: Annotated[str, 32]
