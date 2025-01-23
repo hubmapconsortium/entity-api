@@ -195,7 +195,6 @@ ENTITIES:
     excluded_properties_from_public_response:
       - datasets:
         - lab_dataset_id
-        - submission_id
         - metadata:
           - lab_id
     # Collection can not be derivation source but not target
