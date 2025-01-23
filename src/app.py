@@ -675,10 +675,9 @@ def get_provenance_metadata_by_id_for_auth_level(id:Annotated[str, 32]) -> str:
 
         # Retrieve the expanded metadata for the entity.  If authorization of token or group membership
         # does not allow access to the entity, exceptions will be raised describing the problem.
-        req_property_key = request.args.get('property') if request.args else None
-        expanded_entity_metadata = entity_worker.get_expanded_entity_metadata(entity_id=id
-                                                                              , valid_user_token=user_token
-                                                                              , user_info=user_info)
+        expanded_entity_metadata = entity_worker.get_expanded_dataset_metadata( dataset_id=id
+                                                                                , valid_user_token=user_token
+                                                                                , user_info=user_info)
         return jsonify(expanded_entity_metadata)
     except entityEx.EntityBadRequestException as e_400:
         return jsonify({'error': e_400.message}), 400
@@ -5765,7 +5764,7 @@ def _get_metadata_by_id(entity_id:str=None, metadata_scope:MetadataScopeEnum=Met
         # Without token, the user can only access public collections, modify the collection result
         # by only returning public datasets attached to this collection
         if isinstance(user_token, Response):
-            forbidden_error(f"{normalized_entity_type} for {id} is not accessible without presenting a token.")
+            forbidden_error(f"{normalized_entity_type} for {entity_id} is not accessible without presenting a token.")
         else:
             # When the groups token is valid, but the user doesn't belong to HuBMAP-READ group
             # Or the token is valid but doesn't contain group information (auth token or transfer token)
