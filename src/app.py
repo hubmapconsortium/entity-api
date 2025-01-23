@@ -675,7 +675,6 @@ def get_provenance_metadata_by_id_for_auth_level(id:Annotated[str, 32]) -> str:
 
         # Retrieve the expanded metadata for the entity.  If authorization of token or group membership
         # does not allow access to the entity, exceptions will be raised describing the problem.
-        req_property_key = request.args.get('property') if request.args else None
         expanded_entity_metadata = entity_worker.get_expanded_dataset_metadata( dataset_id=id
                                                                                 , valid_user_token=user_token
                                                                                 , user_info=user_info)
