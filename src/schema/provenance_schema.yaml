@@ -192,6 +192,11 @@ shared_entity_properties: &shared_entity_properties
 ENTITIES:
   ############################################# Collection #############################################
   Collection:
+    excluded_properties_from_public_response:
+      - datasets:
+        - lab_dataset_id
+        - metadata:
+          - lab_id
     # Collection can not be derivation source but not target
     derivation:
       source: false
@@ -304,6 +309,15 @@ ENTITIES:
       - lab_dataset_id
       - metadata:
         - lab_id
+      - direct_ancestors:
+        # Sample ancestors of a Dataset must have these fields removed
+        - lab_tissue_sample_id
+        - submission_id
+        # Dataset ancestors of a Dataset must have these fields removed
+        - lab_dataset_id
+        # Both Sample and Dataset ancestors of a Dataset must have these fields removed
+        - metadata:
+          - lab_id
     derivation:
       source: true
       target: true
@@ -870,6 +884,18 @@ ENTITIES:
     excluded_properties_from_public_response:
       - lab_tissue_sample_id
       - submission_id
+      - metadata:
+        - lab_id
+      - direct_ancestor:
+        # Donor ancestors of a Sample must have these fields removed
+        - lab_donor_id
+        - label
+        # Sample ancestors of a Sample must have these fields removed
+        - lab_tissue_sample_id
+        - metadata:
+          - lab_id
+        # Both Sample and Donor ancestors of a Sample must have these fields removed
+        - submission_id
     properties:
       <<: *shared_properties
       <<: *shared_entity_properties

@@ -1,6 +1,6 @@
 import sys
 import collections
-from typing import Callable, List, Optional
+from typing import Callable, List, Optional, Annotated
 from datetime import datetime
 from flask import Flask, g, jsonify, abort, request, Response, redirect, make_response
 from neo4j.exceptions import TransactionError
@@ -38,8 +38,8 @@ from schema.schema_constants import MetadataScopeEnum
 from schema.schema_constants import TriggerTypeEnum
 from metadata_constraints import get_constraints, constraints_json_is_valid
 # from lib.ontology import initialize_ubkg, init_ontology, Ontology, UbkgSDK
-
-
+from dev_entity_worker import EntityWorker
+import dev_entity_exceptions as entityEx
 
 # HuBMAP commons
 from hubmap_commons import string_helper
@@ -247,6 +247,24 @@ try:
     logger.info("anS3Worker initialized")
 except Exception as s3exception:
     logger.critical(s3exception, exc_info=True)
+
+####################################################################################################
+## Initialize a "worker" for the service.
+## For initial transition to "worker" usage, pass in globals of app.py which would eventually
+## be only in the worker and not in app.py.
+####################################################################################################
+entity_worker = None
+try:
+    entity_worker = EntityWorker(   app_config=app.config
+                                    , schema_mgr = schema_manager
+                                    , memcached_client_instance = memcached_client_instance
+                                    , neo4j_driver_instance = neo4j_driver_instance)
+    if not isinstance(entity_worker, EntityWorker):
+        raise Exception("Error instantiating a EntityWorker during startup.")
+    logger.info("EntityWorker instantiated using app.cfg setting.")
+except Exception as e:
+    logger.critical(f"Unable to instantiate a EntityWorker during startup.")
+    logger.error(e, exc_info=True)
 
 ####################################################################################################
 ## REFERENCE DOI Redirection
@@ -614,6 +632,69 @@ def _get_entity_visibility(normalized_entity_type, entity_dict):
         entity_visibility = DataVisibilityEnum.PUBLIC
     return entity_visibility
 
+'''
+Retrieve the full provenance metadata information of a given entity by id, as
+produced for metadata.json files.
+
+This endpoint as publicly accessible.  Without presenting a token, only data for
+published Datasets may be requested.
+
+When a valid token is presented, a member of the HuBMAP-Read Globus group is authorized to
+access any Dataset.  Otherwise, only access to published Datasets is authorized.
+
+An HTTP 400 Response is returned for reasons described in the error message, such as
+requesting data for a non-Dataset.
+ 
+An HTTP 401 Response is returned when a token is presented that is not valid.
+
+An HTTP 403 Response is returned if user is not authorized to access the Dataset, as described above.
+  
+An HTTP 404 Response is returned if the requested Dataset is not found.
+
+Parameters
+----------
+id : str
+    The HuBMAP ID (e.g. HBM123.ABCD.456) or UUID of target entity 
+
+Returns
+-------
+json
+    Valid JSON for the full provenance metadata of the requested Dataset
+'''
+@app.route('/datasets/<id>/prov-metadata', methods = ['GET'])
+def get_provenance_metadata_by_id_for_auth_level(id:Annotated[str, 32]) -> str:
+
+    try:
+        # Get the user's token from the Request for later authorization to access non-public entities.
+        # If an invalid token is presented, reject with an HTTP 401 Response.
+        # N.B. None is a "valid" user_token which may be adequate for access to public data.
+        user_token = entity_worker.get_request_auth_token(request=request)
+
+        # Get the user's token from the Request for later authorization to access non-public entities.
+        user_info = entity_worker.get_request_user_info_with_groups(request=request)
+
+        # Retrieve the expanded metadata for the entity.  If authorization of token or group membership
+        # does not allow access to the entity, exceptions will be raised describing the problem.
+        expanded_entity_metadata = entity_worker.get_expanded_dataset_metadata( dataset_id=id
+                                                                                , valid_user_token=user_token
+                                                                                , user_info=user_info)
+        return jsonify(expanded_entity_metadata)
+    except entityEx.EntityBadRequestException as e_400:
+        return jsonify({'error': e_400.message}), 400
+    except entityEx.EntityUnauthorizedException as e_401:
+        return jsonify({'error': e_401.message}), 401
+    except entityEx.EntityForbiddenException as e_403:
+        return jsonify({'error': e_403.message}), 403
+    except entityEx.EntityNotFoundException as e_404:
+        return jsonify({'error': e_404.message}), 404
+    except entityEx.EntityServerErrorException as e_500:
+        logger.exception(f"An unexpected error occurred during provenance metadata retrieval.")
+        return jsonify({'error': e_500.message}), 500
+    except Exception as e:
+        default_msg = 'An unexpected error occurred retrieving provenance metadata'
+        logger.exception(default_msg)
+        return jsonify({'error': default_msg}), 500
+
 """
 Retrieve the metadata information of a given entity by id
 
@@ -715,13 +796,6 @@ def get_entity_by_id(id):
         # Response with the dict
         if public_entity and not user_in_hubmap_read_group(request):
             final_result = schema_manager.exclude_properties_from_response(fields_to_exclude, final_result)
-        if normalized_entity_type == 'Collection':
-            for i, dataset in enumerate(final_result.get('datasets', [])):
-                if _get_entity_visibility(normalized_entity_type='Dataset', entity_dict=dataset) != DataVisibilityEnum.PUBLIC or user_in_hubmap_read_group(request):
-                    # If the dataset is non-public, or if the user has read-group access, there is no need to remove fields, continue to the next dataset
-                    continue
-                dataset_excluded_fields = schema_manager.get_fields_to_exclude('Dataset')
-                final_result.get('datasets')[i] = schema_manager.exclude_properties_from_response(dataset_excluded_fields, dataset)
         return jsonify(final_result)
 
 """
@@ -5690,7 +5764,7 @@ def _get_metadata_by_id(entity_id:str=None, metadata_scope:MetadataScopeEnum=Met
         # Without token, the user can only access public collections, modify the collection result
         # by only returning public datasets attached to this collection
         if isinstance(user_token, Response):
-            forbidden_error(f"{normalized_entity_type} for {id} is not accessible without presenting a token.")
+            forbidden_error(f"{normalized_entity_type} for {entity_id} is not accessible without presenting a token.")
         else:
             # When the groups token is valid, but the user doesn't belong to HuBMAP-READ group
             # Or the token is valid but doesn't contain group information (auth token or transfer token)

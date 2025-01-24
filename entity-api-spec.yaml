@@ -185,6 +185,30 @@ components:
         specimen_tumor_distance_unit:
           type: string
           description: ""
+    DatasetProvMetadata:
+      type: object
+      allOf:
+        - $ref: '#/components/schemas/Dataset'
+        - type: object
+      properties:
+        samples:
+          type: array
+          items:
+            $ref: '#/components/schemas/Sample'
+          readOnly: true
+          description: 'List of Samples not of sub-type organ for the dataset'
+        organs:
+          type: array
+          items:
+            $ref: '#/components/schemas/Sample'
+          readOnly: true
+          description: 'List of Samples of sub-type organ for the dataset'
+        donors:
+          type: array
+          items:
+            $ref: '#/components/schemas/Donor'
+          readOnly: true
+          description: 'List of Donors for the dataset'
     File:
       type: object
       properties:
@@ -1924,7 +1948,31 @@ paths:
           description: The target entity could not be found
         '500':
           description: Internal error
-  '/datasets/{id}/latest-revision':
+  '/datasets/{id}/prov-metadata':
+    get:
+      summary: 'Returns full provenance metadata for a Dataset, which can be used when publishing the Dataset.'
+      parameters:
+        - name: id
+          in: path
+          description: The unique identifier of entity.  This identifier can be either an HuBMAP ID (e.g. HBM123.ABCD.456) or UUID (32 digit hexadecimal number)
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Full provenance information for the given dataset as JSON in the Response body.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DatasetProvMetadata'
+        '401':
+          description: The user's token has expired or the user did not supply a valid token
+        '403':
+          description: THe user is not authorized to use this method
+        '500':
+          description:
+            Internal error
+'/datasets/{id}/latest-revision':
     get:
       summary: 'Retrive the latest (newest) revision of a given Dataset. Public/Consortium access rules apply - if no token/consortium access then must be for a public dataset and the returned Dataset must be the latest public version. If the given dataset itself is the latest revision, meaning it has no next revisions, this dataset gets returned.'
       parameters:
@@ -2812,3 +2860,4 @@ paths:
           description: The given dataset is unpublished and the user does not have the authorization to view it.
         '500':
           description: Internal error
+
