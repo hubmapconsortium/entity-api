@@ -546,7 +546,8 @@ class EntityWorker:
         dataset_dict = self._query_target_entity(entity_id=dataset_id)
 
         # Confirm the dataset_id passed in is for a Dataset entity.
-        if dataset_dict['entity_type'] not in ['Dataset', 'Publication']:
+        if not self.schemaMgr.entity_type_instanceof(   entity_type=dataset_dict['entity_type']
+                                                        , entity_class='Dataset'):
             raise entityEx.EntityBadRequestException(f"Only Dataset provenance metadata can be retrieved."
                                                      f" An entity of type '{dataset_dict['entity_type']}'"
                                                      f" for uuid={dataset_dict['uuid']} is not supported.")
