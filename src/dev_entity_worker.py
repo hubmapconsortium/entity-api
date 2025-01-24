@@ -281,13 +281,12 @@ class EntityWorker:
     dict
         A dictionary containing all the properties the target entity.
     '''
-    def _get_entity_by_id_for_auth_level(self, entity_id:Annotated[str, 32], valid_user_token:Annotated[str, 32]
-                                         , user_info:dict) -> dict:
+    def _get_expanded_entity_for_auth_level(self, entity_dict:dict, valid_user_token:Annotated[str, 32]
+                                            , user_info:dict) -> dict:
 
         # Use the internal token to query the target entity to assure it is returned. This way public
         # entities can be accessed even if valid_user_token is None.
         internal_token = self.authHelper.getProcessSecret()
-        entity_dict = self._query_target_entity(entity_id=entity_id)
         normalized_entity_type = entity_dict['entity_type']
 
         # Get the generated complete entity result from cache if exists
@@ -308,7 +307,7 @@ class EntityWorker:
         # For non-public documents, reject the request if the user is not authorized
         if not public_entity:
             if valid_user_token is None:
-                raise entityEx.EntityForbiddenException(f"{normalized_entity_type} for {entity_id} is not"
+                raise entityEx.EntityForbiddenException(f"{normalized_entity_type} for {entity_dict['uuid']} is not"
                                                         f" accessible without presenting a token.")
             if not user_authorized:
                 raise entityEx.EntityForbiddenException(f"The requested {normalized_entity_type} has non-public data."
@@ -544,14 +543,18 @@ class EntityWorker:
                                      , user_info:dict) -> dict:
         # Retrieve the metadata dictionary for the Dataset, which will be expanded later to hold entries for the
         # associated data.
-        expanded_dataset_dict = self._get_entity_by_id_for_auth_level(entity_id=dataset_id
-                                                                     , valid_user_token=valid_user_token
-                                                                     , user_info=user_info)
+        dataset_dict = self._query_target_entity(entity_id=dataset_id)
+
         # Confirm the dataset_id passed in is for a Dataset entity.
-        if expanded_dataset_dict['entity_type'] not in ['Dataset','Publication']:
-            raise entityEx.EntityBadRequestException(   f"Only Dataset provenance metadata can be retrieved."
-                                                        f" An entity of type '{expanded_dataset_dict['entity_type']}'"
-                                                        f" for uuid={expanded_dataset_dict['uuid']} is not supported.")
+        if not self.schemaMgr.entity_type_instanceof(   entity_type=dataset_dict['entity_type']
+                                                        , entity_class='Dataset'):
+            raise entityEx.EntityBadRequestException(f"Only Dataset provenance metadata can be retrieved."
+                                                     f" An entity of type '{dataset_dict['entity_type']}'"
+                                                     f" for uuid={dataset_dict['uuid']} is not supported.")
+
+        expanded_dataset_dict = self._get_expanded_entity_for_auth_level(   entity_dict=dataset_dict
+                                                                            , valid_user_token=valid_user_token
+                                                                            , user_info=user_info)
 
         # Determine if the entity is publicly visible base on its data, only.
         # To verify if a Collection is public, it is necessary to have its Datasets, which
