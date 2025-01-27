@@ -38,8 +38,6 @@ from schema.schema_constants import MetadataScopeEnum
 from schema.schema_constants import TriggerTypeEnum
 from metadata_constraints import get_constraints, constraints_json_is_valid
 # from lib.ontology import initialize_ubkg, init_ontology, Ontology, UbkgSDK
-from dev_entity_worker import EntityWorker
-import dev_entity_exceptions as entityEx
 
 # HuBMAP commons
 from hubmap_commons import string_helper
@@ -248,23 +246,6 @@ try:
 except Exception as s3exception:
     logger.critical(s3exception, exc_info=True)
 
-####################################################################################################
-## Initialize a "worker" for the service.
-## For initial transition to "worker" usage, pass in globals of app.py which would eventually
-## be only in the worker and not in app.py.
-####################################################################################################
-entity_worker = None
-try:
-    entity_worker = EntityWorker(   app_config=app.config
-                                    , schema_mgr = schema_manager
-                                    , memcached_client_instance = memcached_client_instance
-                                    , neo4j_driver_instance = neo4j_driver_instance)
-    if not isinstance(entity_worker, EntityWorker):
-        raise Exception("Error instantiating a EntityWorker during startup.")
-    logger.info("EntityWorker instantiated using app.cfg setting.")
-except Exception as e:
-    logger.critical(f"Unable to instantiate a EntityWorker during startup.")
-    logger.error(e, exc_info=True)
 
 ####################################################################################################
 ## REFERENCE DOI Redirection
@@ -632,6 +613,7 @@ def _get_entity_visibility(normalized_entity_type, entity_dict):
         entity_visibility = DataVisibilityEnum.PUBLIC
     return entity_visibility
 
+
 '''
 Retrieve the full provenance metadata information of a given entity by id, as
 produced for metadata.json files.
@@ -644,11 +626,11 @@ access any Dataset.  Otherwise, only access to published Datasets is authorized.
 
 An HTTP 400 Response is returned for reasons described in the error message, such as
 requesting data for a non-Dataset.
- 
+
 An HTTP 401 Response is returned when a token is presented that is not valid.
 
 An HTTP 403 Response is returned if user is not authorized to access the Dataset, as described above.
-  
+
 An HTTP 404 Response is returned if the requested Dataset is not found.
 
 Parameters
@@ -661,39 +643,83 @@ Returns
 json
     Valid JSON for the full provenance metadata of the requested Dataset
 '''
-@app.route('/datasets/<id>/prov-metadata', methods = ['GET'])
-def get_provenance_metadata_by_id_for_auth_level(id:Annotated[str, 32]) -> str:
+@app.route('/datasets/<id>/prov-metadata', methods=['GET'])
+def get_provenance_metadata_by_id_for_auth_level(id):
+    # Token is not required, but if an invalid token provided,
+    # we need to tell the client with a 401 error
+    validate_token_if_auth_header_exists(request)
 
-    try:
-        # Get the user's token from the Request for later authorization to access non-public entities.
-        # If an invalid token is presented, reject with an HTTP 401 Response.
-        # N.B. None is a "valid" user_token which may be adequate for access to public data.
-        user_token = entity_worker.get_request_auth_token(request=request)
+    # Use the internal token to query the target entity
+    # since public entities don't require user token
+    token = get_internal_token()
 
-        # Get the user's token from the Request for later authorization to access non-public entities.
-        user_info = entity_worker.get_request_user_info_with_groups(request=request)
+    # The argument id that shadows Python's built-in id should be an identifier for a Dataset.
+    # Get the entity dict from cache if exists
+    # Otherwise query against uuid-api and neo4j to get the entity dict if the id exists
+    dataset_dict = query_target_entity(id, token)
+    normalized_entity_type = dataset_dict['entity_type']
 
-        # Retrieve the expanded metadata for the entity.  If authorization of token or group membership
-        # does not allow access to the entity, exceptions will be raised describing the problem.
-        expanded_entity_metadata = entity_worker.get_expanded_dataset_metadata( dataset_id=id
-                                                                                , valid_user_token=user_token
-                                                                                , user_info=user_info)
-        return jsonify(expanded_entity_metadata)
-    except entityEx.EntityBadRequestException as e_400:
-        return jsonify({'error': e_400.message}), 400
-    except entityEx.EntityUnauthorizedException as e_401:
-        return jsonify({'error': e_401.message}), 401
-    except entityEx.EntityForbiddenException as e_403:
-        return jsonify({'error': e_403.message}), 403
-    except entityEx.EntityNotFoundException as e_404:
-        return jsonify({'error': e_404.message}), 404
-    except entityEx.EntityServerErrorException as e_500:
-        logger.exception(f"An unexpected error occurred during provenance metadata retrieval.")
-        return jsonify({'error': e_500.message}), 500
-    except Exception as e:
-        default_msg = 'An unexpected error occurred retrieving provenance metadata'
-        logger.exception(default_msg)
-        return jsonify({'error': default_msg}), 500
+    # A bit validation
+    if not schema_manager.entity_type_instanceof(normalized_entity_type, 'Dataset'):
+        bad_request_error(f"Unable to get the provenance metatdata for this: {normalized_entity_type},"
+                          " supported entity types: Dataset, Publication")
+
+    # Get the generated complete entity result from cache if exists
+    # Otherwise re-generate on the fly
+    complete_dict = schema_manager.get_complete_entity_result(token=token
+                                                              , entity_dict=dataset_dict)
+
+    # Determine if the entity is publicly visible base on its data, only.
+    # To verify if a Collection is public, it is necessary to have its Datasets, which
+    # are populated as triggered data.  So pull back the complete entity for
+    # _get_entity_visibility() to check.
+    entity_scope = _get_entity_visibility(  normalized_entity_type=normalized_entity_type
+                                            ,entity_dict=complete_dict)
+    public_entity = (entity_scope is DataVisibilityEnum.PUBLIC)
+
+    # Set a variable reflecting the user's authorization by being in the HuBMAP-READ Globus Group
+    user_authorized = user_in_hubmap_read_group(request=request)
+
+    # Get user token from Authorization header
+    user_token = get_user_token(request)
+
+    # For non-public documents, reject the request if the user is not authorized
+    if not public_entity:
+        if user_token is None:
+            forbidden_error(    f"{normalized_entity_type} for {complete_dict['uuid']} is not"
+                                f" accessible without presenting a token.")
+        if not user_authorized:
+            forbidden_error(    f"The requested {normalized_entity_type} has non-public data."
+                                f"  A Globus token with access permission is required.")
+
+    # We'll need to return all the properties including those generated by
+    # `on_read_trigger` to have a complete result e.g., the 'next_revision_uuid' and
+    # 'previous_revision_uuid' being used below.
+    # Collections, however, will filter out only public properties for return.
+
+    # Also normalize the result based on schema
+    final_result = schema_manager.normalize_entity_result_for_response(complete_dict)
+
+    # Identify fields to exclude from non-authorized responses for the entity type.
+    fields_to_exclude = schema_manager.get_fields_to_exclude(normalized_entity_type)
+
+    # Response with the dict
+    if public_entity and not user_authorized:
+        final_result = schema_manager.exclude_properties_from_response(fields_to_exclude, final_result)
+
+    # Retrieve the associated data for the entity, and add it to the expanded dictionary.
+    associated_organ_list_resp = get_associated_organs_from_dataset(id=complete_dict['uuid'])
+    final_result['organs'] = associated_organ_list_resp.json
+
+    associated_sample_list_resp = get_associated_samples_from_dataset(id=complete_dict['uuid'])
+    final_result['samples'] = associated_sample_list_resp.json
+
+    associated_donor_list_resp = get_associated_donors_from_dataset(id=complete_dict['uuid'])
+
+    final_result['donors'] = associated_donor_list_resp.json
+
+    # Return JSON for the dictionary containing the entity metadata as well as metadata for the associated data.
+    return jsonify(final_result)
 
 """
 Retrieve the metadata information of a given entity by id
