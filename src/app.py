@@ -613,6 +613,111 @@ def _get_entity_visibility(normalized_entity_type, entity_dict):
         entity_visibility = DataVisibilityEnum.PUBLIC
     return entity_visibility
 
+'''
+Retrieve the metadata information for certain data associated with entity.  This method supports
+Dataset entities, and can get the associated data for organs, samples, or donors.
+
+Get associated data dict based upon the user's authorization. The associated data may be
+filtered down if credentials were not presented for full access.
+
+Parameters
+----------
+dataset_dict : dict
+    A dictionary containing all the properties the target entity.
+dataset_visibility : DataVisibilityEnum
+    An indication of the entity itself is public or not, so the associated data can
+    be filtered to match the entity dictionary before being returned.
+valid_user_token : str
+    Either the valid current token for an authenticated user or None.
+user_info : dict
+    Information for the logged-in user to be used for authorization accessing non-public entities.
+associated_data : str
+    A string indicating the associated property to be retrieved, which must be from
+    the values supported by this method.
+
+Returns
+-------
+list
+    A dictionary containing all the properties the target entity.
+'''
+def _get_dataset_associated_data(dataset_dict, dataset_visibility, valid_user_token, request, associated_data: str):
+
+    # Confirm the associated data requested is supported by this method.
+    retrievable_associations = ['organs', 'samples', 'donors']
+    if associated_data.lower() not in retrievable_associations:
+        bad_request_error(  f"Dataset associated data cannot be retrieved for"
+                            f" {associated_data}, only"
+                            f" {COMMA_SEPARATOR.join(retrievable_associations)}.")
+
+    # Confirm the dictionary passed in is for a Dataset entity.
+    if not schema_manager.entity_type_instanceof(dataset_dict['entity_type'], 'Dataset'):
+        bad_request_error(  f"'{dataset_dict['entity_type']}' for"
+                            f" uuid={dataset_dict['uuid']} is not a Dataset or Publication,"
+                            f" so '{associated_data}' can not be retrieved for it.")
+    # Set up fields to be excluded when retrieving the entities associated with
+    # the Dataset.  Organs are one kind of Sample.
+    if associated_data.lower() in ['organs', 'samples']:
+        fields_to_exclude = schema_manager.get_fields_to_exclude('Sample')
+    elif associated_data.lower() in ['donors']:
+        fields_to_exclude = schema_manager.get_fields_to_exclude('Donor')
+    else:
+        logger.error(   f"Expected associated data type to be verified, but got"
+                        f" associated_data.lower()={associated_data.lower()}.")
+        internal_server_error(f"Unexpected error retrieving '{associated_data}' for a Dataset")
+
+    public_entity = (dataset_visibility is DataVisibilityEnum.PUBLIC)
+
+    # Set a variable reflecting the user's authorization by being in the HuBMAP-READ Globus Group
+    user_authorized = user_in_hubmap_read_group(request=request)
+
+    # For non-public documents, reject the request if the user is not authorized
+    if not public_entity:
+        if valid_user_token is None:
+            forbidden_error(    f"{dataset_dict['entity_type']} for"
+                                f" {dataset_dict['uuid']} is not"
+                                f" accessible without presenting a token.")
+        if not user_authorized:
+            forbidden_error(    f"The requested Dataset has non-public data."
+                                f"  A Globus token with access permission is required.")
+
+    # By now, either the entity is public accessible or the user has the correct access level
+    if associated_data.lower() == 'organs':
+        associated_entities = app_neo4j_queries.get_associated_organs_from_dataset(neo4j_driver_instance,
+                                                                                   dataset_dict['uuid'])
+    elif associated_data.lower() == 'samples':
+        associated_entities = app_neo4j_queries.get_associated_samples_from_dataset(neo4j_driver_instance,
+                                                                                    dataset_dict['uuid'])
+    elif associated_data.lower() == 'donors':
+        associated_entities = app_neo4j_queries.get_associated_donors_from_dataset(neo4j_driver_instance,
+                                                                                   dataset_dict['uuid'])
+    else:
+        logger.error(   f"Expected associated data type to be verified, but got"
+                        f" associated_data.lower()={associated_data.lower()} while retrieving from Neo4j.")
+        internal_server_error(f"Unexpected error retrieving '{associated_data}' from the data store")
+
+    # If there are zero items in the list of associated_entities, return an empty list rather than retrieving.
+    if len(associated_entities) < 1:
+        return []
+
+    # Use the internal token to query the target entity to assure it is returned. This way public
+    # entities can be accessed even if valid_user_token is None.
+    internal_token = auth_helper_instance.getProcessSecret()
+    complete_entities_list = schema_manager.get_complete_entities_list( token=internal_token
+                                                                        , entities_list=associated_entities)
+    # Final result after normalization
+    final_result = schema_manager.normalize_entities_list_for_response(entities_list=complete_entities_list)
+
+    # For public entities, limit the fields in the response unless the authorization presented in the
+    # Request allows the user to see all properties.
+    if public_entity and not user_authorized:
+        filtered_entities_list = []
+        for entity in final_result:
+            final_entity_dict = schema_manager.exclude_properties_from_response(excluded_fields=fields_to_exclude
+                                                                                , output_dict=entity)
+            filtered_entities_list.append(final_entity_dict)
+        final_result = filtered_entities_list
+
+    return final_result
 
 '''
 Retrieve the full provenance metadata information of a given entity by id, as
@@ -708,15 +813,27 @@ def get_provenance_metadata_by_id_for_auth_level(id):
         final_result = schema_manager.exclude_properties_from_response(fields_to_exclude, final_result)
 
     # Retrieve the associated data for the entity, and add it to the expanded dictionary.
-    associated_organ_list_resp = get_associated_organs_from_dataset(id=complete_dict['uuid'])
-    final_result['organs'] = associated_organ_list_resp.json
+    associated_organ_list = _get_dataset_associated_data(   dataset_dict=final_result
+                                                            , dataset_visibility=entity_scope
+                                                            , valid_user_token=user_token
+                                                            , request=request
+                                                            , associated_data='Organs')
+    final_result['organs'] = associated_organ_list
 
-    associated_sample_list_resp = get_associated_samples_from_dataset(id=complete_dict['uuid'])
-    final_result['samples'] = associated_sample_list_resp.json
+    associated_sample_list = _get_dataset_associated_data(   dataset_dict=final_result
+                                                            , dataset_visibility=entity_scope
+                                                            , valid_user_token=user_token
+                                                            , request=request
+                                                            , associated_data='Samples')
+    final_result['samples'] = associated_sample_list
 
-    associated_donor_list_resp = get_associated_donors_from_dataset(id=complete_dict['uuid'])
+    associated_donor_list = _get_dataset_associated_data(   dataset_dict=final_result
+                                                            , dataset_visibility=entity_scope
+                                                            , valid_user_token=user_token
+                                                            , request=request
+                                                            , associated_data='Donors')
 
-    final_result['donors'] = associated_donor_list_resp.json
+    final_result['donors'] = associated_donor_list
 
     # Return JSON for the dictionary containing the entity metadata as well as metadata for the associated data.
     return jsonify(final_result)
