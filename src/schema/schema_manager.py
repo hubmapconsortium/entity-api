@@ -6,7 +6,6 @@ import unicodedata
 from flask import Response
 from datetime import datetime
 
-
 # Don't confuse urllib (Python native library) with urllib3 (3rd-party library, requests also uses urllib3)
 from requests.packages.urllib3.exceptions import InsecureRequestWarning
 
@@ -14,6 +13,7 @@ from requests.packages.urllib3.exceptions import InsecureRequestWarning
 from schema import schema_errors
 from schema import schema_triggers
 from schema import schema_validators
+from schema import schema_neo4j_queries
 from schema.schema_constants import SchemaConstants
 from schema.schema_constants import MetadataScopeEnum
 from schema.schema_constants import TriggerTypeEnum
@@ -21,7 +21,7 @@ from schema.schema_constants import TriggerTypeEnum
 # HuBMAP commons
 from hubmap_commons.hm_auth import AuthHelper
 
-from schema import schema_neo4j_queries
+
 
 logger = logging.getLogger(__name__)
 
@@ -833,6 +833,7 @@ def get_complete_entities_list(token, entities_list, properties_to_skip = []):
         complete_entities_list.append(complete_entity_dict)
 
     return complete_entities_list
+
 
 """
 Normalize the activity result by filtering out properties that are not defined in the yaml schema
@@ -1784,7 +1785,9 @@ def create_hubmap_ids(normalized_class, json_data_dict, user_token, user_info_di
             # `Dataset.direct_ancestor_uuids` is `required_on_create` in yaml
             json_to_post['parent_ids'] = json_data_dict['direct_ancestor_uuids']
 
-    request_headers = _create_request_headers(user_token)
+    request_headers = {
+        'Authorization': f'Bearer {user_token}'
+    }
 
     query_parms = {'entity_count': count}
 
@@ -2170,7 +2173,9 @@ def make_request_get(target_url, internal_token_used = False):
         if internal_token_used:
             # Use modified version of globus app secret from configuration as the internal token
             auth_helper_instance = get_auth_helper_instance()
-            request_headers = _create_request_headers(auth_helper_instance.getProcessSecret())
+            request_headers = {
+                'Authorization': f'Bearer {auth_helper_instance.getProcessSecret()}'
+            }
 
             # Disable ssl certificate verification
             response = requests.get(url = target_url, headers = request_headers, verify = False)
@@ -2265,26 +2270,4 @@ def get_organ_types():
 ## Internal functions
 ####################################################################################################
 
-"""
-Create a dict of HTTP Authorization header with Bearer token for making calls to uuid-api
 
-Parameters
-----------
-user_token: str
-    The user's globus nexus token
-
-Returns
--------
-dict
-    The headers dict to be used by requests
-"""
-def _create_request_headers(user_token):
-    auth_header_name = 'Authorization'
-    auth_scheme = 'Bearer'
-
-    headers_dict = {
-        # Don't forget the space between scheme and the token value
-        auth_header_name: auth_scheme + ' ' + user_token
-    }
-
-    return headers_dict
