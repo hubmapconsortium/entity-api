@@ -92,6 +92,7 @@ else:
 # Suppress InsecureRequestWarning warning when requesting status on https with ssl cert verify disabled
 requests.packages.urllib3.disable_warnings(category = InsecureRequestWarning)
 
+
 ####################################################################################################
 ## Register error handlers
 ####################################################################################################
@@ -203,7 +204,6 @@ if MEMCACHED_MODE:
 ## Schema initialization
 ####################################################################################################
 
-
 try:
     try:
         _schema_yaml_file = app.config['SCHEMA_YAML_FILE']
@@ -230,6 +230,7 @@ except Exception:
             f" _schema_yaml_file={_schema_yaml_file}."
     # Log the full stack trace, prepend a line with our message
     logger.exception(msg)
+
 
 ####################################################################################################
 ## Initialize an S3Worker from hubmap-commons
@@ -283,6 +284,7 @@ try:
 except Exception:
     logger.exception("Failed to read tsv file with REFERENCE redirect information")
 
+
 ####################################################################################################
 ## Constants
 ####################################################################################################
@@ -299,6 +301,7 @@ ACCESS_LEVEL_PROTECTED = SchemaConstants.ACCESS_LEVEL_PROTECTED
 DATASET_STATUS_PUBLISHED = SchemaConstants.DATASET_STATUS_PUBLISHED
 COMMA_SEPARATOR = ','
 
+
 ####################################################################################################
 ## API Endpoints
 ####################################################################################################
@@ -314,6 +317,7 @@ str
 @app.route('/', methods = ['GET'])
 def index():
     return "Hello! This is HuBMAP Entity API service :)"
+
 
 """
 Show status of Neo4j connection and Memcached connection (if enabled) with the current VERSION and BUILD
@@ -506,6 +510,20 @@ def get_ancestor_organs(id):
     return jsonify(final_result)
 
 
+"""
+Check if the given entity is a specific type
+
+Parameters
+----------
+id : str
+    The HuBMAP ID (e.g. HBM123.ABCD.456) or UUID of target entity (Dataset/Sample)
+type : str
+    One of the valid entity types
+
+Returns
+-------
+bool
+"""
 @app.route('/entities/<id>/instanceof/<type>', methods=['GET'])
 def get_entities_instanceof(id, type):
     try:
@@ -521,15 +539,31 @@ def get_entities_instanceof(id, type):
             internal_server_error(e.response.text)
     except:
         bad_request_error("Unable to process request")
+    
     return make_response(jsonify({'instanceof': instanceof}), 200)
 
 
+"""
+Check if the given entity type A is an instance of the given type B
+
+Parameters
+----------
+type_a : str
+    The given entity type A
+type_a : str
+    The given entity type B
+
+Returns
+-------
+bool
+"""
 @app.route('/entities/type/<type_a>/instanceof/<type_b>', methods=['GET'])
 def get_entities_type_instanceof(type_a, type_b):
     try:
         instanceof: bool = schema_manager.entity_type_instanceof(type_a, type_b)
     except:
         bad_request_error("Unable to process request")
+    
     return make_response(jsonify({'instanceof': instanceof}), 200)
 
 
@@ -575,151 +609,8 @@ def get_entity_visibility(id):
 
     return jsonify(entity_scope.value)
 
-def _get_entity_visibility(normalized_entity_type, entity_dict):
-    if normalized_entity_type not in schema_manager.get_all_entity_types():
-        logger.log( logging.ERROR
-                    ,f"normalized_entity_type={normalized_entity_type}"
-                     f" not recognized by schema_manager.get_all_entity_types().")
-        bad_request_error(f"'{normalized_entity_type}' is not a recognized entity type.")
 
-    # Use the characteristics of the entity's data to classify the entity's visibility, so
-    # it can be used along with the user's authorization to determine access.
-    entity_visibility=DataVisibilityEnum.NONPUBLIC
-    if schema_manager.entity_type_instanceof(normalized_entity_type, 'Dataset') and \
-       entity_dict['status'].lower() == DATASET_STATUS_PUBLISHED:
-        entity_visibility=DataVisibilityEnum.PUBLIC
-    elif schema_manager.entity_type_instanceof(normalized_entity_type, 'Collection') and \
-        'registered_doi' in entity_dict and \
-        'doi_url' in entity_dict and \
-        'contacts' in entity_dict and \
-        'contributors' in entity_dict and \
-        len(entity_dict['contacts']) > 0 and \
-        len(entity_dict['contributors']) > 0:
-            # Get the data_access_level for each Dataset in the Collection from Neo4j
-            collection_dataset_statuses = schema_neo4j_queries.get_collection_datasets_statuses(neo4j_driver_instance
-                                                                                                ,entity_dict['uuid'])
-
-            # If the list of distinct statuses for Datasets in the Collection only has one entry, and
-            # it is 'published', the Collection is public
-            if len(collection_dataset_statuses) == 1 and \
-                collection_dataset_statuses[0].lower() == SchemaConstants.DATASET_STATUS_PUBLISHED:
-                entity_visibility=DataVisibilityEnum.PUBLIC
-    elif normalized_entity_type == 'Upload':
-        # Upload entities require authorization to access, so keep the
-        # entity_visibility as non-public, as initialized outside block.
-        pass
-    elif normalized_entity_type in ['Donor','Sample'] and \
-         entity_dict['data_access_level'] == ACCESS_LEVEL_PUBLIC:
-        entity_visibility = DataVisibilityEnum.PUBLIC
-    return entity_visibility
-
-'''
-Retrieve the metadata information for certain data associated with entity.  This method supports
-Dataset entities, and can get the associated data for organs, samples, or donors.
-
-Get associated data dict based upon the user's authorization. The associated data may be
-filtered down if credentials were not presented for full access.
-
-Parameters
-----------
-dataset_dict : dict
-    A dictionary containing all the properties the target entity.
-dataset_visibility : DataVisibilityEnum
-    An indication of the entity itself is public or not, so the associated data can
-    be filtered to match the entity dictionary before being returned.
-valid_user_token : str
-    Either the valid current token for an authenticated user or None.
-user_info : dict
-    Information for the logged-in user to be used for authorization accessing non-public entities.
-associated_data : str
-    A string indicating the associated property to be retrieved, which must be from
-    the values supported by this method.
-
-Returns
--------
-list
-    A dictionary containing all the properties the target entity.
-'''
-def _get_dataset_associated_data(dataset_dict, dataset_visibility, valid_user_token, request, associated_data: str):
-
-    # Confirm the associated data requested is supported by this method.
-    retrievable_associations = ['organs', 'samples', 'donors']
-    if associated_data.lower() not in retrievable_associations:
-        bad_request_error(  f"Dataset associated data cannot be retrieved for"
-                            f" {associated_data}, only"
-                            f" {COMMA_SEPARATOR.join(retrievable_associations)}.")
-
-    # Confirm the dictionary passed in is for a Dataset entity.
-    if not schema_manager.entity_type_instanceof(dataset_dict['entity_type'], 'Dataset'):
-        bad_request_error(  f"'{dataset_dict['entity_type']}' for"
-                            f" uuid={dataset_dict['uuid']} is not a Dataset or Publication,"
-                            f" so '{associated_data}' can not be retrieved for it.")
-    # Set up fields to be excluded when retrieving the entities associated with
-    # the Dataset.  Organs are one kind of Sample.
-    if associated_data.lower() in ['organs', 'samples']:
-        fields_to_exclude = schema_manager.get_fields_to_exclude('Sample')
-    elif associated_data.lower() in ['donors']:
-        fields_to_exclude = schema_manager.get_fields_to_exclude('Donor')
-    else:
-        logger.error(   f"Expected associated data type to be verified, but got"
-                        f" associated_data.lower()={associated_data.lower()}.")
-        internal_server_error(f"Unexpected error retrieving '{associated_data}' for a Dataset")
-
-    public_entity = (dataset_visibility is DataVisibilityEnum.PUBLIC)
-
-    # Set a variable reflecting the user's authorization by being in the HuBMAP-READ Globus Group
-    user_authorized = user_in_hubmap_read_group(request=request)
-
-    # For non-public documents, reject the request if the user is not authorized
-    if not public_entity:
-        if valid_user_token is None:
-            forbidden_error(    f"{dataset_dict['entity_type']} for"
-                                f" {dataset_dict['uuid']} is not"
-                                f" accessible without presenting a token.")
-        if not user_authorized:
-            forbidden_error(    f"The requested Dataset has non-public data."
-                                f"  A Globus token with access permission is required.")
-
-    # By now, either the entity is public accessible or the user has the correct access level
-    if associated_data.lower() == 'organs':
-        associated_entities = app_neo4j_queries.get_associated_organs_from_dataset(neo4j_driver_instance,
-                                                                                   dataset_dict['uuid'])
-    elif associated_data.lower() == 'samples':
-        associated_entities = app_neo4j_queries.get_associated_samples_from_dataset(neo4j_driver_instance,
-                                                                                    dataset_dict['uuid'])
-    elif associated_data.lower() == 'donors':
-        associated_entities = app_neo4j_queries.get_associated_donors_from_dataset(neo4j_driver_instance,
-                                                                                   dataset_dict['uuid'])
-    else:
-        logger.error(   f"Expected associated data type to be verified, but got"
-                        f" associated_data.lower()={associated_data.lower()} while retrieving from Neo4j.")
-        internal_server_error(f"Unexpected error retrieving '{associated_data}' from the data store")
-
-    # If there are zero items in the list of associated_entities, return an empty list rather than retrieving.
-    if len(associated_entities) < 1:
-        return []
-
-    # Use the internal token to query the target entity to assure it is returned. This way public
-    # entities can be accessed even if valid_user_token is None.
-    internal_token = auth_helper_instance.getProcessSecret()
-    complete_entities_list = schema_manager.get_complete_entities_list( token=internal_token
-                                                                        , entities_list=associated_entities)
-    # Final result after normalization
-    final_result = schema_manager.normalize_entities_list_for_response(entities_list=complete_entities_list)
-
-    # For public entities, limit the fields in the response unless the authorization presented in the
-    # Request allows the user to see all properties.
-    if public_entity and not user_authorized:
-        filtered_entities_list = []
-        for entity in final_result:
-            final_entity_dict = schema_manager.exclude_properties_from_response(excluded_fields=fields_to_exclude
-                                                                                , output_dict=entity)
-            filtered_entities_list.append(final_entity_dict)
-        final_result = filtered_entities_list
-
-    return final_result
-
-'''
+"""
 Retrieve the full provenance metadata information of a given entity by id, as
 produced for metadata.json files.
 
@@ -747,7 +638,7 @@ Returns
 -------
 json
     Valid JSON for the full provenance metadata of the requested Dataset
-'''
+"""
 @app.route('/datasets/<id>/prov-metadata', methods=['GET'])
 def get_provenance_metadata_by_id_for_auth_level(id):
     # Token is not required, but if an invalid token provided,
@@ -837,6 +728,7 @@ def get_provenance_metadata_by_id_for_auth_level(id):
 
     # Return JSON for the dictionary containing the entity metadata as well as metadata for the associated data.
     return jsonify(final_result)
+
 
 """
 Retrieve the metadata information of a given entity by id
@@ -941,6 +833,7 @@ def get_entity_by_id(id):
             final_result = schema_manager.exclude_properties_from_response(fields_to_exclude, final_result)
         return jsonify(final_result)
 
+
 """
 Retrieve the JSON containing the metadata information for a given entity which is to go into an
 OpenSearch document for the entity. Note this is a subset of the "complete" entity metadata returned by the
@@ -968,6 +861,7 @@ def get_document_by_id(id):
 
     result_dict = _get_metadata_by_id(entity_id=id, metadata_scope=MetadataScopeEnum.INDEX)
     return jsonify(result_dict)
+
 
 """
 Retrive the full tree above the referenced entity and build the provenance document
@@ -1141,6 +1035,7 @@ def get_entities_by_type(entity_type):
     # Response with the final result
     return jsonify(final_result)
 
+
 """
 Create an entity of the target type in neo4j
 
@@ -1285,7 +1180,6 @@ def create_entity(entity_type):
     # generate 'before_create_trigger' data and create the entity details in Neo4j
     merged_dict = create_entity_details(request, normalized_entity_type, user_token, json_data_dict)
 
-
     # For Donor: link to parent Lab node
     # For Sample: link to existing direct ancestor
     # For Dataset: link to direct ancestors
@@ -1339,6 +1233,7 @@ def create_entity(entity_type):
     reindex_entity(complete_dict['uuid'], user_token)
 
     return jsonify(normalized_complete_dict)
+
 
 """
 Create multiple samples from the same source entity
@@ -2254,7 +2149,6 @@ def get_tuplets(id):
     return jsonify(final_result)
 
 
-
 """
 Get all previous revisions of the given entity
 Result filtering based on query string
@@ -2719,6 +2613,7 @@ def redirect(hmid):
     else:
         return Response(f"{hmid} not found.", 404)
 
+
 """
 Get the Globus URL to the given Dataset or Upload
 
@@ -3079,7 +2974,6 @@ def get_dataset_revision_number(id):
 #     return jsonify(results)
 
 
-
 """
 Retract a published dataset with a retraction reason and sub status
 
@@ -3335,6 +3229,7 @@ def get_associated_organs_from_dataset(id):
 
     return jsonify(final_result)
 
+
 """
 Get all samples associated with a given dataset
 
@@ -3392,6 +3287,7 @@ def get_associated_samples_from_dataset(id):
             filtered_sample_list.append(schema_manager.exclude_properties_from_response(excluded_fields, sample))
         final_result = filtered_sample_list
     return jsonify(final_result)
+
 
 """
 Get all donors associated with a given dataset
@@ -3451,6 +3347,7 @@ def get_associated_donors_from_dataset(id):
             filtered_donor_list.append(schema_manager.exclude_properties_from_response(excluded_fields, donor))
         final_result = filtered_donor_list
     return jsonify(final_result)
+
 
 """
 Get the complete provenance info for all datasets
@@ -4111,6 +4008,7 @@ def get_prov_info_for_dataset(id):
         output.headers['Content-Disposition'] = 'attachment; filename=prov-info.tsv'
         return output
 
+
 """
 Get the information needed to generate the sankey on software-docs as a json.
 
@@ -4349,6 +4247,7 @@ def get_sample_prov_info():
     # Return a regular response through the AWS Gateway
     return jsonify(sample_prov_list)
 
+
 """
 Retrieve all unpublished datasets (datasets with status value other than 'Published' or 'Hold')
 
@@ -4419,6 +4318,7 @@ def unpublished():
     # if return_json is false, the data must be converted to be returned as a tsv
     else:
         return jsonify(unpublished_info)
+
 
 """
 Retrieve uuids for associated dataset of given data_type which 
@@ -4674,34 +4574,36 @@ def multiple_components():
     return jsonify(normalized_complete_entity_list)
 
 
-# Bulk update the entities in the entity-api.
-#
-# This function supports request throttling and retries.
-#
-# Parameters
-# ----------
-# entity_updates : dict
-#     The dictionary of entity updates. The key is the uuid and the value is the
-#     update dictionary.
-# token : str
-#     The groups token for the request.
-# entity_api_url : str
-#     The url of the entity-api.
-# total_tries : int, optional
-#     The number of total requests to be made for each update, by default 3.
-# throttle : float, optional
-#     The time to wait between requests and retries, by default 5.
-# after_each_callback : Callable[[int], None], optional
-#     A callback function to be called after each update, by default None. The index
-#     of the update is passed as a parameter to the callback.
-#
-# Returns
-# -------
-# dict
-#     The results of the bulk update. The key is the uuid of the entity. If
-#     successful, the value is a dictionary with "success" as True and "data" as the
-#     entity data. If failed, the value is a dictionary with "success" as False and
-#     "data" as the error message.
+"""
+Bulk update the entities in the entity-api.
+
+This function supports request throttling and retries.
+
+Parameters
+----------
+entity_updates : dict
+    The dictionary of entity updates. The key is the uuid and the value is the
+    update dictionary.
+token : str
+    The groups token for the request.
+entity_api_url : str
+    The url of the entity-api.
+total_tries : int, optional
+    The number of total requests to be made for each update, by default 3.
+throttle : float, optional
+    The time to wait between requests and retries, by default 5.
+after_each_callback : Callable[[int], None], optional
+    A callback function to be called after each update, by default None. The index
+    of the update is passed as a parameter to the callback.
+
+Returns
+-------
+dict
+    The results of the bulk update. The key is the uuid of the entity. If
+    successful, the value is a dictionary with "success" as True and "data" as the
+    entity data. If failed, the value is a dictionary with "success" as False and
+    "data" as the error message.
+"""
 def bulk_update_entities(
     entity_updates: dict,
     token: str,
@@ -4770,26 +4672,28 @@ def update_datasets_uploads(entity_updates: list, token: str, entity_api_url: st
 ENTITY_BULK_UPDATE_FIELDS_ACCEPTED = ['uuid', 'status', 'ingest_task', 'assigned_to_group_name']
 
 
-# New endpoints (PUT /datasets and PUT /uploads) to handle the bulk updating of entities see Issue: #698
-# https://github.com/hubmapconsortium/entity-api/issues/698
-#
-# This is used by Data Ingest Board application for now.
-#
-# Shirey: With this use case we're not worried about a lot of concurrent calls to this endpoint (only one user,
-# Brendan, will be ever using it). Just start a thread on request and loop through the Datasets/Uploads to change
-# with a 5 second delay or so between them to allow some time for reindexing.
-#
-# Example call
-# 1) pick Dataset entities to change by querying Neo4J...
-# URL: http://18.205.215.12:7474/browser/
-# query: MATCH (e:Dataset {entity_type: 'Dataset'}) RETURN e.uuid, e.status, e.ingest_task, e.assigned_to_group_name LIMIT 100
-#
-# curl --request PUT \
-#  --url ${ENTITY_API}/datasets \
-#  --header "Content-Type: application/json" \
-#  --header "Authorization: Bearer ${TOKEN}" \
-#  --header "X-Hubmap-Application: entity-api" \
-#  --data '[{"uuid":"f22a9ba97b79eefe6b152b4315e43c76", "status":"Error", "assigned_to_group_name":"TMC - Cal Tech"}, {"uuid":"e4b371ea3ed4c3ca77791b34b829803f", "status":"Error", "assigned_to_group_name":"TMC - Cal Tech"}]'
+"""
+New endpoints (PUT /datasets and PUT /uploads) to handle the bulk updating of entities see Issue: #698
+https://github.com/hubmapconsortium/entity-api/issues/698
+
+This is used by Data Ingest Board application for now.
+
+Shirey: With this use case we're not worried about a lot of concurrent calls to this endpoint (only one user,
+Brendan, will be ever using it). Just start a thread on request and loop through the Datasets/Uploads to change
+with a 5 second delay or so between them to allow some time for reindexing.
+
+Example call
+1) pick Dataset entities to change by querying Neo4J...
+URL: http://18.205.215.12:7474/browser/
+query: MATCH (e:Dataset {entity_type: 'Dataset'}) RETURN e.uuid, e.status, e.ingest_task, e.assigned_to_group_name LIMIT 100
+
+curl --request PUT \
+ --url ${ENTITY_API}/datasets \
+ --header "Content-Type: application/json" \
+ --header "Authorization: Bearer ${TOKEN}" \
+ --header "X-Hubmap-Application: entity-api" \
+ --data '[{"uuid":"f22a9ba97b79eefe6b152b4315e43c76", "status":"Error", "assigned_to_group_name":"TMC - Cal Tech"}, {"uuid":"e4b371ea3ed4c3ca77791b34b829803f", "status":"Error", "assigned_to_group_name":"TMC - Cal Tech"}]'
+"""
 @app.route('/datasets', methods=['PUT'])
 @app.route('/uploads', methods=['PUT'])
 def entity_bulk_update():
@@ -5058,6 +4962,169 @@ str
 """
 def get_internal_token():
     return auth_helper_instance.getProcessSecret()
+
+
+"""
+Return the "visibility" of an entity as DataVisibilityEnum value.  Determination of
+"public" or "non-public" is specific to entity type.
+
+Parameters
+----------
+entity_dict : dict
+    A Python dictionary retrieved for the entity 
+normalized_entity_type : str
+    One of the normalized entity types: Dataset, Collection, Sample, Donor, Publication, Upload
+
+Returns
+-------
+DataVisibilityEnum
+    A value identifying if the entity is public or non-public
+"""
+def _get_entity_visibility(normalized_entity_type, entity_dict):
+    if normalized_entity_type not in schema_manager.get_all_entity_types():
+        logger.log( logging.ERROR
+                    ,f"normalized_entity_type={normalized_entity_type}"
+                     f" not recognized by schema_manager.get_all_entity_types().")
+        bad_request_error(f"'{normalized_entity_type}' is not a recognized entity type.")
+
+    # Use the characteristics of the entity's data to classify the entity's visibility, so
+    # it can be used along with the user's authorization to determine access.
+    entity_visibility=DataVisibilityEnum.NONPUBLIC
+    if schema_manager.entity_type_instanceof(normalized_entity_type, 'Dataset') and \
+       entity_dict['status'].lower() == DATASET_STATUS_PUBLISHED:
+        entity_visibility=DataVisibilityEnum.PUBLIC
+    elif schema_manager.entity_type_instanceof(normalized_entity_type, 'Collection') and \
+        'registered_doi' in entity_dict and \
+        'doi_url' in entity_dict and \
+        'contacts' in entity_dict and \
+        'contributors' in entity_dict and \
+        len(entity_dict['contacts']) > 0 and \
+        len(entity_dict['contributors']) > 0:
+            # Get the data_access_level for each Dataset in the Collection from Neo4j
+            collection_dataset_statuses = schema_neo4j_queries.get_collection_datasets_statuses(neo4j_driver_instance
+                                                                                                ,entity_dict['uuid'])
+
+            # If the list of distinct statuses for Datasets in the Collection only has one entry, and
+            # it is 'published', the Collection is public
+            if len(collection_dataset_statuses) == 1 and \
+                collection_dataset_statuses[0].lower() == SchemaConstants.DATASET_STATUS_PUBLISHED:
+                entity_visibility=DataVisibilityEnum.PUBLIC
+    elif normalized_entity_type == 'Upload':
+        # Upload entities require authorization to access, so keep the
+        # entity_visibility as non-public, as initialized outside block.
+        pass
+    elif normalized_entity_type in ['Donor','Sample'] and \
+         entity_dict['data_access_level'] == ACCESS_LEVEL_PUBLIC:
+        entity_visibility = DataVisibilityEnum.PUBLIC
+    return entity_visibility
+
+
+"""
+Retrieve the metadata information for certain data associated with entity.  This method supports
+Dataset entities, and can get the associated data for organs, samples, or donors.
+
+Get associated data dict based upon the user's authorization. The associated data may be
+filtered down if credentials were not presented for full access.
+
+Parameters
+----------
+dataset_dict : dict
+    A dictionary containing all the properties the target entity.
+dataset_visibility : DataVisibilityEnum
+    An indication of the entity itself is public or not, so the associated data can
+    be filtered to match the entity dictionary before being returned.
+valid_user_token : str
+    Either the valid current token for an authenticated user or None.
+user_info : dict
+    Information for the logged-in user to be used for authorization accessing non-public entities.
+associated_data : str
+    A string indicating the associated property to be retrieved, which must be from
+    the values supported by this method.
+
+Returns
+-------
+list
+    A dictionary containing all the properties the target entity.
+"""
+def _get_dataset_associated_data(dataset_dict, dataset_visibility, valid_user_token, request, associated_data: str):
+
+    # Confirm the associated data requested is supported by this method.
+    retrievable_associations = ['organs', 'samples', 'donors']
+    if associated_data.lower() not in retrievable_associations:
+        bad_request_error(  f"Dataset associated data cannot be retrieved for"
+                            f" {associated_data}, only"
+                            f" {COMMA_SEPARATOR.join(retrievable_associations)}.")
+
+    # Confirm the dictionary passed in is for a Dataset entity.
+    if not schema_manager.entity_type_instanceof(dataset_dict['entity_type'], 'Dataset'):
+        bad_request_error(  f"'{dataset_dict['entity_type']}' for"
+                            f" uuid={dataset_dict['uuid']} is not a Dataset or Publication,"
+                            f" so '{associated_data}' can not be retrieved for it.")
+    # Set up fields to be excluded when retrieving the entities associated with
+    # the Dataset.  Organs are one kind of Sample.
+    if associated_data.lower() in ['organs', 'samples']:
+        fields_to_exclude = schema_manager.get_fields_to_exclude('Sample')
+    elif associated_data.lower() in ['donors']:
+        fields_to_exclude = schema_manager.get_fields_to_exclude('Donor')
+    else:
+        logger.error(   f"Expected associated data type to be verified, but got"
+                        f" associated_data.lower()={associated_data.lower()}.")
+        internal_server_error(f"Unexpected error retrieving '{associated_data}' for a Dataset")
+
+    public_entity = (dataset_visibility is DataVisibilityEnum.PUBLIC)
+
+    # Set a variable reflecting the user's authorization by being in the HuBMAP-READ Globus Group
+    user_authorized = user_in_hubmap_read_group(request=request)
+
+    # For non-public documents, reject the request if the user is not authorized
+    if not public_entity:
+        if valid_user_token is None:
+            forbidden_error(    f"{dataset_dict['entity_type']} for"
+                                f" {dataset_dict['uuid']} is not"
+                                f" accessible without presenting a token.")
+        if not user_authorized:
+            forbidden_error(    f"The requested Dataset has non-public data."
+                                f"  A Globus token with access permission is required.")
+
+    # By now, either the entity is public accessible or the user has the correct access level
+    if associated_data.lower() == 'organs':
+        associated_entities = app_neo4j_queries.get_associated_organs_from_dataset(neo4j_driver_instance,
+                                                                                   dataset_dict['uuid'])
+    elif associated_data.lower() == 'samples':
+        associated_entities = app_neo4j_queries.get_associated_samples_from_dataset(neo4j_driver_instance,
+                                                                                    dataset_dict['uuid'])
+    elif associated_data.lower() == 'donors':
+        associated_entities = app_neo4j_queries.get_associated_donors_from_dataset(neo4j_driver_instance,
+                                                                                   dataset_dict['uuid'])
+    else:
+        logger.error(   f"Expected associated data type to be verified, but got"
+                        f" associated_data.lower()={associated_data.lower()} while retrieving from Neo4j.")
+        internal_server_error(f"Unexpected error retrieving '{associated_data}' from the data store")
+
+    # If there are zero items in the list of associated_entities, return an empty list rather than retrieving.
+    if len(associated_entities) < 1:
+        return []
+
+    # Use the internal token to query the target entity to assure it is returned. This way public
+    # entities can be accessed even if valid_user_token is None.
+    internal_token = auth_helper_instance.getProcessSecret()
+    complete_entities_list = schema_manager.get_complete_entities_list( token=internal_token
+                                                                        , entities_list=associated_entities)
+    # Final result after normalization
+    final_result = schema_manager.normalize_entities_list_for_response(entities_list=complete_entities_list)
+
+    # For public entities, limit the fields in the response unless the authorization presented in the
+    # Request allows the user to see all properties.
+    if public_entity and not user_authorized:
+        filtered_entities_list = []
+        for entity in final_result:
+            final_entity_dict = schema_manager.exclude_properties_from_response(excluded_fields=fields_to_exclude
+                                                                                , output_dict=entity)
+            filtered_entities_list.append(final_entity_dict)
+        final_result = filtered_entities_list
+
+    return final_result
+
 
 """
 Generate 'before_create_triiger' data and create the entity details in Neo4j
@@ -5473,8 +5540,8 @@ def create_multiple_component_details(request, normalized_entity_type, user_toke
         # Terminate and let the users know
         internal_server_error(msg)
 
-
     return created_datasets
+
 
 """
 Execute 'after_create_triiger' methods
@@ -5764,7 +5831,9 @@ user_token: str
     The user's globus groups token
 """
 def reindex_entity(uuid, user_token):
-    headers = create_request_headers(user_token)
+    headers = {
+        'Authorization': f'Bearer {user_token}'
+    }
 
     # Reindex the target entity against each configured search-api instance
     for search_api_url in app.config['SEARCH_API_URL_LIST']:
@@ -5778,31 +5847,6 @@ def reindex_entity(uuid, user_token):
             logger.info(f"The search-api instance of {search_api_url} has accepted the reindex request for uuid: {uuid}")
         else:
             logger.error(f"The search-api instance of {search_api_url} failed to initialize the reindex for uuid: {uuid}")
-
-
-"""
-Create a dict of HTTP Authorization header with Bearer token for making calls to uuid-api
-
-Parameters
-----------
-user_token: str
-    The user's globus groups token
-
-Returns
--------
-dict
-    The headers dict to be used by requests
-"""
-def create_request_headers(user_token):
-    auth_header_name = 'Authorization'
-    auth_scheme = 'Bearer'
-
-    headers_dict = {
-        # Don't forget the space between scheme and the token value
-        auth_header_name: auth_scheme + ' ' + user_token
-    }
-
-    return headers_dict
 
 
 """
@@ -5958,6 +6002,7 @@ def _get_metadata_by_id(entity_id:str=None, metadata_scope:MetadataScopeEnum=Met
             modified_final_result = schema_manager.exclude_properties_from_response(excluded_fields, final_result)
             return modified_final_result
         return final_result
+
 
 ####################################################################################################
 ## For local development/testing
