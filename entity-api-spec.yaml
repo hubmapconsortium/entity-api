@@ -11,6 +11,9 @@ info:
     url: 'https://github.com/hubmapconsortium/entity-api/blob/main/license.txt'
 servers:
   - url: 'https://entity.api.hubmapconsortium.org'
+security:
+  - bearerAuth: []
+
 components:
   securitySchemes:
     bearerAuth:
