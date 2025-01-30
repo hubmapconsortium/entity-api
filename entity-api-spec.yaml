@@ -1247,7 +1247,7 @@ components:
           description: 'The associated collection for a given publication'
     Instanceof:
       type: object
-      description: "Returned by entities/<id>/instanceof/<type>"
+      description: "Returned by entities/&lt;id&gt;/instanceof/&lt;type&gt;"
       properties:
         instanceof:
           type: boolean
@@ -2530,7 +2530,7 @@ paths:
           description: Internal error
   '/datasets':
     put:
-      summary: Bulk updating of entity type dataset. it's only limited to the fields - assigned_to_group_name, ingest_task, status
+      summary: "Bulk updating of entity type dataset. it's only limited to the fields:: assigned_to_group_name, ingest_task, status"
       requestBody:
         required: true
         content:
@@ -2553,7 +2553,7 @@ paths:
           description: Internal error
   '/uploads':
     put:
-      summary: Bulk updating of entity type upload. it's only limited to the fields - assigned_to_group_name, ingest_task, status
+      summary: "Bulk updating of entity type upload. it's only limited to the fields:: assigned_to_group_name, ingest_task, status"
       requestBody:
         required: true
         content:
