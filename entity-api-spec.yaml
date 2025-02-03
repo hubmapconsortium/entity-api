@@ -1,7 +1,7 @@
 openapi: 3.0.0
 info:
   description: 'The HuBMAP Entity API is a standard RESTful web service with create, update and read operations for the standard HuBMAP provenance graph entities.'
-  version: 2.0.21
+  version: 2.4.3
   title: HuBMAP Entity API
   contact:
     name: HuBMAP Help Desk
@@ -11,6 +11,9 @@ info:
     url: 'https://github.com/hubmapconsortium/entity-api/blob/main/license.txt'
 servers:
   - url: 'https://entity.api.hubmapconsortium.org'
+security:
+  - bearerAuth: []
+
 components:
   securitySchemes:
     bearerAuth:
@@ -727,7 +730,7 @@ components:
         published_user_sub:
           readOnly: true
           type: string
-          description: "The subject id for the user who published the data as provided by the authorization mechanism for the person or process authenticated when the dataset was publised."
+          description: "The subject id for the user who published the data as provided by the authorization mechanism for the person or process authenticated when the dataset was published."
         published_user_email:
           readOnly: true
           type: string
@@ -740,6 +743,8 @@ components:
           description: "Metadata associated with the ingested experimental data."
         files:
           type: array
+          items:
+            $ref: '#/components/schemas/File'
           description: "A list of files associated with the dataset."
         calculated_metadata:
           type: object
@@ -763,10 +768,14 @@ components:
           readOnly: true
           description: "The uuid of next revision dataset"
         previous_revision_uuids:
-          type: list
+          type: array
+          items:
+            type: string
           description: "The uuids of previous revision datasets. Can only be set at Create/POST time."
         next_revision_uuids:
-          type: list
+          type: array
+          items:
+            type: string
           readOnly: true
           description: "The uuids of next revision dataset"
         thumbnail_file:
@@ -1146,7 +1155,7 @@ components:
         published_user_sub:
           readOnly: true
           type: string
-          description: "The subject id for the user who published the data as provided by the authorization mechanism for the person or process authenticated when the dataset was publised."
+          description: "The subject id for the user who published the data as provided by the authorization mechanism for the person or process authenticated when the dataset was published."
         published_user_email:
           readOnly: true
           type: string
@@ -1159,6 +1168,8 @@ components:
           description: "Metadata associated with the ingested experimental data."
         files:
           type: array
+          items:
+            $ref: '#/components/schemas/File'
           description: "A list of files associated with the dataset."
         calculated_metadata:
           type: object
@@ -1237,97 +1248,13 @@ components:
         associated_collection:
           type: object
           description: 'The associated collection for a given publication'
-      Upload:
-        type: object
-        properties:
-          created_timestamp:
-            type: integer
-            readOnly: true
-            description: "The timestamp of when the node was created.  The format is an integer representing milliseconds since midnight Jan 1, 1970"
-          created_by_user_displayname:
-            type: string
-            readOnly: true
-            description: "The name of the person or process authenticated when creating the object"
-          created_by_user_email:
-            type: string
-            readOnly: true
-            description: "The email address of the person or process authenticated when creating the object."
-          created_by_user_sub:
-            type: string
-            readOnly: true
-            description: "The subject id as provided by the authorization mechanism for the person or process authenticated when creating the object."
-          uuid:
-            type: string
-            readOnly: true
-            description: "The HuBMAP unique identifier, intended for internal software use only.  This is a 32 digit hexadecimal uuid e.g. 461bbfdc353a2673e381f632510b0f17"
-          hubmap_id:
-            type: string
-            readOnly: true
-            description: "A HuBMAP Consortium wide unique identifier randomly generated in the format HBM###.ABCD.### for every entity."
-          last_modified_timestamp:
-            type: integer
-            readOnly: true
-            description: "The timestamp of when the object was last modified.  The format is an integer representing milliseconds since midnight, Jan 1, 1970"
-          last_modified_user_sub:
-            type: string
-            readOnly: true
-            description: "The subject id of the user who last modified the entity as provided by the authorization mechanism for the person or process authenticated when the object was modified."
-          last_modified_user_email:
-            type: string
-            readOnly: true
-            description: "The email address of the person or process which authenticated when the object was last modified."
-          last_modified_user_displayname:
-            type: string
-            readOnly: true
-            description: "The name of the person or process which authenticated when the object was last modified."
-          entity_type:
-            type: string
-            readOnly: true
-            description: "One of the normalized entity types: Dataset, Collection, Sample, Donor, Upload"
-          description:
-            type: string
-            description: "Free text description of the data being submitted."
-          title:
-            type: string
-            description: "Title of the datasets, a sentance or less"
-          status:
-            type: string
-            description: "One of: New|Valid|Invalid|Error|Submitted"
-          validation_message:
-            type: string
-            description: A message from the validataion tools describing what is invalid with the upload.
-          group_uuid:
-            type: string
-            description: "The uuid of globus group which the user who created this entity is a member of.  This is required on Create/POST if the user creating the Donor is a member of more than one write group.  This property cannot be set via PUT (only on Create/POST)."
-          group_name:
-            type: string
-            readOnly: true
-            description: "The displayname of globus group which the user who created this entity is a member of"
-          dataset_uuids_to_link:
-            type: array
-            items:
-              type: string
-            writeOnly: true
-            description: 'List of datasets to add to the Upload. Provide as a json array of the dataset uuids like: ["232934234234234234234270c0ea6c51d604a850558ef2247d0b4", "230948203482234234234a57bfe9c056d08a0f8e6cd612baa3bfa"]'
-          dataset_uuids_to_unlink:
-            type: array
-            items:
-              type: string
-            writeOnly: true
-            description: 'List of datasets to remove from a Upload. Provide as a json array of the dataset uuids like: ["232934234234234234234270c0ea6c51d604a850558ef2247d0b4", "230948203482234234234a57bfe9c056d08a0f8e6cd612baa3bfa"]'
-          datasets:
-            type: array
-            items:
-              $ref: '#/components/schemas/Dataset'
-            readOnly: true
-            description: "The datasets that are contained in this Upload."
-      Instanceof:
-        type: object
-        description: "Returned by entities/<id>/instanceof/<type>"
-        properties:
-          instanceof:
-            type: boolean
-            description: "True of False depending on whether the Entity id is an instance of the type"
+    Instanceof:
+      type: object
+      description: "Returned by entities/&lt;id&gt;/instanceof/&lt;type&gt;"
+      properties:
+        instanceof:
+          type: boolean
+          description: "True of False depending on whether the Entity id is an instance of the type"
 
 paths:
   '/entities/{id}':
@@ -1560,7 +1487,7 @@ paths:
         - name: status
           in: query
           description: A case insensitive string. Any value besides 'new', 'qa', and 'published' will raise an error. If a valid status is provided, only results matching that status (if they are datasets) will be returned
-          equired: false
+          required: false
           schema:
             type: string
             enum: [ 'new', 'qa', 'published' ]
@@ -1605,7 +1532,7 @@ paths:
         - name: status
           in: query
           description: A case insensitive string. Any value besides 'new', 'qa', and 'published' will raise an error. If a valid status is provided, only results matching that status (if they are datasets) will be returned
-          equired: false
+          required: false
           schema:
             type: string
             enum: [ 'new', 'qa', 'published' ]
@@ -1637,7 +1564,7 @@ paths:
           description: The target entity could not be found
         '500':
           description: Internal error
-  'entities/{id}/collections':
+  '/entities/{id}/collections':
     get:
       summary: Get the list of all collections the Entity belongs to.
       parameters:
@@ -1674,7 +1601,7 @@ paths:
           description: The target entity could not be found
         '500':
           description: Internal error
-  'entities/{id}/uploads':
+  '/entities/{id}/uploads':
     get:
       summary: Get the list of all uploads the Entity belongs to.
       parameters:
@@ -1972,7 +1899,7 @@ paths:
         '500':
           description:
             Internal error
-'/datasets/{id}/latest-revision':
+  '/datasets/{id}/latest-revision':
     get:
       summary: 'Retrive the latest (newest) revision of a given Dataset. Public/Consortium access rules apply - if no token/consortium access then must be for a public dataset and the returned Dataset must be the latest public version. If the given dataset itself is the latest revision, meaning it has no next revisions, this dataset gets returned.'
       parameters:
@@ -2606,7 +2533,7 @@ paths:
           description: Internal error
   '/datasets':
     put:
-      summary: Bulk updating of entity type dataset. it's only limited to the fields:: assigned_to_group_name, ingest_task, status
+      summary: "Bulk updating of entity type dataset. it's only limited to the fields:: assigned_to_group_name, ingest_task, status"
       requestBody:
         required: true
         content:
@@ -2629,7 +2556,7 @@ paths:
           description: Internal error
   '/uploads':
     put:
-      summary: Bulk updating of entity type upload. it's only limited to the fields:: assigned_to_group_name, ingest_task, status
+      summary: "Bulk updating of entity type upload. it's only limited to the fields:: assigned_to_group_name, ingest_task, status"
       requestBody:
         required: true
         content:
@@ -2757,7 +2684,7 @@ paths:
                     description: the lab_dataset_id of the unpublished dataset
                   uuid:
                     type: string
-                    description: The unique identifier for the  unpublisheddataset
+                    description: The unique identifier for the  unpublished dataset
 
         '404':
           description: Bad request. A query parameter is either invalid (accepted value; format) or its value is bad (accepted values; tsv|json)
@@ -2796,10 +2723,9 @@ paths:
             application/json:
               schema:
                 type: array
-                properties:
-                  uuid:
-                    type: string
-                    description: The unique identifier for the  unpublisheddataset
+                items:
+                  type: string
+                  description: The unique identifier for the  unpublished dataset
 
         '404':
           description: Not found. No matching datasets were found, or the none were found that the user is authorized to see.
@@ -2831,15 +2757,13 @@ paths:
                 datasets:
                   type: array
                   items:
-                    type: object
-                    properties:
-                      dataset_link_abs_dir:
-                        type: string
-                        required: true
-                        description: The file path to the component's sub-directory beneath the ancestor dataset on globus. The created symbolic link will point to this subdirectory
-                      $ref: '#/components/schemas/Dataset'
-
-
+                    allOf:
+                      - $ref: '#/components/schemas/Dataset'
+                      - type: object
+                        properties:
+                          dataset_link_abs_dir:
+                            type: string
+                            description: The file path to the component's sub-directory beneath the ancestor dataset on globus. The created symbolic link will point to this subdirectory
       responses:
         '200':
           description: The entities were successfully created and are returned.
