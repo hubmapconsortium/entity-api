@@ -699,30 +699,30 @@ def get_provenance_metadata_by_id_for_auth_level(id):
     # Identify fields to exclude from non-authorized responses for the entity type.
     fields_to_exclude = schema_manager.get_fields_to_exclude(normalized_entity_type)
 
-    # Response with the dict
-    if public_entity and not user_authorized:
-        final_result = schema_manager.exclude_properties_from_response(fields_to_exclude, final_result)
+    # Remove fields which do not belong in provenance metadata, regardless of
+    # entity scope or user authorization.
+    final_result = schema_manager.exclude_properties_from_response(fields_to_exclude, final_result)
 
     # Retrieve the associated data for the entity, and add it to the expanded dictionary.
-    associated_organ_list = _get_dataset_associated_data(   dataset_dict=final_result
-                                                            , dataset_visibility=entity_scope
-                                                            , valid_user_token=user_token
-                                                            , request=request
-                                                            , associated_data='Organs')
+    associated_organ_list = _get_dataset_associated_metadata(   dataset_dict=final_result
+                                                                , dataset_visibility=entity_scope
+                                                                , valid_user_token=user_token
+                                                                , request=request
+                                                                , associated_data='Organs')
     final_result['organs'] = associated_organ_list
 
-    associated_sample_list = _get_dataset_associated_data(   dataset_dict=final_result
-                                                            , dataset_visibility=entity_scope
-                                                            , valid_user_token=user_token
-                                                            , request=request
-                                                            , associated_data='Samples')
+    associated_sample_list = _get_dataset_associated_metadata(   dataset_dict=final_result
+                                                                , dataset_visibility=entity_scope
+                                                                , valid_user_token=user_token
+                                                                , request=request
+                                                                , associated_data='Samples')
     final_result['samples'] = associated_sample_list
 
-    associated_donor_list = _get_dataset_associated_data(   dataset_dict=final_result
-                                                            , dataset_visibility=entity_scope
-                                                            , valid_user_token=user_token
-                                                            , request=request
-                                                            , associated_data='Donors')
+    associated_donor_list = _get_dataset_associated_metadata(   dataset_dict=final_result
+                                                                , dataset_visibility=entity_scope
+                                                                , valid_user_token=user_token
+                                                                , request=request
+                                                                , associated_data='Donors')
 
     final_result['donors'] = associated_donor_list
 
@@ -5019,12 +5019,9 @@ def _get_entity_visibility(normalized_entity_type, entity_dict):
     return entity_visibility
 
 
-"""
-Retrieve the metadata information for certain data associated with entity.  This method supports
-Dataset entities, and can get the associated data for organs, samples, or donors.
-
-Get associated data dict based upon the user's authorization. The associated data may be
-filtered down if credentials were not presented for full access.
+'''
+Retrieve the organ, donor, or sample metadata information associated with a Dataset, based
+up the user's authorization to access the Dataset.
 
 Parameters
 ----------
@@ -5044,9 +5041,9 @@ associated_data : str
 Returns
 -------
 list
-    A dictionary containing all the properties the target entity.
-"""
-def _get_dataset_associated_data(dataset_dict, dataset_visibility, valid_user_token, request, associated_data: str):
+    A dictionary containing the metadata properties the Dataset associated data.
+'''
+def _get_dataset_associated_metadata(dataset_dict, dataset_visibility, valid_user_token, request, associated_data: str):
 
     # Confirm the associated data requested is supported by this method.
     retrievable_associations = ['organs', 'samples', 'donors']
@@ -5115,16 +5112,16 @@ def _get_dataset_associated_data(dataset_dict, dataset_visibility, valid_user_to
 
     # For public entities, limit the fields in the response unless the authorization presented in the
     # Request allows the user to see all properties.
-    if public_entity and not user_authorized:
-        filtered_entities_list = []
-        for entity in final_result:
-            final_entity_dict = schema_manager.exclude_properties_from_response(excluded_fields=fields_to_exclude
-                                                                                , output_dict=entity)
-            filtered_entities_list.append(final_entity_dict)
-        final_result = filtered_entities_list
+    # Remove fields which do not belong in provenance metadata, regardless of
+    # entity scope or user authorization.
+    filtered_entities_list = []
+    for entity in final_result:
+        final_entity_dict = schema_manager.exclude_properties_from_response(excluded_fields=fields_to_exclude
+                                                                            , output_dict=entity)
+        filtered_entities_list.append(final_entity_dict)
+    final_result = filtered_entities_list
 
     return final_result
-
 
 """
 Generate 'before_create_triiger' data and create the entity details in Neo4j
