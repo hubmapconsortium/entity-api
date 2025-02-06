@@ -3,6 +3,7 @@ import yaml
 import logging
 import requests
 import unicodedata
+import concurrent.futures
 from flask import Response
 from datetime import datetime
 
@@ -827,10 +828,16 @@ list
 """
 def get_complete_entities_list(token, entities_list, properties_to_skip = []):
     complete_entities_list = []
+    
+    # Use a pool of threads to execute the time-consuming iteration asynchronously to avoid timeout - Zhou 2/6/2025
+    with concurrent.futures.ThreadPoolExecutor() as executor:
+        helper_func = lambda args: get_complete_entity_result(args[0], args[1], args[2])
+        args_list = [(token, entity_dict, properties_to_skip) for entity_dict in entities_list]
 
-    for entity_dict in entities_list:
-        complete_entity_dict = get_complete_entity_result(token, entity_dict, properties_to_skip)
-        complete_entities_list.append(complete_entity_dict)
+        # The order of donors/organs/samples lists are not gurenteed with using `executor.submit()`
+        # `executor.map()` maintains the same order of results as the original submitted tasks
+        for result in executor.map(helper_func, args_list):
+            complete_entities_list.append(result)
 
     return complete_entities_list
 
