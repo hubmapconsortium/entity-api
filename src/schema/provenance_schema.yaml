@@ -915,6 +915,7 @@ ENTITIES:
       sample_category:
         type: string
         indexed: true
+        immutable: true
         required_on_create: true # Only require for cerate via POST, not update via PUT
         description: "A code representing the type of specimen. Must be an organ, block, section, or suspension"
         before_property_create_validators:
@@ -954,6 +955,7 @@ ENTITIES:
       organ:
         type: string
         indexed: true
+        immutable: true
         description: "Organ code specifier, only set if sample_type == organ.  Valid values found in: [organ types](https://github.com/hubmapconsortium/search-api/blob/main/src/search-schema/data/definitions/enums/organ_types.yaml)"
       organ_other:
         type: string
