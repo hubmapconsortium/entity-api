@@ -1184,7 +1184,8 @@ def get_collection_datasets(neo4j_driver, uuid):
     fields_to_omit = SchemaConstants.OMITTED_FIELDS
     query = (f"MATCH (e:Dataset)-[:IN_COLLECTION]->(c:Collection) "
              f"WHERE c.uuid = '{uuid}' "
-             f"RETURN COLLECT(apoc.create.vNode(labels(e), apoc.map.removeKeys(properties(e), {fields_to_omit}))) AS {record_field_name}")
+             f"WITH COLLECT(DISTINCT e) AS uniqueDataset "
+             f"RETURN [a IN uniqueDataset | apoc.create.vNode(labels(a), apoc.map.removeKeys(properties(a), {fields_to_omit}))] AS {record_field_name}")
 
     logger.info("======get_collection_datasets() query======")
     logger.info(query)
@@ -1397,7 +1398,8 @@ def get_upload_datasets(neo4j_driver, uuid, property_key = None):
     else:
         query = (f"MATCH (e:Dataset)-[:IN_UPLOAD]->(s:Upload) "
                  f"WHERE s.uuid = '{uuid}' "
-                 f"RETURN COLLECT(apoc.create.vNode(labels(e), apoc.map.removeKeys(properties(e), {fields_to_omit}))) AS {record_field_name}")
+                 f"WITH COLLECT(DISTINCT e) AS uniqueUploads "
+                 f"RETURN [a IN uniqueUploads | apoc.create.vNode(labels(a), apoc.map.removeKeys(properties(a), {fields_to_omit}))] AS {record_field_name}")
 
     logger.info("======get_upload_datasets() query======")
     logger.info(query)
