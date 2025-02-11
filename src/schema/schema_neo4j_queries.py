@@ -176,9 +176,8 @@ def get_children(neo4j_driver, uuid, property_key = None):
         query = (f"MATCH (e:Entity)-[:ACTIVITY_INPUT]->(:Activity)-[:ACTIVITY_OUTPUT]->(child:Entity) "
                  # The target entity can't be a Lab
                  f"WHERE e.uuid='{uuid}' AND e.entity_type <> 'Lab' "
-                 # COLLECT() returns a list
-                 # apoc.coll.toSet() reruns a set containing unique nodes
-                 f"RETURN apoc.coll.toSet(COLLECT(apoc.create.vNode(labels(child), apoc.map.removeKeys(properties(child), {fields_to_omit})))) AS {record_field_name}")
+                 f"WITH COLLECT(DISTINCT child) AS uniqueChildren "
+                 f"RETURN [a IN uniqueChildren | apoc.create.vNode(labels(a), apoc.map.removeKeys(properties(a), {fields_to_omit}))] AS {record_field_name}")
 
     logger.info("======get_children() query======")
     logger.info(query)
@@ -228,9 +227,8 @@ def get_parents(neo4j_driver, uuid, property_key = None):
         query = (f"MATCH (e:Entity)<-[:ACTIVITY_OUTPUT]-(:Activity)<-[:ACTIVITY_INPUT]-(parent:Entity) "
                  # Filter out the Lab entities
                  f"WHERE e.uuid='{uuid}' AND parent.entity_type <> 'Lab' "
-                 # COLLECT() returns a list
-                 # apoc.coll.toSet() reruns a set containing unique nodes
-                 f"RETURN apoc.coll.toSet(COLLECT(apoc.create.vNode(labels(parent), apoc.map.removeKeys(properties(parent), {fields_to_omit})))) AS {record_field_name}")
+                 f"WITH COLLECT(DISTINCT parent) AS uniqueParents "
+                 f"RETURN [a IN uniqueParents | apoc.create.vNode(labels(a), apoc.map.removeKeys(properties(a), {fields_to_omit}))] AS {record_field_name}")
 
     logger.info("======get_parents() query======")
     logger.info(query)
@@ -392,9 +390,8 @@ def get_ancestors(neo4j_driver, uuid, property_key = None):
         query = (f"MATCH (e:Entity)<-[:ACTIVITY_INPUT|ACTIVITY_OUTPUT*]-(ancestor:Entity) "
                  # Filter out the Lab entities
                  f"WHERE e.uuid='{uuid}' AND ancestor.entity_type <> 'Lab' "
-                 # COLLECT() returns a list
-                 # apoc.coll.toSet() reruns a set containing unique nodes
-                 f"RETURN apoc.coll.toSet(COLLECT(apoc.create.vNode(labels(ancestor), apoc.map.removeKeys(properties(ancestor), {fields_to_omit})))) AS {record_field_name}")
+                 f"WITH COLLECT(DISTINCT ancestor) AS uniqueAncestors "
+                 f"RETURN [a IN uniqueAncestors | apoc.create.vNode(labels(a), apoc.map.removeKeys(properties(a), {fields_to_omit}))] AS {record_field_name}")
 
     logger.info("======get_ancestors() query======")
     logger.info(query)
@@ -443,9 +440,8 @@ def get_descendants(neo4j_driver, uuid, property_key = None):
         query = (f"MATCH (e:Entity)-[:ACTIVITY_INPUT|ACTIVITY_OUTPUT*]->(descendant:Entity) "
                  # The target entity can't be a Lab
                  f"WHERE e.uuid='{uuid}' AND e.entity_type <> 'Lab' "
-                 # COLLECT() returns a list
-                 # apoc.coll.toSet() reruns a set containing unique nodes
-                 f"RETURN apoc.coll.toSet(COLLECT(apoc.create.vNode(labels(descendant), apoc.map.removeKeys(properties(descendant), {fields_to_omit})))) AS {record_field_name}")
+                 f"WITH COLLECT(DISTINCT descendant) AS uniqueDescendants "
+                 f"RETURN [a IN uniqueDescendants | apoc.create.vNode(labels(a), apoc.map.removeKeys(properties(a), {fields_to_omit}))] AS {record_field_name}")                 
 
     logger.info("======get_descendants() query======")
     logger.info(query)
@@ -1188,7 +1184,8 @@ def get_collection_datasets(neo4j_driver, uuid):
     fields_to_omit = SchemaConstants.OMITTED_FIELDS
     query = (f"MATCH (e:Dataset)-[:IN_COLLECTION]->(c:Collection) "
              f"WHERE c.uuid = '{uuid}' "
-             f"RETURN COLLECT(apoc.create.vNode(labels(e), apoc.map.removeKeys(properties(e), {fields_to_omit}))) AS {record_field_name}")
+             f"WITH COLLECT(DISTINCT e) AS uniqueDataset "
+             f"RETURN [a IN uniqueDataset | apoc.create.vNode(labels(a), apoc.map.removeKeys(properties(a), {fields_to_omit}))] AS {record_field_name}")
 
     logger.info("======get_collection_datasets() query======")
     logger.info(query)
@@ -1401,7 +1398,8 @@ def get_upload_datasets(neo4j_driver, uuid, property_key = None):
     else:
         query = (f"MATCH (e:Dataset)-[:IN_UPLOAD]->(s:Upload) "
                  f"WHERE s.uuid = '{uuid}' "
-                 f"RETURN COLLECT(apoc.create.vNode(labels(e), apoc.map.removeKeys(properties(e), {fields_to_omit}))) AS {record_field_name}")
+                 f"WITH COLLECT(DISTINCT e) AS uniqueUploads "
+                 f"RETURN [a IN uniqueUploads | apoc.create.vNode(labels(a), apoc.map.removeKeys(properties(a), {fields_to_omit}))] AS {record_field_name}")
 
     logger.info("======get_upload_datasets() query======")
     logger.info(query)
