@@ -976,6 +976,7 @@ ENTITIES:
       direct_ancestor:
         type: json_string # dict
         generated: true
+        immutable: true
         transient: true
         indexed: false
         on_read_trigger: get_sample_direct_ancestor
