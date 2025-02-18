@@ -1287,8 +1287,12 @@ def commit_thumbnail_file(property_key, normalized_type, user_token, existing_da
 
         logger.info(f"Commit the uploaded thumbnail file of tmp file id {tmp_file_id} for entity {entity_uuid} via ingest-api call...")
 
+        request_headers = {
+            'Authorization': f'Bearer {user_token}'
+        }
+        
         # Disable ssl certificate verification
-        response = requests.post(url = ingest_api_target_url, headers = schema_manager._create_request_headers(user_token), json = json_to_post, verify = False) 
+        response = requests.post(url = ingest_api_target_url, headers = request_headers, json = json_to_post, verify = False) 
 
         if response.status_code != 200:
             msg = f"Failed to commit the thumbnail file of tmp file id {tmp_file_id} via ingest-api for entity uuid: {entity_uuid}"
@@ -1387,8 +1391,12 @@ def delete_thumbnail_file(property_key, normalized_type, user_token, existing_da
 
     logger.info(f"Remove the uploaded thumbnail file {file_uuid} for entity {entity_uuid} via ingest-api call...")
 
+    request_headers = {
+        'Authorization': f'Bearer {user_token}'
+    }
+
     # Disable ssl certificate verification
-    response = requests.post(url = ingest_api_target_url, headers = schema_manager._create_request_headers(user_token), json = json_to_post, verify = False) 
+    response = requests.post(url = ingest_api_target_url, headers = request_headers, json = json_to_post, verify = False) 
 
     # response.json() returns an empty array because
     # there's no thumbnail file left once the only one gets removed
@@ -1457,10 +1465,12 @@ def sync_component_dataset_status(property_key, normalized_type, user_token, exi
         creation_action = schema_neo4j_queries.get_entity_creation_action_activity(schema_manager.get_neo4j_driver_instance(), child_uuid)
         if creation_action == 'Multi-Assay Split':
             url = schema_manager.get_entity_api_url() + SchemaConstants.ENTITY_API_UPDATE_ENDPOINT + '/' + child_uuid
-            header = schema_manager._create_request_headers(user_token)
+            request_headers = {
+                'Authorization': f'Bearer {user_token}'
+            }
             header[SchemaConstants.HUBMAP_APP_HEADER] = SchemaConstants.INGEST_API_APP
             header[SchemaConstants.INTERNAL_TRIGGER] = SchemaConstants.COMPONENT_DATASET
-            response = requests.put(url=url, headers=header, json=status_body)
+            response = requests.put(url=url, headers=request_headers, json=status_body)
 
 
 ####################################################################################################
@@ -2082,8 +2092,12 @@ def _commit_files(target_property_key, property_key, normalized_type, user_token
 
             logger.info(f"Commit the uploaded file of temp_file_id {temp_file_id} for entity {entity_uuid} via ingest-api call...")
 
+            request_headers = {
+                'Authorization': f'Bearer {user_token}'
+            }
+
             # Disable ssl certificate verification
-            response = requests.post(url = ingest_api_target_url, headers = schema_manager._create_request_headers(user_token), json = json_to_post, verify = False) 
+            response = requests.post(url = ingest_api_target_url, headers = request_headers, json = json_to_post, verify = False) 
     
             if response.status_code != 200:
                 msg = f"Failed to commit the file of temp_file_id {temp_file_id} via ingest-api for entity uuid: {entity_uuid}"
@@ -2188,9 +2202,13 @@ def _delete_files(target_property_key, property_key, normalized_type, user_token
     }
 
     logger.info(f"Remove the uploaded files for entity {entity_uuid} via ingest-api call...")
+    
+    request_headers = {
+        'Authorization': f'Bearer {user_token}'
+    }
 
     # Disable ssl certificate verification
-    response = requests.post(url = ingest_api_target_url, headers = schema_manager._create_request_headers(user_token), json = json_to_post, verify = False) 
+    response = requests.post(url = ingest_api_target_url, headers = request_headers, json = json_to_post, verify = False) 
 
     if response.status_code != 200:
         msg = f"Failed to remove the files via ingest-api for entity uuid: {entity_uuid}"
