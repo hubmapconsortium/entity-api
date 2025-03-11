@@ -1,7 +1,7 @@
-openapi: 3.0.0
+openapi: 3.0.3
 info:
   description: 'The HuBMAP Entity API is a standard RESTful web service with create, update and read operations for the standard HuBMAP provenance graph entities.'
-  version: 2.4.3
+  version: 2.4.6
   title: HuBMAP Entity API
   contact:
     name: HuBMAP Help Desk
@@ -13,6 +13,7 @@ servers:
   - url: 'https://entity.api.hubmapconsortium.org'
 security:
   - bearerAuth: []
+  - {}
 
 components:
   securitySchemes:
@@ -268,9 +269,10 @@ components:
           readOnly: true
           description: "The name of the person or process which authenticated when the object was last modified."
         entity_type:
+          enum: ["Donor"]
           type: string
           readOnly: true
-          description: "One of the normalized entity types: Dataset, Collection, Sample, Donor, Upload"
+          description: "Entity type constant"
         registered_doi:
           type: string
           description: "The doi of a the registered entity. e.g. 10.35079/hbm289.pcbm.487.  This is set during the publication process and currently available for certain Collections and Datasets."
@@ -309,14 +311,13 @@ components:
           type: array
           items:
             type: string
-            format: temp_file_id
           description: 'List of temporary file ids with an optional description. Provide as a json array with an temp_file_id and description attribute for each element like {"files": [{"temp_file_id":"dzevgd6xjs4d5grmcp4n","description":"This is image file one"},{"temp_file_id":"yrahjadfhadf","description":"This is image file two"}]}'
         image_files_to_remove:
           writeOnly: true
           type: array
           items:
             type: string
-            format: file_uuid
+            format: uuid
           description: 'List of image files previously uploaded to delete. Provide as a json array of the file_uuids of the file like: ["232934234234234234234270c0ea6c51d604a850558ef2247d0b4", "230948203482234234234a57bfe9c056d08a0f8e6cd612baa3bfa"]'
         metadata:
           type: object
@@ -396,9 +397,10 @@ components:
           readOnly: true
           description: "The name of the person or process which authenticated when the object was last modified."
         entity_type:
+          enum: ["Sample"]
           type: string
           readOnly: true
-          description: "One of the normalized entity types: Dataset, Collection, Sample, Donor"
+          description: "Entity type constant"
         registered_doi:
           type: string
           description: "The doi of a the registered entity. e.g. 10.35079/hbm289.pcbm.487.  This is set during the publication process and currently available for certain Collections and Datasets."
@@ -489,9 +491,7 @@ components:
           writeOnly: true
           description: "The uuid of source entity from which this new entity is derived from. Used on creation or edit to create an action and relationship to the ancestor.  The direct ancestor must be a Donor or Sample.  If the direct ancestor is a Donor, the sample must be of type organ."
         direct_ancestor:
-          readOnly: true
-          type: object
-          description: "The entitiy directly above this sample in the provenance graph (direct parent)."
+          $ref: '#/components/schemas/Donor'
         submission_id:
           type: string
           description: "The hubmap internal id with embedded semantic information e.g.: VAN0003-LK-1-10.  This id is generated at creation time which tracks the lab, donor, organ and sample hierarchy per the following: https://docs.google.com/document/d/1DjHgmqWF1VA5-3mfzLFNfabbzmc8KLSG9xWx1DDLlzo/edit?usp=sharing"
@@ -517,14 +517,13 @@ components:
           type: array
           items:
             type: string
-            format: temp_file_id
           description: 'List of temporary file ids with an optional description. Provide as a json array with an temp_file_id and description attribute for each element like {"files": [{"temp_file_id":"dzevgd6xjs4d5grmcp4n","description":"This is image file one"},{"temp_file_id":"yrahjadfhadf","description":"This is image file two"}]}'
         image_files_to_remove:
           writeOnly: true
           type: array
           items:
             type: string
-            format: file_uuid
+            format: uuid
           description: 'List of image files previously uploaded to delete. Provide as a json array of the file_uuids of the file like: ["232934234234234234234270c0ea6c51d604a850558ef2247d0b4", "230948203482234234234a57bfe9c056d08a0f8e6cd612baa3bfa"]'
         metadata_files:
           readOnly: true
@@ -536,13 +535,12 @@ components:
           type: array
           items:
             type: string
-            format: temp_file_id
           description: 'List of temporary file ids with an optional description. Provide as a json array with an temp_file_id and description attribute for each element like {"files": [{"temp_file_id":"dzevgd6xjs4d5grmcp4n","description":"This is image file one"},{"temp_file_id":"yrahjadfhadf","description":"This is image file two"}]}'
         metadata_files_to_remove:
           type: array
           items:
             type: string
-            format: file_uuid
+            format: uuid
           description: 'List of image files previously uploaded to delete. Provide as a json array of the file_uuids of the file like: ["232934234234234234234270c0ea6c51d604a850558ef2247d0b4", "230948203482234234234a57bfe9c056d08a0f8e6cd612baa3bfa"]'
     Dataset:
       type: object
@@ -592,9 +590,10 @@ components:
           readOnly: true
           description: "The name of the person or process which authenticated when the object was last modified."
         entity_type:
+          enum: ["Dataset"]
           type: string
           readOnly: true
-          description: "One of the normalized entity types: Dataset, Collection, Sample, Donor"
+          description: "Entity type constant"
         registered_doi:
           type: string
           description: "The doi of a the registered entity. e.g. 10.35079/hbm289.pcbm.487.  This is set during the publication process and currently available for certain Collections and Datasets."
@@ -700,11 +699,7 @@ components:
             $ref: '#/components/schemas/Collection'
           description: "A list of collections that this dataset belongs to."
         upload:
-          readOnly: true
-          type: array
-          items:
-            $ref: '#/components/schemas/Upload'
-          description: "The Data Upload that this dataset is associated with."
+          $ref: '#/components/schemas/Upload'
         contributors:
           readOnly: true
           type: array
@@ -780,16 +775,16 @@ components:
           description: "The uuids of next revision dataset"
         thumbnail_file:
           readOnly: true
+          type: object
           description: 'The dataset thumbnail file detail. Stored in db as a stringfied json, e.g., {"filename": "thumbnail.jpg", "file_uuid": "c35002f9c3d49f8b77e1e2cd4a01803d"}'
         thumbnail_file_to_add:
           writeOnly: true
           type: string
-          format: temp_file_id
           description: 'Just a temporary file id. Provide as a json object with an temp_file_id like {"temp_file_id":"dzevgd6xjs4d5grmcp4n"}'
         thumbnail_file_to_remove:
           writeOnly: true
           type: string
-          format: file_uuid
+          format: uuid
           description: 'The thumbnail image file previously uploaded to delete. Provide as a string of the file_uuid like: "c35002f9c3d49f8b77e1e2cd4a01803d"'
         sub_status:
           type: string
@@ -856,9 +851,10 @@ components:
           readOnly: true
           description: "The name of the person or process which authenticated when the object was last modified."
         entity_type:
+          enum: ["Upload"]
           type: string
           readOnly: true
-          description: "One of the normalized entity types: Dataset, Collection, Sample, Donor, Upload"
+          description: "Entity type constant"
         description:
           type: string
           description: "Free text description of the data being submitted."
@@ -940,9 +936,10 @@ components:
           readOnly: true
           description: "The name of the person or process which authenticated when the object was last modified."
         entity_type:
+          enum: ["Collection"]
           type: string
           readOnly: true
-          description: "One of the normalized entity types: Dataset, Collection, Sample, Donor"
+          description: "Entity type constant"
         registered_doi:
           type: string
           description: "The doi of a the registered entity. e.g. 10.35079/hbm289.pcbm.487.  This is set during the publication process and currently available for certain Collections and Datasets."
@@ -1017,9 +1014,10 @@ components:
           readOnly: true
           description: "The name of the person or process which authenticated when the object was last modified."
         entity_type:
+          enum: ["Publication"]
           type: string
           readOnly: true
-          description: "One of the normalized entity types: Dataset, Collection, Sample, Donor"
+          description: "Entity type constant"
         registered_doi:
           type: string
           description: "The doi of a the registered entity. e.g. 10.35079/hbm289.pcbm.487.  This is set during the publication process and currently available for certain Collections and Datasets."
@@ -1125,11 +1123,7 @@ components:
             $ref: '#/components/schemas/Collection'
           description: "A list of collections that this dataset belongs to."
         upload:
-          readOnly: true
-          type: array
-          items:
-            $ref: '#/components/schemas/Upload'
-          description: "The Data Upload that this dataset is associated with."
+          $ref: '#/components/schemas/Upload'
         contributors:
           readOnly: true
           type: array
@@ -1143,6 +1137,7 @@ components:
             anyOf:
               - $ref: '#/components/schemas/Sample'
               - $ref: '#/components/schemas/Dataset'
+              - $ref: '#/components/schemas/Publication'
           description: "A list of direct parent ancensters (one level above) that the Dataset was derived from."
         published_timestamp:
           readOnly: true
@@ -1194,16 +1189,16 @@ components:
           description: "The uuid of next revision dataset"
         thumbnail_file:
           readOnly: true
+          type: object
           description: 'The dataset thumbnail file detail. Stored in db as a stringfied json, e.g., {"filename": "thumbnail.jpg", "file_uuid": "c35002f9c3d49f8b77e1e2cd4a01803d"}'
         thumbnail_file_to_add:
           writeOnly: true
           type: string
-          format: temp_file_id
           description: 'Just a temporary file id. Provide as a json object with an temp_file_id like {"temp_file_id":"dzevgd6xjs4d5grmcp4n"}'
         thumbnail_file_to_remove:
           writeOnly: true
           type: string
-          format: file_uuid
+          format: uuid
           description: 'The thumbnail image file previously uploaded to delete. Provide as a string of the file_uuid like: "c35002f9c3d49f8b77e1e2cd4a01803d"'
         sub_status:
           type: string
@@ -1248,13 +1243,80 @@ components:
         associated_collection:
           type: object
           description: 'The associated collection for a given publication'
-    Instanceof:
+    Epicollection:
       type: object
-      description: "Returned by entities/&lt;id&gt;/instanceof/&lt;type&gt;"
       properties:
-        instanceof:
-          type: boolean
-          description: "True of False depending on whether the Entity id is an instance of the type"
+        created_timestamp:
+          type: integer
+          readOnly: true
+          description: "The timestamp of when the node was created.  The format is an integer representing milliseconds since midnight Jan 1, 1970"
+        created_by_user_displayname:
+          type: string
+          readOnly: true
+          description: "The name of the person or process authenticated when creating the object"
+        created_by_user_email:
+          type: string
+          readOnly: true
+          description: "The email address of the person or process authenticated when creating the object."
+        created_by_user_sub:
+          type: string
+          readOnly: true
+          description: "The subject id as provided by the authorization mechanism for the person or process authenticated when creating the object."
+        uuid:
+          type: string
+          readOnly: true
+          description: "The HuBMAP unique identifier, intended for internal software use only.  This is a 32 digit hexadecimal uuid e.g. 461bbfdc353a2673e381f632510b0f17"
+        hubmap_id:
+          type: string
+          readOnly: true
+          description: "A HuBMAP Consortium wide unique identifier randomly generated in the format HBM###.ABCD.### for every entity."
+        last_modified_timestamp:
+          type: integer
+          readOnly: true
+          description: "The timestamp of when the object was last modified.  The format is an integer representing milliseconds since midnight, Jan 1, 1970"
+        last_modified_user_sub:
+          type: string
+          readOnly: true
+          description: "The subject id of the user who last modified the entity as provided by the authorization mechanism for the person or process authenticated when the object was modified."
+        last_modified_user_email:
+          type: string
+          readOnly: true
+          description: "The email address of the person or process which authenticated when the object was last modified."
+        last_modified_user_displayname:
+          type: string
+          readOnly: true
+          description: "The name of the person or process which authenticated when the object was last modified."
+        entity_type:
+          enum: ["Epicollection"]
+          type: string
+          readOnly: true
+          description: "Entity type constant"
+        registered_doi:
+          type: string
+          description: "The doi of a the registered entity. e.g. 10.35079/hbm289.pcbm.487.  This is set during the publication process and currently available for certain Collections and Datasets."
+        doi_url:
+          type: string
+          readOnly: true
+          description: "The url from the doi registry for this entity. e.g. https://doi.org/10.35079/hbm289.pcbm.487"
+        contributors:
+          type: array
+          items:
+            $ref: '#/components/schemas/Person'
+          description: "A list of the people who created the entity with full name, email, ORCID iD, institution, etc.. This is analogus to the author list on a publication."
+        contacts:
+          type: array
+          items:
+            $ref: '#/components/schemas/Person'
+          description: "A list of the people who are the main contacts to get information about the entity."
+        title:
+          type: string
+          description: "The title of the Collection"
+        datasets:
+          type: array
+          readOnly: true
+          items:
+            $ref: '#/components/schemas/Dataset'
+          description: "The datasets that are contained in the Collection."
 
 paths:
   '/entities/{id}':
@@ -1269,14 +1331,11 @@ paths:
             type: string
       responses:
         '200':
-          description: The json of the **[Donor](http://somewhere.org)**, **[Sample](http://somewhere.org)** or **[Dataset](http://somewhere.org)**
+          description: The entity details
           content:
             application/json:
-              schema:
-                oneOf:
-                  - $ref: '#/components/schemas/Donor'
-                  - $ref: '#/components/schemas/Sample'
-                  - $ref: '#/components/schemas/Dataset'
+              schema: 
+                type: object
         '400':
           description: Invalid or misformatted entity identifier was provided.
         '401':
@@ -1299,21 +1358,11 @@ paths:
       requestBody:
         content:
           application/json:
-            schema:
-              oneOf:
-                - $ref: '#/components/schemas/Donor'
-                - $ref: '#/components/schemas/Sample'
-                - $ref: '#/components/schemas/Dataset'
+            schema: 
+              type: object
       responses:
         '200':
-          description: The entity was successfully updated and is returned
-          content:
-            application/json:
-              schema:
-                oneOf:
-                  - $ref: '#/components/schemas/Donor'
-                  - $ref: '#/components/schemas/Sample'
-                  - $ref: '#/components/schemas/Dataset'
+          description: Message of the entity was successfully updated
         '400':
           description: Invalid or misformatted entity identifier
         '401':
@@ -1358,11 +1407,7 @@ paths:
               schema:
                 type: array
                 items:
-                  anyOf:
-                    - $ref: '#/components/schemas/Donor'
-                    - $ref: '#/components/schemas/Sample'
-                    - $ref: '#/components/schemas/Dataset'
-
+                  type: object
         '400':
           description: Invalid or misformatted entity identifier
         '401':
@@ -1391,9 +1436,7 @@ paths:
               schema:
                 type: array
                 items:
-                  anyOf:
-                    - $ref: '#/components/schemas/Sample'
-                    - $ref: '#/components/schemas/Dataset'
+                  type: object
         '400':
           description: Invalid or misformatted entity identifier
         '401':
@@ -1422,10 +1465,7 @@ paths:
               schema:
                 type: array
                 items:
-                  anyOf:
-                    - $ref: '#/components/schemas/Donor'
-                    - $ref: '#/components/schemas/Sample'
-                    - $ref: '#/components/schemas/Dataset'
+                  type: object
         '400':
           description: Invalid or misformatted entity identifier
         '401':
@@ -1454,9 +1494,7 @@ paths:
               schema:
                 type: array
                 items:
-                  anyOf:
-                    - $ref: '#/components/schemas/Sample'
-                    - $ref: '#/components/schemas/Dataset'
+                  type: object
         '400':
           description: Invalid or misformatted entity identifier
         '401':
@@ -1506,9 +1544,7 @@ paths:
               schema:
                 type: array
                 items:
-                  anyOf:
-                    - $ref: '#/components/schemas/Sample'
-                    - $ref: '#/components/schemas/Dataset'
+                  type: object
         '400':
           description: Invalid or misformatted entity identifier
         '401':
@@ -1551,9 +1587,7 @@ paths:
               schema:
                 type: array
                 items:
-                  anyOf:
-                    - $ref: '#/components/schemas/Sample'
-                    - $ref: '#/components/schemas/Dataset'
+                  type: object
         '400':
           description: Invalid or misformatted entity identifier
         '401':
@@ -1589,8 +1623,7 @@ paths:
               schema:
                 type: array
                 items:
-                  anyOf:
-                    - $ref: '#/components/schemas/Collection'
+                  type: object
         '400':
           description: Invalid or misformatted entity identifier
         '401':
@@ -1626,8 +1659,7 @@ paths:
               schema:
                 type: array
                 items:
-                  anyOf:
-                    - $ref: '#/components/schemas/Upload'
+                  type: object
         '400':
           description: Invalid or misformatted entity identifier
         '401':
@@ -1682,10 +1714,6 @@ paths:
       responses:
         '200':
           description: An object with the attribute 'instanceof' that has a value of either 'true' of 'false'
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Instanceof'
         '400':
           description: Invalid or misformatted entity identifier
         '401':
@@ -1715,10 +1743,6 @@ paths:
       responses:
         '200':
           description: An object with the attribute 'instanceof' that has a value of either 'true' of 'false'
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Instanceof'
         '400':
           description: Invalid or misformatted entity identifier
         '401':
@@ -1747,7 +1771,7 @@ paths:
               schema:
                 type: array
                 items:
-                  $ref: '#/components/schemas/Sample'
+                  type: object
         '400':
           description: Invalid or misformatted entity identifier
         '401':
@@ -1756,46 +1780,6 @@ paths:
           description: The user is not authorized to retrieve the entity
         '404':
           description: The target entity could not be found
-        '500':
-          description: Internal error
-  '/entities/new/{entity_type}':
-    post:
-      summary: Create a new entity of the target type
-      parameters:
-        - name: entity_type
-          in: path
-          description: 'One of the target entity types (case-insensitive since will be normalized): Donor, Sample, Dataset, Upload'
-          required: true
-          schema:
-            type: string
-      requestBody:
-        content:
-          application/json:
-            schema:
-              oneOf:
-                - $ref: '#/components/schemas/Donor'
-                - $ref: '#/components/schemas/Sample'
-                - $ref: '#/components/schemas/Dataset'
-                - $ref: '#/components/schemas/Upload'
-      responses:
-        '200':
-          description: The entity was successfully created and is returned
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  anyOf:
-                    - $ref: '#/components/schemas/Donor'
-                    - $ref: '#/components/schemas/Sample'
-                    - $ref: '#/components/schemas/Dataset'
-                    - $ref: '#/components/schemas/Upload'
-        '400':
-          description: Invalid entity type provided
-        '401':
-          description: The user's token has expired or the user did not supply a valid token
-        '403':
-          description: The user is not authorized to create the entity
         '500':
           description: Internal error
   '/entities/multiple-samples/{count}':
@@ -1864,7 +1848,6 @@ paths:
             text/plain:
               schema:
                 type: string
-                format: url
         '400':
           description: Invalid or misformatted entity identifier
         '401':
@@ -2053,7 +2036,7 @@ paths:
               schema:
                 type: array
                 items:
-                  $ref: '#/components/schemas/Sample'
+                  type: object
         '400':
           description: Invalid or misformatted entity identifier, or the given entity is not a Dataset
         '401':
@@ -2082,7 +2065,7 @@ paths:
               schema:
                 type: array
                 items:
-                  $ref: '#/components/schemas/Sample'
+                  type: object
         '400':
           description: Invalid or misformatted entity identifier, or the given entity is not a Dataset
         '401':
@@ -2111,7 +2094,7 @@ paths:
               schema:
                 type: array
                 items:
-                  $ref: '#/components/schemas/Donor'
+                  type: object
         '400':
           description: Invalid or misformatted entity identifier, or the given entity is not a Dataset
         '401':
@@ -2289,7 +2272,7 @@ paths:
                     items:
                       type: string
                       description: The HuBMAP ID of the donor associated to this dataset in the provenance chain
-                  donor:submission_id:
+                  donor_submission_id:
                     type: array
                     items:
                       type: string
@@ -2454,7 +2437,7 @@ paths:
                     items:
                       type: string
                       description: The HuBMAP ID of the donor associated to this dataset in the provenance chain
-                  donor:submission_id:
+                  donor_submission_id:
                     type: array
                     items:
                       type: string
@@ -2562,9 +2545,7 @@ paths:
         content:
           application/json:
             schema:
-              type: array
-              items:
-                $ref: '#/components/schemas/Upload'
+              type: object
       responses:
         '202':
           description: request is being processed
@@ -2784,4 +2765,3 @@ paths:
           description: The given dataset is unpublished and the user does not have the authorization to view it.
         '500':
           description: Internal error
-
