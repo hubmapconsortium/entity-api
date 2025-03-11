@@ -701,9 +701,7 @@ components:
           description: "A list of collections that this dataset belongs to."
         upload:
           readOnly: true
-          type: array
-          items:
-            $ref: '#/components/schemas/Upload'
+          $ref: '#/components/schemas/Upload'
           description: "The Data Upload that this dataset is associated with."
         contributors:
           readOnly: true
@@ -1126,9 +1124,7 @@ components:
           description: "A list of collections that this dataset belongs to."
         upload:
           readOnly: true
-          type: array
-          items:
-            $ref: '#/components/schemas/Upload'
+          $ref: '#/components/schemas/Upload'
           description: "The Data Upload that this dataset is associated with."
         contributors:
           readOnly: true
