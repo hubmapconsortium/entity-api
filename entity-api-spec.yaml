@@ -1298,10 +1298,7 @@ paths:
         content:
           application/json:
             schema:
-              oneOf:
-                - $ref: '#/components/schemas/Donor'
-                - $ref: '#/components/schemas/Sample'
-                - $ref: '#/components/schemas/Dataset'
+              type: object
       responses:
         '200':
           description: The entity was successfully updated and is returned
