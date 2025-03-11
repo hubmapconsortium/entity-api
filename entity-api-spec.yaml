@@ -1758,46 +1758,6 @@ paths:
           description: The target entity could not be found
         '500':
           description: Internal error
-  '/entities/new/{entity_type}':
-    post:
-      summary: Create a new entity of the target type
-      parameters:
-        - name: entity_type
-          in: path
-          description: 'One of the target entity types (case-insensitive since will be normalized): Donor, Sample, Dataset, Upload'
-          required: true
-          schema:
-            type: string
-      requestBody:
-        content:
-          application/json:
-            schema:
-              oneOf:
-                - $ref: '#/components/schemas/Donor'
-                - $ref: '#/components/schemas/Sample'
-                - $ref: '#/components/schemas/Dataset'
-                - $ref: '#/components/schemas/Upload'
-      responses:
-        '200':
-          description: The entity was successfully created and is returned
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  anyOf:
-                    - $ref: '#/components/schemas/Donor'
-                    - $ref: '#/components/schemas/Sample'
-                    - $ref: '#/components/schemas/Dataset'
-                    - $ref: '#/components/schemas/Upload'
-        '400':
-          description: Invalid entity type provided
-        '401':
-          description: The user's token has expired or the user did not supply a valid token
-        '403':
-          description: The user is not authorized to create the entity
-        '500':
-          description: Internal error
   '/entities/multiple-samples/{count}':
     post:
       summary: "Create multiple samples from the same source entity. 'count' samples will be generated each with individual uuids, hubmap_ids and submission_ids."
