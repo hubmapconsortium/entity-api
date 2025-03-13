@@ -2363,8 +2363,8 @@ paths:
               examples:
                 samplearray:
                   value: 
-                    - collection: 'Collection object 1'
-                    - collection: 'Collection object 2'
+                    - collection: 'Sample object 1'
+                    - collection: 'Sample object 2'
         '400':
           description: Invalid or misformatted entity identifier, or the given entity is not a Dataset
         '401':
@@ -2397,7 +2397,7 @@ paths:
               examples:
                 collectionarray:
                   value: 
-                    - collection: 'Collection object 1'
+                    - collection: 'Donor object 1'
         '400':
           description: Invalid or misformatted entity identifier, or the given entity is not a Dataset
         '401':
