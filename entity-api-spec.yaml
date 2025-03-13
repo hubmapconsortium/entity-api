@@ -1317,7 +1317,250 @@ components:
           items:
             $ref: '#/components/schemas/Dataset'
           description: 'The datasets that are contained in the Collection.'
-
+  examples:
+    DonorExample:
+      summary: An example of a donor response
+      value:
+        created_timestamp: 1710243867000
+        created_by_user_displayname: 'JaneDoe1'
+        created_by_user_email: 'janedoe@example.com'
+        created_by_user_sub: 'abcd1234-ef56-gh78-ij90-klmnop123456'
+        uuid: 'abcd1234-ef56-gh78-ij90-klmnop123456'
+        hubmap_id: 'HBM123.ABCD.456'
+        last_modified_timestamp: 1710243867000
+        last_modified_user_sub: 'abcd1234-ef56-gh78-ij90-klmnop123456'
+        last_modified_user_email: 'janedoe@example.com'
+        last_modified_user_displayname: 'JaneDoe1'
+        entity_type: 'donor'
+        registered_doi: '10.35079/hbm289.pcbm.487'
+        doi_url: 'https://doi.org/10.35079/hbm289.pcbm.487'
+        creators: [creator objects]
+        contacts: [contact objects]
+        description: 'Description of the property'
+        data_access_level: 'public'
+        image_files: [image_files objects]
+        image_files_to_add: [strings]
+        image_files_to_remove: [strings]
+        metadata: object
+        protocol_url: '10.35079/protocols.io.abcdefghijkl'
+        lab_donor_id: 'AB123'
+        submission_id: 'AB1234'
+        group_uuid: 'abcd1234-ef56-gh78-ij90-klmnop123456'
+        group_name: 'Harvard TMC'
+        label: 'ABDonor1'
+    SampleExample:
+      summary: 'An example of a Sample response'
+      value:
+        created_timestamp: 1710243867000
+        created_by_user_displayname: 'JaneDoe1'
+        created_by_user_email: 'janedoe@example.com'
+        created_by_user_sub: 'abcd1234-ef56-gh78-ij90-klmnop123456'
+        uuid: 'abcd1234-ef56-gh78-ij90-klmnop123456'
+        hubmap_id: 'HBM123.ABCD.456'
+        last_modified_timestamp: 1710243867000
+        last_modified_user_sub: 'abcd1234-ef56-gh78-ij90-klmnop123456'
+        last_modified_user_email: 'janedoe@example.com'
+        last_modified_user_displayname: 'JaneDoe1'
+        entity_type: 'sample'
+        registered_doi: '10.35079/hbm289.pcbm.487'
+        doi_url: 'https://doi.org/10.35079/hbm289.pcbm.487'
+        creators: [creator objects]
+        contacts: [contact objects]
+        description: 'Description of the property'
+        data_access_level: 'public'
+        sample_category: 'organ'
+        organ: 'AO'
+        organ_other: 'other'
+        image_files: [image_files objects]
+        image_files_to_add: [strings]
+        image_files_to_remove: [strings]
+        metadata_files: [file object]
+        metadata_files_to_add: [string]
+        metadata_files_to_remove: [string]
+        protocol_url: '10.35079/protocols.io.abcdefghijkl'
+        lab_tissue_sample_id: '12-345 Aorta AA-1'
+        submission_id: 'AB1234'
+        group_uuid: 'abcd1234-ef56-gh78-ij90-klmnop123456'
+        group_name: 'University TMC'
+        visit: 'abc123'
+        rui_location: object
+    DatasetExample:
+      summary: 'An example of a Dataset response'
+      value:
+        created_timestamp: 1710243867000
+        created_by_user_displayname: 'JaneDoe1'
+        created_by_user_email: 'janedoe@example.com'
+        created_by_user_sub: 'abcd1234-ef56-gh78-ij90-klmnop123456'
+        uuid: 'abcd1234-ef56-gh78-ij90-klmnop123456'
+        hubmap_id: 'HBM123.ABCD.456'
+        error_message: 'An error has occurred'
+        last_modified_timestamp: 1710243867000
+        last_modified_user_sub: 'abcd1234-ef56-gh78-ij90-klmnop123456'
+        last_modified_user_email: 'janedoe@example.com'
+        last_modified_user_displayname: 'JaneDoe1'
+        entity_type: 'dataset'
+        registered_doi: '10.35079/hbm289.pcbm.487'
+        doi_url: 'https://doi.org/10.35079/hbm289.pcbm.487'
+        creators: [creator objects]
+        contacts: [contact objects]
+        antibodies: [antibody objects]
+        description: 'Description of the property'
+        data_access_level: 'public'
+        contains_human_genetic_sequences: False
+        status: 'QA'
+        title: 'Dataset Title'
+        data_types: ['CODEX']
+        collections: [collection objects]
+        contributors: [contributor objects]
+        direct_ancestor: [Dataset or Sample objects]
+        published_timestamp: 1710243867000
+        published_user_displayname: 'JaneDoe1'
+        published_user_sub: 'abcd1234-ef56-gh78-ij90-klmnop123456'
+        published_user_email: 'janedoe@example.com'
+        ingest_metadata: object
+        metadata: object
+        files: [file objects]
+        calculated_metadata: object
+        local_directory_rel_path: 'public/University TMC/abcd1234ef56gh78ij90klmnop123456'
+        previous_revision_uuid: 'abcd1234-ef56-gh78-ij90-klmnop123456'
+        next_revision_uuid: 'abcd1234-ef56-gh78-ij90-klmnop123456'
+        previous_revision_uuids: ['abcd1234-ef56-gh78-ij90-klmnop123456']
+        next_revision_uuids: ['abcd1234-ef56-gh78-ij90-klmnop123456']
+        thumbnail_file: object
+        thumbnail_file_to_add: string
+        thumbnail_file_to_remove: string
+        sub_status: 'Retracted'
+        retraction_reason: 'Retracted for errors'
+        dbgap_study_url: url
+        creation_action: 'Multi-Assay Split'
+        intended_dataset_type: 'CODEX'
+        intended_organ: 'AO'
+        group_uuid: 'abcd1234-ef56-gh78-ij90-klmnop123456'
+        group_name: 'University TMC'
+    UploadExample:
+      summary: 'An example of an upload response'
+      value:
+        created_timestamp: 1710243867000
+        created_by_user_displayname: 'JaneDoe1'
+        created_by_user_email: 'janedoe@example.com'
+        created_by_user_sub: 'abcd1234-ef56-gh78-ij90-klmnop123456'
+        uuid: 'abcd1234-ef56-gh78-ij90-klmnop123456'
+        hubmap_id: 'HBM123.ABCD.456'
+        last_modified_timestamp: 1710243867000
+        last_modified_user_sub: 'abcd1234-ef56-gh78-ij90-klmnop123456'
+        last_modified_user_email: 'janedoe@example.com'
+        last_modified_user_displayname: 'JaneDoe1'
+        entity_type: 'upload'
+        description: 'Description of the property'
+        title: 'Dataset Title'
+        status: 'QA'
+        validation_message: 'A validation error has occurred'
+        group_uuid: 'abcd1234-ef56-gh78-ij90-klmnop123456'
+        group_name: 'University TMC'
+        dataset_uuids_to_link: ['abcd1234-ef56-gh78-ij90-klmnop123456']
+        dataset_uuids_to_unlink: ['abcd1234-ef56-gh78-ij90-klmnop123456']
+        datasets: [dataset objects]
+    CollectionExample:
+      summary: 'An example of a collection response'
+      value:
+        created_timestamp: 1710243867000
+        created_by_user_displayname: 'JaneDoe1'
+        created_by_user_email: 'janedoe@example.com'
+        created_by_user_sub: 'abcd1234-ef56-gh78-ij90-klmnop123456'
+        uuid: 'abcd1234-ef56-gh78-ij90-klmnop123456'
+        hubmap_id: 'HBM123.ABCD.456'
+        last_modified_timestamp: 1710243867000
+        last_modified_user_sub: 'abcd1234-ef56-gh78-ij90-klmnop123456'
+        last_modified_user_email: 'janedoe@example.com'
+        last_modified_user_displayname: 'JaneDoe1'
+        entity_type: 'collection'
+        registered_doi: '10.35079/hbm289.pcbm.487'
+        doi_url: 'https://doi.org/10.35079/hbm289.pcbm.487'
+        contributors: [contributor objects]
+        contacts: [creator objects]
+        description: 'Description of the property'
+        title: 'Collection Title'
+        datasets: [dataset objects]
+    PublicationExample:
+      summary: 'An example of a publication response'
+      value:
+        created_timestamp: 1710243867000
+        created_by_user_displayname: 'JaneDoe1'
+        created_by_user_email: 'janedoe@example.com'
+        created_by_user_sub: 'abcd1234-ef56-gh78-ij90-klmnop123456'
+        uuid: 'abcd1234-ef56-gh78-ij90-klmnop123456'
+        hubmap_id: 'HBM123.ABCD.456'
+        error_message: 'An error has occurred'
+        last_modified_timestamp: 1710243867000
+        last_modified_user_sub: 'abcd1234-ef56-gh78-ij90-klmnop123456'
+        last_modified_user_email: 'janedoe@example.com'
+        last_modified_user_displayname: 'JaneDoe1'
+        entity_type: 'publication'
+        registered_doi: '10.35079/hbm289.pcbm.487'
+        doi_url: 'https://doi.org/10.35079/hbm289.pcbm.487'
+        creators: [creator objects]
+        contacts: [contact objects]
+        antibodies: [antibody objects]
+        description: 'Description of the property'
+        data_access_level: 'public'
+        contains_human_genetic_sequences: False
+        status: 'QA'
+        title: 'Dataset Title'
+        data_types: ['CODEX']
+        collections: [collection objects]
+        upload: object
+        contributors: [contributor objects]
+        direct_ancestor: [Dataset or Sample objects]
+        published_timestamp: 1710243867000
+        published_user_displayname: 'JaneDoe1'
+        published_user_sub: 'abcd1234-ef56-gh78-ij90-klmnop123456'
+        published_user_email: 'janedoe@example.com'
+        ingest_metadata: object
+        metadata: object
+        files: [file objects]
+        calculated_metadata: object
+        local_directory_rel_path: 'public/University TMC/abcd1234ef56gh78ij90klmnop123456'
+        group_uuid: 'abcd1234-ef56-gh78-ij90-klmnop123456'
+        group_name: 'University TMC'
+        previous_revision_uuid: 'abcd1234-ef56-gh78-ij90-klmnop123456'
+        next_revision_uuid: 'abcd1234-ef56-gh78-ij90-klmnop123456'
+        thumbnail_file: object
+        thumbnail_file_to_add: string
+        thumbnail_file_to_remove: string
+        sub_status: 'Retracted'
+        retraction_reason: 'Retracted for errors'
+        dbgap_study_url: url
+        dbgap_sra_experiment_url: url
+        publication_date: 2023-07-19
+        publication_doi: '10.35079/hbm289.pcbm.487'
+        publication:url: 'https://doi.org/10.35079/hbm289.pcbm.487'
+        publication_venue: 'Nature'
+        volume: 5
+        issue: 81
+        pages_or_article_num: 10
+        omap_doi: '10.35079/hbm289.pcbm.487'
+        associated_collection_uuid: 'abcd1234-ef56-gh78-ij90-klmnop123456'
+        associated_collection: object
+    EpicollectionExample:
+      summary: 'An example of an Epicollection response'
+      value:
+        created_timestamp: 1710243867000
+        created_by_user_displayname: 'JaneDoe1'
+        created_by_user_email: 'janedoe@example.com'
+        created_by_user_sub: 'abcd1234-ef56-gh78-ij90-klmnop123456'
+        uuid: 'abcd1234-ef56-gh78-ij90-klmnop123456'
+        hubmap_id: 'HBM123.ABCD.456'
+        last_modified_timestamp: 1710243867000
+        last_modified_user_sub: 'abcd1234-ef56-gh78-ij90-klmnop123456'
+        last_modified_user_email: 'janedoe@example.com'
+        last_modified_user_displayname: 'JaneDoe1'
+        entity_type: 'epicollection'
+        registered_doi: '10.35079/hbm289.pcbm.487'
+        doi_url: 'https://doi.org/10.35079/hbm289.pcbm.487'
+        contributors: [contributor objects]
+        contacts: [creator objects]
+        title: 'Collection Title'
+        datasets: [dataset objects]
 paths:
   '/entities/{id}':
     get:
@@ -1336,6 +1579,21 @@ paths:
             application/json:
               schema:
                 type: object
+              examples:
+                DonorExample:
+                  $ref: '#/components/examples/DonorExample'
+                SampleExample:
+                  $ref: '#/components/examples/SampleExample'
+                DatasetExample:
+                  $ref: '#/components/examples/DatasetExample'
+                UploadExample:
+                  $ref: '#/components/examples/UploadExample'
+                CollectionExample:
+                  $ref: '#/components/examples/CollectionExample'
+                PublicationExample:
+                  $ref: '#/components/examples/PublicationExample'
+                EpicollectionExample:                
+                  $ref: '#/components/examples/EpicollectionExample'
         '400':
           description: Invalid or misformatted entity identifier was provided.
         '401':
@@ -1360,6 +1618,21 @@ paths:
           application/json:
             schema:
               type: object
+            examples:
+                DonorExample:
+                  $ref: '#/components/examples/DonorExample'
+                SampleExample:
+                  $ref: '#/components/examples/SampleExample'
+                DatasetExample:
+                  $ref: '#/components/examples/DatasetExample'
+                UploadExample:
+                  $ref: '#/components/examples/UploadExample'
+                CollectionExample:
+                  $ref: '#/components/examples/CollectionExample'
+                PublicationExample:
+                  $ref: '#/components/examples/PublicationExample'
+                EpicollectionExample:                
+                  $ref: '#/components/examples/EpicollectionExample'
       responses:
         '200':
           description: Message of the entity was successfully updated
@@ -1408,6 +1681,13 @@ paths:
                 type: array
                 items:
                   type: object
+              examples:
+                DonorExample:
+                  $ref: '#/components/examples/DonorExample'
+                SampleExample:
+                  $ref: '#/components/examples/SampleExample'
+                DatasetExample:
+                  $ref: '#/components/examples/DatasetExample'
         '400':
           description: Invalid or misformatted entity identifier
         '401':
@@ -1437,6 +1717,11 @@ paths:
                 type: array
                 items:
                   type: object
+              examples:
+                SampleExample:
+                  $ref: '#/components/examples/SampleExample'
+                DatasetExample:
+                  $ref: '#/components/examples/DatasetExample'
         '400':
           description: Invalid or misformatted entity identifier
         '401':
@@ -1466,6 +1751,13 @@ paths:
                 type: array
                 items:
                   type: object
+              examples:
+                DonorExample:
+                  $ref: '#/components/examples/DonorExample'
+                SampleExample:
+                  $ref: '#/components/examples/SampleExample'
+                DatasetExample:
+                  $ref: '#/components/examples/DatasetExample'
         '400':
           description: Invalid or misformatted entity identifier
         '401':
@@ -1495,6 +1787,11 @@ paths:
                 type: array
                 items:
                   type: object
+              examples:
+                SampleExample:
+                  $ref: '#/components/examples/SampleExample'
+                DatasetExample:
+                  $ref: '#/components/examples/DatasetExample'
         '400':
           description: Invalid or misformatted entity identifier
         '401':
@@ -1545,6 +1842,11 @@ paths:
                 type: array
                 items:
                   type: object
+              examples:
+                SampleExample:
+                  $ref: '#/components/examples/SampleExample'
+                DatasetExample:
+                  $ref: '#/components/examples/DatasetExample'
         '400':
           description: Invalid or misformatted entity identifier
         '401':
@@ -1588,6 +1890,11 @@ paths:
                 type: array
                 items:
                   type: object
+              examples:
+                SampleExample:
+                  $ref: '#/components/examples/SampleExample'
+                DatasetExample:
+                  $ref: '#/components/examples/DatasetExample'
         '400':
           description: Invalid or misformatted entity identifier
         '401':
@@ -1624,6 +1931,11 @@ paths:
                 type: array
                 items:
                   type: object
+              examples:
+                collectionarray:
+                  value: 
+                    - collection: 'Collection object 1'
+                    - collection: 'Collection object 2'
         '400':
           description: Invalid or misformatted entity identifier
         '401':
@@ -1660,6 +1972,11 @@ paths:
                 type: array
                 items:
                   type: object
+              examples:
+                uploadarray:
+                  value: 
+                    - collection: 'Upload object 1'
+                    - collection: 'Upload object 2'
         '400':
           description: Invalid or misformatted entity identifier
         '401':
@@ -1774,6 +2091,11 @@ paths:
                 type: array
                 items:
                   type: object
+              examples:
+                ancestororganarray:
+                  value: 
+                    - 'abcd1234-ef56-gh78-ij90-klmnop123456' 
+                    - 'abcd1234-ef56-gh78-ij90-klmnop123456'
         '400':
           description: Invalid or misformatted entity identifier
         '401':
@@ -1803,6 +2125,16 @@ paths:
                 type: array
                 items:
                   type: object
+              examples:
+                multiplesamplesexample:
+                  value:
+                    - uuid: 'abcd1234-ef56-gh78-ij90-klmnop123456'
+                      hubmap_id: 'HBM123.ABCD.456'
+                      submission_id: 'AB1234'
+                    - uuid: 'abcd1234-ef56-gh78-ij90-klmnop123456'
+                      hubmap_id: 'HBM123.ABCD.456'
+                      submission_id: 'AB1234'
+                    
         '400':
           description: Invalid json input
         '401':
@@ -1843,6 +2175,9 @@ paths:
             text/plain:
               schema:
                 type: string
+              examples: 
+                exampleglobusurl:
+                  value: 'https://app.globus.org/file-manager?origin_id=abcd1234-ef56-gh78-ij90-klmnop123456&origin_path=%2abcd1234ef56gh78ij90klmnop123456%2F'
         '400':
           description: Invalid or misformatted entity identifier
         '401':
@@ -1893,6 +2228,9 @@ paths:
             application/json:
               schema:
                 type: object
+              examples:
+                DatasetExample:
+                  $ref: '#/components/examples/DatasetExample'
         '400':
           description: Invalid or misformatted entity identifier, or the given entity is not a Dataset
         '401':
@@ -1930,40 +2268,6 @@ paths:
           description: The target dataset could not be found
         '500':
           description: Internal error
-  '/datasets/{id}/multi-revisions':
-    get:
-      summary: 'Retrieve a list of all multi revisions of a dataset from the id of any dataset in the chain. E.g: If there are 5 revisions, and the id for revision 4 is given, a list of revisions 1-5 will be returned in reverse order (newest first). Non-public access is only required to retrieve information on non-published datasets. Output will be a list of dictionaries. Each dictionary contains the dataset revision number and its list of uuids. Optionally, the full dataset can be included for each.'
-      parameters:
-        - name: id
-          in: path
-          description: The unique identifier of entity.  This identifier can be either an HuBMAP ID (e.g. HBM123.ABCD.456) or UUID
-          required: true
-          schema:
-            type: string
-        - name: include_dataset
-          in: query
-          description: A case insensitive string. Any value besides true will have no effect. If the string is 'true', the full dataset for each revision will be included in the response
-          required: false
-          schema:
-            type: string
-            enum: ['true', 'false']
-      responses:
-        '200':
-          description: The list of revised datasets that the referenced dataset is a member of including the index number of the revision, where 1 is the oldest version of any revision chain
-          content:
-            application/json:
-              schema:
-                type: object
-        '400':
-          description: Invalid or misformatted entity identifier, or the given entity is not a Dataset
-        '401':
-          description: The user's token has expired or the user did not supply a valid token
-        '403':
-          description: The user is not authorized to query the revision number of the given dataset.
-        '404':
-          description: The target dataset could not be found
-        '500':
-          description: Internal error
   '/datasets/{id}/revisions':
     get:
       summary: 'From a given ID of a versioned dataset, retrieve a list of every dataset in the chain ordered from most recent to oldest. The revision number, as well as the dataset uuid will be included. An optional parameter ?include_dataset=true will include the full dataset for each revision as well. Public/Consortium access rules apply, if is for a non-public dataset and no token or a token without membership in HuBMAP-Read group is sent with the request then a 403 response should be returned. If the given id is published, but later revisions are not and the user is not in HuBMAP-Read group, only published revisions will be returned. The field next_revision_uuid will not be returned if the next revision is unpublished'
@@ -1987,7 +2291,12 @@ paths:
           content:
             application/json:
               schema:
-                type: object                  
+                type: object
+              examples:
+                revisionexamples:
+                  value: 
+                    - 'abcd1234-ef56-gh78-ij90-klmnop123456' 
+                    - 'abcd1234-ef56-gh78-ij90-klmnop123456'        
         '400':
           description: Invalid or misformatted entity identifier, or the given entity is not a Dataset
         '401':
@@ -2017,6 +2326,11 @@ paths:
                 type: array
                 items:
                   type: object
+              examples:
+                organarray:
+                  value: 
+                    - collection: 'Sample object 1'
+                    - collection: 'Sample object 2'
         '400':
           description: Invalid or misformatted entity identifier, or the given entity is not a Dataset
         '401':
@@ -2046,6 +2360,11 @@ paths:
                 type: array
                 items:
                   type: object
+              examples:
+                samplearray:
+                  value: 
+                    - collection: 'Collection object 1'
+                    - collection: 'Collection object 2'
         '400':
           description: Invalid or misformatted entity identifier, or the given entity is not a Dataset
         '401':
@@ -2075,6 +2394,10 @@ paths:
                 type: array
                 items:
                   type: object
+              examples:
+                collectionarray:
+                  value: 
+                    - collection: 'Collection object 1'
         '400':
           description: Invalid or misformatted entity identifier, or the given entity is not a Dataset
         '401':
@@ -2112,6 +2435,9 @@ paths:
             application/json:
               schema:
                 type: object
+              examples:
+                DatasetExample:
+                  $ref: '#/components/examples/DatasetExample'
         '400':
           description: Invalid or misformatted entity identifier, the given entity is not a Dataset, is not published or the required retraction_reason was not included in a json body
         '401':
@@ -2241,6 +2567,11 @@ paths:
                 items:
                   type: string
                   description: The uuids of the entities being processed
+              examples:
+                datasetsarray:
+                  value: 
+                    - 'abcd1234-ef56-gh78-ij90-klmnop123456' 
+                    - 'abcd1234-ef56-gh78-ij90-klmnop123456'
         '500':
           description: Internal error
   '/uploads':
@@ -2262,6 +2593,11 @@ paths:
                 items:
                   type: string
                   description: The uuids of the entities being processed
+              examples:
+                uploadsarray:
+                  value: 
+                    - 'abcd1234-ef56-gh78-ij90-klmnop123456' 
+                    - 'abcd1234-ef56-gh78-ij90-klmnop123456'
         '500':
           description: Internal error
   '/samples/prov-info':
@@ -2299,7 +2635,7 @@ paths:
             type: string
       responses:
         '200':
-          description: reterns data_types, donor_hubmap_id, donor_submission_id, hubmap_id, organ, organization, provider_experiment_id, uuid for each unpublished dataset in the requested format
+          description: returns data_types, donor_hubmap_id, donor_submission_id, hubmap_id, organ, organization, provider_experiment_id, uuid for each unpublished dataset in the requested format
           content:
             text/tsv:
               schema:
@@ -2347,6 +2683,11 @@ paths:
                 items:
                   type: string
                   description: The unique identifier for the  unpublished dataset
+              examples:
+                associateddatasetsarray:
+                  value: 
+                    - 'abcd1234-ef56-gh78-ij90-klmnop123456' 
+                    - 'abcd1234-ef56-gh78-ij90-klmnop123456'
         '404':
           description: Not found. No matching datasets were found, or the none were found that the user is authorized to see.
         '401':
