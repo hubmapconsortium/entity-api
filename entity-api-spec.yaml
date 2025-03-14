@@ -639,7 +639,9 @@ components:
             - Error
             - Hold
             - Invalid
-          description: 'One of: New|Processing|QA|Published|Error|Hold|Invalid'
+            - Submitted
+            - Incomplete
+          description: 'One of: New|Processing|Published|QA|Error|Hold|Invalid|Submitted|Incomplete'
         title:
           type: string
           description: 'The dataset title.'
@@ -863,7 +865,16 @@ components:
           description: 'Title of the datasets, a sentance or less'
         status:
           type: string
-          description: 'One of: New|Valid|Invalid|Error|Submitted'
+          enum:
+            - New
+            - Valid
+            - Invalid
+            - Error
+            - Reorganized
+            - Processing
+            - Submitted
+            - Imcomplete
+          description: 'One of: New|Valid|Invalid|Error|Reorganized|Processing|Submitted|Incomplete'
         validation_message:
           type: string
           description: A message from the validataion tools describing what is invalid with the upload.
@@ -1063,7 +1074,9 @@ components:
             - Error
             - Hold
             - Invalid
-          description: 'One of: New|Processing|QA|Published|Error|Hold|Invalid'
+            - Submitted
+            - Imcomplete
+          description: 'One of: New|Processing|Published|QA|Error|Hold|Invalid|Submitted|Incomplete'
         title:
           type: string
           description: 'The Publication title.'
@@ -2184,7 +2197,7 @@ paths:
           required: false
           schema:
             type: string
-            enum: ['New', 'Qa', 'p=Published']
+            enum: ['New', 'QA', 'Published']
         - name: property_key
           in: query
           description: A case insensitive string. Any value besides 'uuid' will raise an error. If property_key=uuid is provided, rather than entire dictionary representations of each node, only the list of matching uuid's will be returned
@@ -2230,7 +2243,7 @@ paths:
           required: false
           schema:
             type: string
-            enum: ['New', 'Qa', 'Published']
+            enum: ['New', 'QA', 'Published']
         - name: property_key
           in: query
           description: A case insensitive string. Any value besides 'uuid' will raise an error. If property_key=uuid is provided, rather than entire dictionary representations of each node, only the list of matching uuid's will be returned
@@ -2847,7 +2860,7 @@ paths:
           required: false
           schema:
             type: string
-            enum: ['Qa', 'New', 'Published']
+            enum: ['QA', 'New', 'Published']
       responses:
         '200':
           description: all provenance information for every dataset in the database either as a json list or as a tsv file to be downloaded
