@@ -1990,21 +1990,12 @@ paths:
           description: Message of the entity was successfully updated
           content:
             application/json:
+              schema:
+                type: object
               examples:
-                DonorExample:
-                  $ref: '#/components/examples/DonorExample'
-                SampleExample:
-                  $ref: '#/components/examples/SampleExample'
-                DatasetExample:
-                  $ref: '#/components/examples/DatasetExample'
-                UploadExample:
-                  $ref: '#/components/examples/UploadExample'
-                CollectionExample:
-                  $ref: '#/components/examples/CollectionExample'
-                PublicationExample:
-                  $ref: '#/components/examples/PublicationExample'
-                EpicollectionExample:                
-                  $ref: '#/components/examples/EpicollectionExample'
+                updateexample:
+                  value:
+                    "message": "Dataset of d88abad31fefc978fbb19dbcd977deae has been updated"
         '400':
           description: Invalid or misformatted entity identifier
         '401':
