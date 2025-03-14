@@ -1331,7 +1331,7 @@ components:
         last_modified_user_sub: 'abcd1234-ef56-gh78-ij90-klmnop123456'
         last_modified_user_email: 'janedoe@example.com'
         last_modified_user_displayname: 'JaneDoe1'
-        entity_type: 'donor'
+        entity_type: 'Donor'
         registered_doi: '10.35079/hbm289.pcbm.487'
         doi_url: 'https://doi.org/10.35079/hbm289.pcbm.487'
         creators: [creator objects]
@@ -1361,7 +1361,7 @@ components:
         last_modified_user_sub: 'abcd1234-ef56-gh78-ij90-klmnop123456'
         last_modified_user_email: 'janedoe@example.com'
         last_modified_user_displayname: 'JaneDoe1'
-        entity_type: 'sample'
+        entity_type: 'Sample'
         registered_doi: '10.35079/hbm289.pcbm.487'
         doi_url: 'https://doi.org/10.35079/hbm289.pcbm.487'
         creators: [creator objects]
@@ -1398,7 +1398,7 @@ components:
         last_modified_user_sub: 'abcd1234-ef56-gh78-ij90-klmnop123456'
         last_modified_user_email: 'janedoe@example.com'
         last_modified_user_displayname: 'JaneDoe1'
-        entity_type: 'dataset'
+        entity_type: 'Dataset'
         registered_doi: '10.35079/hbm289.pcbm.487'
         doi_url: 'https://doi.org/10.35079/hbm289.pcbm.487'
         creators: [creator objects]
@@ -1450,7 +1450,7 @@ components:
         last_modified_user_sub: 'abcd1234-ef56-gh78-ij90-klmnop123456'
         last_modified_user_email: 'janedoe@example.com'
         last_modified_user_displayname: 'JaneDoe1'
-        entity_type: 'upload'
+        entity_type: 'Upload'
         description: 'Description of the property'
         title: 'Dataset Title'
         status: 'QA'
@@ -1473,7 +1473,7 @@ components:
         last_modified_user_sub: 'abcd1234-ef56-gh78-ij90-klmnop123456'
         last_modified_user_email: 'janedoe@example.com'
         last_modified_user_displayname: 'JaneDoe1'
-        entity_type: 'collection'
+        entity_type: 'Collection'
         registered_doi: '10.35079/hbm289.pcbm.487'
         doi_url: 'https://doi.org/10.35079/hbm289.pcbm.487'
         contributors: [contributor objects]
@@ -1495,7 +1495,7 @@ components:
         last_modified_user_sub: 'abcd1234-ef56-gh78-ij90-klmnop123456'
         last_modified_user_email: 'janedoe@example.com'
         last_modified_user_displayname: 'JaneDoe1'
-        entity_type: 'publication'
+        entity_type: 'Publication'
         registered_doi: '10.35079/hbm289.pcbm.487'
         doi_url: 'https://doi.org/10.35079/hbm289.pcbm.487'
         creators: [creator objects]
@@ -1554,7 +1554,7 @@ components:
         last_modified_user_sub: 'abcd1234-ef56-gh78-ij90-klmnop123456'
         last_modified_user_email: 'janedoe@example.com'
         last_modified_user_displayname: 'JaneDoe1'
-        entity_type: 'epicollection'
+        entity_type: 'Epicollection'
         registered_doi: '10.35079/hbm289.pcbm.487'
         doi_url: 'https://doi.org/10.35079/hbm289.pcbm.487'
         contributors: [contributor objects]
@@ -1618,7 +1618,12 @@ paths:
           application/json:
             schema:
               type: object
-            examples:
+      responses:
+        '200':
+          description: Message of the entity was successfully updated
+          content:
+            application/json:
+              examples:
                 DonorExample:
                   $ref: '#/components/examples/DonorExample'
                 SampleExample:
@@ -1633,9 +1638,6 @@ paths:
                   $ref: '#/components/examples/PublicationExample'
                 EpicollectionExample:                
                   $ref: '#/components/examples/EpicollectionExample'
-      responses:
-        '200':
-          description: Message of the entity was successfully updated
         '400':
           description: Invalid or misformatted entity identifier
         '401':
@@ -1682,12 +1684,10 @@ paths:
                 items:
                   type: object
               examples:
-                DonorExample:
-                  $ref: '#/components/examples/DonorExample'
-                SampleExample:
-                  $ref: '#/components/examples/SampleExample'
-                DatasetExample:
-                  $ref: '#/components/examples/DatasetExample'
+                ancestorsarray:
+                  value: 
+                    - Ancestor object 1
+                    - Ancestor object 2
         '400':
           description: Invalid or misformatted entity identifier
         '401':
@@ -1718,10 +1718,10 @@ paths:
                 items:
                   type: object
               examples:
-                SampleExample:
-                  $ref: '#/components/examples/SampleExample'
-                DatasetExample:
-                  $ref: '#/components/examples/DatasetExample'
+                descendantsarray:
+                  value: 
+                    - Descendant object 1
+                    - Descendant object 2
         '400':
           description: Invalid or misformatted entity identifier
         '401':
@@ -1752,12 +1752,10 @@ paths:
                 items:
                   type: object
               examples:
-                DonorExample:
-                  $ref: '#/components/examples/DonorExample'
-                SampleExample:
-                  $ref: '#/components/examples/SampleExample'
-                DatasetExample:
-                  $ref: '#/components/examples/DatasetExample'
+                parentsarray:
+                  value: 
+                    - Parent object 1
+                    - Parent object 2
         '400':
           description: Invalid or misformatted entity identifier
         '401':
@@ -1788,10 +1786,10 @@ paths:
                 items:
                   type: object
               examples:
-                SampleExample:
-                  $ref: '#/components/examples/SampleExample'
-                DatasetExample:
-                  $ref: '#/components/examples/DatasetExample'
+                childrenarray:
+                  value: 
+                    - Children object 1
+                    - Children object 2
         '400':
           description: Invalid or misformatted entity identifier
         '401':
@@ -1821,11 +1819,11 @@ paths:
             enum: ['true', 'false']
         - name: status
           in: query
-          description: A case insensitive string. Any value besides 'new', 'qa', and 'published' will raise an error. If a valid status is provided, only results matching that status (if they are datasets) will be returned
+          description: A case insensitive string. Any value besides 'New', 'Qa', and 'Published' will raise an error. If a valid status is provided, only results matching that status (if they are datasets) will be returned
           required: false
           schema:
             type: string
-            enum: ['new', 'qa', 'published']
+            enum: ['New', 'Qa', 'p=Published']
         - name: property_key
           in: query
           description: A case insensitive string. Any value besides 'uuid' will raise an error. If property_key=uuid is provided, rather than entire dictionary representations of each node, only the list of matching uuid's will be returned
@@ -1843,10 +1841,10 @@ paths:
                 items:
                   type: object
               examples:
-                SampleExample:
-                  $ref: '#/components/examples/SampleExample'
-                DatasetExample:
-                  $ref: '#/components/examples/DatasetExample'
+                siblingsarray:
+                  value: 
+                    - Sibling object 1
+                    - Sibling object 2
         '400':
           description: Invalid or misformatted entity identifier
         '401':
@@ -1869,11 +1867,11 @@ paths:
             type: string
         - name: status
           in: query
-          description: A case insensitive string. Any value besides 'new', 'qa', and 'published' will raise an error. If a valid status is provided, only results matching that status (if they are datasets) will be returned
+          description: A case insensitive string. Any value besides 'New', 'Qa', and 'Published' will raise an error. If a valid status is provided, only results matching that status (if they are datasets) will be returned
           required: false
           schema:
             type: string
-            enum: ['new', 'qa', 'published']
+            enum: ['New', 'Qa', 'Published']
         - name: property_key
           in: query
           description: A case insensitive string. Any value besides 'uuid' will raise an error. If property_key=uuid is provided, rather than entire dictionary representations of each node, only the list of matching uuid's will be returned
@@ -1891,10 +1889,10 @@ paths:
                 items:
                   type: object
               examples:
-                SampleExample:
-                  $ref: '#/components/examples/SampleExample'
-                DatasetExample:
-                  $ref: '#/components/examples/DatasetExample'
+                tupletsarray:
+                  value: 
+                    - Tuplet object 1
+                    - Tuplet object 2
         '400':
           description: Invalid or misformatted entity identifier
         '401':
@@ -1934,8 +1932,8 @@ paths:
               examples:
                 collectionarray:
                   value: 
-                    - collection: 'Collection object 1'
-                    - collection: 'Collection object 2'
+                    - Collection object 1
+                    - Collection object 2
         '400':
           description: Invalid or misformatted entity identifier
         '401':
@@ -1975,8 +1973,8 @@ paths:
               examples:
                 uploadarray:
                   value: 
-                    - collection: 'Upload object 1'
-                    - collection: 'Upload object 2'
+                    - Upload object 1
+                    - Upload object 2
         '400':
           description: Invalid or misformatted entity identifier
         '401':
@@ -2094,8 +2092,8 @@ paths:
               examples:
                 ancestororganarray:
                   value: 
-                    - 'abcd1234-ef56-gh78-ij90-klmnop123456' 
-                    - 'abcd1234-ef56-gh78-ij90-klmnop123456'
+                    - Sample object 1
+                    - Sample object 2
         '400':
           description: Invalid or misformatted entity identifier
         '401':
@@ -2295,8 +2293,8 @@ paths:
               examples:
                 revisionexamples:
                   value: 
-                    - 'abcd1234-ef56-gh78-ij90-klmnop123456' 
-                    - 'abcd1234-ef56-gh78-ij90-klmnop123456'        
+                    - Dataset object 1
+                    - Dataset object 2        
         '400':
           description: Invalid or misformatted entity identifier, or the given entity is not a Dataset
         '401':
@@ -2329,8 +2327,8 @@ paths:
               examples:
                 organarray:
                   value: 
-                    - collection: 'Sample object 1'
-                    - collection: 'Sample object 2'
+                    - Sample object 1
+                    - Sample object 2
         '400':
           description: Invalid or misformatted entity identifier, or the given entity is not a Dataset
         '401':
@@ -2363,8 +2361,8 @@ paths:
               examples:
                 samplearray:
                   value: 
-                    - collection: 'Sample object 1'
-                    - collection: 'Sample object 2'
+                    - Sample object 1
+                    - Sample object 2
         '400':
           description: Invalid or misformatted entity identifier, or the given entity is not a Dataset
         '401':
@@ -2397,7 +2395,7 @@ paths:
               examples:
                 collectionarray:
                   value: 
-                    - collection: 'Donor object 1'
+                    - Donor object 1
         '400':
           description: Invalid or misformatted entity identifier, or the given entity is not a Dataset
         '401':
@@ -2484,7 +2482,7 @@ paths:
           required: false
           schema:
             type: string
-            enum: ['qa', 'new', 'published']
+            enum: ['Qa', 'New', 'Published']
       responses:
         '200':
           description: all provenance information for every dataset in the database either as a json list or as a tsv file to be downloaded
@@ -2544,6 +2542,13 @@ paths:
             application/json:
               schema:
                 type: object
+              examples:
+                sankeyexample:
+                  value:
+                    dataset_group_name: "University TMC"
+                    organ_type: "AO"
+                    dataset_data_types: ["CODEX"]
+                    dataset_status: "Published"
         '500':
           description: Internal error
   '/datasets':
@@ -2714,6 +2719,10 @@ paths:
                 type: array
                 items:
                   type: object
+              examples:
+                DatasetExample:
+                  $ref: '#/components/examples/DatasetExample'
+                  
         '400':
           description: Invalid input.
         '404':
