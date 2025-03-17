@@ -1664,6 +1664,8 @@ json
 """
 @app.route('/descendants/<id>', methods = ['GET'])
 def get_descendants(id):
+    global anS3Worker
+
     final_result = []
 
     # Get user token from Authorization header
@@ -1718,6 +1720,25 @@ def get_descendants(id):
         # Final result after normalization
         final_result = schema_manager.normalize_entities_list_for_response(complete_entities_list)
 
+    # Check the size of what is to be returned through the AWS Gateway, and replace it with
+    # a response that links to an Object in the AWS S3 Bucket, if appropriate.
+    try:
+        resp_body = json.dumps(final_result).encode('utf-8')
+        s3_url = anS3Worker.stash_response_body_if_big(resp_body)
+        if s3_url is not None:
+            return Response(response=s3_url
+                            , status=303)  # See Other
+        # The HuBMAP Commons S3Worker will return None for a URL when the response body is
+        # smaller than it is configured to store, so the response should be returned through
+        # the AWS Gateway
+    except Exception as s3exception:
+        logger.error(f"Error using anS3Worker to handle len(resp_body)="
+                     f"{len(resp_body)}.")
+        logger.error(s3exception, exc_info=True)
+        return Response(response=f"Unexpected error storing large results in S3. See logs."
+                        , status=500)
+
+    # Return a regular response through the AWS Gateway
     return jsonify(final_result)
 
 
