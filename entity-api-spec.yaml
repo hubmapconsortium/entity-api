@@ -324,7 +324,7 @@ components:
           properties:
             organ_donor_data:
               type: array
-              description: "Information about the donor who's organ(s) was/were used.  The organ was obtained via an organ donation program from a deceaced donor. Only living_donor_data or organ_donor_data, not both can be defined for a single donor."
+              description: "Information about the donor who's organ(s) was/were used.  The organ was obtained via an organ donation program from a deceased donor. Only living_donor_data or organ_donor_data, not both can be defined for a single donor."
               items:
                 $ref: '#/components/schemas/DonorMetadata'
             living_donor_data:
@@ -2100,6 +2100,8 @@ paths:
               examples:
                 ancestorsarray:
                   $ref: '#/components/examples/DatasetArrayExample'
+        '303':
+          description: If the total response payload exceeds 10 MB, the response is returned via an S3 bucket.  A 303 HTTP response code will be returned with the redirect URL where the query can be retrieved.
         '400':
           description: Invalid or misformatted entity identifier
         '401':
