@@ -2380,6 +2380,29 @@ paths:
           description: The target entity could not be found
         '500':
           description: Internal error
+  '/entities/{id}/flush-cache':
+    delete:
+      summary: "Delete the cached data from Memcached for a given entity, HuBMAP-Read access is required in AWS API Gateway"
+      parameters:
+        - name: id
+          in: path
+          description: The unique identifier of entity.  This identifier can be either an HuBMAP ID (e.g. HBM123.ABCD.456) or UUID
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: A confirmation message upon successful operation
+        '400':
+          description: Invalid or misformatted entity identifier
+        '401':
+          description: The user's token has expired or the user did not supply a valid token
+        '403':
+          description: The user is not authorized to query the provenance of the given entity.
+        '404':
+          description: The target entity could not be found
+        '500':
+          description: Internal error
   '/entities/{id}/instanceof/{type}':
     get:
       summary: Determines if the Entity with id is an instance of type
