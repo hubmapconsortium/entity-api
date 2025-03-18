@@ -2380,6 +2380,29 @@ paths:
           description: The target entity could not be found
         '500':
           description: Internal error
+  '/entities/{id}/flush-cache':
+    delete:
+      summary: "Delete the cached data from Memcached for a given entity, HuBMAP-Read access is required in AWS API Gateway"
+      parameters:
+        - name: id
+          in: path
+          description: The unique identifier of entity.  This identifier can be either an HuBMAP ID (e.g. HBM123.ABCD.456) or UUID
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: A confirmation message upon successful operation
+        '400':
+          description: Invalid or misformatted entity identifier
+        '401':
+          description: The user's token has expired or the user did not supply a valid token
+        '403':
+          description: The user is not authorized to query the provenance of the given entity.
+        '404':
+          description: The target entity could not be found
+        '500':
+          description: Internal error
   '/entities/{id}/instanceof/{type}':
     get:
       summary: Determines if the Entity with id is an instance of type
@@ -2826,93 +2849,6 @@ paths:
           description: The target dataset could not be found
         '500':
           description: Internal error
-  '/datasets/prov-info':
-    get:
-      summary: 'returns ALL provenance information for ALL datasets in a default table/tsv format or optionally a json format when an optional ?format=json parameter is provided'
-      parameters:
-        - name: format
-          in: query
-          description: "A case insensitive string. Any value besides 'json' will have no effect. If the string is 'json', provenance info will be returned as a json. Otherwise, it will be returned as a tsv file"
-          required: false
-          schema:
-            type: string
-            enum: ['json', 'tsv']
-        - name: group_uuid
-          in: query
-          description: The uuid of the group
-          required: false
-          schema:
-            type: string
-        - name: has_rui_info
-          in: query
-          description: A case insensitive string. Any value besides true or false will cause a 400 exception.
-          required: false
-          schema:
-            type: string
-            enum: ['true', 'false']
-        - name: organ
-          in: query
-          description: Case insensitive string for 2 character organ code. Values must be present on organ yaml or a 400 exception is raised
-          required: false
-          schema:
-            type: string
-        - name: dataset_status
-          in: query
-          description: Case insensitive string indicating the current status of a dataset
-          required: false
-          schema:
-            type: string
-            enum: ['QA', 'New', 'Published']
-      responses:
-        '200':
-          description: all provenance information for every dataset in the database either as a json list or as a tsv file to be downloaded
-          content:
-            text/tsv:
-              schema:
-                type: string
-            application/json:
-              schema:
-                type: object
-              examples:
-                provinfoexample:
-                  summary: An example of a prov-info response
-                  value:
-                    dataset_uuid: 'abcd1234-ef56-gh78-ij90-klmnop123456'
-                    dataset_hubmap_id: 'HBM123.ABCD.456'
-                    dataset_status: 'Published'
-                    dataset_group_name: 'University TMC'
-                    dataset_group_uuid: 'abcd1234-ef56-gh78-ij90-klmnop123456'
-                    dataset_date_time_created: 1710243867000
-                    dataset_created_by_email: 'janedoe@example.com'
-                    dataset_date_time_modified: 1710243867000
-                    dataset_modified_by_email: 'janedoe@example.com'
-                    dataset_lab_id: '12-345_lymph-node_R2'
-                    dataset_data_types: ['CODEX']
-                    dataset_portl_url: 'https://portal.hubmapconsortium.org/browse/dataset/abcd1234ef56gh78ij90klmnop123456'
-                    first_sample_hubmap_id: ['abcd1234-ef56-gh78-ij90-klmnop123456']
-                    first_sample_submission_id: ['AB1234']
-                    first_sample_uuid: ['abcd1234-ef56-gh78-ij90-klmnop123456']
-                    first_sample_portal_url: ['https://portal.hubmapconsortium.org/browse/sample/abcd1234ef56gh78ij90klmnop123456']
-                    organ_hubmap_id: ['HBM123.ABCD.456']
-                    organ_submission_id: ['AB1234']
-                    organ_uuid: ['abcd1234-ef56-gh78-ij90-klmnop123456']
-                    organ_type: ['AO']
-                    donor_hubmap_id: ['HBM123.ABCD.456']
-                    donor:submission_id: ['AB1234']
-                    donor_uuid: ['abcd1234-ef56-gh78-ij90-klmnop123456']
-                    donor_group_name: ['University TMC']
-                    rui_location_hubmap_id: ['HBM123.ABCD.456']
-                    rui_location_submission_id: ['AB1234']
-                    rui_location_uuid: ['abcd1234-ef56-gh78-ij90-klmnop123456']
-                    sample_metadata_hubmap_id: ['HBM123.ABCD.456']
-                    sample_metadata_submission_id: ['AB1234']
-                    sample_metadata_uuid: ['abcd1234-ef56-gh78-ij90-klmnop123456']
-        '401':
-          description: The user's token has expired or the user did not supply a valid token
-        '403':
-          description: THe user is not authorized to use this method
-        '500':
-          description: Internal error
   '/datasets/{id}/prov-info':
     get:
       summary: 'returns aLL provenance information for a single dataset in a default table/tsv format or optionally a json format when an optional ?format=json parameter is provided'
@@ -3051,45 +2987,6 @@ paths:
                   value: 
                     - 'abcd1234-ef56-gh78-ij90-klmnop123456' 
                     - 'abcd1234-ef56-gh78-ij90-klmnop123456'
-        '500':
-          description: Internal error
-  '/samples/prov-info':
-    get:
-      summary: 'returns all provenance information for a each sample in a json format'
-      parameters:
-        - name: group_uuid
-          in: query
-          description: The uuid of the group
-          required: false
-          schema:
-            type: string
-      responses:
-        '200':
-          description: all provenance information for the every sample given as a json list
-          content:
-            application/json:
-              schema:
-                type: object
-              examples:
-                samplesprovinfoexample:
-                  value:
-                    sample_uuid: 'abcd1234-ef56-gh78-ij90-klmnop123456'
-                    sample_group_name: 'University TMC'
-                    sample_created_by_email: 'janedoe@example.com'
-                    lab_tissue_sample_id: '12-345 Aorta AA-1'
-                    sample_ancestor_id: 'abcd1234-ef56-gh78-ij90-klmnop123456'
-                    sample_ancestor_entity: 'Sample'
-                    organ_uuid: 'abcd1234-ef56-gh78-ij90-klmnop123456'
-                    organ_type: 'AO'
-                    donor_uuid: 'abcd1234-ef56-gh78-ij90-klmnop123456'
-                    sample_has_rui_info: True
-                    sample_has_metadata: False
-                    organ_has_metadata: True
-                    donor_has_metadata: False
-        '401':
-          description: The user's token has expired or the user did not supply a valid token
-        '403':
-          description: THe user is not authorized to use this method
         '500':
           description: Internal error
   '/datasets/unpublished':
