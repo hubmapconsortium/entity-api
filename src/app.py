@@ -1272,7 +1272,15 @@ def create_multiple_samples(count):
         # No need to log the validation errors
         bad_request_error(str(e))
 
-    # `direct_ancestor_uuid` is required on create
+    try:
+        schema_manager.execute_property_level_validators('before_property_create_validators', normalized_entity_type, request, {}, json_data_dict)
+    # Currently only ValueError
+    except ValueError as e:
+        bad_request_error(e)
+    except schema_errors.UnimplementedValidatorException as uve:
+        internal_server_error(uve)
+
+    # `direct_ancestor_uuid` is required on create for a Sample.
     # Check existence of the direct ancestor (either another Sample or Donor)
     direct_ancestor_dict = query_target_entity(json_data_dict['direct_ancestor_uuid'], user_token)
 
@@ -1288,7 +1296,7 @@ def create_multiple_samples(count):
         if ('organ' not in json_data_dict) or (not json_data_dict['organ']):
             bad_request_error("A valid organ code is required since the direct ancestor is a Donor")
 
-    # Generate 'before_create_triiger' data and create the entity details in Neo4j
+    # Generate 'before_create_trigger' data and create the entity details in Neo4j
     generated_ids_dict_list = create_multiple_samples_details(request, normalized_entity_type, user_token, json_data_dict, count)
 
     # Also index the each new Sample node in elasticsearch via search-api

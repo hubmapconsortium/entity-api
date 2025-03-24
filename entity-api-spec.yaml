@@ -434,7 +434,7 @@ components:
             - block
             - section
             - suspension
-          description: 'A code representing the type of specimen. Must be an organ, block, section, or suspension'
+          description: 'A code representing the type of specimen. Must be an organ, block, section, or suspension, in all lower case.'
         protocol_url:
           type: string
           description: 'The protocols.io doi url pointing the protocol under wich the sample was obtained and/or prepared.'
@@ -482,7 +482,7 @@ components:
             - TR
             - UR
             - UT
-          description: 'Organ code specifier, only set if sample_category == organ.  Valid values found in: [organ types](https://github.com/hubmapconsortium/search-api/blob/main/src/search-schema/data/definitions/enums/organ_types.yaml)'
+          description: 'Organ code specifier, only set if sample_category == organ.  Valid values found in: [organ types](https://ontology.api.hubmapconsortium.org/organs/by-code?application_context=HUBMAP)'
         organ_other:
           type: string
           description: The organ type provided by the user if "other" organ type is selected
