@@ -1269,6 +1269,24 @@ ENTITIES:
         type: string
         indexed: true
         description: The organ code representing the organ type that the data contained in the upload will be registered/associated with.
+      anticipated_complete_upload_month:
+        type: string
+        indexed: true
+        description: The specific month the Upload is anticipated to have all required data uploaded, in the format YYYY-MM.
+        required_on_create: false
+        before_property_create_validators:
+          - validate_anticipated_complete_date
+        before_property_update_validators:
+          - validate_anticipated_complete_date
+      anticipated_dataset_count:
+        type: integer
+        indexed: true
+        description: The total number of datasets that this Upload will eventually contain.
+        required_on_create: false
+        before_property_create_validators:
+          - validate_anticipated_dataset_count
+        before_property_update_validators:
+          - validate_anticipated_dataset_count
 
   ############################################# EPICollection #############################################
   Epicollection:
