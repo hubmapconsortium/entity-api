@@ -1206,8 +1206,8 @@ def execute_entity_level_validator(validator_type, normalized_entity_type, reque
                     raise schema_errors.MissingApplicationHeaderException(e)
                 except schema_errors.InvalidApplicationHeaderException as e:
                     raise schema_errors.InvalidApplicationHeaderException(e)
-                except schema_errors.SchemaValidationException as sve:
-                    raise sve
+                except schema_errors.LockedEntityUpdateException as leue:
+                    raise leue
                 except Exception as e:
                     msg = f"Failed to call the {validator_type} method: {validator_method_name} defined for entity {normalized_entity_type}"
                     # Log the full stack trace, prepend a line with our message

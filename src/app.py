@@ -1368,8 +1368,8 @@ def update_entity(id):
         bad_request_error(e)
     except schema_errors.InvalidApplicationHeaderException as e:
         bad_request_error(e)
-    except schema_errors.SchemaValidationException as sve:
-        bad_request_error(sve)
+    except schema_errors.LockedEntityUpdateException as sve:
+        forbidden_error(sve)
 
     # Validate request json against the yaml schema
     # Pass in the entity_dict for missing required key check, this is different from creating new entity
