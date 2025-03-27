@@ -1357,6 +1357,19 @@ def update_entity(id):
 
     # Note, we don't support entity level validators on entity update via PUT
     # Only entity create via POST is supported at the entity level
+    # KBKBKB...or do we?
+    # Execute entity level validator defined in schema yaml before entity modification.
+    try:
+        schema_manager.execute_entity_level_validator(validator_type='before_entity_update_validator'
+                                                      , normalized_entity_type=normalized_entity_type
+                                                      , request=request
+                                                      , existing_entity_dict=entity_dict)
+    except schema_errors.MissingApplicationHeaderException as e:
+        bad_request_error(e)
+    except schema_errors.InvalidApplicationHeaderException as e:
+        bad_request_error(e)
+    except schema_errors.SchemaValidationException as sve:
+        bad_request_error(sve)
 
     # Validate request json against the yaml schema
     # Pass in the entity_dict for missing required key check, this is different from creating new entity
