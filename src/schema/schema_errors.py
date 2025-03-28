@@ -40,3 +40,6 @@ class MissingApplicationHeaderException(Exception):
 
 class InvalidApplicationHeaderException(Exception):
     pass
+
+class LockedEntityUpdateException(Exception):
+    pass
