@@ -89,6 +89,15 @@ else:
     MEMCACHED_MODE = False
     MEMCACHED_PREFIX = 'NONE'
 
+# Read the secret key which may be submitted in HTTP Request Headers to override the lockout of
+# updates to entities with characteristics prohibiting their modification.
+LOCKED_ENTITY_UPDATE_OVERRIDE_KEY = app.config['LOCKED_ENTITY_UPDATE_OVERRIDE_KEY']
+
+# Compile the only accept regular expression pattern for the lockout override key in an HTTP Request Header.
+# N.B. This is case-insensitive matching "Override-Key", but case-sensitive matching the value.
+LOCKED_ENTITY_UPDATE_OVERRIDE_PATTERN = rf"^\s*(?i:override-key)\s+{re.escape(LOCKED_ENTITY_UPDATE_OVERRIDE_KEY)}\s*$"
+LOCKED_ENTITY_UPDATE_OVERRIDE_REGEX = re.compile(pattern=LOCKED_ENTITY_UPDATE_OVERRIDE_PATTERN)
+
 # Suppress InsecureRequestWarning warning when requesting status on https with ssl cert verify disabled
 requests.packages.urllib3.disable_warnings(category = InsecureRequestWarning)
 
@@ -1359,6 +1368,7 @@ def update_entity(id):
     # Only entity create via POST is supported at the entity level
     # KBKBKB...or do we?
     # Execute entity level validator defined in schema yaml before entity modification.
+    lockout_overridden = False
     try:
         schema_manager.execute_entity_level_validator(validator_type='before_entity_update_validator'
                                                       , normalized_entity_type=normalized_entity_type
@@ -1368,8 +1378,16 @@ def update_entity(id):
         bad_request_error(e)
     except schema_errors.InvalidApplicationHeaderException as e:
         bad_request_error(e)
-    except schema_errors.LockedEntityUpdateException as sve:
-        forbidden_error(sve)
+    except schema_errors.LockedEntityUpdateException as leue:
+        # HTTP header names are case-insensitive, and request.headers.get() returns None if the header doesn't exist
+        locked_entity_update_header = request.headers.get(SchemaConstants.LOCKED_ENTITY_UPDATE_HEADER)
+        if locked_entity_update_header and bool(LOCKED_ENTITY_UPDATE_OVERRIDE_REGEX.match(locked_entity_update_header)):
+            lockout_overridden = True
+            logger.info(f"For {entity_dict['entity_type']} {entity_dict['uuid']}"
+                        f" update prohibited due to {str(leue)},"
+                        f" but being overridden by valid {SchemaConstants.LOCKED_ENTITY_UPDATE_HEADER} in request.")
+        else:
+            forbidden_error(leue)
 
     # Validate request json against the yaml schema
     # Pass in the entity_dict for missing required key check, this is different from creating new entity
@@ -1544,7 +1562,8 @@ def update_entity(id):
     # Do not return the updated dict to avoid computing overhead - 7/14/2023 by Zhou
     # return jsonify(normalized_complete_dict)
 
-    return jsonify({'message': f"{normalized_entity_type} of {id} has been updated"})
+    override_msg = 'Lockout overridden. ' if lockout_overridden else ''
+    return jsonify({'message': f"{override_msg}{normalized_entity_type} of {id} has been updated"})
 
 
 """
