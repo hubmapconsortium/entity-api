@@ -561,9 +561,11 @@ new_data_dict : dict
 def validate_anticipated_complete_date(property_key, normalized_entity_type, request, existing_data_dict, new_data_dict):
     MAX_ANTICIPATED_COMPLETE_DATE = '2026-12'
     anticipated_complete_date_str = new_data_dict[property_key]
-    if not re.fullmatch(pattern='^\d{4}-\d{2}$', string=anticipated_complete_date_str):
+    if not re.fullmatch(pattern=r'^\d{4}-\d{2}$', string=anticipated_complete_date_str):
         raise ValueError(f"Format of '{anticipated_complete_date_str}' does not match the format YYYY-MM")
     anticipated_year, anticipated_month = map(int, anticipated_complete_date_str.split("-"))
+    if anticipated_month < 1 or anticipated_month > 12:
+        raise ValueError(f"Anticipated completion month of '{anticipated_complete_date_str[5:]}' is not valid")
     now = datetime.now()
     current_year = now.year
     current_month = now.month
