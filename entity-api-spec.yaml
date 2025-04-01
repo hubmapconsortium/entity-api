@@ -903,6 +903,12 @@ components:
             $ref: '#/components/schemas/Dataset'
           readOnly: true
           description: 'The datasets that are contained in this Upload.'
+        anticipated_complete_upload_month:
+          type: string
+          description: 'The month that the Upload is anticipated to have all required data uploaded, in the format YYYY-MM.'
+        anticipated_dataset_count:
+          type: integer
+          description: 'The total number of datasets that this Upload will eventually contain.'
     Collection:
       type: object
       properties:
