@@ -568,8 +568,14 @@ def validate_sample_category(property_key, normalized_entity_type, request, exis
     sample_category = new_data_dict[property_key].lower()
 
     if sample_category not in defined_tissue_types:
-        raise ValueError(f"Invalid sample_category: {sample_category}")
+        raise ValueError(f"Invalid sample_category: {sample_category}."
+                         f" Should be one of {', '.join(defined_tissue_types)}.")
 
+    # Given the sample_category is a defined_tissue_types element, assure the request has
+    # the proper case for storage
+    if new_data_dict[property_key] != sample_category:
+        raise ValueError(f"The case of sample_category '{new_data_dict[property_key]}'"
+                         f" must be specified as '{sample_category}'.")
 
 """
 Validate the provided value of Publication.publication_date is in the correct format against ISO 8601 Format: 
