@@ -542,6 +542,63 @@ def validate_upload_status_value(property_key, normalized_entity_type, request, 
     if new_status not in accepted_status_values:
         raise ValueError(f"Invalid status value: {new_status}")
 
+"""
+Validate the anticipated_complete_data string provided for an Upload
+
+Parameters
+----------
+property_key : str
+    The target property key
+normalized_type : str
+    Submission
+request: Flask request object
+    The instance of Flask request passed in from application request
+existing_data_dict : dict
+    A dictionary that contains all existing entity properties
+new_data_dict : dict
+    The json data in request body, already after the regular validations
+"""
+def validate_anticipated_complete_date(property_key, normalized_entity_type, request, existing_data_dict, new_data_dict):
+    MAX_ANTICIPATED_COMPLETE_DATE = '2026-12'
+    anticipated_complete_date_str = new_data_dict[property_key]
+    if not re.fullmatch(pattern=r'^\d{4}-\d{2}$', string=anticipated_complete_date_str):
+        raise ValueError(f"Format of '{anticipated_complete_date_str}' does not match the format YYYY-MM")
+    anticipated_year, anticipated_month = map(int, anticipated_complete_date_str.split("-"))
+    if anticipated_month < 1 or anticipated_month > 12:
+        raise ValueError(f"Anticipated completion month of '{anticipated_complete_date_str[5:]}' is not valid")
+    now = datetime.now()
+    current_year = now.year
+    current_month = now.month
+    if  anticipated_year < current_year or \
+        (anticipated_year == current_year and anticipated_month < current_month):
+        raise ValueError(   f"Anticipated complete date '{anticipated_complete_date_str}'"
+                            f" cannot be before the current month.")
+    max_anticipated_year, max_anticipated_month = map(int, MAX_ANTICIPATED_COMPLETE_DATE.split("-"))
+    if anticipated_year > max_anticipated_year:
+        raise ValueError(   f"Anticipated complete date '{anticipated_complete_date_str}'"
+                            f" cannot be after '{MAX_ANTICIPATED_COMPLETE_DATE}'.")
+
+"""
+Validate the anticipated_dataset_count integer provided for an Upload
+
+Parameters
+----------
+property_key : str
+    The target property key
+normalized_type : str
+    Submission
+request: Flask request object
+    The instance of Flask request passed in from application request
+existing_data_dict : dict
+    A dictionary that contains all existing entity properties
+new_data_dict : dict
+    The json data in request body, already after the regular validations
+"""
+def validate_anticipated_dataset_count(property_key, normalized_entity_type, request, existing_data_dict, new_data_dict):
+    # anticipated_dataset_count of type int, assured by provenance_schema.yaml "type: integer"
+    anticipated_dataset_count = new_data_dict[property_key]
+    if anticipated_dataset_count <= 0:
+        raise ValueError(f"{property_key} must be positive integer when specified.")
 
 """
 Validate the provided value of Sample.sample_category on create via POST and update via PUT
