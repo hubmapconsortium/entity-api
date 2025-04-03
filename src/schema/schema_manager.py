@@ -1171,6 +1171,8 @@ normalized_entity_type : str
     One of the normalized entity types defined in the schema yaml: Donor, Sample, Dataset, Upload, Upload, Publication
 request: Flask request object
     The instance of Flask request passed in from application request
+existing_entity_dict : dict
+    The dictionary for an entity, retrieved from Neo4j, for use during update/PUT validations
 """
 def execute_entity_level_validator(validator_type, normalized_entity_type, request, existing_entity_dict=None):
     global _schema
@@ -1196,12 +1198,17 @@ def execute_entity_level_validator(validator_type, normalized_entity_type, reque
 
                     logger.info(f"To run {validator_type}: {validator_method_name} defined for entity {normalized_entity_type}")
 
+                    # Create a dictionary to hold data need by any entity validator, which must be populated
+                    # with validator specific requirements when the method to be called is determined.
+                    options_dict = {}
                     if existing_entity_dict is None:
                         # Execute the entity-level validation for create/POST
-                        validator_method_to_call(normalized_entity_type, request)
+                        options_dict['http_request'] = request
+                        validator_method_to_call(options_dict)
                     else:
                         # Execute the entity-level validation for update/PUT
-                        validator_method_to_call(normalized_entity_type, request, existing_entity_dict)
+                        options_dict['existing_entity_dict']= existing_entity_dict
+                        validator_method_to_call(options_dict)
                 except schema_errors.MissingApplicationHeaderException as e:
                     raise schema_errors.MissingApplicationHeaderException(e)
                 except schema_errors.InvalidApplicationHeaderException as e:
@@ -1212,6 +1219,7 @@ def execute_entity_level_validator(validator_type, normalized_entity_type, reque
                     msg = f"Failed to call the {validator_type} method: {validator_method_name} defined for entity {normalized_entity_type}"
                     # Log the full stack trace, prepend a line with our message
                     logger.exception(msg)
+                    raise e
 
 
 """

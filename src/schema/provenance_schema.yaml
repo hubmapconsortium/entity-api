@@ -194,8 +194,6 @@ ENTITIES:
   ############################################# Collection #############################################
   Collection:
     before_entity_update_validator:
-      # Only allowed applications can modify an existing Collection via PUT # KBKBKB @TODO confirm introducing this
-      - validate_application_header_before_entity_create
       # Halt modification of entities which are "locked", such as a Dataset with status == 'Published'
       - validate_entity_not_locked_before_update
     excluded_properties_from_public_response:
@@ -311,8 +309,6 @@ ENTITIES:
     # Only allowed applications can create new Dataset via POST
     before_entity_create_validator: validate_application_header_before_entity_create
     before_entity_update_validator:
-      # Only allowed applications can modify an existing Dataset via PUT
-      - validate_application_header_before_entity_create
       # Halt modification of entities which are "locked", such as a Dataset with status == 'Published'
       - validate_entity_not_locked_before_update
     # Dataset can be either derivation source or target
@@ -671,8 +667,6 @@ ENTITIES:
     # Only allowed applications can create new Publication via POST
     before_entity_create_validator: validate_application_header_before_entity_create
     before_entity_update_validator:
-      # Only allowed applications can modify an existing Collection via PUT # KBKBKB @TODO confirm introducing this
-      - validate_application_header_before_entity_create
       # Halt modification of entities which are "locked", such as a Dataset with status == 'Published'
       - validate_entity_not_locked_before_update
     # Publications can be either derivation source or target
@@ -780,8 +774,6 @@ ENTITIES:
       - submission_id
       - label
     before_entity_update_validator:
-      # Only allowed applications can modify an existing Collection via PUT # KBKBKB @TODO confirm introducing this
-      - validate_application_header_before_entity_create
       # Halt modification of entities which are "locked", such as a Dataset with status == 'Published'
       - validate_entity_not_locked_before_update
     properties:
@@ -918,8 +910,6 @@ ENTITIES:
         # Both Sample and Donor ancestors of a Sample must have these fields removed
         - submission_id
     before_entity_update_validator:
-      # Only allowed applications can modify an existing Collection via PUT # KBKBKB @TODO confirm introducing this
-      - validate_application_header_before_entity_create
       # Halt modification of entities which are "locked", such as a Dataset with status == 'Published'
       - validate_entity_not_locked_before_update
     properties:
@@ -1146,7 +1136,10 @@ ENTITIES:
   Upload:
     # Only allowed applications can create new Upload via POST
     before_entity_create_validator: validate_application_header_before_entity_create
-    # Upload requires an ancestor of Lab, and and has no allowed decesndents 
+    # No before_entity_update_validator needed for Upload because the entity is
+    # always considered "non-public", and therefore not blocked from update/PUT.
+    #
+    # Upload requires a Lab entity as an ancestor, and has no allowed descendants
     derivation:
       source: false
       target: false # Set to false since the schema doesn't handle Lab currently
@@ -1295,8 +1288,6 @@ ENTITIES:
       source: false
       target: false
     before_entity_update_validator:
-      # Only allowed applications can modify an existing Collection via PUT # KBKBKB @TODO confirm introducing this
-      - validate_application_header_before_entity_create
       # Halt modification of entities which are "locked", such as a Dataset with status == 'Published'
       - validate_entity_not_locked_before_update
     properties:

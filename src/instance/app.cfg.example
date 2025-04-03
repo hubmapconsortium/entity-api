@@ -28,7 +28,7 @@ NEO4J_PASSWORD = '123'
 
 # Secret value presented with the request header value named by
 # SchemaConstants.LOCKED_ENTITY_UPDATE_HEADER, expected to be off the form
-# X-HuBMAP-Update-Override: Override-Key <LOCKED_ENTITY_UPDATE_OVERRIDE_KEY value which follows>
+# X-HuBMAP-Update-Override: <LOCKED_ENTITY_UPDATE_OVERRIDE_KEY value which follows>
 LOCKED_ENTITY_UPDATE_OVERRIDE_KEY = 'set during deployment'
 
 # Set MEMCACHED_MODE to False to disable the caching for local development

@@ -29,7 +29,13 @@ normalized_type : str
 request: Flask request
     The instance of Flask request passed in from application request
 """
-def validate_application_header_before_entity_create(normalized_entity_type, request, existing_entity_id):
+def validate_application_header_before_entity_create(options_dict):
+    if 'http_request' in options_dict:
+        request = options_dict['http_request']
+    else:
+        logger.error(f"validate_application_header_before_entity_create() expected 'http_request' in"
+                     f" options_dict, but it was missing in {str(options_dict)}.")
+        raise KeyError("Entity validator internal misconfiguration.")
     # A list of applications allowed to create this new entity or update Dataset and Upload
     # Use lowercase for comparison
     applications_allowed = [
@@ -50,7 +56,13 @@ normalized_type : str
 request: Flask request
     The instance of Flask request passed in from application request
 """
-def validate_entity_not_locked_before_update(normalized_entity_type, request, existing_entity_dict):
+def validate_entity_not_locked_before_update(options_dict):
+    if 'existing_entity_dict' in options_dict:
+        existing_entity_dict = options_dict['existing_entity_dict']
+    else:
+        logger.error(f"validate_entity_not_locked_before_update() expected 'existing_entity_dict' in"
+                     f" options_dict, but it was missing in {str(options_dict)}.")
+        raise KeyError("Entity validator internal misconfiguration.")
     _is_entity_locked_against_update(existing_entity_dict)
 
 ##############################################################################################
