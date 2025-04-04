@@ -14,14 +14,13 @@ from hubmap_commons import hm_auth
 
 logger = logging.getLogger(__name__)
 
-
 ####################################################################################################
 ## Entity Level Validators
 ####################################################################################################
 
 """
 Validate the application specified in the custom HTTP header
-for creating a new entity via POST or updating via PUT
+for creating a new entity via POST.
 
 Parameters
 ----------
@@ -30,7 +29,13 @@ normalized_type : str
 request: Flask request
     The instance of Flask request passed in from application request
 """
-def validate_application_header_before_entity_create(normalized_entity_type, request):
+def validate_application_header_before_entity_create(options_dict):
+    if 'http_request' in options_dict:
+        request = options_dict['http_request']
+    else:
+        logger.error(f"validate_application_header_before_entity_create() expected 'http_request' in"
+                     f" options_dict, but it was missing in {str(options_dict)}.")
+        raise KeyError("Entity validator internal misconfiguration.")
     # A list of applications allowed to create this new entity or update Dataset and Upload
     # Use lowercase for comparison
     applications_allowed = [
@@ -41,6 +46,24 @@ def validate_application_header_before_entity_create(normalized_entity_type, req
 
     _validate_application_header(applications_allowed, request.headers)
 
+"""
+Validate required conditions prior to allowing update of an existing entity via PUT.
+
+Parameters
+----------
+normalized_type : str
+    One of the types defined in the schema yaml: Dataset, Upload
+request: Flask request
+    The instance of Flask request passed in from application request
+"""
+def validate_entity_not_locked_before_update(options_dict):
+    if 'existing_entity_dict' in options_dict:
+        existing_entity_dict = options_dict['existing_entity_dict']
+    else:
+        logger.error(f"validate_entity_not_locked_before_update() expected 'existing_entity_dict' in"
+                     f" options_dict, but it was missing in {str(options_dict)}.")
+        raise KeyError("Entity validator internal misconfiguration.")
+    _is_entity_locked_against_update(existing_entity_dict)
 
 ##############################################################################################
 ## Property Level Validators
@@ -74,7 +97,6 @@ def validate_recognized_dataset_type(property_key, normalized_entity_type, reque
         raise ValueError(f"Proposed Dataset dataset_type '{proposed_dataset_type_prefix}'"
                          f" is not recognized in the existing ontology."
                          f" Valid values are: {str(target_list)}.")
-    
 
 """
 Validate the specified value for an Upload's intended_dataset_type is in the valueset UBKG recognizes. 
@@ -103,7 +125,6 @@ def validate_intended_dataset_type(property_key, normalized_entity_type, request
                          f" is not recognized in the existing ontology."
                          f" Valid values are: {str(target_list)}.")
 
-
 """
 Validate the target list has no duplicated items
 
@@ -126,7 +147,6 @@ def validate_no_duplicates_in_list(property_key, normalized_entity_type, request
     if len(set(target_list)) != len(target_list):
         raise ValueError(f"The {property_key} field must only contain unique items")
 
-
 """
 Validate that a given dataset is not a component of a multi-assay split parent dataset fore allowing status to be 
 updated. If a component dataset needs to be updated, update it via its parent multi-assay dataset
@@ -144,8 +164,6 @@ existing_data_dict : dict
 new_data_dict : dict
     The json data in request body, already after the regular validations
 """
-
-
 def validate_dataset_not_component(property_key, normalized_entity_type, request, existing_data_dict, new_data_dict):
     headers = request.headers
     if not headers.get(SchemaConstants.INTERNAL_TRIGGER) == SchemaConstants.COMPONENT_DATASET:
@@ -157,7 +175,6 @@ def validate_dataset_not_component(property_key, normalized_entity_type, request
                              f" {existing_data_dict['uuid']}. Can not change status on component datasets directly. Status"
                              f"change must occur on parent multi-assay split dataset")
 
-
 """
 If the provided previous revision is already a revision of another dataset, disallow
 """
@@ -168,7 +185,6 @@ def validate_if_revision_is_unique(property_key, normalized_entity_type, request
     if next_revision:
         raise ValueError(f"Dataset marked as previous revision is already the previous revision of another dataset. "
                          f"Each dataset may only be the previous revision of one other dataset")
-
 
 """
 If an entity has a DOI, do not allow it to be updated 
@@ -890,9 +906,39 @@ def _validate_application_header(applications_allowed, request_headers):
 
     if not app_header:
         msg = f"Unable to proceed due to missing {SchemaConstants.HUBMAP_APP_HEADER} header from request"
-        raise schema_errors.MissingApplicationHeaderException(msg)
+        raise MissingApplicationHeaderException(msg)
 
     # Use lowercase for comparing the application header value against the yaml
     if app_header.lower() not in applications_allowed:
         msg = f"Unable to proceed due to invalid {SchemaConstants.HUBMAP_APP_HEADER} header value: {app_header}"
-        raise schema_errors.InvalidApplicationHeaderException(msg)
+        raise InvalidApplicationHeaderException(msg)
+
+"""
+Indicate if the entity meets a criteria to lock out modification updates
+
+Parameters
+----------
+request_headers: Flask request.headers object, behaves like a dict
+    The instance of Flask request.headers passed in from application request
+"""
+def _is_entity_locked_against_update(existing_entity_dict):
+    entity_type = existing_entity_dict['entity_type']
+    if entity_type in ['Publication','Dataset']:
+        if 'status' in existing_entity_dict and existing_entity_dict['status'] == 'Published':
+            raise schema_errors.LockedEntityUpdateException(f"{entity_type} cannot be modified, due to"
+                                                            f" status={existing_entity_dict['status']}.")
+    elif entity_type in ['Donor','Sample']:
+        if 'data_access_level' in existing_entity_dict and existing_entity_dict['data_access_level'] == 'public':
+            raise schema_errors.LockedEntityUpdateException(f"{entity_type} cannot be modified, due to"
+                                                            f" data_access_level={existing_entity_dict['data_access_level']}.")
+    elif entity_type in ['Collection','Epicollection']:
+        if 'doi_url' in existing_entity_dict and existing_entity_dict['doi_url']:
+            raise schema_errors.LockedEntityUpdateException(f"{entity_type} cannot be modified, due to"
+                                                            f" doi_url={existing_entity_dict['doi_url']}.")
+        # Probably never get here, since doi_url and registered_doi must be set as a pair.
+        if 'registered_doi' in existing_entity_dict and existing_entity_dict['registered_doi']:
+            raise schema_errors.LockedEntityUpdateException(f"{entity_type} cannot be modified, due to"
+                                                            f" registered_doi={existing_entity_dict['registered_doi']}.")
+    else:
+        entity_uuid = existing_entity_dict['uuid']
+        raise schema_errors.LockedEntityUpdateException(f'Unable to check if {entity_type} for {entity_uuid} is locked!')

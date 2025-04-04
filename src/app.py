@@ -89,6 +89,10 @@ else:
     MEMCACHED_MODE = False
     MEMCACHED_PREFIX = 'NONE'
 
+# Read the secret key which may be submitted in HTTP Request Headers to override the lockout of
+# updates to entities with characteristics prohibiting their modification.
+LOCKED_ENTITY_UPDATE_OVERRIDE_KEY = app.config['LOCKED_ENTITY_UPDATE_OVERRIDE_KEY']
+
 # Suppress InsecureRequestWarning warning when requesting status on https with ssl cert verify disabled
 requests.packages.urllib3.disable_warnings(category = InsecureRequestWarning)
 
@@ -1363,8 +1367,29 @@ def update_entity(id):
     # Normalize user provided entity_type
     normalized_entity_type = schema_manager.normalize_entity_type(entity_dict['entity_type'])
 
-    # Note, we don't support entity level validators on entity update via PUT
-    # Only entity create via POST is supported at the entity level
+    # Execute entity level validator defined in schema yaml before entity modification.
+    lockout_overridden = False
+    try:
+        schema_manager.execute_entity_level_validator(validator_type='before_entity_update_validator'
+                                                      , normalized_entity_type=normalized_entity_type
+                                                      , request=request
+                                                      , existing_entity_dict=entity_dict)
+    except schema_errors.MissingApplicationHeaderException as e:
+        bad_request_error(e)
+    except schema_errors.InvalidApplicationHeaderException as e:
+        bad_request_error(e)
+    except schema_errors.LockedEntityUpdateException as leue:
+        # HTTP header names are case-insensitive, and request.headers.get() returns None if the header doesn't exist
+        locked_entity_update_header = request.headers.get(SchemaConstants.LOCKED_ENTITY_UPDATE_HEADER)
+        if locked_entity_update_header and (LOCKED_ENTITY_UPDATE_OVERRIDE_KEY == locked_entity_update_header):
+            lockout_overridden = True
+            logger.info(f"For {entity_dict['entity_type']} {entity_dict['uuid']}"
+                        f" update prohibited due to {str(leue)},"
+                        f" but being overridden by valid {SchemaConstants.LOCKED_ENTITY_UPDATE_HEADER} in request.")
+        else:
+            forbidden_error(leue)
+    except Exception as e:
+        internal_server_error(e)
 
     # Validate request json against the yaml schema
     # Pass in the entity_dict for missing required key check, this is different from creating new entity
@@ -1383,6 +1408,9 @@ def update_entity(id):
             ValueError) as e:
         bad_request_error(e)
 
+    # Proceed with per-entity updates after passing any entity-level or property-level validations which
+    # would have locked out updates.
+    #
     # Sample, Dataset, and Upload: additional validation, update entity, after_update_trigger
     # Collection and Donor: update entity
     if normalized_entity_type == 'Sample':
@@ -1467,13 +1495,6 @@ def update_entity(id):
         if has_dataset_uuids_to_link or has_dataset_uuids_to_unlink or has_updated_status:
             after_update(normalized_entity_type, user_token, merged_updated_dict)
     elif schema_manager.entity_type_instanceof(normalized_entity_type, 'Collection'):
-        entity_visibility = _get_entity_visibility(  normalized_entity_type=normalized_entity_type
-                                                    ,entity_dict=entity_dict)
-        # Prohibit update of an existing Collection if it meets criteria of being visible to public e.g. has DOI.
-        if entity_visibility == DataVisibilityEnum.PUBLIC:
-            logger.info(f"Attempt to update {normalized_entity_type} with id={id} which has visibility {entity_visibility}.")
-            bad_request_error(f"Cannot update {normalized_entity_type} due '{entity_visibility.value}' visibility.")
-
         # Generate 'before_update_trigger' data and update the entity details in Neo4j
         merged_updated_dict = update_entity_details(request, normalized_entity_type, user_token, json_data_dict, entity_dict)
 
@@ -1539,7 +1560,8 @@ def update_entity(id):
     # Do not return the updated dict to avoid computing overhead - 7/14/2023 by Zhou
     # return jsonify(normalized_complete_dict)
 
-    return jsonify({'message': f"{normalized_entity_type} of {id} has been updated"})
+    override_msg = 'Lockout overridden. ' if lockout_overridden else ''
+    return jsonify({'message': f"{override_msg}{normalized_entity_type} of {id} has been updated"})
 
 
 """

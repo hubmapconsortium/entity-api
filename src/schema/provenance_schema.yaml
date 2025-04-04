@@ -10,8 +10,9 @@
 # - trigger types: before_create_trigger|after_create_trigger|before_update_trigger|after_update_trigger|on_read_trigger|on_index_trigger, one property can have none (default) or more than one triggers
 # - updated_peripherally: a temporary measure to correctly handle any attributes which are potentially updated by multiple triggers
 
-# Entity level validator: 
-# - types: before_entity_create_validator, a single validation method needed for creating or updating the entity
+# Entity level validators:
+# - types: before_entity_create_validator - validation method needed for creating an entity.
+#          before_entity_update_validator - validation method needed for updating an entity.
 
 # Property level validators: 
 # - types: before_property_create_validators|before_property_update_validators, a list of validation methods
@@ -192,6 +193,9 @@ shared_entity_properties: &shared_entity_properties
 ENTITIES:
   ############################################# Collection #############################################
   Collection:
+    before_entity_update_validator:
+      # Halt modification of entities which are "locked", such as a Dataset with status == 'Published'
+      - validate_entity_not_locked_before_update
     excluded_properties_from_public_response:
       - datasets:
         - lab_dataset_id
@@ -304,6 +308,9 @@ ENTITIES:
   Dataset:
     # Only allowed applications can create new Dataset via POST
     before_entity_create_validator: validate_application_header_before_entity_create
+    before_entity_update_validator:
+      # Halt modification of entities which are "locked", such as a Dataset with status == 'Published'
+      - validate_entity_not_locked_before_update
     # Dataset can be either derivation source or target
     excluded_properties_from_public_response:
       - lab_dataset_id
@@ -659,6 +666,9 @@ ENTITIES:
     superclass: Dataset
     # Only allowed applications can create new Publication via POST
     before_entity_create_validator: validate_application_header_before_entity_create
+    before_entity_update_validator:
+      # Halt modification of entities which are "locked", such as a Dataset with status == 'Published'
+      - validate_entity_not_locked_before_update
     # Publications can be either derivation source or target
     derivation:
       source: true
@@ -763,6 +773,9 @@ ENTITIES:
       - lab_donor_id
       - submission_id
       - label
+    before_entity_update_validator:
+      # Halt modification of entities which are "locked", such as a Dataset with status == 'Published'
+      - validate_entity_not_locked_before_update
     properties:
       <<: *shared_properties
       <<: *shared_entity_properties
@@ -896,6 +909,9 @@ ENTITIES:
           - lab_id
         # Both Sample and Donor ancestors of a Sample must have these fields removed
         - submission_id
+    before_entity_update_validator:
+      # Halt modification of entities which are "locked", such as a Dataset with status == 'Published'
+      - validate_entity_not_locked_before_update
     properties:
       <<: *shared_properties
       <<: *shared_entity_properties
@@ -1148,7 +1164,10 @@ ENTITIES:
   Upload:
     # Only allowed applications can create new Upload via POST
     before_entity_create_validator: validate_application_header_before_entity_create
-    # Upload requires an ancestor of Lab, and and has no allowed decesndents 
+    # No before_entity_update_validator needed for Upload because the entity is
+    # always considered "non-public", and therefore not blocked from update/PUT.
+    #
+    # Upload requires a Lab entity as an ancestor, and has no allowed descendants
     derivation:
       source: false
       target: false # Set to false since the schema doesn't handle Lab currently
@@ -1296,5 +1315,8 @@ ENTITIES:
     derivation:
       source: false
       target: false
+    before_entity_update_validator:
+      # Halt modification of entities which are "locked", such as a Dataset with status == 'Published'
+      - validate_entity_not_locked_before_update
     properties:
       <<: *shared_collection_properties
