@@ -925,20 +925,16 @@ def _is_entity_locked_against_update(existing_entity_dict):
     entity_type = existing_entity_dict['entity_type']
     if entity_type in ['Publication','Dataset']:
         if 'status' in existing_entity_dict and existing_entity_dict['status'] == 'Published':
-            raise schema_errors.LockedEntityUpdateException(f"{entity_type} cannot be modified, due to"
-                                                            f" status={existing_entity_dict['status']}.")
+            raise schema_errors.LockedEntityUpdateException(f"Permission denied to change a published/public {entity_type}.")
     elif entity_type in ['Donor','Sample']:
         if 'data_access_level' in existing_entity_dict and existing_entity_dict['data_access_level'] == 'public':
-            raise schema_errors.LockedEntityUpdateException(f"{entity_type} cannot be modified, due to"
-                                                            f" data_access_level={existing_entity_dict['data_access_level']}.")
+            raise schema_errors.LockedEntityUpdateException(f"Permission denied to change a published/public {entity_type}.")
     elif entity_type in ['Collection','Epicollection']:
         if 'doi_url' in existing_entity_dict and existing_entity_dict['doi_url']:
-            raise schema_errors.LockedEntityUpdateException(f"{entity_type} cannot be modified, due to"
-                                                            f" doi_url={existing_entity_dict['doi_url']}.")
+            raise schema_errors.LockedEntityUpdateException(f"Permission denied to change a published/public {entity_type}.")
         # Probably never get here, since doi_url and registered_doi must be set as a pair.
         if 'registered_doi' in existing_entity_dict and existing_entity_dict['registered_doi']:
-            raise schema_errors.LockedEntityUpdateException(f"{entity_type} cannot be modified, due to"
-                                                            f" registered_doi={existing_entity_dict['registered_doi']}.")
+            raise schema_errors.LockedEntityUpdateException(f"Permission denied to change a published/public {entity_type}.")
     else:
         entity_uuid = existing_entity_dict['uuid']
         raise schema_errors.LockedEntityUpdateException(f'Unable to check if {entity_type} for {entity_uuid} is locked!')
