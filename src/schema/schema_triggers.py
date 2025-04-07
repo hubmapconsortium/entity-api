@@ -1468,8 +1468,8 @@ def sync_component_dataset_status(property_key, normalized_type, user_token, exi
             request_headers = {
                 'Authorization': f'Bearer {user_token}'
             }
-            header[SchemaConstants.HUBMAP_APP_HEADER] = SchemaConstants.INGEST_API_APP
-            header[SchemaConstants.INTERNAL_TRIGGER] = SchemaConstants.COMPONENT_DATASET
+            request_headers[SchemaConstants.HUBMAP_APP_HEADER] = SchemaConstants.INGEST_API_APP
+            request_headers[SchemaConstants.INTERNAL_TRIGGER] = SchemaConstants.COMPONENT_DATASET
             response = requests.put(url=url, headers=request_headers, json=status_body)
 
 
