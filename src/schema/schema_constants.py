@@ -7,6 +7,7 @@ class SchemaConstants(object):
     COMPONENT_DATASET = 'component-dataset'
     INGEST_PIPELINE_APP = 'ingest-pipeline'
     HUBMAP_APP_HEADER = 'X-Hubmap-Application'
+    LOCKED_ENTITY_UPDATE_HEADER = 'X-HuBMAP-Update-Override'
     INTERNAL_TRIGGER = 'X-Internal-Trigger'
     DATASET_STATUS_PUBLISHED = 'published'
 

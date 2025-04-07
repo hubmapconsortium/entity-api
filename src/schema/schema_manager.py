@@ -1166,13 +1166,15 @@ Only one validator defined per given validator type, no need to support multiple
 Parameters
 ----------
 validator_type : str
-    One of the validator types: before_entity_create_validator
+    One of the validator types recognized by the validate_entity_level_validator_type() method.
 normalized_entity_type : str
     One of the normalized entity types defined in the schema yaml: Donor, Sample, Dataset, Upload, Upload, Publication
 request: Flask request object
     The instance of Flask request passed in from application request
+existing_entity_dict : dict
+    The dictionary for an entity, retrieved from Neo4j, for use during update/PUT validations
 """
-def execute_entity_level_validator(validator_type, normalized_entity_type, request):
+def execute_entity_level_validator(validator_type, normalized_entity_type, request, existing_entity_dict=None):
     global _schema
 
     # A bit validation
@@ -1183,23 +1185,41 @@ def execute_entity_level_validator(validator_type, normalized_entity_type, reque
 
     for key in entity:
          if validator_type == key:
-            validator_method_name = entity[validator_type]
+            if isinstance(entity[validator_type], str):
+                validator_method_names = [entity[validator_type]]
+            else:
+                # default to expecting a list when not a str
+                validator_method_names = entity[validator_type]
 
-            try:
-                # Get the target validator method defined in the schema_validators.py module
-                validator_method_to_call = getattr(schema_validators, validator_method_name)
-                
-                logger.info(f"To run {validator_type}: {validator_method_name} defined for entity {normalized_entity_type}")
+            for validator_method_name in validator_method_names:
+                try:
+                    # Get the target validator method defined in the schema_validators.py module
+                    validator_method_to_call = getattr(schema_validators, validator_method_name)
 
-                validator_method_to_call(normalized_entity_type, request)
-            except schema_errors.MissingApplicationHeaderException as e: 
-                raise schema_errors.MissingApplicationHeaderException(e) 
-            except schema_errors.InvalidApplicationHeaderException as e: 
-                raise schema_errors.InvalidApplicationHeaderException(e)
-            except Exception as e:
-                msg = f"Failed to call the {validator_type} method: {validator_method_name} defined for entity {normalized_entity_type}"
-                # Log the full stack trace, prepend a line with our message
-                logger.exception(msg)
+                    logger.info(f"To run {validator_type}: {validator_method_name} defined for entity {normalized_entity_type}")
+
+                    # Create a dictionary to hold data need by any entity validator, which must be populated
+                    # with validator specific requirements when the method to be called is determined.
+                    options_dict = {}
+                    if existing_entity_dict is None:
+                        # Execute the entity-level validation for create/POST
+                        options_dict['http_request'] = request
+                        validator_method_to_call(options_dict)
+                    else:
+                        # Execute the entity-level validation for update/PUT
+                        options_dict['existing_entity_dict']= existing_entity_dict
+                        validator_method_to_call(options_dict)
+                except schema_errors.MissingApplicationHeaderException as e:
+                    raise schema_errors.MissingApplicationHeaderException(e)
+                except schema_errors.InvalidApplicationHeaderException as e:
+                    raise schema_errors.InvalidApplicationHeaderException(e)
+                except schema_errors.LockedEntityUpdateException as leue:
+                    raise leue
+                except Exception as e:
+                    msg = f"Failed to call the {validator_type} method: {validator_method_name} defined for entity {normalized_entity_type}"
+                    # Log the full stack trace, prepend a line with our message
+                    logger.exception(msg)
+                    raise e
 
 
 """
@@ -1360,10 +1380,10 @@ Validate the provided entity level validator type
 Parameters
 ----------
 validator_type : str
-    One of the validator types: before_entity_create_validator
+    Name of an entity-level validator type, which must be listed in accepted_validator_types and found in this schema manager module.
 """
 def validate_entity_level_validator_type(validator_type):
-    accepted_validator_types = ['before_entity_create_validator']
+    accepted_validator_types = ['before_entity_create_validator', 'before_entity_update_validator']
     separator = ', '
 
     if validator_type.lower() not in accepted_validator_types:
