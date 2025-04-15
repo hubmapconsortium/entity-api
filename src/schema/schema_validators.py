@@ -41,6 +41,7 @@ def validate_application_header_before_entity_create(options_dict):
     applications_allowed = [
         SchemaConstants.INGEST_API_APP,
         SchemaConstants.INGEST_PIPELINE_APP,
+        SchemaConstants.INGEST_UI,
         SchemaConstants.ENTITY_API_APP
     ]
 
@@ -348,6 +349,7 @@ def validate_application_header_before_property_update(property_key, normalized_
     applications_allowed = [
         SchemaConstants.INGEST_API_APP,
         SchemaConstants.INGEST_PIPELINE_APP,
+        SchemaConstants.INGEST_UI,
         SchemaConstants.ENTITY_API_APP
     ]
 
