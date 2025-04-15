@@ -6,6 +6,7 @@ class SchemaConstants(object):
     ENTITY_API_APP = 'entity-api'
     COMPONENT_DATASET = 'component-dataset'
     INGEST_PIPELINE_APP = 'ingest-pipeline'
+    INGEST_UI = 'ingest-ui'
     HUBMAP_APP_HEADER = 'X-Hubmap-Application'
     LOCKED_ENTITY_UPDATE_HEADER = 'X-HuBMAP-Update-Override'
     INTERNAL_TRIGGER = 'X-Internal-Trigger'
