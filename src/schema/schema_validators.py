@@ -906,12 +906,12 @@ def _validate_application_header(applications_allowed, request_headers):
 
     if not app_header:
         msg = f"Unable to proceed due to missing {SchemaConstants.HUBMAP_APP_HEADER} header from request"
-        raise MissingApplicationHeaderException(msg)
+        raise schema_errors.MissingApplicationHeaderException(msg)
 
     # Use lowercase for comparing the application header value against the yaml
     if app_header.lower() not in applications_allowed:
         msg = f"Unable to proceed due to invalid {SchemaConstants.HUBMAP_APP_HEADER} header value: {app_header}"
-        raise InvalidApplicationHeaderException(msg)
+        raise schema_errors.InvalidApplicationHeaderException(msg)
 
 """
 Indicate if the entity meets a criteria to lock out modification updates
