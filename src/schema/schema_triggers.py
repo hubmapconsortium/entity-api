@@ -1,6 +1,8 @@
 import os
 import ast
 import json
+import re
+
 import yaml
 import logging
 import requests
@@ -972,6 +974,119 @@ def link_to_previous_revision(property_key, normalized_type, user_token, existin
         raise KeyError(e)
 
 """
+Given a string which contains multiple items, each separated by the substring specified by
+the 'separator' argument, and possibly also ending with 'separator',
+- remove the last instance of 'separator'
+- replaced the remaining last instance of 'separator' with ", and"
+- replace all remaining instances of 'separator' with the substring specified in the 'new_separator' argument
+
+Parameters
+----------
+separated_phrase : str
+    A string which contains multiple items, each separated by the substring specified by
+    the 'separator' argument, and possibly also ending with 'separator'
+separator : str
+    A string which is used to separate items during computation.  This should be something which
+    is statistically improbable to occur within items, such as a comma or a common word.
+new_separator: str
+    The replacement for occurrences of 'separator', such as a comma or a comma followed by a space.
+
+Returns
+-------
+str: A version of the 'separated_phase' argument revised per the method description
+"""
+def _make_phrase_from_separator_delineated_str(separated_phrase:str, separator:str, new_separator=', ')->str:
+    # Remove the last separator
+    if re.search(rf"{separator}$", separated_phrase):
+        separated_phrase = re.sub(  pattern=rf"(.*)({separator})$"
+                                    , repl=r"\1"
+                                    , string=separated_phrase)
+    # Replace the last separator with the word 'and' for inclusion in the Dataset title
+    separated_phrase = re.sub(  pattern=rf"(.*)({separator})(.*?)$"
+                                , repl=r"\1, and \3"
+                                , string=separated_phrase)
+    # Replace all remaining separator with commas
+    descriptions = separated_phrase.rsplit(separator)
+    return new_separator.join(descriptions)
+
+"""
+Given a string of metadata for a Donor which was returned from Neo4j, and a list of desired attribute names to
+extract from that metadata, return a dictionary containing lower-case version of each attribute found.
+
+Parameters
+----------
+neo4j_donor_metadata : str
+    A string representation of a Python dict returned from Neo4j, containing metadata for a Donor.
+attribute_key_list : list[str]
+    A list of strings, each of which may be the name of a key found in the Donor metadata.
+
+Returns
+-------
+dict: A dict keyed using elements of attribute_key_list which were found in the Donor metadata, containing
+      a lower-case version of the value stored in Neo4j
+"""
+def _get_attributes_from_donor_metadata(neo4j_donor_metadata: str, attribute_key_list: list[str]) -> dict:
+    # Note: The donor_metadata is stored in Neo4j as a string representation of the Python dict
+    # It's not stored in Neo4j as a json string! And we can't store it as a json string
+    # due to the way that Cypher handles single/double quotes.
+    donor_metadata_dict = schema_manager.convert_str_literal(neo4j_donor_metadata)
+
+    # Since either 'organ_donor_data' or 'living_donor_data' can be present in donor_metadata_dict, but not
+    # both, just grab the first element.  If neither are present, use the empty list
+    data_list = []
+    if donor_metadata_dict:
+        data_list = list(donor_metadata_dict.values())[0]
+
+    donor_grouping_concepts_dict = dict()
+    for data in data_list:
+        if 'grouping_concept_preferred_term' in data:
+            if data['grouping_concept_preferred_term'].lower() == 'age':
+                # The actual value of age stored in 'data_value' instead of 'preferred_term'
+                donor_grouping_concepts_dict['age'] = data['data_value']
+            elif data['grouping_concept_preferred_term'].lower() == 'race':
+                donor_grouping_concepts_dict['race'] = data['preferred_term'].lower()
+            elif data['grouping_concept_preferred_term'].lower() == 'sex':
+                donor_grouping_concepts_dict['sex'] = data['preferred_term'].lower()
+            else:
+                pass
+    return donor_grouping_concepts_dict
+
+"""
+Given a age, race, and sex metadata for a Donor which was returned from Neo4j, generate an appropriate and
+consistent string phrase. 
+
+Parameters
+----------
+age : str
+    A age value found in the metadata for the Donor returned from Neo4j.
+race : str
+    A race value found in the metadata for the Donor returned from Neo4j.
+sex : str
+    A sex value found in the metadata for the Donor returned from Neo4j.
+
+Returns
+-------
+str: A consistent string phrase appropriate for the Donor's metadata
+"""
+def _get_age_race_sex_phase(age:str=None, race:str=None, sex:str=None)->str:
+    if age is None and race is not None and sex is not None:
+        return f"{race} {sex} of unknown age"
+    elif race is None and age is not None and sex is not None:
+        return f"{age}-year-old {sex} of unknown race"
+    elif sex is None and age is not None and race is not None:
+        return f"{age}-year-old {race} donor of unknown sex"
+    elif age is None and race is None and sex is not None:
+        return f"{sex} donor of unknown age and race"
+    elif age is None and sex is None and race is not None:
+        return f"{race} donor of unknown age and sex"
+    elif race is None and sex is None and age is not None:
+        return f"{age}-year-old donor of unknown race and sex"
+    elif age is None and race is None and sex is None:
+        return "donor of unknown age, race and sex"
+    else:
+        return f"{age}-year-old {race} {sex}"
+
+"""
 Trigger event method of auto generating the dataset title
 
 Parameters
@@ -993,6 +1108,13 @@ str: The target property key
 str: The generated dataset title 
 """
 def get_dataset_title(property_key, normalized_type, user_token, existing_data_dict, new_data_dict):
+
+    MAX_ENTITY_LIST_LENGTH = 5
+
+    # Statistically improbable phrase to separate items while building a phrase, which can be
+    # replaced by a grammatically correct separator like the word 'and' or a comma later
+    ITEM_SEPARATOR_SIP = '_-_-_-ENTITY_SEPARATOR-_-_-_'
+
     if 'uuid' not in existing_data_dict:
         raise KeyError("Missing 'uuid' key in 'existing_data_dict' during calling 'get_dataset_title()' trigger method.")
 
@@ -1001,79 +1123,149 @@ def get_dataset_title(property_key, normalized_type, user_token, existing_data_d
     # Assume organ_desc is always available, otherwise will throw parsing error
     organ_desc = '<organ_desc>'
 
-    age = None
-    race = None
-    sex = None
-
     dataset_type = existing_data_dict['dataset_type']
 
     # Get the sample organ name and donor metadata information of this dataset
-    organ_name, donor_metadata = schema_neo4j_queries.get_dataset_organ_and_donor_info(schema_manager.get_neo4j_driver_instance(), existing_data_dict['uuid'])
+    donor_organs_list = \
+        schema_neo4j_queries.get_dataset_donor_organs_info( neo4j_driver=schema_manager.get_neo4j_driver_instance()
+                                                            , dataset_uuid=existing_data_dict['uuid'])
 
-    # Can we move organ_types.yaml to commons or make it an API call to avoid parsing the raw yaml?
-    # Parse the organ description
-    if organ_name is not None:
-        try: 
-            # The organ_name is the two-letter code only set for 'organ'
+    # Determine the number of unique organ types and the number of unique donors in
+    # donor_organs_list so the format of the title to be created can be determined.
+    organ_abbrev_set = set()
+    donor_metadata_list = list()
+    donor_uuid_set = set()
+    for donor_organ_data in donor_organs_list:
+        organ_abbrev_set.add(donor_organ_data['organ_type'])
+        donor_metadata_list.append(donor_organ_data['donor_metadata'])
+        donor_uuid_set.add(donor_organ_data['donor_uuid'])
+
+    # If the number of unique organ types is no more than MAX_ENTITY_LIST_LENGTH, we need to come up
+    # with a phrase to be used to create the title which describes them.  If there are more than
+    # the threshold, we will just use the number in the title.
+    organs_description_phrase = f"{len(organ_abbrev_set)} organs"
+    organ_types_dict = schema_manager.get_organ_types()
+    if len(organ_abbrev_set) <= MAX_ENTITY_LIST_LENGTH:
+        organ_description_set = set()
+        if organ_abbrev_set:
+            for organ_abbrev in organ_abbrev_set:
+                try:
+                    # The organ_abbrev is the two-letter code only set for 'organ'
+                    # Convert the two-letter code to a description
+                    organ_desc = organ_types_dict[organ_abbrev]
+                    organ_description_set.add(organ_desc.lower())
+                except (yaml.YAMLError, requests.exceptions.RequestException) as e:
+                    raise Exception(e)
+        # Turn the set of organ descriptions into a phrase which can be used to compose the Dataset title
+        organs_description_phrase = ITEM_SEPARATOR_SIP.join(organ_description_set)
+        organs_description_phrase = _make_phrase_from_separator_delineated_str(organs_description_phrase
+                                                                               , ITEM_SEPARATOR_SIP)
+
+    # If the number of unique organ donors is no more than MAX_ENTITY_LIST_LENGTH, we need to come up
+    # with a phrase to be used to create the title which describes them.  If there are more than
+    # the threshold, we will just use the number in the title.
+    # Parse age, race, and sex from the donor metadata, but determine the number of donors using donor_uuid_set.
+    donors_description_phrase = f"{len(donor_uuid_set)} donors"
+    if len(donor_uuid_set) <= MAX_ENTITY_LIST_LENGTH:
+        donors_grouping_concepts_dict = dict()
+        if donor_metadata_list:
+            for donor_metadata in donor_metadata_list:
+                logger.info(f"Executing _get_attributes_from_donor_metadata() to"
+                            f" convert_str_literal() on donor_metadata"
+                            f" to get 'age','race','sex' attributes for uuid:"
+                            f" {existing_data_dict['uuid']}"
+                            f" during calling 'get_dataset_title()' trigger method.")
+                donor_data = _get_attributes_from_donor_metadata(neo4j_donor_metadata=donor_metadata
+                                                                 , attribute_key_list=['age', 'race', 'sex'])
+                age = donor_data['age'] if donor_data and 'age' in donor_data else None
+                race = donor_data['race'] if donor_data and 'race' in donor_data else None
+                sex = donor_data['sex'] if donor_data and 'sex' in donor_data else None
+                age_race_sex_info = _get_age_race_sex_phase(age=age
+                                                            , race=race
+                                                            , sex=sex)
+                if age_race_sex_info in donors_grouping_concepts_dict:
+                    donors_grouping_concepts_dict[age_race_sex_info] += 1
+                else:
+                    donors_grouping_concepts_dict[age_race_sex_info] = 1
+
+        donors_description_phrase = ''
+        for age_race_sex_info in donors_grouping_concepts_dict.keys():
+            if len(donors_grouping_concepts_dict) > 1:
+                donors_description_phrase += f"({donors_grouping_concepts_dict[age_race_sex_info]}) "
+            donors_description_phrase += f"{age_race_sex_info}{ITEM_SEPARATOR_SIP}"
+
+        donors_description_phrase = _make_phrase_from_separator_delineated_str(donors_description_phrase
+                                                                               , ITEM_SEPARATOR_SIP)
+
+    # When both the number of unique organ codes is between 2 and MAX_ENTITY_LIST_LENGTH and
+    # the number of unique organ donors is between 2 and MAX_ENTITY_LIST_LENGTH, we will
+    # use a phrase which associates each organ type and donor metadata rather than the
+    # phrases previously built.
+    donor_organ_association_phrase = ''
+    if len(organ_abbrev_set) <= MAX_ENTITY_LIST_LENGTH: # and len(donor_uuid_set) <= MAX_ENTITY_LIST_LENGTH:
+        for donor_organ_data in donor_organs_list:
+            # The organ_abbrev is the two-letter code only set for 'organ'
             # Convert the two-letter code to a description
-            organ_types_dict = schema_manager.get_organ_types()
-            organ_desc = organ_types_dict[organ_name].lower()
-        except (yaml.YAMLError, requests.exceptions.RequestException) as e:
-            raise Exception(e)
+            organ_desc = organ_types_dict[donor_organ_data['organ_type']]
 
-    # Parse age, race, and sex
-    if donor_metadata is not None:
-        logger.info(f"Executing convert_str_literal() on 'donor_metadata' of uuid: {existing_data_dict['uuid']} during calling 'get_dataset_title()' trigger method.")
+            logger.info(f"Executing _get_attributes_from_donor_metadata() to"
+                        f" convert_str_literal() on donor_organ_data['donor_metadata']"
+                        f" to get 'age','race','sex' attributes for uuid:"
+                        f" {existing_data_dict['uuid']}"
+                        f" during calling 'get_dataset_title()' trigger method.")
+            donor_data = _get_attributes_from_donor_metadata(   neo4j_donor_metadata=donor_organ_data['donor_metadata']
+                                                                , attribute_key_list=['age','race','sex'])
 
-        # Note: The donor_metadata is stored in Neo4j as a string representation of the Python dict
-        # It's not stored in Neo4j as a json string! And we can't store it as a json string 
-        # due to the way that Cypher handles single/double quotes.
-        ancestor_metadata_dict = schema_manager.convert_str_literal(donor_metadata)
-        
-        data_list = []
+            age = donor_data['age'] if donor_data and 'age' in donor_data else None
+            race = donor_data['race'] if donor_data and 'race' in donor_data  else None
+            sex = donor_data['sex'] if donor_data and 'sex' in donor_data  else None
+            age_race_sex_info = _get_age_race_sex_phase(age=age
+                                                        , race=race
+                                                        , sex=sex)
+            donor_organ_association_phrase += f"{organ_desc.lower()} of {age_race_sex_info}{ITEM_SEPARATOR_SIP}"
 
-        # Either 'organ_donor_data' or 'living_donor_data' can be present, but not both
-        if 'organ_donor_data' in ancestor_metadata_dict:
-            data_list = ancestor_metadata_dict['organ_donor_data']
-        elif 'living_donor_data' in ancestor_metadata_dict:
-            data_list = ancestor_metadata_dict['living_donor_data']
-        else:
-            # When neither 'organ_donor_data' nor 'living_donor_data' exists, use default None and continue
-            pass
+        donor_organ_association_phrase = _make_phrase_from_separator_delineated_str(donor_organ_association_phrase
+                                                                                    , ITEM_SEPARATOR_SIP)
 
-        for data in data_list:
-            if 'grouping_concept_preferred_term' in data:
-                if data['grouping_concept_preferred_term'].lower() == 'age':
-                    # The actual value of age stored in 'data_value' instead of 'preferred_term'
-                    age = data['data_value']
-
-                if data['grouping_concept_preferred_term'].lower() == 'race':
-                    race = data['preferred_term'].lower()
-
-                if data['grouping_concept_preferred_term'].lower() == 'sex':
-                    sex = data['preferred_term'].lower()
-
-    age_race_sex_info = None
-
-    if (age is None) and (race is not None) and (sex is not None):
-        age_race_sex_info = f"{race} {sex} of unknown age"
-    elif (race is None) and (age is not None) and (sex is not None):
-        age_race_sex_info = f"{age}-year-old {sex} of unknown race"
-    elif (sex is None) and (age is not None) and (race is not None):
-        age_race_sex_info = f"{age}-year-old {race} donor of unknown sex"
-    elif (age is None) and (race is None) and (sex is not None):
-        age_race_sex_info = f"{sex} donor of unknown age and race"
-    elif (age is None) and (sex is None) and (race is not None):
-        age_race_sex_info = f"{race} donor of unknown age and sex"
-    elif (race is None) and (sex is None) and (age is not None):
-        age_race_sex_info = f"{age}-year-old donor of unknown race and sex"
-    elif (age is None) and (race is None) and (sex is None):
-        age_race_sex_info = "donor of unknown age, race and sex"
+    if len(organ_abbrev_set) == 1 and len(donor_uuid_set) == 1:
+        # One donor, one organ type
+        generated_title =   f"{dataset_type} data from the {organs_description_phrase} of a {donors_description_phrase}"
+    elif len(organ_abbrev_set) > 1 and len(organ_abbrev_set) <= MAX_ENTITY_LIST_LENGTH and len(donor_uuid_set) == 1:
+        # One donor, and more than 1 and less than MAX_ENTITY_LIST_LENGTH organ types
+        generated_title = f"{dataset_type} data from {organs_description_phrase} of" \
+                          f" a {donors_description_phrase}"
+    elif len(organ_abbrev_set) > MAX_ENTITY_LIST_LENGTH and len(donor_uuid_set) == 1:
+        # One donor, more than MAX_ENTITY_LIST_LENGTH organ types
+        generated_title = f"{dataset_type} data from {len(organ_abbrev_set)} organs of" \
+                          f" a {donors_description_phrase}"
+    elif len(organ_abbrev_set) == 1 and len(donor_uuid_set) > 1 and len(donor_uuid_set) <= MAX_ENTITY_LIST_LENGTH:
+        # More than 1 and less than MAX_ENTITY_LIST_LENGTH donors, and one organ type
+        generated_title =   f"{dataset_type} data from the {organs_description_phrase} of" \
+                            f" {len(donor_uuid_set)} different donors: {donors_description_phrase}"
+    elif len(organ_abbrev_set) == 1 and len(donor_uuid_set) > MAX_ENTITY_LIST_LENGTH:
+        # More than MAX_ENTITY_LIST_LENGTH donors, one organ type
+        generated_title =   f"{dataset_type} data from the {organs_description_phrase}" \
+                            f" of {len(donor_uuid_set)} different donors"
+    elif    len(organ_abbrev_set) > 1 and len(organ_abbrev_set) <= MAX_ENTITY_LIST_LENGTH and \
+            len(donor_uuid_set) > 1 and len(donor_uuid_set) <= MAX_ENTITY_LIST_LENGTH:
+        # More than 1 and less than MAX_ENTITY_LIST_LENGTH donors, and
+        # more than 1 and less than MAX_ENTITY_LIST_LENGTH organ types
+        generated_title =   f"{dataset_type} data from {len(organ_abbrev_set)} organs of" \
+                            f" {len(donor_uuid_set)} different donors:" \
+                            f" {donor_organ_association_phrase}"
+    elif len(organ_abbrev_set) > MAX_ENTITY_LIST_LENGTH and len(donor_uuid_set) > 1 and len(donor_uuid_set) <= MAX_ENTITY_LIST_LENGTH:
+        #  More than 1 and less than MAX_ENTITY_LIST_LENGTH donors, and more than MAX_ENTITY_LIST_LENGTH organ type
+        generated_title = f"{dataset_type} data from {len(organ_abbrev_set)} organs of" \
+                          f" {len(donor_uuid_set)} different donors:" \
+                          f" {donors_description_phrase}"
+    elif len(organ_abbrev_set) > 1 and len(organ_abbrev_set) <= MAX_ENTITY_LIST_LENGTH and len(donor_uuid_set) > MAX_ENTITY_LIST_LENGTH:
+        #  More than MAX_ENTITY_LIST_LENGTH donors, and more than 1 and less than MAX_ENTITY_LIST_LENGTH organ type
+        generated_title = f"{dataset_type} data from the {organs_description_phrase}" \
+                          f" of {len(donor_uuid_set)} different donors"
     else:
-        age_race_sex_info = f"{age}-year-old {race} {sex}"
-
-    generated_title = f"{dataset_type} data from the {organ_desc} of a {age_race_sex_info}"
-
+        # Default, including more than MAX_ENTITY_LIST_LENGTH donors, and more than MAX_ENTITY_LIST_LENGTH organ types
+        generated_title =   f"{dataset_type} data from {len(organ_abbrev_set)} organs of" \
+                            f" {len(donor_uuid_set)} different donors"
     return property_key, generated_title
 
 
