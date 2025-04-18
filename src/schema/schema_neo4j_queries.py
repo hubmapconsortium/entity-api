@@ -605,55 +605,42 @@ def get_dataset_direct_ancestors(neo4j_driver, uuid, property_key = None):
 
     return results
 
-
 """
-Get the sample organ name and donor metadata information of the given dataset uuid
+For every Sample organ associated with the given dataset_uuid, retrieve the
+organ information and organ Donor information for use in composing a title for the Dataset.
 
 Parameters
 ----------
 neo4j_driver : neo4j.Driver object
     The neo4j database connection pool
-uuid : str
-    The uuid of target entity 
+dataset_uuid : str
+    The UUID of a Dataset
 
 Returns
 -------
-str: The sample organ name
-str: The donor metadata (string representation of a Python dict)
+list : List containing the source metadata (string representation of a Python dict) of each Donor of an
+       organ Sample associated with the Dataset.
 """
-def get_dataset_organ_and_donor_info(neo4j_driver, uuid):
-    organ_name = None
-    donor_metadata = None
+def get_dataset_donor_organs_info(neo4j_driver, dataset_uuid):
 
     with neo4j_driver.session() as session:
-        # To improve the query performance, we implement the two-step queries to drastically reduce the DB hits
-        sample_query = (f"MATCH (e:Dataset)<-[:ACTIVITY_INPUT|ACTIVITY_OUTPUT*]-(s:Sample) "
-                        f"WHERE e.uuid='{uuid}' AND s.sample_category='organ' AND s.organ IS NOT NULL "
-                        f"RETURN DISTINCT s.organ AS organ_name, s.uuid AS sample_uuid")
+        ds_donors_organs_query = (  f"MATCH (e:Dataset)<-[:ACTIVITY_INPUT|ACTIVITY_OUTPUT*]-(org:Sample)<-[:ACTIVITY_INPUT|ACTIVITY_OUTPUT*]-(d:Donor)"
+                                    f" WHERE e.uuid='{dataset_uuid}'"
+                                    f"   AND org.sample_category IS NOT NULL"
+                                    f"   AND org.sample_category='organ'"
+                                    f"   AND org.organ IS NOT NULL"
+                                    f" RETURN apoc.coll.toSet(COLLECT({{donor_uuid: d.uuid"
+                                    f"                                  , donor_metadata: d.metadata"
+                                    f"                                  , organ_type: org.organ}})) AS donorOrganSet")
 
-        logger.info("======get_dataset_organ_and_donor_info() sample_query======")
-        logger.info(sample_query)
+        logger.info("======get_dataset_donor_organs_info() ds_donors_organs_query======")
+        logger.info(ds_donors_organs_query)
 
-        sample_record = session.read_transaction(execute_readonly_tx, sample_query)
+        with neo4j_driver.session() as session:
+            record = session.read_transaction(execute_readonly_tx
+                                              , ds_donors_organs_query)
 
-        if sample_record:
-            organ_name = sample_record['organ_name']
-            sample_uuid = sample_record['sample_uuid']
-
-            donor_query = (f"MATCH (s:Sample)<-[:ACTIVITY_OUTPUT]-(a:Activity)<-[:ACTIVITY_INPUT]-(d:Donor) "
-                           f"WHERE s.uuid='{sample_uuid}' AND s.sample_category='organ' AND s.organ IS NOT NULL "
-                           f"RETURN DISTINCT d.metadata AS donor_metadata")
-
-            logger.info("======get_dataset_organ_and_donor_info() donor_query======")
-            logger.info(donor_query)
-
-            donor_record = session.read_transaction(execute_readonly_tx, donor_query)
-
-            if donor_record:
-                donor_metadata = donor_record['donor_metadata']
-
-    return organ_name, donor_metadata
-
+    return record['donorOrganSet'] if record and record['donorOrganSet'] else None
 
 def get_entity_type(neo4j_driver, entity_uuid: str) -> str:
     query: str = f"Match (ent {{uuid: '{entity_uuid}'}}) return ent.entity_type"
