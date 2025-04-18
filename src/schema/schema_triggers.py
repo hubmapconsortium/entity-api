@@ -1043,6 +1043,7 @@ def _get_attributes_from_donor_metadata(neo4j_donor_metadata: str, attribute_key
             if data['grouping_concept_preferred_term'].lower() == 'age':
                 # The actual value of age stored in 'data_value' instead of 'preferred_term'
                 donor_grouping_concepts_dict['age'] = data['data_value']
+                donor_grouping_concepts_dict['age_units'] = data['units'][0:-1].lower()
             elif data['grouping_concept_preferred_term'].lower() == 'race':
                 donor_grouping_concepts_dict['race'] = data['preferred_term'].lower()
             elif data['grouping_concept_preferred_term'].lower() == 'sex':
@@ -1068,23 +1069,23 @@ Returns
 -------
 str: A consistent string phrase appropriate for the Donor's metadata
 """
-def _get_age_race_sex_phase(age:str=None, race:str=None, sex:str=None)->str:
+def _get_age_age_units_race_sex_phrase(age:str=None, age_units:str='units', race:str=None, sex:str=None)->str:
     if age is None and race is not None and sex is not None:
         return f"{race} {sex} of unknown age"
     elif race is None and age is not None and sex is not None:
-        return f"{age}-year-old {sex} of unknown race"
+        return f"{age} {age_units}-old {sex} of unknown race"
     elif sex is None and age is not None and race is not None:
-        return f"{age}-year-old {race} donor of unknown sex"
+        return f"{age} {age_units}-old {race} donor of unknown sex"
     elif age is None and race is None and sex is not None:
         return f"{sex} donor of unknown age and race"
     elif age is None and sex is None and race is not None:
         return f"{race} donor of unknown age and sex"
     elif race is None and sex is None and age is not None:
-        return f"{age}-year-old donor of unknown race and sex"
+        return f"{age} {age_units}-old donor of unknown race and sex"
     elif age is None and race is None and sex is None:
         return "donor of unknown age, race and sex"
     else:
-        return f"{age}-year-old {race} {sex}"
+        return f"{age} {age_units}-old {race} {sex}"
 
 """
 Trigger event method of auto generating the dataset title
@@ -1178,11 +1179,13 @@ def get_dataset_title(property_key, normalized_type, user_token, existing_data_d
                 donor_data = _get_attributes_from_donor_metadata(neo4j_donor_metadata=donor_metadata
                                                                  , attribute_key_list=['age', 'race', 'sex'])
                 age = donor_data['age'] if donor_data and 'age' in donor_data else None
+                age_units = donor_data['age_units'] if donor_data and 'age_units' in donor_data else None
                 race = donor_data['race'] if donor_data and 'race' in donor_data else None
                 sex = donor_data['sex'] if donor_data and 'sex' in donor_data else None
-                age_race_sex_info = _get_age_race_sex_phase(age=age
-                                                            , race=race
-                                                            , sex=sex)
+                age_race_sex_info = _get_age_age_units_race_sex_phrase( age=age
+                                                                        , age_units=age_units
+                                                                        , race=race
+                                                                        , sex=sex)
                 if age_race_sex_info in donors_grouping_concepts_dict:
                     donors_grouping_concepts_dict[age_race_sex_info] += 1
                 else:
@@ -1217,11 +1220,13 @@ def get_dataset_title(property_key, normalized_type, user_token, existing_data_d
                                                                 , attribute_key_list=['age','race','sex'])
 
             age = donor_data['age'] if donor_data and 'age' in donor_data else None
+            age_units = donor_data['age_units'] if donor_data and 'age_units' in donor_data else None
             race = donor_data['race'] if donor_data and 'race' in donor_data  else None
             sex = donor_data['sex'] if donor_data and 'sex' in donor_data  else None
-            age_race_sex_info = _get_age_race_sex_phase(age=age
-                                                        , race=race
-                                                        , sex=sex)
+            age_race_sex_info = _get_age_age_units_race_sex_phrase( age=age
+                                                                    , age_units=age_units
+                                                                    , race=race
+                                                                    , sex=sex)
             donor_organ_association_phrase += f"{organ_desc.lower()} of {age_race_sex_info}{ITEM_SEPARATOR_SIP}"
 
         donor_organ_association_phrase = _make_phrase_from_separator_delineated_str(donor_organ_association_phrase
