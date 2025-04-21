@@ -1232,7 +1232,9 @@ def get_dataset_title(property_key, normalized_type, user_token, existing_data_d
         donor_organ_association_phrase = _make_phrase_from_separator_delineated_str(donor_organ_association_phrase
                                                                                     , ITEM_SEPARATOR_SIP)
 
-    if len(organ_abbrev_set) == 1 and len(donor_uuid_set) == 1:
+    if dataset_type in ['Publication [ancillary]']:
+        generated_title =   f"Support data used by a publication's display and vignette visualization(s)."
+    elif len(organ_abbrev_set) == 1 and len(donor_uuid_set) == 1:
         # One donor, one organ type
         generated_title =   f"{dataset_type} data from the {organs_description_phrase} of a {donors_description_phrase}"
     elif len(organ_abbrev_set) > 1 and len(organ_abbrev_set) <= MAX_ENTITY_LIST_LENGTH and len(donor_uuid_set) == 1:
