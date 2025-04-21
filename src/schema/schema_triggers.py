@@ -1073,19 +1073,19 @@ def _get_age_age_units_race_sex_phrase(age:str=None, age_units:str='units', race
     if age is None and race is not None and sex is not None:
         return f"{race} {sex} of unknown age"
     elif race is None and age is not None and sex is not None:
-        return f"{age} {age_units}-old {sex} of unknown race"
+        return f"{age}-{age_units}-old {sex} of unknown race"
     elif sex is None and age is not None and race is not None:
-        return f"{age} {age_units}-old {race} donor of unknown sex"
+        return f"{age}-{age_units}-old {race} donor of unknown sex"
     elif age is None and race is None and sex is not None:
         return f"{sex} donor of unknown age and race"
     elif age is None and sex is None and race is not None:
         return f"{race} donor of unknown age and sex"
     elif race is None and sex is None and age is not None:
-        return f"{age} {age_units}-old donor of unknown race and sex"
+        return f"{age}-{age_units}-old donor of unknown race and sex"
     elif age is None and race is None and sex is None:
         return "donor of unknown age, race and sex"
     else:
-        return f"{age} {age_units}-old {race} {sex}"
+        return f"{age}-{age_units}-old {race} {sex}"
 
 """
 Trigger event method of auto generating the dataset title
