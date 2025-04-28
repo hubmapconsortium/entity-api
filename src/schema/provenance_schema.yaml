@@ -1054,6 +1054,10 @@ ENTITIES:
         type: json_string
         indexed: true
         description: "The sample location and orientation in the ancestor organ as specified in the RUI tool."
+      rui_exemption:
+        type: boolean
+        indexed: true
+        description: "Identifies Sample Blocks that are exempt from spatial registration via RUI."
       visit:
         type: string
         indexed: true
