@@ -201,6 +201,12 @@ ENTITIES:
         - lab_dataset_id
         - metadata:
           - lab_id
+          - acquisition_id
+          - library_id
+          - donor_id
+          - slide_id
+          - tissue_id
+          - parent_sample_id
     # Collection can not be derivation source but not target
     derivation:
       source: false
@@ -316,6 +322,12 @@ ENTITIES:
       - lab_dataset_id
       - metadata:
         - lab_id
+        - acquisition_id
+        - library_id
+        - donor_id
+        - slide_id
+        - tissue_id
+        - parent_sample_id
       - direct_ancestors:
         # Sample ancestors of a Dataset must have these fields removed
         - lab_tissue_sample_id
@@ -325,6 +337,12 @@ ENTITIES:
         # Both Sample and Dataset ancestors of a Dataset must have these fields removed
         - metadata:
           - lab_id
+          - acquisition_id
+          - library_id
+          - donor_id
+          - slide_id
+          - tissue_id
+          - parent_sample_id
     derivation:
       source: true
       target: true
