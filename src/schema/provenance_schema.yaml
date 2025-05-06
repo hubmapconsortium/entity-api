@@ -404,7 +404,7 @@ ENTITIES:
         type: list
         indexed: true
         required_on_create: false
-        description: "The data or assay types contained in this dataset as a json array of strings.  Each is an assay code from [assay types](https://github.com/hubmapconsortium/search-api/blob/main/src/search-schema/data/definitions/enums/assay_types.yaml)."
+        description: "The data or assay types contained in this dataset as a json array of strings."
       dataset_type:
         before_property_create_validators:
           - validate_recognized_dataset_type
@@ -1000,7 +1000,7 @@ ENTITIES:
         type: string
         indexed: true
         immutable: true
-        description: "Organ code specifier, only set if sample_type == organ.  Valid values found in: [organ types](https://github.com/hubmapconsortium/search-api/blob/main/src/search-schema/data/definitions/enums/organ_types.yaml)"
+        description: "Organ code specifier, only set if sample_category == organ"
       organ_other:
         type: string
         indexed: true

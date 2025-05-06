@@ -812,7 +812,7 @@ new_data_dict : dict
 def validate_group_name(property_key, normalized_entity_type, request, existing_data_dict, new_data_dict):
     assigned_to_group_name = new_data_dict['assigned_to_group_name']
     globus_groups = schema_manager.get_auth_helper_instance().getHuBMAPGroupInfo()
-    group_dict = next((entry for entry in globus_groups.values() if entry.get("shortname") == assigned_to_group_name), None)
+    group_dict = next((entry for entry in globus_groups.values() if entry.get("displayname") == assigned_to_group_name), None)
     if group_dict is None:
         raise ValueError("Invalid value for 'assigned_to_group_name'")
     is_data_provider = group_dict.get('data_provider')
