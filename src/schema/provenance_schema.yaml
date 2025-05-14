@@ -1282,6 +1282,16 @@ ENTITIES:
           - validate_anticipated_dataset_count
         before_property_update_validators:
           - validate_anticipated_dataset_count
+      priority_project_list:
+        type: list
+        required: false
+        indexted: false
+        description: The list of priority projects that this Uploaded data will be used For
+        mutable: true
+        before_property_update_validators:
+          - validate_priority_project
+        before_property_create_validators:
+          - validate_priority_project
 
   ############################################# EPICollection #############################################
   Epicollection:

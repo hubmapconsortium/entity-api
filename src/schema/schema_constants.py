@@ -26,6 +26,8 @@ class SchemaConstants(object):
 
     OMITTED_FIELDS = ['ingest_metadata', 'files']
 
+    ALLOWED_PRIORITY_PROJECTS = ['SWAT', 'MOSDEP']
+
 # Define an enumeration to classify an entity's visibility, which can be combined with
 # authorization info when verify operations on a request.
 class DataVisibilityEnum(Enum):
