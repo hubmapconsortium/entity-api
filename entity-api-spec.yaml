@@ -542,6 +542,9 @@ components:
             type: string
             format: uuid
           description: 'List of image files previously uploaded to delete. Provide as a json array of the file_uuids of the file like: ["232934234234234234234270c0ea6c51d604a850558ef2247d0b4", "230948203482234234234a57bfe9c056d08a0f8e6cd612baa3bfa"]'
+        rui_exemption:
+          type: boolean
+          description: 'Identifies Sample Blocks that are exempt from spatial registration via RUI.'
     Dataset:
       type: object
       properties:
@@ -809,6 +812,9 @@ components:
         intended_organ:
           type: string
           description: 'The organ code representing the organ type that the data contained in the upload will be registered/associated with.'
+        priority_project_list:
+          type: array
+          description: 'The list of priority projects that this Dataset data will be used For'
     Upload:
       type: object
       properties:
@@ -909,6 +915,9 @@ components:
         anticipated_dataset_count:
           type: integer
           description: 'The total number of datasets that this Upload will eventually contain.'
+        priority_project_list:
+          type: array
+          description: 'The list of priority projects that this Upload data will be used For'
     Collection:
       type: object
       properties:
@@ -1403,6 +1412,7 @@ components:
         group_name: 'University TMC'
         visit: 'abc123'
         rui_location: object
+        rui_exemption: False
     DatasetExample:
       summary: 'An example of a Dataset response'
       value:
@@ -1456,6 +1466,7 @@ components:
         intended_organ: 'AO'
         group_uuid: 'abcd1234-ef56-gh78-ij90-klmnop123456'
         group_name: 'University TMC'
+        priority_project_list: ['SWAT']
     UploadExample:
       summary: 'An example of an upload response'
       value:
@@ -1479,6 +1490,7 @@ components:
         dataset_uuids_to_link: ['abcd1234-ef56-gh78-ij90-klmnop123456']
         dataset_uuids_to_unlink: ['abcd1234-ef56-gh78-ij90-klmnop123456']
         datasets: [dataset objects]
+        priority_project_list: ['SWAT']
     CollectionExample:
       summary: 'An example of a collection response'
       value:
@@ -1633,6 +1645,7 @@ components:
           intended_organ: 'AO'
           group_uuid: 'abcd1234-ef56-gh78-ij90-klmnop123456'
           group_name: 'University TMC'
+          priority_project_list: ['SWAT']
         - created_timestamp: 1710243867000
           created_by_user_displayname: 'JaneDoe1'
           created_by_user_email: 'janedoe@example.com'
@@ -1683,6 +1696,7 @@ components:
           intended_organ: 'AO'
           group_uuid: 'abcd1234-ef56-gh78-ij90-klmnop123456'
           group_name: 'University TMC'
+          priority_project_list:: ['SWAT']
     SampleArrayExample:
       summary: 'An example of an array of sample objects'
       value:
@@ -1719,6 +1733,7 @@ components:
           group_name: 'University TMC'
           visit: 'abc123'
           rui_location: object
+          rui_exemption: False
         - created_timestamp: 1710243867000
           created_by_user_displayname: 'JaneDoe1'
           created_by_user_email: 'janedoe@example.com'
@@ -1752,6 +1767,7 @@ components:
           group_name: 'University TMC'
           visit: 'abc123'
           rui_location: object
+          rui_exemption: False
     CollectionArrayExample:
       summary: 'An example of an array of collection objects'
       value:
@@ -1814,6 +1830,7 @@ components:
           dataset_uuids_to_link: ['abcd1234-ef56-gh78-ij90-klmnop123456']
           dataset_uuids_to_unlink: ['abcd1234-ef56-gh78-ij90-klmnop123456']
           datasets: [dataset objects]
+          priority_project_list: ['SWAT']
         - created_timestamp: 1710243867000
           created_by_user_displayname: 'JaneDoe1'
           created_by_user_email: 'janedoe@example.com'
@@ -1834,6 +1851,7 @@ components:
           dataset_uuids_to_link: ['abcd1234-ef56-gh78-ij90-klmnop123456']
           dataset_uuids_to_unlink: ['abcd1234-ef56-gh78-ij90-klmnop123456']
           datasets: [dataset objects]
+          priority_project_list: ['SWAT']
     DatasetProvMetadata:
       summary: 'An example of a dataset prov metadata response'
       value:
