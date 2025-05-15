@@ -659,6 +659,16 @@ ENTITIES:
           - validate_in_admin_group
         before_property_update_validators:
           - validate_in_admin_group
+      priority_project_list:
+        type: list
+        required: false
+        indexted: false
+        description: The list of priority projects that this Dataset data will be used For
+        mutable: true
+        before_property_update_validators:
+          - validate_priority_project
+        before_property_create_validators:
+          - validate_priority_project
 
   ############################################# Publication #############################################
   Publication:

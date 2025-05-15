@@ -907,9 +907,8 @@ new_data_dict : dict
 def validate_priority_project(property_key, normalized_entity_type, request, existing_data_dict, new_data_dict):
     allowed_priority_projects = SchemaConstants.ALLOWED_PRIORITY_PROJECTS
     for priority_project in new_data_dict.get('priority_project_list'):
-        if priority_project.upper() not in allowed_priority_projects:
-            raise ValueError(f"Provided priority_project_list contains unrecognized value: {priority_project}. Allowed values are {', '.join(allowed_priority_projects)}")
-    #Normalize the capitalization
+        if priority_project not in allowed_priority_projects:
+            raise ValueError(f"Provided priority_project_list contains unrecognized value: {priority_project}. Allowed values are {', '.join(allowed_priority_projects)}. These are case-sensitive values.")
     new_data_dict['priority_project_list'] = [project.upper() for project in new_data_dict['priority_project_list']]
     
 
