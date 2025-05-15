@@ -664,7 +664,7 @@ ENTITIES:
         required: false
         indexted: false
         description: The list of priority projects that this Dataset data will be used For
-        mutable: true
+        immutable: false
         before_property_update_validators:
           - validate_priority_project
         before_property_create_validators:
@@ -772,6 +772,7 @@ ENTITIES:
       ingest_task: null # This ingest_task is Dataset specific, Publication doesn't have it
       new_associated_multi_assay_uuid: null # Dataset-only attribute of Multi-Assay Dataset relationships
       superseded_associated_processed_component_uuids: null # Dataset-only attribute of Multi-Assay Dataset relationships
+      priority_project_list: null # Dataset-only attribute 
 
   ############################################# Donor #############################################
   Donor:
@@ -1297,7 +1298,7 @@ ENTITIES:
         required: false
         indexted: false
         description: The list of priority projects that this Uploaded data will be used For
-        mutable: true
+        immutable: false
         before_property_update_validators:
           - validate_priority_project
         before_property_create_validators:
