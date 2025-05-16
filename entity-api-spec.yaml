@@ -1466,7 +1466,7 @@ components:
         intended_organ: 'AO'
         group_uuid: 'abcd1234-ef56-gh78-ij90-klmnop123456'
         group_name: 'University TMC'
-        priority_project_list: ['SWAT']
+        priority_project_list: ['MOSDAP']
     UploadExample:
       summary: 'An example of an upload response'
       value:
@@ -1490,7 +1490,7 @@ components:
         dataset_uuids_to_link: ['abcd1234-ef56-gh78-ij90-klmnop123456']
         dataset_uuids_to_unlink: ['abcd1234-ef56-gh78-ij90-klmnop123456']
         datasets: [dataset objects]
-        priority_project_list: ['SWAT']
+        priority_project_list: ['MOSDAP']
     CollectionExample:
       summary: 'An example of a collection response'
       value:
@@ -1645,7 +1645,7 @@ components:
           intended_organ: 'AO'
           group_uuid: 'abcd1234-ef56-gh78-ij90-klmnop123456'
           group_name: 'University TMC'
-          priority_project_list: ['SWAT']
+          priority_project_list: ['MOSDAP']
         - created_timestamp: 1710243867000
           created_by_user_displayname: 'JaneDoe1'
           created_by_user_email: 'janedoe@example.com'
@@ -1696,7 +1696,7 @@ components:
           intended_organ: 'AO'
           group_uuid: 'abcd1234-ef56-gh78-ij90-klmnop123456'
           group_name: 'University TMC'
-          priority_project_list:: ['SWAT']
+          priority_project_list:: ['MOSDAP']
     SampleArrayExample:
       summary: 'An example of an array of sample objects'
       value:
@@ -1830,7 +1830,7 @@ components:
           dataset_uuids_to_link: ['abcd1234-ef56-gh78-ij90-klmnop123456']
           dataset_uuids_to_unlink: ['abcd1234-ef56-gh78-ij90-klmnop123456']
           datasets: [dataset objects]
-          priority_project_list: ['SWAT']
+          priority_project_list: ['MOSDAP']
         - created_timestamp: 1710243867000
           created_by_user_displayname: 'JaneDoe1'
           created_by_user_email: 'janedoe@example.com'
@@ -1851,7 +1851,7 @@ components:
           dataset_uuids_to_link: ['abcd1234-ef56-gh78-ij90-klmnop123456']
           dataset_uuids_to_unlink: ['abcd1234-ef56-gh78-ij90-klmnop123456']
           datasets: [dataset objects]
-          priority_project_list: ['SWAT']
+          priority_project_list: ['MOSDAP']
     DatasetProvMetadata:
       summary: 'An example of a dataset prov metadata response'
       value:
