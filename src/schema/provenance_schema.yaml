@@ -677,6 +677,16 @@ ENTITIES:
           - validate_in_admin_group
         before_property_update_validators:
           - validate_in_admin_group
+      priority_project_list:
+        type: list
+        required: false
+        indexted: false
+        description: The list of priority projects that this Dataset data will be used For
+        immutable: false
+        before_property_update_validators:
+          - validate_priority_project
+        before_property_create_validators:
+          - validate_priority_project
 
   ############################################# Publication #############################################
   Publication:
@@ -796,6 +806,7 @@ ENTITIES:
       ingest_task: null # This ingest_task is Dataset specific, Publication doesn't have it
       new_associated_multi_assay_uuid: null # Dataset-only attribute of Multi-Assay Dataset relationships
       superseded_associated_processed_component_uuids: null # Dataset-only attribute of Multi-Assay Dataset relationships
+      priority_project_list: null # Dataset-only attribute 
 
   ############################################# Donor #############################################
   Donor:
@@ -1316,6 +1327,16 @@ ENTITIES:
           - validate_anticipated_dataset_count
         before_property_update_validators:
           - validate_anticipated_dataset_count
+      priority_project_list:
+        type: list
+        required: false
+        indexted: false
+        description: The list of priority projects that this Uploaded data will be used For
+        immutable: false
+        before_property_update_validators:
+          - validate_priority_project
+        before_property_create_validators:
+          - validate_priority_project
 
   ############################################# EPICollection #############################################
   Epicollection:

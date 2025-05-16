@@ -887,6 +887,31 @@ def verify_multi_assay_dataset_components(property_key, normalized_type, user_to
     # fall out successfully if no raise() occurred.
     return
 
+
+"""
+Validate the specified value for an Upload's priority_project_list is in a recognized value 
+
+Parameters
+----------
+property_key : str
+    The target property key
+normalized_type : str
+    Submission
+request: Flask request object
+    The instance of Flask request passed in from application request
+existing_data_dict : dict
+    A dictionary that contains all existing entity properties
+new_data_dict : dict
+    The json data in request body, already after the regular validations
+"""
+def validate_priority_project(property_key, normalized_entity_type, request, existing_data_dict, new_data_dict):
+    allowed_priority_projects = SchemaConstants.ALLOWED_PRIORITY_PROJECTS
+    for priority_project in new_data_dict.get('priority_project_list'):
+        if priority_project not in allowed_priority_projects:
+            raise ValueError(f"Provided priority_project_list contains unrecognized value: {priority_project}. Allowed values are {', '.join(allowed_priority_projects)}. These are case-sensitive values.")
+    new_data_dict['priority_project_list'] = [project.upper() for project in new_data_dict['priority_project_list']]
+    
+
 ####################################################################################################
 ## Internal Functions
 ####################################################################################################
