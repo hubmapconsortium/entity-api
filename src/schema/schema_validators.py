@@ -909,8 +909,7 @@ def validate_priority_project(property_key, normalized_entity_type, request, exi
     for priority_project in new_data_dict.get('priority_project_list'):
         if priority_project not in allowed_priority_projects:
             raise ValueError(f"Provided priority_project_list contains unrecognized value: {priority_project}. Allowed values are {', '.join(allowed_priority_projects)}. These are case-sensitive values.")
-    new_data_dict['priority_project_list'] = [project for project in new_data_dict['priority_project_list']]
-    
+
 
 ####################################################################################################
 ## Internal Functions
