@@ -3988,7 +3988,7 @@ json
          - type: str
          - description: the uuid for the parent multi assay dataset
         datasets
-         - type: dict
+         - type: list
          - description: the datasets to be created. Only difference between these and normal datasets are the field "dataset_link_abs_dir"
 
 Returns
@@ -4042,7 +4042,7 @@ def multiple_components():
             bad_request_error(f"The dataset with uuid {direct_ancestor_uuid} already has component children dataset(s)")
     # validate that there is at least one component dataset
     if len(json_data_dict.get('datasets')) < 1:
-        bad_request_error(f"'datasets' field must contain at leawst 1 dataset.")
+        bad_request_error(f"'datasets' field must contain at least 1 dataset.")
 
     # Validate all datasets using existing schema with triggers and validators
     for dataset in json_data_dict.get('datasets'):

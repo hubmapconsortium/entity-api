@@ -1658,18 +1658,19 @@ def sync_component_dataset_status(property_key, normalized_type, user_token, exi
     if 'status' not in existing_data_dict:
         raise KeyError("Missing 'status' key in 'existing_data_dict' during calling 'link_dataset_to_direct_ancestors()' trigger method.")
     status = existing_data_dict['status']
-    children_uuids_list = schema_neo4j_queries.get_children(schema_manager.get_neo4j_driver_instance(), uuid, property_key='uuid')
-    status_body = {"status": status}
-    for child_uuid in children_uuids_list:
-        creation_action = schema_neo4j_queries.get_entity_creation_action_activity(schema_manager.get_neo4j_driver_instance(), child_uuid)
-        if creation_action == 'Multi-Assay Split':
-            url = schema_manager.get_entity_api_url() + SchemaConstants.ENTITY_API_UPDATE_ENDPOINT + '/' + child_uuid
-            request_headers = {
-                'Authorization': f'Bearer {user_token}'
-            }
-            request_headers[SchemaConstants.HUBMAP_APP_HEADER] = SchemaConstants.INGEST_API_APP
-            request_headers[SchemaConstants.INTERNAL_TRIGGER] = SchemaConstants.COMPONENT_DATASET
-            response = requests.put(url=url, headers=request_headers, json=status_body)
+    if status.lower() != "published":
+        children_uuids_list = schema_neo4j_queries.get_children(schema_manager.get_neo4j_driver_instance(), uuid, property_key='uuid')
+        status_body = {"status": status}
+        for child_uuid in children_uuids_list:
+            creation_action = schema_neo4j_queries.get_entity_creation_action_activity(schema_manager.get_neo4j_driver_instance(), child_uuid)
+            if creation_action == 'Multi-Assay Split':
+                url = schema_manager.get_entity_api_url() + SchemaConstants.ENTITY_API_UPDATE_ENDPOINT + '/' + child_uuid
+                request_headers = {
+                    'Authorization': f'Bearer {user_token}'
+                }
+                request_headers[SchemaConstants.HUBMAP_APP_HEADER] = SchemaConstants.INGEST_API_APP
+                request_headers[SchemaConstants.INTERNAL_TRIGGER] = SchemaConstants.COMPONENT_DATASET
+                response = requests.put(url=url, headers=request_headers, json=status_body)
 
 
 ####################################################################################################
