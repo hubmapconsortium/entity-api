@@ -5330,12 +5330,13 @@ def delete_cache(id):
         entity_dict = query_target_entity(id, get_internal_token())
         entity_uuid = entity_dict['uuid']
 
-        # If the target entity is Sample (`direct_ancestor`) or Dataset/Publication (`direct_ancestors`)
-        # Delete the cache of all the direct descendants (children)
-        child_uuids = schema_neo4j_queries.get_children(neo4j_driver_instance, entity_uuid , 'uuid')
+        # Delete the cache of all the descendants
+        descendant_uuids = schema_neo4j_queries.get_descendants(neo4j_driver_instance, entity_uuid , 'uuid')
 
         # If the target entity is Collection, delete the cache for each of its associated 
-        # Datasets and Publications (via [:IN_COLLECTION] relationship) as well as just Publications (via [:USES_DATA] relationship)
+        # Datasets and Publications (via [:IN_COLLECTION]) as well as just Publications (via [:USES_DATA])
+        # NOTE: As of 5/30/2025, the [:USES_DATA] workaround has been deprecated.
+        # Still keep it in the code until further decision - Zhou
         collection_dataset_uuids = schema_neo4j_queries.get_collection_associated_datasets(neo4j_driver_instance, entity_uuid , 'uuid')
 
         # If the target entity is Upload, delete the cache for each of its associated Datasets (via [:IN_UPLOAD] relationship)
@@ -5347,7 +5348,7 @@ def delete_cache(id):
         upload_dict = schema_neo4j_queries.get_dataset_upload(neo4j_driver_instance, entity_uuid)
 
         # We only use uuid in the cache key acorss all the cache types
-        uuids_list = [entity_uuid] + child_uuids + collection_dataset_uuids + upload_dataset_uuids + collection_uuids
+        uuids_list = [entity_uuid] + descendant_uuids + collection_dataset_uuids + upload_dataset_uuids + collection_uuids
 
         # It's possible no linked collection or upload
         if collection_dict:

@@ -786,6 +786,9 @@ ENTITIES:
         type: string
         indexed: true
         description: 'A DOI pointing to an Organ Mapping Antibody Panel relevant to this publication'
+      
+      # NOTE: As of 5/30/2025, the [:USES_DATA] workaround has been deprecated.
+      # Still keep it in the code until further decision - Zhou
       associated_collection:
         type: json_string # dict
         generated: true
@@ -802,6 +805,7 @@ ENTITIES:
         description: "The uuid of the associated collection for a given publication"
         after_create_trigger: link_publication_to_associated_collection
         after_update_trigger: link_publication_to_associated_collection
+      
       assigned_to_group_name: null # This assigned_to_group_name is Dataset specific, Publication doesn't have it
       ingest_task: null # This ingest_task is Dataset specific, Publication doesn't have it
       new_associated_multi_assay_uuid: null # Dataset-only attribute of Multi-Assay Dataset relationships
