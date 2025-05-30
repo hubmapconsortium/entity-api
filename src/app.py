@@ -5334,7 +5334,9 @@ def delete_cache(id):
         descendant_uuids = schema_neo4j_queries.get_descendants(neo4j_driver_instance, entity_uuid , 'uuid')
 
         # If the target entity is Collection, delete the cache for each of its associated 
-        # Datasets and Publications (via [:IN_COLLECTION] relationship) as well as just Publications (via [:USES_DATA] relationship)
+        # Datasets and Publications (via [:IN_COLLECTION]) as well as just Publications (via [:USES_DATA])
+        # NOTE: As of 5/30/2025, the [:USES_DATA] workaround has been deprecated.
+        # Still keep it in the code until further decision - Zhou
         collection_dataset_uuids = schema_neo4j_queries.get_collection_associated_datasets(neo4j_driver_instance, entity_uuid , 'uuid')
 
         # If the target entity is Upload, delete the cache for each of its associated Datasets (via [:IN_UPLOAD] relationship)

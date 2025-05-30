@@ -737,6 +737,8 @@ associated_collection_uuid : str
     the uuid of the associated collection
 """
 def link_publication_to_associated_collection(neo4j_driver, entity_uuid, associated_collection_uuid):
+    # NOTE: As of 5/30/2025, the [:USES_DATA] workaround has been deprecated.
+    # Still keep it in the code until further decision - Zhou
     try:
         with neo4j_driver.session() as session:
             tx = session.begin_transaction()
@@ -1008,6 +1010,8 @@ list
 def get_collection_associated_datasets(neo4j_driver, uuid, property_key = None):
     results = []
 
+    # NOTE: As of 5/30/2025, the [:USES_DATA] workaround has been deprecated. 
+    # Still keep it in the code until further decision - Zhou
     if property_key:
         query = (f"MATCH (e:Entity)-[:IN_COLLECTION|:USES_DATA]->(c:Collection) "
                  f"WHERE c.uuid = '{uuid}' "
@@ -1099,6 +1103,8 @@ dict
 def get_publication_associated_collection(neo4j_driver, uuid):
     result = {}
 
+    # NOTE: As of 5/30/2025, the [:USES_DATA] workaround has been deprecated.
+    # Still keep it in the code until further decision - Zhou
     query = (f"MATCH (p:Publication)-[:USES_DATA]->(c:Collection) "
              f"WHERE p.uuid = '{uuid}' "
              f"RETURN c as {record_field_name}")
@@ -1802,6 +1808,8 @@ uuid : str
     The uuid to target publication
 """
 def _delete_publication_associated_collection_linkages_tx(tx, uuid):
+    # NOTE: As of 5/30/2025, the [:USES_DATA] workaround has been deprecated.
+    # Still keep it in the code until further decision - Zhou
     query = (f"MATCH (p:Publication)-[r:USES_DATA]->(c:Collection) "
              f"WHERE p.uuid = '{uuid}' "
              f"DELETE r")
