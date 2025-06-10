@@ -877,11 +877,15 @@ Parameters
 neo4j_driver : neo4j.Driver object
     The neo4j database connection pool
 """
-def get_sankey_info(neo4j_driver):
+def get_sankey_info(neo4j_driver, public_only):
+    public_only_query = " "
+    if public_only:
+        public_only_query = f"AND toLower(ds.status) = 'published' "
     query = (f"MATCH (donor:Donor)-[:ACTIVITY_INPUT]->(organ_activity:Activity)-[:ACTIVITY_OUTPUT]-> "
             f"(organ:Sample {{sample_category:'organ'}})-[*]->(a:Activity)-[:ACTIVITY_OUTPUT]->(ds:Dataset) "
             f"WHERE toLower(a.creation_action) = 'create dataset activity' "
             f"AND NOT (ds)<-[:REVISION_OF]-(:Entity) "
+            f"{public_only_query} "
             f"RETURN DISTINCT ds.group_name, COLLECT(DISTINCT organ.organ), ds.dataset_type, ds.status, ds.uuid "
             f"ORDER BY ds.group_name")
 
