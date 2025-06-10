@@ -3765,11 +3765,13 @@ def sankey_data():
         for dataset in sankey_info:
             internal_dict = collections.OrderedDict()
             internal_dict[HEADER_DATASET_GROUP_NAME] = dataset[HEADER_DATASET_GROUP_NAME]
-
-            organ_code = dataset[HEADER_ORGAN_TYPE].upper()
-            validate_organ_code(organ_code)
-
-            internal_dict[HEADER_ORGAN_TYPE] = organ_types_dict[organ_code].lower()
+            organ_list = []
+            for organ in dataset[HEADER_ORGAN_TYPE]:
+                organ_code = organ.upper()
+                validate_organ_code(organ_code)
+                organ_type = organ_types_dict[organ_code].lower()
+                organ_list.append(organ_type)
+            internal_dict[HEADER_ORGAN_TYPE] = organ_list
 
             internal_dict[HEADER_DATASET_DATASET_TYPE] = dataset[HEADER_DATASET_DATASET_TYPE]
 

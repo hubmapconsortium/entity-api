@@ -878,10 +878,13 @@ neo4j_driver : neo4j.Driver object
     The neo4j database connection pool
 """
 def get_sankey_info(neo4j_driver):
-    query = (f"MATCH (ds:Dataset)<-[]-(a)<-[]-(:Sample)"
-             # specimen_type -> sample_category 12/15/2022
-             f"MATCH (donor)-[:ACTIVITY_INPUT]->(oa)-[:ACTIVITY_OUTPUT]->(organ:Sample {{sample_category:'organ'}})-[*]->(ds)"
-             f"RETURN distinct ds.group_name, organ.organ, ds.dataset_type, ds.status, ds. uuid order by ds.group_name")
+    query = (f"MATCH (donor:Donor)-[:ACTIVITY_INPUT]->(organ_activity:Activity)-[:ACTIVITY_OUTPUT]-> "
+            f"(organ:Sample {{sample_category:'organ'}})-[*]->(a:Activity)-[:ACTIVITY_OUTPUT]->(ds:Dataset) "
+            f"WHERE toLower(a.creation_action) = 'create dataset activity' "
+            f"AND NOT (ds)<-[:REVISION_OF]-(:Entity) "
+            f"RETURN DISTINCT ds.group_name, COLLECT(DISTINCT organ.organ), ds.dataset_type, ds.status, ds.uuid "
+            f"ORDER BY ds.group_name")
+
     logger.info("======get_sankey_info() query======")
     logger.info(query)
     with neo4j_driver.session() as session:
