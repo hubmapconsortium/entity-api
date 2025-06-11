@@ -3743,6 +3743,16 @@ def sankey_data():
     HEADER_DATASET_DATASET_TYPE = 'dataset_dataset_type'
     HEADER_DATASET_STATUS = 'dataset_status'
 
+    public_only = False
+
+    # Token is not required, but if an invalid token provided,
+    # we need to tell the client with a 401 error
+    validate_token_if_auth_header_exists(request)
+    try:
+        token = get_user_token(request, non_public_access_required=True)
+    except Exception:
+        public_only = True
+
     # Parsing the organ types yaml has to be done here rather than calling schema.schema_triggers.get_organ_description
     # because that would require using a urllib request for each dataset
     organ_types_dict = schema_manager.get_organ_types()
@@ -3761,15 +3771,17 @@ def sankey_data():
             logger.info(f'Sankey data cache not found or expired. Making a new data fetch at time {datetime.now()}')
 
         # Call to app_neo4j_queries to prepare and execute the database query
-        sankey_info = app_neo4j_queries.get_sankey_info(neo4j_driver_instance)
+        sankey_info = app_neo4j_queries.get_sankey_info(neo4j_driver_instance, public_only)
         for dataset in sankey_info:
             internal_dict = collections.OrderedDict()
             internal_dict[HEADER_DATASET_GROUP_NAME] = dataset[HEADER_DATASET_GROUP_NAME]
-
-            organ_code = dataset[HEADER_ORGAN_TYPE].upper()
-            validate_organ_code(organ_code)
-
-            internal_dict[HEADER_ORGAN_TYPE] = organ_types_dict[organ_code].lower()
+            organ_list = []
+            for organ in dataset[HEADER_ORGAN_TYPE]:
+                organ_code = organ.upper()
+                validate_organ_code(organ_code)
+                organ_type = organ_types_dict[organ_code].lower()
+                organ_list.append(organ_type)
+            internal_dict[HEADER_ORGAN_TYPE] = organ_list
 
             internal_dict[HEADER_DATASET_DATASET_TYPE] = dataset[HEADER_DATASET_DATASET_TYPE]
 
