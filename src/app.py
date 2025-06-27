@@ -4005,8 +4005,12 @@ def multiple_components():
     validate_token_if_auth_header_exists(request)
     # Get user token from Authorization header
     user_token = get_user_token(request)
+    # Create a dictionary as required to use an entity validator. Ignore the
+    # options_dict['existing_entity_dict'] support for PUT requests, since this
+    # @app.route() only supports POST.
+    options_dict = {'http_request': request}
     try:
-        schema_validators.validate_application_header_before_entity_create("Dataset", request)
+        schema_validators.validate_application_header_before_entity_create(options_dict=options_dict)
     except Exception as e:
         bad_request_error(str(e))
     require_json(request)

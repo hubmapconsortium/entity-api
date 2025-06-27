@@ -24,10 +24,10 @@ for creating a new entity via POST.
 
 Parameters
 ----------
-normalized_type : str
-    One of the types defined in the schema yaml: Dataset, Upload
-request: Flask request
-    The instance of Flask request passed in from application request
+options_dict : dict
+    A dictionary of data needed by this entity-level validator based upon the create/POST or
+    update/PUT actions.  The dictionary will always have 'http_request' and will have
+    'existing_entity_dict' for a PUT request.
 """
 def validate_application_header_before_entity_create(options_dict):
     if 'http_request' in options_dict:
@@ -52,10 +52,10 @@ Validate required conditions prior to allowing update of an existing entity via 
 
 Parameters
 ----------
-normalized_type : str
-    One of the types defined in the schema yaml: Dataset, Upload
-request: Flask request
-    The instance of Flask request passed in from application request
+options_dict : dict
+    A dictionary of data needed by this entity-level validator based upon the create/POST or
+    update/PUT actions.  The dictionary will always have 'http_request' and will have
+    'existing_entity_dict' for a PUT request.
 """
 def validate_entity_not_locked_before_update(options_dict):
     if 'existing_entity_dict' in options_dict:
