@@ -5342,7 +5342,6 @@ id : str
 """
 def delete_cache(id):
     if MEMCACHED_MODE:
-        # First delete the target entity cache
         entity_dict = query_target_entity(id, get_internal_token())
         entity_uuid = entity_dict['uuid']
         entity_type = entity_dict['entity_type']
@@ -5353,19 +5352,18 @@ def delete_cache(id):
         dataset_upload_dict = {}
         publication_collection_dict = {}
 
-        # Determine the realted cache keys based on the entity type
-        # This helps to reduce unnecessary Neo4j lookups that may cause timeout on the PUT call
+        # Determine the associated cache keys based on the entity type
+        # To reduce unnecessary Neo4j lookups that may cause timeout on the PUT call
 
         # For Donor/Datasets/Sample/Publication, delete the cache of all the descendants
         if entity_type in ['Donor', 'Sample', 'Dataset', 'Publication']:
             descendant_uuids = schema_neo4j_queries.get_descendants(neo4j_driver_instance, entity_uuid , 'uuid')
 
-        # For Collection, delete the cache for each of its associated 
-        # datasets (via [:IN_COLLECTION])
+        # For Collection/Epicollection, delete the cache for each of its associated datasets (via [:IN_COLLECTION])
         if schema_manager.entity_type_instanceof(entity_type, 'Collection'):
             collection_dataset_uuids = schema_neo4j_queries.get_collection_associated_datasets(neo4j_driver_instance, entity_uuid , 'uuid')
 
-        # For Upload, delete the cache for each of its associated Datasets (via [:IN_UPLOAD] relationship)
+        # For Upload, delete the cache for each of its associated Datasets (via [:IN_UPLOAD])
         if entity_type == 'Upload':
             upload_dataset_uuids = schema_neo4j_queries.get_upload_datasets(neo4j_driver_instance, entity_uuid , 'uuid')
 
