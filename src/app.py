@@ -1521,10 +1521,13 @@ def update_entity(id):
     reindex_entity(entity_dict['uuid'], user_token)
 
     # Do not return the updated dict to avoid computing overhead - 7/14/2023 by Zhou
-    # return jsonify(normalized_complete_dict)
+    message_returned = f"The update request on {normalized_entity_type} of {id} has been accepted, the backend may still be processing"
+    if lockout_overridden:
+        message_returned = f"Lockout overridden on {normalized_entity_type} of {id}"
 
-    override_msg = 'Lockout overridden. ' if lockout_overridden else ''
-    return jsonify({'message': f"{override_msg}{normalized_entity_type} of {id} has been updated"})
+    # Here we use 200 status code instead of 202 mainly for compatibility
+    # so the API consumers don't need to update their implementations
+    return jsonify({'message': message_returned})
 
 
 """
