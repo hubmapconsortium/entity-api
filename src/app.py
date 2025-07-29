@@ -1313,10 +1313,6 @@ def create_multiple_samples(count):
 """
 Update the properties of a given entity
 
-Response result filtering is supported based on query string
-For example: /entities/<id>?return_all_properties=true
-Default to skip those time-consuming properties
-
 Parameters
 ----------
 entity_type : str
@@ -1326,8 +1322,8 @@ id : str
 
 Returns
 -------
-json
-    All the updated properties of the target entity
+str
+    A successful message
 """
 @app.route('/entities/<id>', methods = ['PUT'])
 def update_entity(id):
@@ -1503,39 +1499,6 @@ def update_entity(id):
     else:
         # Generate 'before_update_trigger' data and update the entity details in Neo4j
         merged_updated_dict = update_entity_details(request, normalized_entity_type, user_token, json_data_dict, entity_dict)
-
-    # By default we'll return all the properties but skip these time-consuming ones
-    # Donor doesn't need to skip any
-    properties_to_skip = []
-
-    if normalized_entity_type == 'Sample':
-        properties_to_skip = [
-            'direct_ancestor'
-        ]
-    # 2/17/23 - Also adding publication for skipping properties ~Derek Furst
-    elif schema_manager.entity_type_instanceof(normalized_entity_type, 'Dataset'):
-        properties_to_skip = [
-            'direct_ancestors',
-            'collections',
-            'upload',
-            'title', 
-            'previous_revision_uuid', 
-            'next_revision_uuid'
-        ]
-    elif normalized_entity_type in ['Upload', 'Collection', 'Epicollection']:
-        properties_to_skip = [
-            'datasets'
-        ]
-
-    # Result filtering based on query string
-    # Will return all properties by running all the read triggers
-    # If the reuqest specifies `/entities/<id>?return_all_properties=true`
-    if bool(request.args):
-        # The parased query string value is a string 'true'
-        return_all_properties = request.args.get('return_all_properties')
-
-        if (return_all_properties is not None) and (return_all_properties.lower() == 'true'):
-            properties_to_skip = []
 
     # Remove the cached entities if Memcached is being used
     # DO NOT update the cache with new entity dict because the returned dict from PUT (some properties maybe skipped)
