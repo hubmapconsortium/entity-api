@@ -1506,13 +1506,6 @@ def update_entity(id):
     if MEMCACHED_MODE:
         delete_cache(id)
 
-    # Do not return the updated dict to avoid computing overhead - 7/14/2023 by Zhou
-    # # Generate the complete entity dict
-    # complete_dict = schema_manager.get_complete_entity_result(user_token, merged_updated_dict, properties_to_skip)
-
-    # # Will also filter the result based on schema
-    # normalized_complete_dict = schema_manager.normalize_entity_result_for_response(complete_dict)
-
     # Also reindex the updated entity in elasticsearch via search-api
     reindex_entity(entity_dict['uuid'], user_token)
 
@@ -5315,8 +5308,6 @@ def delete_cache(id):
         publication_collection_dict = {}
 
         # Determine the associated cache keys based on the entity type
-        # To reduce unnecessary Neo4j lookups that may cause timeout on the PUT call
-
         # For Donor/Datasets/Sample/Publication, delete the cache of all the descendants
         if entity_type in ['Donor', 'Sample', 'Dataset', 'Publication']:
             descendant_uuids = schema_neo4j_queries.get_descendants(neo4j_driver_instance, entity_uuid , 'uuid')
@@ -5329,12 +5320,12 @@ def delete_cache(id):
         if entity_type == 'Upload':
             upload_dataset_uuids = schema_neo4j_queries.get_upload_datasets(neo4j_driver_instance, entity_uuid , 'uuid')
 
-        # For Dataset, delete the associated Collections cache and single Upload cache
+        # For Dataset, also delete the cache of associated Collections and Upload
         if entity_type == 'Dataset':
             collection_uuids = schema_neo4j_queries.get_dataset_collections(neo4j_driver_instance, entity_uuid , 'uuid')
             dataset_upload_dict = schema_neo4j_queries.get_dataset_upload(neo4j_driver_instance, entity_uuid)
 
-        # For Publication, delete cache of the associated collection
+        # For Publication, also delete cache of the associated collection
         # NOTE: As of 5/30/2025, the [:USES_DATA] workaround has been deprecated.
         # Still keep it in the code until further decision - Zhou
         if entity_type == 'Publication':
@@ -5343,11 +5334,11 @@ def delete_cache(id):
         # We only use uuid in the cache key acorss all the cache types
         uuids_list = [entity_uuid] + descendant_uuids + collection_dataset_uuids + upload_dataset_uuids + collection_uuids
 
-        # It's possible the target dataset has no linked upload
+        # Add to the list if the target dataset has linked upload
         if dataset_upload_dict:
             uuids_list.append(dataset_upload_dict['uuid'])
 
-        # It's possible the target publicaiton has no associated collection
+        # Add to the list if the target publicaiton has associated collection
         if publication_collection_dict:
             uuids_list.append(publication_collection_dict['uuid'])
 
