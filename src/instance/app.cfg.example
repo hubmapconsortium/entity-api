@@ -1,4 +1,8 @@
-# Set to True to disable the PUT and POST calls, used on STAGE to make entity-api READ-ONLY
+# Set to False for PROD deployment to use INFO logging level
+# Default to DEBUG for DEV/TEST
+DEBUG_MODE = True
+
+# Set to True to disable the PUT and POST calls to make entity-api READ-ONLY
 READ_ONLY_MODE = False
 
 # File path of schema yaml file, DO NOT MODIFY
