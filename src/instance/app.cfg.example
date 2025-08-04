@@ -41,7 +41,7 @@ MEMCACHED_SERVER = 'host:11211'
 # Change prefix based on deployment environment, default for DEV
 MEMCACHED_PREFIX = 'hm_entity_dev_'
 
-# URL for talking to UUID API (default value used for docker deployment, no token needed)
+# URL for talking to UUID API (default value used for docker deployment)
 # Works regardless of the trailing slash /
 UUID_API_URL = 'http://uuid-api:8080'
 
@@ -58,9 +58,9 @@ ONTOLOGY_API_URL = 'https://ontology-api.dev.hubmapconsortium.org'
 # necessitates subsequent calls for other entities.
 ENTITY_API_URL = 'http://localhost:5002'
 
-# A list of URLs for talking to multiple Search API instances (default value used for docker deployment, no token needed)
+# URL for talking to Search API (default value used for docker deployment)
 # Works regardless of the trailing slash /
-SEARCH_API_URL_LIST = ['http://search-api:8080']
+SEARCH_API_URL = 'http://search-api:8080'
 
 #The Base URL to the Globus transfer application site
 GLOBUS_APP_BASE_URL = 'https://app.globus.org'

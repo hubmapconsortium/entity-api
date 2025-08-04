@@ -68,7 +68,7 @@ app.config.from_pyfile('app.cfg')
 app.config['UUID_API_URL'] = app.config['UUID_API_URL'].strip('/')
 app.config['INGEST_API_URL'] = app.config['INGEST_API_URL'].strip('/')
 app.config['ONTOLOGY_API_URL'] = app.config['ONTOLOGY_API_URL'].strip('/')
-app.config['SEARCH_API_URL_LIST'] = [url.strip('/') for url in app.config['SEARCH_API_URL_LIST']]
+app.config['SEARCH_API_URL'] = app.config['SEARCH_API_URL'].strip('/')
 
 S3_settings_dict = {'large_response_threshold': app.config['LARGE_RESPONSE_THRESHOLD']
                     , 'aws_access_key_id': app.config['AWS_ACCESS_KEY_ID']
@@ -5301,7 +5301,6 @@ Parameters
 ----------
 entity_uuid : str
     The UUID of target entity Donor/Dataset/Sample/Upload/Collection/EPICollection/Publication
-
 entity_type : str
     One of the normalized entity types: Donor/Dataset/Sample/Upload/Collection/EPICollection/Publication
 """
@@ -5354,7 +5353,7 @@ def delete_cache(entity_uuid, entity_type):
 
 
 """
-Make a call to each search-api instance to reindex this entity node in elasticsearch
+Make a call to search-api to trigger reindex of this entity document in elasticsearch
 
 Parameters
 ----------
@@ -5368,18 +5367,16 @@ def reindex_entity(uuid, user_token):
         'Authorization': f'Bearer {user_token}'
     }
 
-    # Reindex the target entity against each configured search-api instance
-    for search_api_url in app.config['SEARCH_API_URL_LIST']:
-        logger.info(f"Making a call to search-api instance of {search_api_url} to reindex uuid: {uuid}")
+    logger.info(f"Making a call to search-api to reindex uuid: {uuid}")
 
-        response = requests.put(f"{search_api_url}/reindex/{uuid}", headers = headers)
+    response = requests.put(f"{app.config['SEARCH_API_URL']}/reindex/{uuid}", headers = headers)
 
-        # The reindex takes time, so 202 Accepted response status code indicates that
-        # the request has been accepted for processing, but the processing has not been completed
-        if response.status_code == 202:
-            logger.info(f"The search-api instance of {search_api_url} has accepted the reindex request for uuid: {uuid}")
-        else:
-            logger.error(f"The search-api instance of {search_api_url} failed to initialize the reindex for uuid: {uuid}")
+    # The reindex takes time, so 202 Accepted response status code indicates that
+    # the request has been accepted for processing, but the processing has not been completed
+    if response.status_code == 202:
+        logger.info(f"The search-api has accepted the reindex request for uuid: {uuid}")
+    else:
+        logger.error(f"The search-api failed to initialize the reindex for uuid: {uuid}")
 
 
 """
