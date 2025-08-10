@@ -3623,7 +3623,7 @@ def get_prov_info_for_dataset(id):
         # Get provenance non-organ Samples for the Dataset all the way back to each Donor, to supplement
         # the "first sample" data stashed in internal_dict in the previous section.
         dataset_samples = app_neo4j_queries.get_all_dataset_samples(neo4j_driver_instance, uuid)
-        logger.debug(f"dataset_samples={str(dataset_samples)}")
+
         if 'all' in include_samples:
             internal_dict[HEADER_DATASET_SAMPLES] = dataset_samples
         else:
@@ -4171,7 +4171,6 @@ def bulk_update_entities(
             if idx < len(entity_updates) - 1:
                 time.sleep(throttle)
 
-    logger.info(f"bulk_update_entities() results: {results}")
     return results
 
 
@@ -5248,7 +5247,7 @@ def query_target_entity(id, user_token):
 
             # The uuid exists via uuid-api doesn't mean it also exists in Neo4j
             if not entity_dict:
-                logger.debug(f"Entity of uuid: {uuid} not found in Neo4j")
+                logger.info(f"Entity of uuid: {uuid} not found in Neo4j")
 
                 # Still use the user provided id, especially when it's a hubmap_id, for error message
                 not_found_error(f"Entity of id: {id} not found in Neo4j")
@@ -5261,7 +5260,6 @@ def query_target_entity(id, user_token):
                 memcached_client_instance.set(cache_key, entity_dict, expire = SchemaConstants.MEMCACHED_TTL)
         else:
             logger.info(f'Using neo4j entity cache of UUID {uuid} at time {datetime.now()}')
-            logger.debug(cache_result)
 
             entity_dict = cache_result
     except requests.exceptions.RequestException as e:

@@ -1524,7 +1524,7 @@ def get_user_info(request):
     user_info = _auth_helper.getUserInfoUsingRequest(request, True)
 
     logger.info("======get_user_info()======")
-    logger.info(user_info)
+    logger.debug(user_info)
 
     # For debugging purposes
     try:
@@ -1533,7 +1533,7 @@ def get_user_info(request):
         groups_list = auth_helper_instance.get_user_groups_deprecated(token)
 
         logger.info("======Groups using get_user_groups_deprecated()======")
-        logger.info(groups_list)
+        logger.debug(groups_list)
     except Exception:
         msg = "For debugging purposes, failed to parse the Authorization token by calling commons.auth_helper.getAuthorizationTokens()"
         # Log the full stack trace, prepend a line with our message
@@ -1819,7 +1819,7 @@ def create_hubmap_ids(normalized_class, json_data_dict, user_token, user_info_di
     query_parms = {'entity_count': count}
 
     logger.info("======create_hubmap_ids() json_to_post to uuid-api======")
-    logger.info(json_to_post)
+    logger.debug(json_to_post)
 
     # Disable ssl certificate verification
     target_url = _uuid_api_url + SchemaConstants.UUID_API_ID_ENDPOINT
@@ -1857,7 +1857,7 @@ def create_hubmap_ids(normalized_class, json_data_dict, user_token, user_info_di
             d.pop('hubmap_base_id', None)
 
         logger.info("======create_hubmap_ids() generated ids from uuid-api======")
-        logger.info(ids_list)
+        logger.debug(ids_list)
 
         return ids_list
     else:
