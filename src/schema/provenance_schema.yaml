@@ -328,6 +328,7 @@ ENTITIES:
         - slide_id
         - tissue_id
         - parent_sample_id
+        - data_path
       - direct_ancestors:
         # Sample ancestors of a Dataset must have these fields removed
         - lab_tissue_sample_id
