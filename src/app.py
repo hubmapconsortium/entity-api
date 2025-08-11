@@ -143,11 +143,11 @@ try:
         auth_helper_instance = AuthHelper.create(app.config['APP_CLIENT_ID'],
                                                  app.config['APP_CLIENT_SECRET'])
 
-        logger.info('Initialized AuthHelper class successfully :)')
+        logger.info('Initialized auth_helper_instance successfully :)')
     else:
         auth_helper_instance = AuthHelper.instance()
 except Exception:
-    msg = 'Failed to initialize the AuthHelper class :('
+    msg = 'Failed to initialize the auth_helper_instance :('
     # Log the full stack trace, prepend a line with our message
     logger.exception(msg)
 
@@ -163,9 +163,9 @@ try:
     neo4j_driver_instance = neo4j_driver.instance(app.config['NEO4J_URI'],
                                                   app.config['NEO4J_USERNAME'],
                                                   app.config['NEO4J_PASSWORD'])
-    logger.info('Initialized neo4j_driver module successfully :)')
+    logger.info('Initialized neo4j_driver_instance successfully :)')
 except Exception:
-    msg = 'Failed to initialize the neo4j_driver module :('
+    msg = 'Failed to initialize the neo4j_driver_instance :('
     # Log the full stack trace, prepend a line with our message
     logger.exception(msg)
 
@@ -197,9 +197,9 @@ if MEMCACHED_MODE:
         # memcached_client_instance can be instantiated without connecting to the Memcached server
         # A version() call will throw error (e.g., timeout) when failed to connect to server
         # Need to convert the version in bytes to string
-        logger.info(f'Connected to Memcached server {memcached_client_instance.version().decode()} successfully :)')
+        logger.info('Initialized memcached_client_instance successfully :)')
     except Exception:
-        msg = 'Failed to connect to the Memcached server :('
+        msg = 'Failed to initialize memcached_client_instance :('
         # Log the full stack trace, prepend a line with our message
         logger.exception(msg)
 
@@ -230,10 +230,9 @@ try:
                               memcached_client_instance,
                               MEMCACHED_PREFIX)
 
-    logger.info('Initialized schema_manager module successfully :)')
-# Use a broad catch-all here
+    logger.info('Initialized schema_manager successfully :)')
 except Exception:
-    msg =   f"Failed to initialize the schema_manager module with" \
+    msg =   f"Failed to initialize the schema_manager with" \
             f" _schema_yaml_file={_schema_yaml_file}."
     # Log the full stack trace, prepend a line with our message
     logger.exception(msg)
@@ -250,9 +249,11 @@ try:
                           , S3_OBJECT_URL_EXPIRATION_IN_SECS=S3_settings_dict['aws_object_url_expiration_in_secs']
                           , LARGE_RESPONSE_THRESHOLD=S3_settings_dict['large_response_threshold']
                           , SERVICE_S3_OBJ_PREFIX=S3_settings_dict['service_configured_obj_prefix'])
-    logger.info("anS3Worker initialized")
-except Exception as s3exception:
-    logger.critical(s3exception, exc_info=True)
+    logger.info('Initialized anS3Worker successfully :)')
+except Exception:
+    msg = 'Failed to initialize anS3Worker :('
+    # Log the full stack trace, prepend a line with our message
+    logger.exception(msg)
 
 
 ####################################################################################################
@@ -367,9 +368,10 @@ def get_status():
         try:
             # If can't connect, won't be able to get the Memcached version
             memcached_client_instance.version()
+            logger.info(f'Connected to Memcached server {memcached_client_instance.version().decode()} :)')
             status_data['memcached_connection'] = True
         except Exception:
-            logger.error('Failed to connect to Memcached server')
+            logger.error('Failed to connect to Memcached server :(')
 
     return jsonify(status_data)
 
