@@ -1,5 +1,4 @@
-# Set to False for PROD deployment to use INFO logging level
-# Default to DEBUG for DEV/TEST
+# Set to False to use INFO logging level
 DEBUG_MODE = True
 
 # Set to True to disable the PUT and POST calls to make entity-api READ-ONLY
