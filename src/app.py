@@ -47,6 +47,10 @@ from hubmap_commons.hm_auth import AuthHelper
 from hubmap_commons.exceptions import HTTPException
 from hubmap_commons.S3_worker import S3Worker
 
+# Specify the absolute path of the instance folder and use the config file relative to the instance path
+app = Flask(__name__, instance_path = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'instance'), instance_relative_config = True)
+app.config.from_pyfile('app.cfg')
+
 # Root logger configuration
 global logger
 
@@ -59,10 +63,6 @@ else:
 # Use `getLogger()` instead of `getLogger(__name__)` to apply the config to the root logger
 # will be inherited by the sub-module loggers
 logger = logging.getLogger()
-
-# Specify the absolute path of the instance folder and use the config file relative to the instance path
-app = Flask(__name__, instance_path = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'instance'), instance_relative_config = True)
-app.config.from_pyfile('app.cfg')
 
 # Remove trailing slash / from URL base to avoid "//" caused by config with trailing slash
 app.config['UUID_API_URL'] = app.config['UUID_API_URL'].strip('/')
