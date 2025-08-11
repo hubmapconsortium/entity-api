@@ -4538,7 +4538,7 @@ def _get_entity_visibility(normalized_entity_type, entity_dict):
     return entity_visibility
 
 
-'''
+"""
 Retrieve the organ, donor, or sample metadata information associated with a Dataset, based
 up the user's authorization to access the Dataset.
 
@@ -4561,7 +4561,7 @@ Returns
 -------
 list
     A dictionary containing the metadata properties the Dataset associated data.
-'''
+"""
 def _get_dataset_associated_metadata(dataset_dict, dataset_visibility, valid_user_token, request, associated_data: str):
 
     # Confirm the associated data requested is supported by this method.
