@@ -45,7 +45,7 @@ def create_entity(neo4j_driver, entity_type, entity_data_dict, superclass = None
              f"RETURN e AS {record_field_name}")
 
     logger.info("======create_entity() query======")
-    logger.info(query)
+    logger.debug(query)
 
     try:
         with neo4j_driver.session() as session:
@@ -59,9 +59,6 @@ def create_entity(neo4j_driver, entity_type, entity_data_dict, superclass = None
 
             entity_dict = node_to_dict(entity_node)
 
-            # logger.info("======create_entity() resulting entity_dict======")
-            # logger.info(entity_dict)
-
             tx.commit()
 
             return entity_dict
@@ -71,7 +68,7 @@ def create_entity(neo4j_driver, entity_type, entity_data_dict, superclass = None
         logger.exception(msg)
 
         if tx.closed() == False:
-            logger.info("Failed to commit create_entity() transaction, rollback")
+            logger.error("Failed to commit create_entity() transaction, rollback")
 
             tx.rollback()
 
@@ -101,7 +98,7 @@ def get_entity(neo4j_driver, uuid):
              f"RETURN e AS {record_field_name}")
 
     logger.info("======get_entity() query======")
-    logger.info(query)
+    logger.debug(query)
 
     with neo4j_driver.session() as session:
         record = session.read_transaction(execute_readonly_tx, query)
@@ -136,7 +133,7 @@ def filter_ancestors_by_type(neo4j_driver, direct_ancestor_uuids, entity_type):
              f"WHERE e.uuid in {direct_ancestor_uuids} AND toLower(e.entity_type) <> '{entity_type.lower()}' "
              f"RETURN e.entity_type AS entity_type, collect(e.uuid) AS uuids")
     logger.info("======filter_ancestors_by_type======")
-    logger.info(query)
+    logger.debug(query)
 
     with neo4j_driver.session() as session:
         records = session.run(query).data()
@@ -180,7 +177,7 @@ def get_children(neo4j_driver, uuid, property_key = None):
                  f"RETURN [a IN uniqueChildren | apoc.create.vNode(labels(a), apoc.map.removeKeys(properties(a), {fields_to_omit}))] AS {record_field_name}")
 
     logger.info("======get_children() query======")
-    logger.info(query)
+    logger.debug(query)
 
     with neo4j_driver.session() as session:
         record = session.read_transaction(execute_readonly_tx, query)
@@ -231,7 +228,7 @@ def get_parents(neo4j_driver, uuid, property_key = None):
                  f"RETURN [a IN uniqueParents | apoc.create.vNode(labels(a), apoc.map.removeKeys(properties(a), {fields_to_omit}))] AS {record_field_name}")
 
     logger.info("======get_parents() query======")
-    logger.info(query)
+    logger.debug(query)
 
     with neo4j_driver.session() as session:
         record = session.read_transaction(execute_readonly_tx, query)
@@ -288,7 +285,7 @@ def get_siblings(neo4j_driver, uuid, property_key=None):
 
 
     logger.info("======get_siblings() query======")
-    logger.info(query)
+    logger.debug(query)
 
     with neo4j_driver.session() as session:
         record = session.read_transaction(execute_readonly_tx, query)
@@ -344,7 +341,7 @@ def get_tuplets(neo4j_driver, uuid, property_key=None):
 
 
     logger.info("======get_tuplets() query======")
-    logger.info(query)
+    logger.debug(query)
 
     with neo4j_driver.session() as session:
         record = session.read_transaction(execute_readonly_tx, query)
@@ -394,7 +391,7 @@ def get_ancestors(neo4j_driver, uuid, property_key = None):
                  f"RETURN [a IN uniqueAncestors | apoc.create.vNode(labels(a), apoc.map.removeKeys(properties(a), {fields_to_omit}))] AS {record_field_name}")
 
     logger.info("======get_ancestors() query======")
-    logger.info(query)
+    logger.debug(query)
 
     with neo4j_driver.session() as session:
         record = session.read_transaction(execute_readonly_tx, query)
@@ -444,7 +441,7 @@ def get_descendants(neo4j_driver, uuid, property_key = None):
                  f"RETURN [a IN uniqueDescendants | apoc.create.vNode(labels(a), apoc.map.removeKeys(properties(a), {fields_to_omit}))] AS {record_field_name}")                 
 
     logger.info("======get_descendants() query======")
-    logger.info(query)
+    logger.debug(query)
 
     with neo4j_driver.session() as session:
         record = session.read_transaction(execute_readonly_tx, query)
@@ -494,7 +491,7 @@ def get_collections(neo4j_driver, uuid, property_key = None):
                  f"RETURN apoc.coll.toSet(COLLECT(c)) AS {record_field_name}")
 
     logger.info("======get_collections() query======")
-    logger.info(query)
+    logger.debug(query)
 
     with neo4j_driver.session() as session:
         record = session.read_transaction(execute_readonly_tx, query)
@@ -544,7 +541,7 @@ def get_uploads(neo4j_driver, uuid, property_key = None):
                  f"RETURN apoc.coll.toSet(COLLECT(u)) AS {record_field_name}")
 
     logger.info("======get_uploads() query======")
-    logger.info(query)
+    logger.debug(query)
 
     with neo4j_driver.session() as session:
         record = session.read_transaction(execute_readonly_tx, query)
@@ -589,7 +586,7 @@ def get_dataset_direct_ancestors(neo4j_driver, uuid, property_key = None):
                  f"RETURN apoc.coll.toSet(COLLECT(s)) AS {record_field_name}")
 
     logger.info("======get_dataset_direct_ancestors() query======")
-    logger.info(query)
+    logger.debug(query)
 
     # Sessions will often be created and destroyed using a with block context
     with neo4j_driver.session() as session:
@@ -634,7 +631,7 @@ def get_dataset_donor_organs_info(neo4j_driver, dataset_uuid):
                                     f"                                  , organ_type: org.organ}})) AS donorOrganSet")
 
         logger.info("======get_dataset_donor_organs_info() ds_donors_organs_query======")
-        logger.info(ds_donors_organs_query)
+        logger.debug(ds_donors_organs_query)
 
         with neo4j_driver.session() as session:
             record = session.read_transaction(execute_readonly_tx
@@ -646,7 +643,7 @@ def get_entity_type(neo4j_driver, entity_uuid: str) -> str:
     query: str = f"Match (ent {{uuid: '{entity_uuid}'}}) return ent.entity_type"
 
     logger.info("======get_entity_type() query======")
-    logger.info(query)
+    logger.debug(query)
 
     with neo4j_driver.session() as session:
         record = session.read_transaction(execute_readonly_tx, query)
@@ -660,7 +657,7 @@ def get_entity_creation_action_activity(neo4j_driver, entity_uuid: str) -> str:
     query: str = f"MATCH (ds:Dataset {{uuid:'{entity_uuid}'}})<-[:ACTIVITY_OUTPUT]-(a:Activity) RETURN a.creation_action"
 
     logger.info("======get_entity_creation_action() query======")
-    logger.info(query)
+    logger.debug(query)
 
     with neo4j_driver.session() as session:
         record = session.read_transaction(execute_readonly_tx, query)
@@ -717,7 +714,7 @@ def link_entity_to_direct_ancestors(neo4j_driver, entity_uuid, direct_ancestor_u
 
         if tx.closed() == False:
             # Log the full stack trace, prepend a line with our message
-            logger.info("Failed to commit link_entity_to_direct_ancestors() transaction, rollback")
+            logger.error("Failed to commit link_entity_to_direct_ancestors() transaction, rollback")
             tx.rollback()
 
         raise TransactionError(msg)
@@ -757,7 +754,7 @@ def link_publication_to_associated_collection(neo4j_driver, entity_uuid, associa
 
         if tx.closed() == False:
             # Log the full stack trace, prepend a line with our message
-            logger.info("Failed to commit link_publication_to_associated_collection() transaction, rollback")
+            logger.error("Failed to commit link_publication_to_associated_collection() transaction, rollback")
             tx.rollback()
 
         raise TransactionError(msg)
@@ -805,7 +802,7 @@ def link_collection_to_datasets(neo4j_driver, collection_uuid, dataset_uuid_list
 
         if tx.closed() == False:
             # Log the full stack trace, prepend a line with our message
-            logger.info("Failed to commit link_collection_to_datasets() transaction, rollback")
+            logger.error("Failed to commit link_collection_to_datasets() transaction, rollback")
             tx.rollback()
 
         raise TransactionError(msg)
@@ -838,7 +835,7 @@ def link_entity_to_previous_revision(neo4j_driver, entity_uuid, previous_revisio
 
         if tx.closed() == False:
             # Log the full stack trace, prepend a line with our message
-            logger.info("Failed to commit link_entity_to_previous_revision() transaction, rollback")
+            logger.error("Failed to commit link_entity_to_previous_revision() transaction, rollback")
             tx.rollback()
 
         raise TransactionError(msg)
@@ -869,7 +866,7 @@ def get_previous_revision_uuid(neo4j_driver, uuid):
              f"RETURN previous_revision.uuid AS {record_field_name}")
 
     logger.info("======get_previous_revision_uuid() query======")
-    logger.info(query)
+    logger.debug(query)
 
     with neo4j_driver.session() as session:
         record = session.read_transaction(execute_readonly_tx, query)
@@ -905,7 +902,7 @@ def get_previous_revision_uuids(neo4j_driver, uuid):
              f"RETURN COLLECT(previous_revision.uuid) AS {record_field_name}")
 
     logger.info("======get_previous_revision_uuids() query======")
-    logger.info(query)
+    logger.debug(query)
 
     with neo4j_driver.session() as session:
         record = session.read_transaction(execute_readonly_tx, query)
@@ -943,7 +940,7 @@ def get_next_revision_uuid(neo4j_driver, uuid):
              f"RETURN next_revision.uuid AS {record_field_name}")
 
     logger.info("======get_next_revision_uuid() query======")
-    logger.info(query)
+    logger.debug(query)
 
     with neo4j_driver.session() as session:
         record = session.read_transaction(execute_readonly_tx, query)
@@ -979,7 +976,7 @@ def get_next_revision_uuids(neo4j_driver, uuid):
              f"RETURN COLLECT(next_revision.uuid) AS {record_field_name}")
 
     logger.info("======get_next_revision_uuids() query======")
-    logger.info(query)
+    logger.debug(query)
 
     with neo4j_driver.session() as session:
         record = session.read_transaction(execute_readonly_tx, query)
@@ -1022,7 +1019,7 @@ def get_collection_associated_datasets(neo4j_driver, uuid, property_key = None):
                  f"RETURN apoc.coll.toSet(COLLECT(e)) AS {record_field_name}")
 
     logger.info("======get_collection_associated_datasets() query======")
-    logger.info(query)
+    logger.debug(query)
 
     with neo4j_driver.session() as session:
         record = session.read_transaction(execute_readonly_tx, query)
@@ -1068,7 +1065,7 @@ def get_dataset_collections(neo4j_driver, uuid, property_key = None):
                  f"RETURN apoc.coll.toSet(COLLECT(c)) AS {record_field_name}")
 
     logger.info("======get_dataset_collections() query======")
-    logger.info(query)
+    logger.debug(query)
 
     with neo4j_driver.session() as session:
         record = session.read_transaction(execute_readonly_tx, query)
@@ -1110,7 +1107,7 @@ def get_publication_associated_collection(neo4j_driver, uuid):
              f"RETURN c as {record_field_name}")
 
     logger.info("=====get_publication_associated_collection() query======")
-    logger.info(query)
+    logger.debug(query)
 
     with neo4j_driver.session() as session:
         record = session.read_transaction(execute_readonly_tx, query)
@@ -1144,7 +1141,7 @@ def get_dataset_upload(neo4j_driver, uuid):
              f"RETURN s AS {record_field_name}")
 
     logger.info("======get_dataset_upload() query======")
-    logger.info(query)
+    logger.debug(query)
 
     with neo4j_driver.session() as session:
         record = session.read_transaction(execute_readonly_tx, query)
@@ -1181,7 +1178,7 @@ def get_collection_datasets(neo4j_driver, uuid):
              f"RETURN [a IN uniqueDataset | apoc.create.vNode(labels(a), apoc.map.removeKeys(properties(a), {fields_to_omit}))] AS {record_field_name}")
 
     logger.info("======get_collection_datasets() query======")
-    logger.info(query)
+    logger.debug(query)
 
     with neo4j_driver.session() as session:
         record = session.read_transaction(execute_readonly_tx, query)
@@ -1217,7 +1214,7 @@ def get_collection_datasets_data_access_levels(neo4j_driver, uuid):
              f"RETURN COLLECT(DISTINCT d.data_access_level) AS {record_field_name}")
 
     logger.info("======get_collection_datasets_data_access_levels() query======")
-    logger.info(query)
+    logger.debug(query)
 
     with neo4j_driver.session() as session:
         record = session.read_transaction(execute_readonly_tx, query)
@@ -1253,7 +1250,7 @@ def get_collection_datasets_statuses(neo4j_driver, uuid):
              f"RETURN COLLECT(DISTINCT d.status) AS {record_field_name}")
 
     logger.info("======get_collection_datasets_statuses() query======")
-    logger.info(query)
+    logger.debug(query)
 
     with neo4j_driver.session() as session:
         record = session.read_transaction(execute_readonly_tx, query)
@@ -1298,7 +1295,7 @@ def link_datasets_to_upload(neo4j_driver, upload_uuid, dataset_uuids_list):
                      f"MERGE (s)<-[r:IN_UPLOAD]-(d)") 
 
             logger.info("======link_datasets_to_upload() query======")
-            logger.info(query)
+            logger.debug(query)
 
             tx.run(query)
             tx.commit()
@@ -1308,7 +1305,7 @@ def link_datasets_to_upload(neo4j_driver, upload_uuid, dataset_uuids_list):
         logger.exception(msg)
 
         if tx.closed() == False:
-            logger.info("Failed to commit link_datasets_to_upload() transaction, rollback")
+            logger.error("Failed to commit link_datasets_to_upload() transaction, rollback")
 
             tx.rollback()
 
@@ -1345,7 +1342,7 @@ def unlink_datasets_from_upload(neo4j_driver, upload_uuid, dataset_uuids_list):
                      f"DELETE r") 
 
             logger.info("======unlink_datasets_from_upload() query======")
-            logger.info(query)
+            logger.debug(query)
 
             tx.run(query)
             tx.commit()
@@ -1355,7 +1352,7 @@ def unlink_datasets_from_upload(neo4j_driver, upload_uuid, dataset_uuids_list):
         logger.exception(msg)
 
         if tx.closed() == False:
-            logger.info("Failed to commit unlink_datasets_from_upload() transaction, rollback")
+            logger.error("Failed to commit unlink_datasets_from_upload() transaction, rollback")
 
             tx.rollback()
 
@@ -1395,7 +1392,7 @@ def get_upload_datasets(neo4j_driver, uuid, property_key = None):
                  f"RETURN [a IN uniqueUploads | apoc.create.vNode(labels(a), apoc.map.removeKeys(properties(a), {fields_to_omit}))] AS {record_field_name}")
 
     logger.info("======get_upload_datasets() query======")
-    logger.info(query)
+    logger.debug(query)
 
     with neo4j_driver.session() as session:
         record = session.read_transaction(execute_readonly_tx, query)
@@ -1438,16 +1435,13 @@ def count_attached_published_datasets(neo4j_driver, entity_type, uuid):
              f"RETURN COUNT(d) AS {record_field_name}")
 
     logger.info("======count_attached_published_datasets() query======")
-    logger.info(query)
+    logger.debug(query)
 
     with neo4j_driver.session() as session:
         record = session.read_transaction(execute_readonly_tx, query)
 
         count = record[record_field_name]
 
-        # logger.info("======count_attached_published_datasets() resulting count======")
-        # logger.info(count)
-        
         return count               
 
 
@@ -1487,7 +1481,7 @@ def get_sample_direct_ancestor(neo4j_driver, uuid, property_key = None):
                  f"RETURN parent AS {record_field_name}")
 
     logger.info("======get_sample_direct_ancestor() query======")
-    logger.info(query)
+    logger.debug(query)
 
     with neo4j_driver.session() as session:
         record = session.read_transaction(execute_readonly_tx, query)
@@ -1530,7 +1524,7 @@ def update_entity(neo4j_driver, entity_type, entity_data_dict, uuid):
              f"RETURN e AS {record_field_name}")
 
     logger.info("======update_entity() query======")
-    logger.info(query)
+    logger.debug(query)
 
     try:
         with neo4j_driver.session() as session:
@@ -1546,9 +1540,6 @@ def update_entity(neo4j_driver, entity_type, entity_data_dict, uuid):
 
             entity_dict = node_to_dict(entity_node)
 
-            # logger.info("======update_entity() resulting entity_dict======")
-            # logger.info(entity_dict)
-
             return entity_dict
     except TransactionError as te:
         msg = f"TransactionError from calling create_entity(): {te.value}"
@@ -1556,7 +1547,7 @@ def update_entity(neo4j_driver, entity_type, entity_data_dict, uuid):
         logger.exception(msg)
 
         if tx.closed() == False:
-            logger.info("Failed to commit update_entity() transaction, rollback")
+            logger.error("Failed to commit update_entity() transaction, rollback")
 
             tx.rollback()
 
@@ -1586,7 +1577,7 @@ def create_activity_tx(tx, activity_data_dict):
              f"RETURN e AS {record_field_name}")
 
     logger.info("======create_activity_tx() query======")
-    logger.info(query)
+    logger.debug(query)
 
     result = tx.run(query)
     record = result.single()
@@ -1724,7 +1715,7 @@ def create_relationship_tx(tx, source_node_uuid, target_node_uuid, relationship,
              f"RETURN type(r) AS {record_field_name}")
 
     logger.info("======create_relationship_tx() query======")
-    logger.info(query)
+    logger.debug(query)
 
     result = tx.run(query)
 
@@ -1748,7 +1739,7 @@ def create_outgoing_activity_relationships_tx(tx, source_node_uuids:list, activi
              f" CREATE (e) - [r:ACTIVITY_INPUT]->(a)")
 
     logger.info("======create_outgoing_activity_relationships_tx() query======")
-    logger.info(query)
+    logger.debug(query)
 
     result = tx.run(query)
 
@@ -1793,7 +1784,7 @@ def _delete_activity_node_and_linkages_tx(tx, uuid):
              f"DELETE in, a, out")
 
     logger.info("======_delete_activity_node_and_linkages_tx() query======")
-    logger.info(query)
+    logger.debug(query)
 
     result = tx.run(query)
 
@@ -1815,7 +1806,7 @@ def _delete_publication_associated_collection_linkages_tx(tx, uuid):
              f"DELETE r")
 
     logger.info("======_delete_publication_associated_collection_linkages_tx() query======")
-    logger.info(query)
+    logger.debug(query)
 
     result = tx.run(query)
 
@@ -1835,7 +1826,7 @@ def _delete_collection_linkages_tx(tx, uuid):
              f" DELETE in")
 
     logger.info("======_delete_collection_linkages_tx() query======")
-    logger.info(query)
+    logger.debug(query)
 
     result = tx.run(query)
 

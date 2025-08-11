@@ -1484,7 +1484,7 @@ def commit_thumbnail_file(property_key, normalized_type, user_token, existing_da
             'user_token': user_token
         }
 
-        logger.info(f"Commit the uploaded thumbnail file of tmp file id {tmp_file_id} for entity {entity_uuid} via ingest-api call...")
+        logger.info(f"Commit the uploaded thumbnail file of tmp_file_id {tmp_file_id} for entity {entity_uuid} via ingest-api call...")
 
         request_headers = {
             'Authorization': f'Bearer {user_token}'
@@ -1494,7 +1494,7 @@ def commit_thumbnail_file(property_key, normalized_type, user_token, existing_da
         response = requests.post(url = ingest_api_target_url, headers = request_headers, json = json_to_post, verify = False) 
 
         if response.status_code != 200:
-            msg = f"Failed to commit the thumbnail file of tmp file id {tmp_file_id} via ingest-api for entity uuid: {entity_uuid}"
+            msg = f"Failed to commit the thumbnail file of tmp_file_id {tmp_file_id} via ingest-api for entity uuid: {entity_uuid}"
             logger.error(msg)
             raise schema_errors.FileUploadException(msg)
 
@@ -1588,7 +1588,7 @@ def delete_thumbnail_file(property_key, normalized_type, user_token, existing_da
         'files_info_list': [file_info_dict]
     }
 
-    logger.info(f"Remove the uploaded thumbnail file {file_uuid} for entity {entity_uuid} via ingest-api call...")
+    logger.debug(f"Remove the uploaded thumbnail file {file_uuid} for entity {entity_uuid} via ingest-api call...")
 
     request_headers = {
         'Authorization': f'Bearer {user_token}'
@@ -2290,7 +2290,7 @@ def _commit_files(target_property_key, property_key, normalized_type, user_token
                 'user_token': user_token
             }
 
-            logger.info(f"Commit the uploaded file of temp_file_id {temp_file_id} for entity {entity_uuid} via ingest-api call...")
+            logger.debug(f"Commit the uploaded file of temp_file_id {temp_file_id} for entity {entity_uuid} via ingest-api call...")
 
             request_headers = {
                 'Authorization': f'Bearer {user_token}'
@@ -2401,7 +2401,7 @@ def _delete_files(target_property_key, property_key, normalized_type, user_token
         'files_info_list': files_info_list
     }
 
-    logger.info(f"Remove the uploaded files for entity {entity_uuid} via ingest-api call...")
+    logger.debug(f"Remove the uploaded files for entity {entity_uuid} via ingest-api call...")
     
     request_headers = {
         'Authorization': f'Bearer {user_token}'

@@ -50,8 +50,11 @@ from hubmap_commons.S3_worker import S3Worker
 # Root logger configuration
 global logger
 
-# Set logging format and level (default is warning)
-logging.basicConfig(format='[%(asctime)s] %(levelname)s in %(module)s: %(message)s', level=logging.DEBUG, datefmt='%Y-%m-%d %H:%M:%S')
+# Set logging format and level
+if app.config['DEBUG_MODE']:
+    logging.basicConfig(format='[%(asctime)s] %(levelname)s in %(module)s: %(message)s', level=logging.DEBUG, datefmt='%Y-%m-%d %H:%M:%S')
+else:
+    logging.basicConfig(format='[%(asctime)s] %(levelname)s in %(module)s: %(message)s', level=logging.INFO, datefmt='%Y-%m-%d %H:%M:%S')
 
 # Use `getLogger()` instead of `getLogger(__name__)` to apply the config to the root logger
 # will be inherited by the sub-module loggers
@@ -65,7 +68,7 @@ app.config.from_pyfile('app.cfg')
 app.config['UUID_API_URL'] = app.config['UUID_API_URL'].strip('/')
 app.config['INGEST_API_URL'] = app.config['INGEST_API_URL'].strip('/')
 app.config['ONTOLOGY_API_URL'] = app.config['ONTOLOGY_API_URL'].strip('/')
-app.config['SEARCH_API_URL_LIST'] = [url.strip('/') for url in app.config['SEARCH_API_URL_LIST']]
+app.config['SEARCH_API_URL'] = app.config['SEARCH_API_URL'].strip('/')
 
 S3_settings_dict = {'large_response_threshold': app.config['LARGE_RESPONSE_THRESHOLD']
                     , 'aws_access_key_id': app.config['AWS_ACCESS_KEY_ID']
@@ -431,7 +434,8 @@ def flush_cache(id):
     msg = ''
 
     if MEMCACHED_MODE:
-        delete_cache(id)
+        entity_dict = query_target_entity(id, get_internal_token())
+        delete_cache(entity_dict['uuid'], entity_dict['entity_type'])
         msg = f'The cached data has been deleted from Memcached for entity {id}'
     else:
         msg = 'No caching is being used because Memcached mode is not enabled at all'
@@ -1313,21 +1317,17 @@ def create_multiple_samples(count):
 """
 Update the properties of a given entity
 
-Response result filtering is supported based on query string
-For example: /entities/<id>?return_all_properties=true
-Default to skip those time-consuming properties
-
 Parameters
 ----------
 entity_type : str
-    One of the normalized entity types: Dataset, Collection, Sample, Donor
+    One of the normalized entity types: Donor/Dataset/Sample/Upload/Collection/EPICollection/Publication
 id : str
     The HuBMAP ID (e.g. HBM123.ABCD.456) or UUID of target entity 
 
 Returns
 -------
-json
-    All the updated properties of the target entity
+str
+    A successful message
 """
 @app.route('/entities/<id>', methods = ['PUT'])
 def update_entity(id):
@@ -1360,6 +1360,7 @@ def update_entity(id):
     # Get the entity dict from cache if exists
     # Otherwise query against uuid-api and neo4j to get the entity dict if the id exists
     entity_dict = query_target_entity(id, user_token)
+    entity_uuid = entity_dict['uuid']
 
     # Check that the user has the correct access to modify this entity
     validate_user_update_privilege(entity_dict, user_token)
@@ -1383,7 +1384,7 @@ def update_entity(id):
         locked_entity_update_header = request.headers.get(SchemaConstants.LOCKED_ENTITY_UPDATE_HEADER)
         if locked_entity_update_header and (LOCKED_ENTITY_UPDATE_OVERRIDE_KEY == locked_entity_update_header):
             lockout_overridden = True
-            logger.info(f"For {entity_dict['entity_type']} {entity_dict['uuid']}"
+            logger.info(f"For {normalized_entity_type} {entity_uuid}"
                         f" update prohibited due to {str(leue)},"
                         f" but being overridden by valid {SchemaConstants.LOCKED_ENTITY_UPDATE_HEADER} in request.")
         else:
@@ -1504,64 +1505,23 @@ def update_entity(id):
         # Generate 'before_update_trigger' data and update the entity details in Neo4j
         merged_updated_dict = update_entity_details(request, normalized_entity_type, user_token, json_data_dict, entity_dict)
 
-    # By default we'll return all the properties but skip these time-consuming ones
-    # Donor doesn't need to skip any
-    properties_to_skip = []
-
-    if normalized_entity_type == 'Sample':
-        properties_to_skip = [
-            'direct_ancestor'
-        ]
-    # 2/17/23 - Also adding publication for skipping properties ~Derek Furst
-    elif schema_manager.entity_type_instanceof(normalized_entity_type, 'Dataset'):
-        properties_to_skip = [
-            'direct_ancestors',
-            'collections',
-            'upload',
-            'title', 
-            'previous_revision_uuid', 
-            'next_revision_uuid'
-        ]
-    elif normalized_entity_type in ['Upload', 'Collection', 'Epicollection']:
-        properties_to_skip = [
-            'datasets'
-        ]
-
-    # Result filtering based on query string
-    # Will return all properties by running all the read triggers
-    # If the reuqest specifies `/entities/<id>?return_all_properties=true`
-    if bool(request.args):
-        # The parased query string value is a string 'true'
-        return_all_properties = request.args.get('return_all_properties')
-
-        if (return_all_properties is not None) and (return_all_properties.lower() == 'true'):
-            properties_to_skip = []
-
     # Remove the cached entities if Memcached is being used
     # DO NOT update the cache with new entity dict because the returned dict from PUT (some properties maybe skipped)
     # can be different from the one generated by GET call
     if MEMCACHED_MODE:
-        delete_cache(id)
+        delete_cache(entity_uuid, normalized_entity_type)
+
+    # Also reindex the updated entity in elasticsearch via search-api
+    reindex_entity(entity_uuid, user_token)
 
     # Do not return the updated dict to avoid computing overhead - 7/14/2023 by Zhou
-    # # Generate the complete entity dict
-    # complete_dict = schema_manager.get_complete_entity_result(user_token, merged_updated_dict, properties_to_skip)
+    message_returned = f"The update request on {normalized_entity_type} of {id} has been accepted, the backend may still be processing"
+    if lockout_overridden:
+        message_returned = f"Lockout overridden on {normalized_entity_type} of {id}"
 
-    # # Will also filter the result based on schema
-    # normalized_complete_dict = schema_manager.normalize_entity_result_for_response(complete_dict)
-
-    # Also reindex the updated entity node in elasticsearch via search-api
-    logger.log(logging.INFO
-               ,f"Re-indexing for modification of {entity_dict['entity_type']}"
-                f" with UUID {entity_dict['uuid']}")
-
-    reindex_entity(entity_dict['uuid'], user_token)
-
-    # Do not return the updated dict to avoid computing overhead - 7/14/2023 by Zhou
-    # return jsonify(normalized_complete_dict)
-
-    override_msg = 'Lockout overridden. ' if lockout_overridden else ''
-    return jsonify({'message': f"{override_msg}{normalized_entity_type} of {id} has been updated"})
+    # Here we use 200 status code instead of 202 mainly for compatibility
+    # so the API consumers don't need to update their implementations
+    return jsonify({'message': message_returned})
 
 
 """
@@ -3663,7 +3623,7 @@ def get_prov_info_for_dataset(id):
         # Get provenance non-organ Samples for the Dataset all the way back to each Donor, to supplement
         # the "first sample" data stashed in internal_dict in the previous section.
         dataset_samples = app_neo4j_queries.get_all_dataset_samples(neo4j_driver_instance, uuid)
-        logger.debug(f"dataset_samples={str(dataset_samples)}")
+
         if 'all' in include_samples:
             internal_dict[HEADER_DATASET_SAMPLES] = dataset_samples
         else:
@@ -4211,7 +4171,6 @@ def bulk_update_entities(
             if idx < len(entity_updates) - 1:
                 time.sleep(throttle)
 
-    logger.info(f"bulk_update_entities() results: {results}")
     return results
 
 
@@ -4531,7 +4490,7 @@ Parameters
 entity_dict : dict
     A Python dictionary retrieved for the entity 
 normalized_entity_type : str
-    One of the normalized entity types: Dataset, Collection, Sample, Donor, Publication, Upload
+    One of the normalized entity types: Donor/Dataset/Sample/Upload/Collection/EPICollection/Publication
 
 Returns
 -------
@@ -4689,7 +4648,7 @@ Parameters
 request : flask.Request object
     The incoming request
 normalized_entity_type : str
-    One of the normalized entity types: Dataset, Collection, Sample, Donor
+    One of the normalized entity types: Donor/Dataset/Sample/Upload/Collection/EPICollection/Publication
 user_token: str
     The user's globus groups token
 json_data_dict: dict
@@ -4838,7 +4797,7 @@ Parameters
 request : flask.Request object
     The incoming request
 normalized_entity_type : str
-    One of the normalized entity types: Dataset, Collection, Sample, Donor
+    Must be "Sample" in this case
 user_token: str
     The user's globus groups token
 json_data_dict: dict
@@ -4988,7 +4947,7 @@ Parameters
 request : flask.Request object
     The incoming request
 normalized_entity_type : str
-    One of the normalized entity types: Dataset, Collection, Sample, Donor
+    Must be "Dataset" in this case
 user_token: str
     The user's globus groups token
 json_data_dict_list: list
@@ -5104,7 +5063,7 @@ Execute 'after_create_triiger' methods
 Parameters
 ----------
 normalized_entity_type : str
-    One of the normalized entity types: Dataset, Collection, Sample, Donor
+    One of the normalized entity types: Donor/Dataset/Sample/Upload/Collection/EPICollection/Publication
 user_token: str
     The user's globus groups token
 merged_data_dict: dict
@@ -5139,7 +5098,7 @@ Parameters
 request : flask.Request object
     The incoming request
 normalized_entity_type : str
-    One of the normalized entity types: Dataset, Collection, Sample, Donor
+    One of the normalized entity types: Donor/Dataset/Sample/Upload/Collection/EPICollection/Publication
 user_token: str
     The user's globus groups token
 json_data_dict: dict
@@ -5218,12 +5177,12 @@ def update_entity_details(request, normalized_entity_type, user_token, json_data
 
 
 """
-Execute 'after_update_triiger' methods
+Execute 'after_update_trigger' methods
 
 Parameters
 ----------
 normalized_entity_type : str
-    One of the normalized entity types: Dataset, Collection, Sample, Donor
+    One of the normalized entity types: Donor/Dataset/Sample/Upload/Collection/EPICollection/Publication
 user_token: str
     The user's globus groups token
 entity_dict: dict
@@ -5288,7 +5247,7 @@ def query_target_entity(id, user_token):
 
             # The uuid exists via uuid-api doesn't mean it also exists in Neo4j
             if not entity_dict:
-                logger.debug(f"Entity of uuid: {uuid} not found in Neo4j")
+                logger.info(f"Entity of uuid: {uuid} not found in Neo4j")
 
                 # Still use the user provided id, especially when it's a hubmap_id, for error message
                 not_found_error(f"Entity of id: {id} not found in Neo4j")
@@ -5301,7 +5260,6 @@ def query_target_entity(id, user_token):
                 memcached_client_instance.set(cache_key, entity_dict, expire = SchemaConstants.MEMCACHED_TTL)
         else:
             logger.info(f'Using neo4j entity cache of UUID {uuid} at time {datetime.now()}')
-            logger.debug(cache_result)
 
             entity_dict = cache_result
     except requests.exceptions.RequestException as e:
@@ -5333,108 +5291,67 @@ def require_json(request):
 
 
 """
-Delete the cached data of all possible keys used for the given entity id
+Delete the cached data of all possible keys used for the given entity_uuid and entity_type
+By taking entity_uuid and entity_type as input, it eliminates the need to call query_target_entity()
+which is more useful when the input id could be either UUID or HuBMAP ID.
 
 Parameters
 ----------
-id : str
-    The HuBMAP ID (e.g. HBM123.ABCD.456) or UUID of target entity (Donor/Dataset/Sample/Upload/Collection/Publication)
+entity_uuid : str
+    The UUID of target entity Donor/Dataset/Sample/Upload/Collection/EPICollection/Publication
+entity_type : str
+    One of the normalized entity types: Donor/Dataset/Sample/Upload/Collection/EPICollection/Publication
 """
-def delete_cache(id):
+def delete_cache(entity_uuid, entity_type):
     if MEMCACHED_MODE:
-        # =========================================================================
-        # Commented out on 7/28/2025 and replaced with the original implementation
-        # in the hope that this may reduce the 504 timeout rate - Zhou
-        # =========================================================================
-        # entity_dict = query_target_entity(id, get_internal_token())
-        # entity_uuid = entity_dict['uuid']
-        # entity_type = entity_dict['entity_type']
-        # descendant_uuids = []
-        # collection_dataset_uuids = []
-        # upload_dataset_uuids = []
-        # collection_uuids = []
-        # dataset_upload_dict = {}
-        # publication_collection_dict = {}
+        descendant_uuids = []
+        collection_dataset_uuids = []
+        upload_dataset_uuids = []
+        collection_uuids = []
+        dataset_upload_dict = {}
+        publication_collection_dict = {}
 
-        # # Determine the associated cache keys based on the entity type
-        # # To reduce unnecessary Neo4j lookups that may cause timeout on the PUT call
+        # Determine the associated cache keys based on the entity type
+        # For Donor/Datasets/Sample/Publication, delete the cache of all the descendants
+        if entity_type in ['Donor', 'Sample', 'Dataset', 'Publication']:
+            descendant_uuids = schema_neo4j_queries.get_descendants(neo4j_driver_instance, entity_uuid , 'uuid')
 
-        # # For Donor/Datasets/Sample/Publication, delete the cache of all the descendants
-        # if entity_type in ['Donor', 'Sample', 'Dataset', 'Publication']:
-        #     descendant_uuids = schema_neo4j_queries.get_descendants(neo4j_driver_instance, entity_uuid , 'uuid')
+        # For Collection/Epicollection, delete the cache for each of its associated datasets (via [:IN_COLLECTION])
+        if schema_manager.entity_type_instanceof(entity_type, 'Collection'):
+            collection_dataset_uuids = schema_neo4j_queries.get_collection_associated_datasets(neo4j_driver_instance, entity_uuid , 'uuid')
 
-        # # For Collection/Epicollection, delete the cache for each of its associated datasets (via [:IN_COLLECTION])
-        # if schema_manager.entity_type_instanceof(entity_type, 'Collection'):
-        #     collection_dataset_uuids = schema_neo4j_queries.get_collection_associated_datasets(neo4j_driver_instance, entity_uuid , 'uuid')
+        # For Upload, delete the cache for each of its associated Datasets (via [:IN_UPLOAD])
+        if entity_type == 'Upload':
+            upload_dataset_uuids = schema_neo4j_queries.get_upload_datasets(neo4j_driver_instance, entity_uuid , 'uuid')
 
-        # # For Upload, delete the cache for each of its associated Datasets (via [:IN_UPLOAD])
-        # if entity_type == 'Upload':
-        #     upload_dataset_uuids = schema_neo4j_queries.get_upload_datasets(neo4j_driver_instance, entity_uuid , 'uuid')
+        # For Dataset, also delete the cache of associated Collections and Upload
+        if entity_type == 'Dataset':
+            collection_uuids = schema_neo4j_queries.get_dataset_collections(neo4j_driver_instance, entity_uuid , 'uuid')
+            dataset_upload_dict = schema_neo4j_queries.get_dataset_upload(neo4j_driver_instance, entity_uuid)
 
-        # # For Dataset, delete the associated Collections cache and single Upload cache
-        # if entity_type == 'Dataset':
-        #     collection_uuids = schema_neo4j_queries.get_dataset_collections(neo4j_driver_instance, entity_uuid , 'uuid')
-        #     dataset_upload_dict = schema_neo4j_queries.get_dataset_upload(neo4j_driver_instance, entity_uuid)
-
-        # # For Publication, delete cache of the associated collection
-        # # NOTE: As of 5/30/2025, the [:USES_DATA] workaround has been deprecated.
-        # # Still keep it in the code until further decision - Zhou
-        # if entity_type == 'Publication':
-        #     publication_collection_dict = schema_neo4j_queries.get_publication_associated_collection(neo4j_driver_instance, entity_uuid)
+        # For Publication, also delete cache of the associated collection
+        # NOTE: As of 5/30/2025, the [:USES_DATA] workaround has been deprecated.
+        # Still keep it in the code until further decision - Zhou
+        if entity_type == 'Publication':
+            publication_collection_dict = schema_neo4j_queries.get_publication_associated_collection(neo4j_driver_instance, entity_uuid)
             
-        # # We only use uuid in the cache key acorss all the cache types
-        # uuids_list = [entity_uuid] + descendant_uuids + collection_dataset_uuids + upload_dataset_uuids + collection_uuids
-
-        # # It's possible the target dataset has no linked upload
-        # if dataset_upload_dict:
-        #     uuids_list.append(dataset_upload_dict['uuid'])
-
-        # # It's possible the target publicaiton has no associated collection
-        # if publication_collection_dict:
-        #     uuids_list.append(publication_collection_dict['uuid'])
-
-        # # Final batch delete
-        # schema_manager.delete_memcached_cache(uuids_list)
-
-
-        # =========================================================================
-        # The original implementation
-        # =========================================================================
-        # First delete the target entity cache
-        entity_dict = query_target_entity(id, get_internal_token())
-        entity_uuid = entity_dict['uuid']
-
-        # If the target entity is Sample (`direct_ancestor`) or Dataset/Publication (`direct_ancestors`)
-        # Delete the cache of all the direct descendants (children)
-        child_uuids = schema_neo4j_queries.get_children(neo4j_driver_instance, entity_uuid , 'uuid')
-
-        # If the target entity is Collection, delete the cache for each of its associated 
-        # Datasets and Publications (via [:IN_COLLECTION] relationship) as well as just Publications (via [:USES_DATA] relationship)
-        collection_dataset_uuids = schema_neo4j_queries.get_collection_associated_datasets(neo4j_driver_instance, entity_uuid , 'uuid')
-
-        # If the target entity is Upload, delete the cache for each of its associated Datasets (via [:IN_UPLOAD] relationship)
-        upload_dataset_uuids = schema_neo4j_queries.get_upload_datasets(neo4j_driver_instance, entity_uuid , 'uuid')
-
-        # If the target entity is Datasets/Publication, delete the associated Collections cache, Upload cache
-        collection_uuids = schema_neo4j_queries.get_dataset_collections(neo4j_driver_instance, entity_uuid , 'uuid')
-        collection_dict = schema_neo4j_queries.get_publication_associated_collection(neo4j_driver_instance, entity_uuid)
-        upload_dict = schema_neo4j_queries.get_dataset_upload(neo4j_driver_instance, entity_uuid)
-
         # We only use uuid in the cache key acorss all the cache types
-        uuids_list = [entity_uuid] + child_uuids + collection_dataset_uuids + upload_dataset_uuids + collection_uuids
+        uuids_list = [entity_uuid] + descendant_uuids + collection_dataset_uuids + upload_dataset_uuids + collection_uuids
 
-        # It's possible no linked collection or upload
-        if collection_dict:
-            uuids_list.append(collection_dict['uuid'])
+        # Add to the list if the target dataset has linked upload
+        if dataset_upload_dict:
+            uuids_list.append(dataset_upload_dict['uuid'])
 
-        if upload_dict:
-            uuids_list.append(upload_dict['uuid'])
+        # Add to the list if the target publicaiton has associated collection
+        if publication_collection_dict:
+            uuids_list.append(publication_collection_dict['uuid'])
 
+        # Final batch delete
         schema_manager.delete_memcached_cache(uuids_list)
 
 
 """
-Make a call to each search-api instance to reindex this entity node in elasticsearch
+Make a call to search-api to trigger reindex of this entity document in elasticsearch
 
 Parameters
 ----------
@@ -5448,18 +5365,16 @@ def reindex_entity(uuid, user_token):
         'Authorization': f'Bearer {user_token}'
     }
 
-    # Reindex the target entity against each configured search-api instance
-    for search_api_url in app.config['SEARCH_API_URL_LIST']:
-        logger.info(f"Making a call to search-api instance of {search_api_url} to reindex uuid: {uuid}")
+    logger.info(f"Making a call to search-api to reindex uuid: {uuid}")
 
-        response = requests.put(f"{search_api_url}/reindex/{uuid}", headers = headers)
+    response = requests.put(f"{app.config['SEARCH_API_URL']}/reindex/{uuid}", headers = headers)
 
-        # The reindex takes time, so 202 Accepted response status code indicates that
-        # the request has been accepted for processing, but the processing has not been completed
-        if response.status_code == 202:
-            logger.info(f"The search-api instance of {search_api_url} has accepted the reindex request for uuid: {uuid}")
-        else:
-            logger.error(f"The search-api instance of {search_api_url} failed to initialize the reindex for uuid: {uuid}")
+    # The reindex takes time, so 202 Accepted response status code indicates that
+    # the request has been accepted for processing, but the processing has not been completed
+    if response.status_code == 202:
+        logger.info(f"The search-api has accepted the reindex request for uuid: {uuid}")
+    else:
+        logger.error(f"The search-api failed to initialize the reindex for uuid: {uuid}")
 
 
 """
