@@ -192,7 +192,7 @@ def get_all_entity_types():
 
 
 """
-Get the superclass (if defined) of the given entity class
+Get the optional superclass (if defined) of the given entity class
 
 Parameters
 ----------
@@ -209,32 +209,40 @@ def get_entity_superclass(normalized_entity_class):
 
     all_entity_types = get_all_entity_types()
 
-    if normalized_entity_class in all_entity_types:
-        if 'superclass' in _schema['ENTITIES'][normalized_entity_class]:
-            normalized_superclass = normalize_entity_type(_schema['ENTITIES'][normalized_entity_class]['superclass'])
+    if normalized_entity_class not in all_entity_types:
+        msg = f"Unrecognized value of 'normalized_entity_class': {normalized_entity_class}"
+        logger.error(msg)
+        raise ValueError(msg)
 
-            if normalized_superclass not in all_entity_types:
-                msg = f"Invalid 'superclass' value defined for {normalized_entity_class}: {normalized_superclass}"
-                logger.error(msg)
-                raise ValueError(msg)
-        else:
-            # Since the 'superclass' property is optional, we just log the warning message, no need to bubble up
-            msg = f"The 'superclass' property is not defined for entity class: {normalized_entity_class}"
-            logger.warning(msg)
+    if 'superclass' in _schema['ENTITIES'][normalized_entity_class]:
+        normalized_superclass = normalize_entity_type(_schema['ENTITIES'][normalized_entity_class]['superclass'])
+
+        # Additional check to ensure no schema yaml mistake
+        if normalized_superclass not in all_entity_types:
+            msg = f"Invalid 'superclass' value defined for {normalized_entity_class}: {normalized_superclass}"
+            logger.error(msg)
+            raise ValueError(msg)
 
     return normalized_superclass
 
 
-def entity_type_instanceof(entity_type: str, entity_class: str) -> bool:
-    """
-    Determine if the Entity type with 'entity_type' is an instance of 'entity_class'.
-    Use this function if you already have the Entity type. Use entity_instanceof(uuid, class)
-    if you just have the Entity uuid.
+"""
+Determine if the Entity type with 'entity_type' is an instance of 'entity_class'.
+Use this function if you already have the Entity type. Use `entity_instanceof(uuid, class)` 
+if you just have the Entity uuid.
 
-    :param entity_type: from Entity
-    :param entity_class: found in .yaml file
-    :return:  True or False
-    """
+Parameters
+----------
+entity_type : str
+    The superclass
+entity_class : str
+    The subclass
+
+Returns
+-------
+bool
+"""
+def entity_type_instanceof(entity_type: str, entity_class: str) -> bool:
     if entity_type is None:
         return False
 
@@ -247,14 +255,21 @@ def entity_type_instanceof(entity_type: str, entity_class: str) -> bool:
     return False
 
 
-def entity_instanceof(entity_uuid: str, entity_class: str) -> bool:
-    """
-    Determine if the Entity with 'entity_uuid' is an instance of 'entity_class'.
+"""
+Determine if the Entity with 'entity_uuid' is an instance of 'entity_class'.
 
-    :param entity_uuid: from Entity
-    :param entity_class: found in .yaml file
-    :return: True or False
-    """
+Parameters
+----------
+entity_uuid : str
+    The uuid of the given entity
+entity_class : str
+    The superclass
+
+Returns
+-------
+bool
+"""
+def entity_instanceof(entity_uuid: str, entity_class: str) -> bool:
     entity_type: str =\
         schema_neo4j_queries.get_entity_type(get_neo4j_driver_instance(), entity_uuid.strip())
     return entity_type_instanceof(entity_type, entity_class)
@@ -1524,7 +1539,7 @@ def get_user_info(request):
     user_info = _auth_helper.getUserInfoUsingRequest(request, True)
 
     logger.info("======get_user_info()======")
-    logger.info(user_info)
+    logger.debug(user_info)
 
     # For debugging purposes
     try:
@@ -1533,7 +1548,7 @@ def get_user_info(request):
         groups_list = auth_helper_instance.get_user_groups_deprecated(token)
 
         logger.info("======Groups using get_user_groups_deprecated()======")
-        logger.info(groups_list)
+        logger.debug(groups_list)
     except Exception:
         msg = "For debugging purposes, failed to parse the Authorization token by calling commons.auth_helper.getAuthorizationTokens()"
         # Log the full stack trace, prepend a line with our message
@@ -1819,7 +1834,7 @@ def create_hubmap_ids(normalized_class, json_data_dict, user_token, user_info_di
     query_parms = {'entity_count': count}
 
     logger.info("======create_hubmap_ids() json_to_post to uuid-api======")
-    logger.info(json_to_post)
+    logger.debug(json_to_post)
 
     # Disable ssl certificate verification
     target_url = _uuid_api_url + SchemaConstants.UUID_API_ID_ENDPOINT
@@ -1857,7 +1872,7 @@ def create_hubmap_ids(normalized_class, json_data_dict, user_token, user_info_di
             d.pop('hubmap_base_id', None)
 
         logger.info("======create_hubmap_ids() generated ids from uuid-api======")
-        logger.info(ids_list)
+        logger.debug(ids_list)
 
         return ids_list
     else:
