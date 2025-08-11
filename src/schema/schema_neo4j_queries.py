@@ -21,10 +21,10 @@ neo4j_driver : neo4j.Driver object
     The neo4j database connection pool
 entity_type : str
     One of the normalized entity types: Dataset, Collection, Sample, Donor
-superclass : str
-    The normalized entity superclass type if defined, None by default
 entity_data_dict : dict
     The target Entity node to be created
+superclass : str
+    The normalized entity superclass type if defined, None by default
 
 Returns
 -------

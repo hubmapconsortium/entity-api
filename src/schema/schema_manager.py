@@ -192,7 +192,7 @@ def get_all_entity_types():
 
 
 """
-Get the superclass (if defined) of the given entity class
+Get the optional superclass (if defined) of the given entity class
 
 Parameters
 ----------
@@ -209,32 +209,40 @@ def get_entity_superclass(normalized_entity_class):
 
     all_entity_types = get_all_entity_types()
 
-    if normalized_entity_class in all_entity_types:
-        if 'superclass' in _schema['ENTITIES'][normalized_entity_class]:
-            normalized_superclass = normalize_entity_type(_schema['ENTITIES'][normalized_entity_class]['superclass'])
+    if normalized_entity_class not in all_entity_types:
+        msg = f"Unrecognized value of 'normalized_entity_class': {normalized_entity_class}"
+        logger.error(msg)
+        raise ValueError(msg)
 
-            if normalized_superclass not in all_entity_types:
-                msg = f"Invalid 'superclass' value defined for {normalized_entity_class}: {normalized_superclass}"
-                logger.error(msg)
-                raise ValueError(msg)
-        else:
-            # Since the 'superclass' property is optional, we just log the warning message, no need to bubble up
-            msg = f"The 'superclass' property is not defined for entity class: {normalized_entity_class}"
-            logger.warning(msg)
+    if 'superclass' in _schema['ENTITIES'][normalized_entity_class]:
+        normalized_superclass = normalize_entity_type(_schema['ENTITIES'][normalized_entity_class]['superclass'])
+
+        # Additional check to ensure no schema yaml mistake
+        if normalized_superclass not in all_entity_types:
+            msg = f"Invalid 'superclass' value defined for {normalized_entity_class}: {normalized_superclass}"
+            logger.error(msg)
+            raise ValueError(msg)
 
     return normalized_superclass
 
 
-def entity_type_instanceof(entity_type: str, entity_class: str) -> bool:
-    """
-    Determine if the Entity type with 'entity_type' is an instance of 'entity_class'.
-    Use this function if you already have the Entity type. Use entity_instanceof(uuid, class)
-    if you just have the Entity uuid.
+"""
+Determine if the Entity type with 'entity_type' is an instance of 'entity_class'.
+Use this function if you already have the Entity type. Use `entity_instanceof(uuid, class)` 
+if you just have the Entity uuid.
 
-    :param entity_type: from Entity
-    :param entity_class: found in .yaml file
-    :return:  True or False
-    """
+Parameters
+----------
+entity_type : str
+    The superclass
+entity_class : str
+    The subclass
+
+Returns
+-------
+bool
+"""
+def entity_type_instanceof(entity_type: str, entity_class: str) -> bool:
     if entity_type is None:
         return False
 
@@ -247,14 +255,21 @@ def entity_type_instanceof(entity_type: str, entity_class: str) -> bool:
     return False
 
 
-def entity_instanceof(entity_uuid: str, entity_class: str) -> bool:
-    """
-    Determine if the Entity with 'entity_uuid' is an instance of 'entity_class'.
+"""
+Determine if the Entity with 'entity_uuid' is an instance of 'entity_class'.
 
-    :param entity_uuid: from Entity
-    :param entity_class: found in .yaml file
-    :return: True or False
-    """
+Parameters
+----------
+entity_uuid : str
+    The uuid of the given entity
+entity_class : str
+    The superclass
+
+Returns
+-------
+bool
+"""
+def entity_instanceof(entity_uuid: str, entity_class: str) -> bool:
     entity_type: str =\
         schema_neo4j_queries.get_entity_type(get_neo4j_driver_instance(), entity_uuid.strip())
     return entity_type_instanceof(entity_type, entity_class)
