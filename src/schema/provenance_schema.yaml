@@ -388,7 +388,7 @@ ENTITIES:
         description: "True if the data contains any human genetic sequence information."
       error_message:
         type: string
-        indexed: true
+        indexed: false
         description: "An open text field that holds the last error message that arose from pipeline validation or analysis."
       status:
         type: string
@@ -1370,6 +1370,10 @@ ENTITIES:
           - validate_priority_project
         before_property_create_validators:
           - validate_priority_project
+      error_message:
+        type: string
+        indexed: false
+        description: "An open text field that holds the last error message that arose from pipeline validation or analysis."
 
   ############################################# EPICollection #############################################
   Epicollection:
