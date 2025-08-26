@@ -4163,6 +4163,8 @@ def bulk_update_entities(
                     "success": res.ok,
                     "data": res.json() if res.ok else res.json().get("error"),
                 }
+
+                logger.info(f"Successfully made {idx + 1} internal entity-api call to update {uuid}")
             except requests.exceptions.RequestException as e:
                 logger.error(f"Failed to update entity {uuid}: {e}")
                 results[uuid] = {"success": False, "data": str(e)}
@@ -4172,6 +4174,9 @@ def bulk_update_entities(
 
             if idx < len(entity_updates) - 1:
                 time.sleep(throttle)
+
+    logger.info("Returning bulk_update_entities() resulting data")
+    logger.info(results)
 
     return results
 
@@ -4233,6 +4238,10 @@ def entity_bulk_update():
         validate_user_update_privilege(entity, user_token)
 
     uuids = [e.get("uuid") for e in entities]
+
+    logger.info(f"Bulk updating the following {entity_type} uuids:")
+    logger.info(uuids)
+
     if None in uuids:
         bad_request_error(f"All {entity_type}s must have a 'uuid' field")
     if len(set(uuids)) != len(uuids):
@@ -4257,6 +4266,9 @@ def entity_bulk_update():
         bad_request_error(f"No {entity_type} found with the following uuids: {', '.join(diff)}")
 
     entity_api_url = app.config["ENTITY_API_URL"].rstrip('/')
+
+    logger.info(f"About to bulk update {len(entities)} {entity_type} in a separate thread...")
+
     thread_instance =\
         threading.Thread(target=update_datasets_uploads,
                          args=(entities, user_token, entity_api_url))
