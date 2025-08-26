@@ -811,13 +811,15 @@ new_data_dict : dict
 """
 def validate_group_name(property_key, normalized_entity_type, request, existing_data_dict, new_data_dict):
     assigned_to_group_name = new_data_dict['assigned_to_group_name']
-    globus_groups = schema_manager.get_auth_helper_instance().getHuBMAPGroupInfo()
-    group_dict = next((entry for entry in globus_groups.values() if entry.get("displayname") == assigned_to_group_name), None)
-    if group_dict is None:
-        raise ValueError("Invalid value for 'assigned_to_group_name'")
-    is_data_provider = group_dict.get('data_provider')
-    if not is_data_provider:
-        raise ValueError("Invalid group in 'assigned_to_group_name'. Must be a data provider")
+    # If method is PUT, an empty string is allowed, thus validation is skipped. But if a value is given, it must still be validated. 
+    if not (request.method == "PUT" and (not assigned_to_group_name or not str(assigned_to_group_name).strip())):
+        globus_groups = schema_manager.get_auth_helper_instance().getHuBMAPGroupInfo()
+        group_dict = next((entry for entry in globus_groups.values() if entry.get("displayname") == assigned_to_group_name), None)
+        if group_dict is None:
+            raise ValueError("Invalid value for 'assigned_to_group_name'")
+        is_data_provider = group_dict.get('data_provider')
+        if not is_data_provider:
+            raise ValueError("Invalid group in 'assigned_to_group_name'. Must be a data provider")
 
 
 """
