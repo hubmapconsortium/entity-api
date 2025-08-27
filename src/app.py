@@ -4121,6 +4121,7 @@ curl --request PUT \
 @app.route('/datasets', methods=['PUT'])
 @app.route('/uploads', methods=['PUT'])
 def entity_bulk_update():
+    # Only in the PUT call: `assigned_to_group_name` is allowed to use an empty string value to reser/clear existing values
     ENTITY_BULK_UPDATE_FIELDS_ACCEPTED = ['uuid', 'status', 'ingest_task', 'assigned_to_group_name']
 
     entity_type: str = 'dataset'
@@ -4141,8 +4142,8 @@ def entity_bulk_update():
 
     uuids = [e.get("uuid") for e in entities]
 
-    logger.info(f"Bulk updating the following {entity_type} uuids:")
-    logger.info(uuids)
+    logger.debug(f"Bulk updating the following {entity_type} uuids:")
+    logger.debug(uuids)
 
     if None in uuids:
         bad_request_error(f"All {entity_type}s must have a 'uuid' field")
