@@ -1121,7 +1121,7 @@ def create_entity(entity_type):
     try:
         supress_reindex = _suppress_reindex()
     except Exception as e:
-        return http_bad_request(e)
+        bad_request_error(e)
 
     # Additional validation for Sample entities
     if normalized_entity_type == 'Sample':
@@ -1430,7 +1430,7 @@ def update_entity(id):
     try:
         suppress_reindex = _suppress_reindex()
     except Exception as e:
-        return http_bad_request(e)
+        bad_request_error(e)
 
     # Proceed with per-entity updates after passing any entity-level or property-level validations which
     # would have locked out updates.
@@ -4084,7 +4084,7 @@ def multiple_components():
     try:
         suppress_reindex = _suppress_reindex()
     except Exception as e:
-        return http_bad_request(e)
+        bad_request_error(e)
 
     dataset_list = create_multiple_component_details(request, "Dataset", user_token, json_data_dict.get('datasets'), json_data_dict.get('creation_action'))
 
@@ -4604,7 +4604,7 @@ def _suppress_reindex() -> bool:
         return True
     elif reindex_str == 'true':
         return False
-    raise Exception(f"The value of the 'reindex' parameter must be True or False."
+    raise Exception(f"The value of the 'reindex' parameter must be True or False (case-insensitive)."
                     f" '{request.args.get('reindex')}' is not recognized.")
 
 """
