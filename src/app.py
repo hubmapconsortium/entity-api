@@ -1046,7 +1046,6 @@ def get_entities_by_type(entity_type):
     # Response with the final result
     return jsonify(final_result)
 
-
 """
 Create an entity of the target type in neo4j
 
@@ -1115,6 +1114,14 @@ def create_entity(entity_type):
         bad_request_error(e)
     except schema_errors.UnimplementedValidatorException as uve:
         internal_server_error(uve)
+
+    # Check URL parameters before proceeding to any CRUD operations, halting on validation failures.
+    #
+    # Check if re-indexing is to be suppressed after entity creation.
+    try:
+        supress_reindex = _suppress_reindex()
+    except Exception as e:
+        bad_request_error(e)
 
     # Additional validation for Sample entities
     if normalized_entity_type == 'Sample':
@@ -1237,11 +1244,16 @@ def create_entity(entity_type):
     # Will also filter the result based on schema
     normalized_complete_dict = schema_manager.normalize_entity_result_for_response(complete_dict)
 
-    # Also index the new entity node in elasticsearch via search-api
-    logger.log(logging.INFO
-               ,f"Re-indexing for creation of {complete_dict['entity_type']}"
-                f" with UUID {complete_dict['uuid']}")
-    reindex_entity(complete_dict['uuid'], user_token)
+    if supress_reindex:
+        logger.log(level=logging.INFO
+                   , msg=f"Re-indexing suppressed during creation of {complete_dict['entity_type']}"
+                         f" with UUID {complete_dict['uuid']}")
+    else:
+        # Also index the new entity node in elasticsearch via search-api
+        logger.log(level=logging.INFO
+                   , msg=f"Re-indexing for creation of {complete_dict['entity_type']}"
+                         f" with UUID {complete_dict['uuid']}")
+        reindex_entity(complete_dict['uuid'], user_token)
 
     return jsonify(normalized_complete_dict)
 
@@ -1412,6 +1424,14 @@ def update_entity(id):
             ValueError) as e:
         bad_request_error(e)
 
+    # Check URL parameters before proceeding to any CRUD operations, halting on validation failures.
+    #
+    # Check if re-indexing is to be suppressed after entity creation.
+    try:
+        suppress_reindex = _suppress_reindex()
+    except Exception as e:
+        bad_request_error(e)
+
     # Proceed with per-entity updates after passing any entity-level or property-level validations which
     # would have locked out updates.
     #
@@ -1515,7 +1535,16 @@ def update_entity(id):
         delete_cache(entity_uuid, normalized_entity_type)
 
     # Also reindex the updated entity in elasticsearch via search-api
-    reindex_entity(entity_uuid, user_token)
+    if suppress_reindex:
+        logger.log(level=logging.INFO
+                   , msg=f"Re-indexing suppressed during modification of {normalized_entity_type}"
+                         f" with UUID {entity_uuid}")
+    else:
+        # Also index the new entity node in elasticsearch via search-api
+        logger.log(level=logging.INFO
+                   , msg=f"Re-indexing for modification of {normalized_entity_type}"
+                         f" with UUID {entity_uuid}")
+        reindex_entity(entity_uuid, user_token)
 
     # Do not return the updated dict to avoid computing overhead - 7/14/2023 by Zhou
     message_returned = f"The update request on {normalized_entity_type} of {id} has been accepted, the backend may still be processing"
@@ -4049,6 +4078,14 @@ def multiple_components():
         # Add back in dataset_link_abs_dir
         dataset['dataset_link_abs_dir'] = dataset_link_abs_dir
 
+    # Check URL parameters before proceeding to any CRUD operations, halting on validation failures.
+    #
+    # Check if re-indexing is to be suppressed after entity creation.
+    try:
+        suppress_reindex = _suppress_reindex()
+    except Exception as e:
+        bad_request_error(e)
+
     dataset_list = create_multiple_component_details(request, "Dataset", user_token, json_data_dict.get('datasets'), json_data_dict.get('creation_action'))
 
     # We wait until after the new datasets are linked to their ancestor before performing the remaining post-creation
@@ -4082,19 +4119,21 @@ def multiple_components():
         # Will also filter the result based on schema
         normalized_complete_dict = schema_manager.normalize_entity_result_for_response(complete_dict)
 
-
-        # Also index the new entity node in elasticsearch via search-api
-        logger.log(logging.INFO
-                   ,f"Re-indexing for creation of {complete_dict['entity_type']}"
-                    f" with UUID {complete_dict['uuid']}")
-        reindex_entity(complete_dict['uuid'], user_token)
+        if suppress_reindex:
+            logger.log(level=logging.INFO
+                       , msg=f"Re-indexing suppressed during multiple component creation of {complete_dict['entity_type']}"
+                             f" with UUID {complete_dict['uuid']}")
+        else:
+            # Also index the new entity node in elasticsearch via search-api
+            logger.log(level=logging.INFO
+                       , msg=f"Re-indexing for multiple component creation of {complete_dict['entity_type']}"
+                             f" with UUID {complete_dict['uuid']}")
+            reindex_entity(complete_dict['uuid'], user_token)
         # Add back in dataset_link_abs_dir one last time
         normalized_complete_dict['dataset_link_abs_dir'] = dataset_link_abs_dir
         normalized_complete_entity_list.append(normalized_complete_dict)
 
     return jsonify(normalized_complete_entity_list)
-
-
 
 """
 New endpoints (PUT /datasets and PUT /uploads) to handle the bulk updating of entities see Issue: #698
@@ -4554,6 +4593,19 @@ def _get_dataset_associated_metadata(dataset_dict, dataset_visibility, valid_use
     final_result = filtered_entities_list
 
     return final_result
+
+# Use the Flask request.args MultiDict to see if 'reindex' is a URL parameter passed in with the
+# request and if it indicates reindexing should be supressed. Default to reindexing in all other cases.
+def _suppress_reindex() -> bool:
+    if 'reindex' not in request.args:
+        return False
+    reindex_str = request.args.get('reindex').lower()
+    if reindex_str == 'false':
+        return True
+    elif reindex_str == 'true':
+        return False
+    raise Exception(f"The value of the 'reindex' parameter must be True or False (case-insensitive)."
+                    f" '{request.args.get('reindex')}' is not recognized.")
 
 """
 Generate 'before_create_triiger' data and create the entity details in Neo4j
