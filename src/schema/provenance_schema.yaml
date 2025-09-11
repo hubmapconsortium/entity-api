@@ -1248,6 +1248,7 @@ ENTITIES:
         type: list 
         before_property_update_validators:
           - validate_no_duplicates_in_list
+          - validate_ids_exist_and_datasets
         generated: true # Disallow user input from request json when being created
         indexed: false
         transient: true
@@ -1260,6 +1261,7 @@ ENTITIES:
         type: list 
         before_property_update_validators:
           - validate_no_duplicates_in_list
+          - validate_ids_exist_and_datasets
         generated: true # Disallow user input from request json when being created
         indexed: false
         transient: true

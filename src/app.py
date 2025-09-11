@@ -1464,9 +1464,8 @@ def update_entity(id):
         if ('direct_ancestor_uuids' in json_data_dict) and (json_data_dict['direct_ancestor_uuids']):
             has_direct_ancestor_uuids = True
 
-            # `direct_ancestor_uuids` is required for updating a Dataset.
-            # Verify all of the direct ancestor UUIDs exist in the Neo4j graph.
-            # Form an error response if an Exception is raised.
+            # Verify all of the provided direct ancestor UUIDs exist
+            # Form an error response if an Exception is raised
             try:
                 app_neo4j_queries.uuids_all_exist(neo4j_driver=neo4j_driver_instance
                                                   , uuids=json_data_dict['direct_ancestor_uuids'])
@@ -1491,26 +1490,9 @@ def update_entity(id):
         if ('dataset_uuids_to_link' in json_data_dict) and (json_data_dict['dataset_uuids_to_link']):
             has_dataset_uuids_to_link = True
 
-            # Check existence of those datasets to be linked
-            # If one of the datasets to be linked appears to be already linked,
-            # neo4j query won't create the new linkage due to the use of `MERGE`
-            for dataset_uuid in json_data_dict['dataset_uuids_to_link']:
-                dataset_dict = query_target_entity(dataset_uuid, user_token)
-                # Also make sure it's a Dataset (or publication 2/17/23)
-                if dataset_dict['entity_type'] not in ['Dataset', 'Publication']:
-                    bad_request_error(f"The uuid: {dataset_uuid} is not a Dataset or Publication, cannot be linked to this Upload")
-
         has_dataset_uuids_to_unlink = False
         if ('dataset_uuids_to_unlink' in json_data_dict) and (json_data_dict['dataset_uuids_to_unlink']):
             has_dataset_uuids_to_unlink = True
-
-            # Check existence of those datasets to be unlinked
-            # If one of the datasets to be unlinked appears to be not linked at all,
-            # the neo4j cypher will simply skip it because it won't match the "MATCH" clause
-            # So no need to tell the end users that this dataset is not linked
-            # Let alone checking the entity type to ensure it's a Dataset
-            for dataset_uuid in json_data_dict['dataset_uuids_to_unlink']:
-                dataset_dict = query_target_entity(dataset_uuid, user_token)
 
         # Generate 'before_update_trigger' data and update the entity details in Neo4j
         merged_updated_dict = update_entity_details(request, normalized_entity_type, user_token, json_data_dict, entity_dict)
