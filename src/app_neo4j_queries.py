@@ -686,7 +686,7 @@ Parameters
 ----------
 neo4j_driver : neo4j.Driver object
     The neo4j database connection pool
-uuid : str
+dataset_uuid : str
     The uuid of the target entity: Dataset
 """
 def get_associated_organs_from_dataset(neo4j_driver, dataset_uuid):
@@ -708,6 +708,17 @@ def get_associated_organs_from_dataset(neo4j_driver, dataset_uuid):
 
     return results
 
+
+"""
+Retrieve the list of uuids for samples associated with a given dataset
+
+Parameters
+----------
+neo4j_driver : neo4j.Driver object
+    The neo4j database connection pool
+dataset_uuid : str
+    The uuid of the target entity: Dataset
+"""
 def get_associated_samples_from_dataset(neo4j_driver, dataset_uuid):
     results = []
 
@@ -727,6 +738,17 @@ def get_associated_samples_from_dataset(neo4j_driver, dataset_uuid):
 
     return results
 
+
+"""
+Retrieve the list of uuids for donors associated with a given dataset
+
+Parameters
+----------
+neo4j_driver : neo4j.Driver object
+    The neo4j database connection pool
+dataset_uuid : str
+    The uuid of the target entity: Dataset
+"""
 def get_associated_donors_from_dataset(neo4j_driver, dataset_uuid):
     results = []
 
@@ -1072,14 +1094,29 @@ def get_tuplets(neo4j_driver, uuid, status, prop_key):
                 results = schema_neo4j_queries.nodes_to_dicts(record[record_field_name])
     return results
 
-# Verify all UUIDs in a list are found as Neo4j node identifiers.
-# Return True if all list entries are found, and raise an exception if one or more
-# entries are not found when expected to be in the Neo4j graph.
+
+"""
+Verify all UUIDs in a list are found as Neo4j node identifiers.
+Return 
+
+Parameters
+----------
+neo4j_driver : neo4j.Driver object
+    The neo4j database connection pool
+uuids : list
+    The uuids list
+
+Returns
+-------
+bool
+    True if all list entries are found, and raise an exception if one or more 
+    entries are not found when expected to be in the Neo4j graph.
+"""
 def uuids_all_exist(neo4j_driver, uuids:list):
     expected_match_count = len(uuids)
 
     record_field_name = 'match_count'
-    query = (f"MATCH(e: Entity) WHERE e.uuid IN {uuids} RETURN COUNT(e) AS {record_field_name}")
+    query = (f"MATCH (e:Entity) WHERE e.uuid IN {uuids} RETURN COUNT(e) AS {record_field_name}")
 
     with neo4j_driver.session() as session:
         record = session.read_transaction( schema_neo4j_queries.execute_readonly_tx
@@ -1096,28 +1133,32 @@ def uuids_all_exist(neo4j_driver, uuids:list):
                     f" exist as node identifiers in the Neo4j graph.")
 
 
+"""
+Get the entities from the neo4j database with the given uuids.
+
+Parameters
+----------
+uuids : Union[str, Iterable]
+    The uuid(s) of the entities to get.
+fields : Union[dict, Iterable, None], optional
+    The fields to return for each entity. If None, all fields are returned.
+    If a dict, the keys are the database fields to return and the values are the names to return them as.
+    If an iterable, the fields to return. Defaults to None.
+
+Returns
+-------
+Optional[List[neo4j.Record]]:
+    The entity records with the given uuids, or None if no datasets were found.
+    The specified fields are returned for each entity.
+Raises
+------
+ValueError
+    If fields is not a dict, an iterable, or None.
+"""
 def get_entities_by_uuid(neo4j_driver,
                          uuids: Union[str, Iterable],
                          fields: Union[dict, Iterable, None] = None) -> Optional[list]:
-    """Get the entities from the neo4j database with the given uuids.
-    Parameters
-    ----------
-    uuids : Union[str, Iterable]
-        The uuid(s) of the entities to get.
-    fields : Union[dict, Iterable, None], optional
-        The fields to return for each entity. If None, all fields are returned.
-        If a dict, the keys are the database fields to return and the values are the names to return them as.
-        If an iterable, the fields to return. Defaults to None.
-    Returns
-    -------
-    Optional[List[neo4j.Record]]:
-        The entity records with the given uuids, or None if no datasets were found.
-        The specified fields are returned for each entity.
-    Raises
-    ------
-    ValueError
-        If fields is not a dict, an iterable, or None.
-    """
+
     if isinstance(uuids, str):
         uuids = [uuids]
     if not isinstance(uuids, list):
