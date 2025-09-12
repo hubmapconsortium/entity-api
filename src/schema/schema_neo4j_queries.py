@@ -1409,6 +1409,39 @@ def get_upload_datasets(neo4j_driver, uuid, property_key = None):
 
 
 """
+Get the qualified uuids-found and Dataset-given a list of uuids for validation purposes
+
+Parameters
+----------
+neo4j_driver : neo4j.Driver object
+    The neo4j database connection pool
+uuids : list
+    The list of uuids from user input
+
+Returns
+-------
+list
+    A list of uuids that are found and Dataset type
+    
+"""
+def get_found_dataset_uuids(neo4j_driver, uuids):
+    query = (
+        f"MATCH (e:Dataset) "
+        f"WHERE e.uuid IN {uuids} "
+        f"RETURN COLLECT(e.uuid) AS {record_field_name}")
+
+    logger.info("======get_not_found_or_not_dataset_uuids() query======")
+    logger.debug(query)
+
+    with neo4j_driver.session() as session:
+        record = session.read_transaction(execute_readonly_tx, query)
+
+        uuids_list = record[record_field_name]
+
+        return uuids_list               
+
+
+"""
 Get count of published Dataset in the provenance hierarchy for a given Sample/Donor
 
 Parameters

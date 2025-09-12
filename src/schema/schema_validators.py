@@ -148,6 +148,33 @@ def validate_no_duplicates_in_list(property_key, normalized_entity_type, request
     if len(set(target_list)) != len(target_list):
         raise ValueError(f"The {property_key} field must only contain unique items")
 
+
+"""
+Validate all the provided uuids exist and all are Datasets when updating the target Upload
+
+Parameters
+----------
+property_key : str
+    The target property key
+normalized_type : str
+    Submission
+request: Flask request object
+    The instance of Flask request passed in from application request
+existing_data_dict : dict
+    A dictionary that contains all existing entity properties
+new_data_dict : dict
+    The json data in request body, already after the regular validations
+"""
+def validate_ids_exist_and_datasets(property_key, normalized_entity_type, request, existing_data_dict, new_data_dict):
+    neo4j_driver_instance = schema_manager.get_neo4j_driver_instance()
+    all_uuids_list = new_data_dict[property_key]
+    qualified_uuids_list = schema_neo4j_queries.get_found_dataset_uuids(neo4j_driver_instance, all_uuids_list)
+    unqualified_uuids_list = [item for item in all_uuids_list if item not in qualified_uuids_list]
+
+    if unqualified_uuids_list:
+        raise ValueError(f"The following {len(unqualified_uuids_list)} uuids are either not found or not Dataset type: {str(unqualified_uuids_list)}.")
+
+
 """
 Validate that a given dataset is not a component of a multi-assay split parent dataset fore allowing status to be 
 updated. If a component dataset needs to be updated, update it via its parent multi-assay dataset
