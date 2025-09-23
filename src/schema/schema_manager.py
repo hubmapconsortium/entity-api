@@ -616,6 +616,8 @@ Generate the complete entity record by running the read triggers
 
 Parameters
 ----------
+request: Flask request object
+    The instance of Flask request passed in from application request
 token: str
     Either the user's globus nexus token or the internal token
 entity_dict : dict
@@ -628,7 +630,7 @@ Returns
 dict
     A dictionary of complete entity with all the generated 'on_read_trigger' data
 """
-def get_complete_entity_result(token, entity_dict, properties_to_skip = []):
+def get_complete_entity_result(request, token, entity_dict, properties_to_skip = []):
     global _memcached_client
     global _memcached_prefix
 
@@ -658,6 +660,7 @@ def get_complete_entity_result(token, entity_dict, properties_to_skip = []):
             # Pass {} since no new_data_dict for 'on_read_trigger'
             generated_on_read_trigger_data_dict = generate_triggered_data(  trigger_type=TriggerTypeEnum.ON_READ
                                                                             , normalized_class=entity_type
+                                                                            , request=request
                                                                             , user_token=token
                                                                             , existing_data_dict=entity_dict
                                                                             , new_data_dict={}
@@ -717,120 +720,14 @@ def get_index_metadata(token, entity_dict, properties_to_skip=[]):
                                             ,properties_to_skip=properties_to_skip)
     return metadata_dict
 
-"""
-Generate the entity metadata by reading Neo4j data and appropriate triggers based upon the scope of
-metadata requested e.g. complete data for a another service, indexing data for an OpenSearch document, etc.
-
-Parameters
-----------
-token: str
-    Either the user's globus nexus token or the internal token
-entity_dict : dict
-    The entity dict based on neo4j record
-metadata_scope:
-    A recognized scope from the SchemaConstants, controlling the triggers which are fired and elements
-    from Neo4j which are retained.
-properties_to_skip : list
-    Any properties to skip running triggers
-
-Returns
--------
-dict
-    A dictionary of metadata appropriate for the metadata_scope argument value.
-"""
-def _get_metadata_result(token, entity_dict, metadata_scope:MetadataScopeEnum, properties_to_skip=[]):
-    global _memcached_client
-    global _memcached_prefix
-
-    complete_entity = {}
-
-    # In case entity_dict is None or
-    # an incorrectly created entity that doesn't have the `entity_type` property
-    if entity_dict and ('entity_type' in entity_dict) and ('uuid' in entity_dict):
-        entity_uuid = entity_dict['uuid']
-        entity_type = entity_dict['entity_type']
-        cache_result = None
-
-        # Need both client and prefix when fetching the cache
-        # Do NOT fetch cache if properties_to_skip is specified
-        if _memcached_client and _memcached_prefix and (not properties_to_skip):
-            cache_key = f'{_memcached_prefix}_complete_index_{entity_uuid}'
-            cache_result = _memcached_client.get(cache_key)
-
-        # Use the cached data if found and still valid
-        # Otherwise, calculate and add to cache
-        if cache_result is None:
-            if _memcached_client and _memcached_prefix:
-                logger.info(
-                    f'Cache of complete entity of {entity_type} {entity_uuid} not found or expired at time {datetime.now()}')
-
-            if metadata_scope == MetadataScopeEnum.COMPLETE:
-                # No error handling here since if a 'on_read_trigger' method fails,
-                # the property value will be the error message
-                # Pass {} since no new_data_dict for 'on_read_trigger'
-                #generated_on_read_trigger_data_dict = generate_triggered_data('on_read_trigger', entity_type, token,
-                #                                                              entity_dict, {}, properties_to_skip)
-                generated_on_read_trigger_data_dict = generate_triggered_data(  trigger_type=TriggerTypeEnum.ON_READ
-                                                                                , normalized_class=entity_type
-                                                                                , user_token=token
-                                                                                , existing_data_dict=entity_dict
-                                                                                , new_data_dict={}
-                                                                                , properties_to_skip=properties_to_skip)
-
-                # Merge the entity info and the generated on read data into one dictionary
-                complete_entity_dict = {**entity_dict, **generated_on_read_trigger_data_dict}
-
-                # Remove properties of None value
-                metadata_dict = remove_none_values(complete_entity_dict)
-            elif metadata_scope == MetadataScopeEnum.INDEX:
-                # No error handling here since if a 'on_index_trigger' method fails,
-                # the property value will be the error message
-                # Pass {} since no new_data_dict for 'on_index_trigger'
-                generated_on_index_trigger_data_dict = generate_triggered_data( trigger_type=TriggerTypeEnum.ON_INDEX
-                                                                                , normalized_class=entity_type
-                                                                                , user_token=token
-                                                                                , existing_data_dict=entity_dict
-                                                                                , new_data_dict={}
-                                                                                , properties_to_skip=properties_to_skip)
-
-                # Merge the entity info and the generated on read data into one dictionary
-                complete_entity_dict = {**entity_dict, **generated_on_index_trigger_data_dict}
-
-                # Remove properties of None value
-                metadata_dict = remove_none_values(complete_entity_dict)
-            else:
-                # Merge the entity info and the generated on read data into one dictionary
-                metadata_dict = {**entity_dict}
-
-            # Need both client and prefix when creating the cache
-            # Do NOT cache when properties_to_skip is specified
-            if _memcached_client and _memcached_prefix and (not properties_to_skip):
-                logger.info(f'Creating complete entity cache of {entity_type} {entity_uuid} at time {datetime.now()}')
-
-                cache_key = f'{_memcached_prefix}_complete_index_{entity_uuid}'
-                _memcached_client.set(cache_key, metadata_dict, expire=SchemaConstants.MEMCACHED_TTL)
-
-                logger.debug(
-                    f"Following is the complete {entity_type} cache created at time {datetime.now()} using key {cache_key}:")
-                logger.debug(metadata_dict)
-        else:
-            logger.info(f'Using complete entity cache of {entity_type} {entity_uuid} at time {datetime.now()}')
-            logger.debug(cache_result)
-
-            metadata_dict = cache_result
-    else:
-        # Just return the original entity_dict otherwise
-        metadata_dict = entity_dict
-
-    # One final return
-    return metadata_dict
-
 
 """
 Generate the complete entity records as well as result filtering for response
 
 Parameters
 ----------
+request: Flask request object
+    The instance of Flask request passed in from application request
 token: str
     Either the user's globus nexus token or the internal token
 entities_list : list
@@ -843,13 +740,13 @@ Returns
 list
     A list a complete entity dictionaries with all the normalized information
 """
-def get_complete_entities_list(token, entities_list, properties_to_skip = []):
+def get_complete_entities_list(request, token, entities_list, properties_to_skip = []):
     complete_entities_list = []
     
     # Use a pool of threads to execute the time-consuming iteration asynchronously to avoid timeout - Zhou 2/6/2025
     with concurrent.futures.ThreadPoolExecutor() as executor:
-        helper_func = lambda args: get_complete_entity_result(args[0], args[1], args[2])
-        args_list = [(token, entity_dict, properties_to_skip) for entity_dict in entities_list]
+        helper_func = lambda args: get_complete_entity_result(args[0], args[1], args[2], args[3])
+        args_list = [(request, token, entity_dict, properties_to_skip) for entity_dict in entities_list]
 
         # The order of donors/organs/samples lists are not gurenteed with using `executor.submit()`
         # `executor.map()` maintains the same order of results as the original submitted tasks
@@ -969,84 +866,6 @@ def normalize_document_result_for_response(entity_dict, properties_to_exclude=[]
                                 , metadata_scope=MetadataScopeEnum.INDEX
                                 , properties_to_skip=properties_to_exclude)
 
-"""
-Normalize the entity result by filtering the properties to those appropriate for the
-scope of metadata requested e.g. complete data for a another service, indexing data for an OpenSearch document, etc.
-
-Properties that are not defined in the yaml schema and properties marked as `exposed: false` in the yaml schema are
-removed. Properties are also filter based upon the metadata_scope argument e.g. properties lacking `indexed: true`
-marking in the yaml schema are removed when `metadata_scope` has a value of `MetadataScopeEnum.INDEX`.
-
-Parameters
-----------
-entity_dict : dict
-    Either a neo4j node converted dict or metadata dict generated from get_index_metadata()
-metadata_scope:
-    A recognized scope from the SchemaConstants, controlling the triggers which are fired and elements
-    from Neo4j which are retained.  Default is MetadataScopeEnum.INDEX.
-properties_to_exclude : list
-    Any additional properties to exclude from the response
-
-Returns
--------
-dict
-    An entity metadata dictionary with keys that are all normalized appropriately for the metadata_scope argument value.
-"""
-def _normalize_metadata(entity_dict, metadata_scope:MetadataScopeEnum, properties_to_skip=[]):
-    global _schema
-
-    # When the entity_dict is unavailable or the entity was incorrectly created, do not
-    # try to normalize.
-    if not entity_dict or 'entity_type' not in entity_dict:
-        return {}
-
-    normalized_metadata = {}
-
-    normalized_entity_type = entity_dict['entity_type']
-    properties = _schema['ENTITIES'][normalized_entity_type]['properties']
-
-    for key in entity_dict:
-        # Only return the properties defined in the schema yaml
-        # Exclude additional schema yaml properties, if specified
-        if  key not in properties:
-            # Skip Neo4j entity properties not found in the schema yaml
-            continue
-        if  key in properties_to_skip:
-            # Skip properties if directed by the calling function
-            continue
-        if  entity_dict[key] is None:
-            # Do not include properties in the metadata if they are empty
-            continue
-        if  'exposed' in properties[key] and \
-            properties[key]['exposed'] is False:
-            # Do not include properties in the metadata if they are not exposed
-            continue
-        if  metadata_scope is MetadataScopeEnum.INDEX and \
-            'indexed' in properties[key] and \
-            properties[key]['indexed'] is False:
-            # Do not include properties in metadata for indexing if they are not True i.e. False or non-boolean
-            continue
-        # Only run convert_str_literal() on string representation of Python dict and list with removing control characters
-        # No convertion for string representation of Python string, meaning that can still contain control characters
-        if entity_dict[key] and (properties[key]['type'] in ['list', 'json_string']):
-            logger.info(
-                f"Executing convert_str_literal() on {normalized_entity_type}.{key} of uuid: {entity_dict['uuid']}")
-
-            # Safely evaluate a string containing a Python dict or list literal
-            # Only convert to Python list/dict when the string literal is not empty
-            # instead of returning the json-as-string or array-as-string
-            # convert_str_literal() also removes those control chars to avoid SyntaxError
-            entity_dict[key] = convert_str_literal(entity_dict[key])
-
-        # Add the target key with correct value of data type to the normalized_entity dict
-        normalized_metadata[key] = entity_dict[key]
-
-        # After possible modification to entity_dict[key] prior to assigning to normalized_metadata[key], remove
-        # the normalized_metadata entry for the key if it is an empty string, dictionary, or list.
-        if (isinstance(normalized_metadata[key], (str, dict, list)) and (not normalized_metadata[key])):
-            normalized_metadata.pop(key)
-
-    return normalized_metadata
 
 """
 Normalize the given list of complete entity results by removing properties that are not defined in the yaml schema
@@ -2310,8 +2129,221 @@ def get_organ_types():
         return _organ_types
 
 
+"""
+Use the Flask request.args MultiDict to see if 'reindex' is a URL parameter passed in with the
+request and if it indicates reindexing should be supressed. Default to reindexing in all other cases.
+
+Parameters
+----------
+request: Flask request object
+    The instance of Flask request passed in from application request
+
+Returns
+-------
+bool
+"""
+def suppress_reindex(request) -> bool:
+    if 'reindex' not in request.args:
+        return False
+    reindex_str = request.args.get('reindex').lower()
+    if reindex_str == 'false':
+        return True
+    elif reindex_str == 'true':
+        return False
+    raise Exception(f"The value of the 'reindex' parameter must be True or False (case-insensitive)."
+                    f" '{request.args.get('reindex')}' is not recognized.")
+
+
 ####################################################################################################
 ## Internal functions
 ####################################################################################################
+
+"""
+Generate the entity metadata by reading Neo4j data and appropriate triggers based upon the scope of
+metadata requested e.g. complete data for a another service, indexing data for an OpenSearch document, etc.
+
+Parameters
+----------
+token: str
+    Either the user's globus nexus token or the internal token
+entity_dict : dict
+    The entity dict based on neo4j record
+metadata_scope:
+    A recognized scope from the SchemaConstants, controlling the triggers which are fired and elements
+    from Neo4j which are retained.
+properties_to_skip : list
+    Any properties to skip running triggers
+
+Returns
+-------
+dict
+    A dictionary of metadata appropriate for the metadata_scope argument value.
+"""
+def _get_metadata_result(token, entity_dict, metadata_scope:MetadataScopeEnum, properties_to_skip=[]):
+    global _memcached_client
+    global _memcached_prefix
+
+    complete_entity = {}
+
+    # In case entity_dict is None or
+    # an incorrectly created entity that doesn't have the `entity_type` property
+    if entity_dict and ('entity_type' in entity_dict) and ('uuid' in entity_dict):
+        entity_uuid = entity_dict['uuid']
+        entity_type = entity_dict['entity_type']
+        cache_result = None
+
+        # Need both client and prefix when fetching the cache
+        # Do NOT fetch cache if properties_to_skip is specified
+        if _memcached_client and _memcached_prefix and (not properties_to_skip):
+            cache_key = f'{_memcached_prefix}_complete_index_{entity_uuid}'
+            cache_result = _memcached_client.get(cache_key)
+
+        # Use the cached data if found and still valid
+        # Otherwise, calculate and add to cache
+        if cache_result is None:
+            if _memcached_client and _memcached_prefix:
+                logger.info(
+                    f'Cache of complete entity of {entity_type} {entity_uuid} not found or expired at time {datetime.now()}')
+
+            if metadata_scope == MetadataScopeEnum.COMPLETE:
+                # No error handling here since if a 'on_read_trigger' method fails,
+                # the property value will be the error message
+                # Pass {} since no new_data_dict for 'on_read_trigger'
+                #generated_on_read_trigger_data_dict = generate_triggered_data('on_read_trigger', entity_type, token,
+                #                                                              entity_dict, {}, properties_to_skip)
+                generated_on_read_trigger_data_dict = generate_triggered_data(  trigger_type=TriggerTypeEnum.ON_READ
+                                                                                , normalized_class=entity_type
+                                                                                , user_token=token
+                                                                                , existing_data_dict=entity_dict
+                                                                                , new_data_dict={}
+                                                                                , properties_to_skip=properties_to_skip)
+
+                # Merge the entity info and the generated on read data into one dictionary
+                complete_entity_dict = {**entity_dict, **generated_on_read_trigger_data_dict}
+
+                # Remove properties of None value
+                metadata_dict = remove_none_values(complete_entity_dict)
+            elif metadata_scope == MetadataScopeEnum.INDEX:
+                # No error handling here since if a 'on_index_trigger' method fails,
+                # the property value will be the error message
+                # Pass {} since no new_data_dict for 'on_index_trigger'
+                generated_on_index_trigger_data_dict = generate_triggered_data( trigger_type=TriggerTypeEnum.ON_INDEX
+                                                                                , normalized_class=entity_type
+                                                                                , user_token=token
+                                                                                , existing_data_dict=entity_dict
+                                                                                , new_data_dict={}
+                                                                                , properties_to_skip=properties_to_skip)
+
+                # Merge the entity info and the generated on read data into one dictionary
+                complete_entity_dict = {**entity_dict, **generated_on_index_trigger_data_dict}
+
+                # Remove properties of None value
+                metadata_dict = remove_none_values(complete_entity_dict)
+            else:
+                # Merge the entity info and the generated on read data into one dictionary
+                metadata_dict = {**entity_dict}
+
+            # Need both client and prefix when creating the cache
+            # Do NOT cache when properties_to_skip is specified
+            if _memcached_client and _memcached_prefix and (not properties_to_skip):
+                logger.info(f'Creating complete entity cache of {entity_type} {entity_uuid} at time {datetime.now()}')
+
+                cache_key = f'{_memcached_prefix}_complete_index_{entity_uuid}'
+                _memcached_client.set(cache_key, metadata_dict, expire=SchemaConstants.MEMCACHED_TTL)
+
+                logger.debug(
+                    f"Following is the complete {entity_type} cache created at time {datetime.now()} using key {cache_key}:")
+                logger.debug(metadata_dict)
+        else:
+            logger.info(f'Using complete entity cache of {entity_type} {entity_uuid} at time {datetime.now()}')
+            logger.debug(cache_result)
+
+            metadata_dict = cache_result
+    else:
+        # Just return the original entity_dict otherwise
+        metadata_dict = entity_dict
+
+    # One final return
+    return metadata_dict
+
+
+"""
+Normalize the entity result by filtering the properties to those appropriate for the
+scope of metadata requested e.g. complete data for a another service, indexing data for an OpenSearch document, etc.
+
+Properties that are not defined in the yaml schema and properties marked as `exposed: false` in the yaml schema are
+removed. Properties are also filter based upon the metadata_scope argument e.g. properties lacking `indexed: true`
+marking in the yaml schema are removed when `metadata_scope` has a value of `MetadataScopeEnum.INDEX`.
+
+Parameters
+----------
+entity_dict : dict
+    Either a neo4j node converted dict or metadata dict generated from get_index_metadata()
+metadata_scope:
+    A recognized scope from the SchemaConstants, controlling the triggers which are fired and elements
+    from Neo4j which are retained.  Default is MetadataScopeEnum.INDEX.
+properties_to_exclude : list
+    Any additional properties to exclude from the response
+
+Returns
+-------
+dict
+    An entity metadata dictionary with keys that are all normalized appropriately for the metadata_scope argument value.
+"""
+def _normalize_metadata(entity_dict, metadata_scope:MetadataScopeEnum, properties_to_skip=[]):
+    global _schema
+
+    # When the entity_dict is unavailable or the entity was incorrectly created, do not
+    # try to normalize.
+    if not entity_dict or 'entity_type' not in entity_dict:
+        return {}
+
+    normalized_metadata = {}
+
+    normalized_entity_type = entity_dict['entity_type']
+    properties = _schema['ENTITIES'][normalized_entity_type]['properties']
+
+    for key in entity_dict:
+        # Only return the properties defined in the schema yaml
+        # Exclude additional schema yaml properties, if specified
+        if  key not in properties:
+            # Skip Neo4j entity properties not found in the schema yaml
+            continue
+        if  key in properties_to_skip:
+            # Skip properties if directed by the calling function
+            continue
+        if  entity_dict[key] is None:
+            # Do not include properties in the metadata if they are empty
+            continue
+        if  'exposed' in properties[key] and \
+            properties[key]['exposed'] is False:
+            # Do not include properties in the metadata if they are not exposed
+            continue
+        if  metadata_scope is MetadataScopeEnum.INDEX and \
+            'indexed' in properties[key] and \
+            properties[key]['indexed'] is False:
+            # Do not include properties in metadata for indexing if they are not True i.e. False or non-boolean
+            continue
+        # Only run convert_str_literal() on string representation of Python dict and list with removing control characters
+        # No convertion for string representation of Python string, meaning that can still contain control characters
+        if entity_dict[key] and (properties[key]['type'] in ['list', 'json_string']):
+            logger.info(
+                f"Executing convert_str_literal() on {normalized_entity_type}.{key} of uuid: {entity_dict['uuid']}")
+
+            # Safely evaluate a string containing a Python dict or list literal
+            # Only convert to Python list/dict when the string literal is not empty
+            # instead of returning the json-as-string or array-as-string
+            # convert_str_literal() also removes those control chars to avoid SyntaxError
+            entity_dict[key] = convert_str_literal(entity_dict[key])
+
+        # Add the target key with correct value of data type to the normalized_entity dict
+        normalized_metadata[key] = entity_dict[key]
+
+        # After possible modification to entity_dict[key] prior to assigning to normalized_metadata[key], remove
+        # the normalized_metadata entry for the key if it is an empty string, dictionary, or list.
+        if (isinstance(normalized_metadata[key], (str, dict, list)) and (not normalized_metadata[key])):
+            normalized_metadata.pop(key)
+
+    return normalized_metadata
 
 

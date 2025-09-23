@@ -1741,51 +1741,9 @@ new_data_dict : dict
     A merged dictionary that contains all possible input data to be used
 """
 def update_status(property_key, normalized_type, request, user_token, existing_data_dict, new_data_dict):
-    # execute set_status_history
     set_status_history(property_key, normalized_type, request, user_token, existing_data_dict, new_data_dict)
+    _sync_component_dataset_status(property_key, normalized_type, request, user_token, existing_data_dict, new_data_dict)
 
-    #execute sync_component_dataset_status
-    sync_component_dataset_status(property_key, normalized_type, request, user_token, existing_data_dict, new_data_dict)
-
-
-"""
-Function that changes the status of component datasets when their parent multi-assay dataset's status changes 
-
-Parameters
-----------
-property_key : str
-    The target property key
-normalized_type : str
-    One of the types defined in the schema yaml: Dataset
-request: Flask request object
-    The instance of Flask request passed in from application request
-user_token: str
-    The user's globus nexus token
-existing_data_dict : dict
-    A dictionary that contains all existing entity properties
-new_data_dict : dict
-    A merged dictionary that contains all possible input data to be used
-"""
-def sync_component_dataset_status(property_key, normalized_type, request, user_token, existing_data_dict, new_data_dict):
-    if 'uuid' not in existing_data_dict:
-        raise KeyError("Missing 'uuid' key in 'existing_data_dict' during calling 'link_dataset_to_direct_ancestors()' trigger method.")
-    uuid = existing_data_dict['uuid']
-    if 'status' not in existing_data_dict:
-        raise KeyError("Missing 'status' key in 'existing_data_dict' during calling 'link_dataset_to_direct_ancestors()' trigger method.")
-    status = existing_data_dict['status']
-    if status.lower() != "published":
-        children_uuids_list = schema_neo4j_queries.get_children(schema_manager.get_neo4j_driver_instance(), uuid, property_key='uuid')
-        status_body = {"status": status}
-        for child_uuid in children_uuids_list:
-            creation_action = schema_neo4j_queries.get_entity_creation_action_activity(schema_manager.get_neo4j_driver_instance(), child_uuid)
-            if creation_action == 'Multi-Assay Split':
-                url = schema_manager.get_entity_api_url() + SchemaConstants.ENTITY_API_UPDATE_ENDPOINT + '/' + child_uuid
-                request_headers = {
-                    'Authorization': f'Bearer {user_token}'
-                }
-                request_headers[SchemaConstants.HUBMAP_APP_HEADER] = SchemaConstants.INGEST_API_APP
-                request_headers[SchemaConstants.INTERNAL_TRIGGER] = SchemaConstants.COMPONENT_DATASET
-                response = requests.put(url=url, headers=request_headers, json=status_body)
 
 
 ####################################################################################################
@@ -2571,4 +2529,51 @@ def _delete_files(target_property_key, property_key, normalized_type, request, u
     generated_dict[target_property_key] = files_info_list
 
     return generated_dict
+
+
+"""
+Function that syncs the status of component datasets when their parent multi-assay dataset's status changes 
+
+Parameters
+----------
+property_key : str
+    The target property key
+normalized_type : str
+    One of the types defined in the schema yaml: Dataset
+request: Flask request object
+    The instance of Flask request passed in from application request
+user_token: str
+    The user's globus nexus token
+existing_data_dict : dict
+    A dictionary that contains all existing entity properties
+new_data_dict : dict
+    A merged dictionary that contains all possible input data to be used
+"""
+def _sync_component_dataset_status(property_key, normalized_type, request, user_token, existing_data_dict, new_data_dict):
+    if 'uuid' not in existing_data_dict:
+        raise KeyError("Missing 'uuid' key in 'existing_data_dict' during calling 'link_dataset_to_direct_ancestors()' trigger method.")
+    uuid = existing_data_dict['uuid']
+    if 'status' not in existing_data_dict:
+        raise KeyError("Missing 'status' key in 'existing_data_dict' during calling 'link_dataset_to_direct_ancestors()' trigger method.")
+    status = existing_data_dict['status']
+    if status.lower() != "published":
+        children_uuids_list = schema_neo4j_queries.get_children(schema_manager.get_neo4j_driver_instance(), uuid, property_key='uuid')
+        status_body = {"status": status}
+        for child_uuid in children_uuids_list:
+            creation_action = schema_neo4j_queries.get_entity_creation_action_activity(schema_manager.get_neo4j_driver_instance(), child_uuid)
+            if creation_action == 'Multi-Assay Split':
+                url = schema_manager.get_entity_api_url() + SchemaConstants.ENTITY_API_UPDATE_ENDPOINT + '/' + child_uuid
+
+                # When the parent dataset status update disables reindex via query string '?reindex=false'
+                # We'll also disable the reindex call to search-api upon each subsequent child dataset update
+                if schema_manager.suppress_reindex(request): 
+                    url += '?reindex=false'
+
+                request_headers = {
+                    'Authorization': f'Bearer {user_token}'
+                }
+                request_headers[SchemaConstants.HUBMAP_APP_HEADER] = SchemaConstants.INGEST_API_APP
+                request_headers[SchemaConstants.INTERNAL_TRIGGER] = SchemaConstants.COMPONENT_DATASET
+                response = requests.put(url=url, headers=request_headers, json=status_body)
+
 
