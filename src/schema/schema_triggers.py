@@ -855,7 +855,7 @@ def link_dataset_to_direct_ancestors(property_key, normalized_type, request, use
     direct_ancestor_uuids = existing_data_dict['direct_ancestor_uuids']
 
     # Generate property values for Activity node
-    activity_data_dict = schema_manager.generate_activity_data(normalized_type, user_token, existing_data_dict)
+    activity_data_dict = schema_manager.generate_activity_data(normalized_type, request, user_token, existing_data_dict)
 
     try:
         # Create a linkage (via one Activity node) between the dataset node and its direct ancestors in neo4j
@@ -1781,7 +1781,7 @@ def link_donor_to_lab(property_key, normalized_type, request, user_token, existi
     direct_ancestor_uuids = [existing_data_dict['group_uuid']]
 
     # Generate property values for Activity node
-    activity_data_dict = schema_manager.generate_activity_data(normalized_type, user_token, existing_data_dict)
+    activity_data_dict = schema_manager.generate_activity_data(normalized_type, request, user_token, existing_data_dict)
 
     try:
         # Create a linkage (via Activity node) 
@@ -1917,7 +1917,7 @@ def link_sample_to_direct_ancestor(property_key, normalized_type, request, user_
     direct_ancestor_uuids = [existing_data_dict['direct_ancestor_uuid']]
 
     # Generate property values for Activity node
-    activity_data_dict = schema_manager.generate_activity_data(normalized_type, user_token, existing_data_dict)
+    activity_data_dict = schema_manager.generate_activity_data(normalized_type, request, user_token, existing_data_dict)
 
     try:
         # Create a linkage (via Activity node) 
@@ -2129,7 +2129,7 @@ def link_upload_to_lab(property_key, normalized_type, request, user_token, exist
     direct_ancestor_uuids = [existing_data_dict['group_uuid']]
 
     # Generate property values for Activity node
-    activity_data_dict = schema_manager.generate_activity_data(normalized_type, user_token, existing_data_dict)
+    activity_data_dict = schema_manager.generate_activity_data(normalized_type, request, user_token, existing_data_dict)
 
     try:
         # Create a linkage (via Activity node) 

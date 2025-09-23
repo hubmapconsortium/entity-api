@@ -701,6 +701,8 @@ local_directory_rel_path.
 
 Parameters
 ----------
+request: Flask request object
+    The instance of Flask request passed in from application request
 token: str
     Either the user's globus nexus token or the internal token
 entity_dict : dict
@@ -713,11 +715,12 @@ Returns
 dict
     A dictionary of metadata to be included in an OpenSearch index document for the entity.
 """
-def get_index_metadata(token, entity_dict, properties_to_skip=[]):
-    metadata_dict = _get_metadata_result(   token=token
-                                            ,entity_dict=entity_dict
-                                            ,metadata_scope=MetadataScopeEnum.INDEX
-                                            ,properties_to_skip=properties_to_skip)
+def get_index_metadata(request, token, entity_dict, properties_to_skip=[]):
+    metadata_dict = _get_metadata_result(request=request
+                                         , token=token
+                                         , entity_dict=entity_dict
+                                         , metadata_scope=MetadataScopeEnum.INDEX
+                                         , properties_to_skip=properties_to_skip)
     return metadata_dict
 
 
@@ -1837,6 +1840,8 @@ Parameters
 ----------
 normalized_entity_type : str
     One of the entity types defined in the schema yaml: Donor, Sample, Dataset
+request: Flask request object
+    The instance of Flask request passed in from application request
 user_token: str
     The user's globus nexus token
 user_info_dict : dict
@@ -1848,7 +1853,7 @@ Returns
 -------
 dict: A dict of gnerated Activity data
 """
-def generate_activity_data(normalized_entity_type, user_token, user_info_dict):
+def generate_activity_data(normalized_entity_type, request, user_token, user_info_dict):
     # Activity is not an Entity
     normalized_activity_type = 'Activity'
 
@@ -1864,6 +1869,7 @@ def generate_activity_data(normalized_entity_type, user_token, user_info_dict):
     # Generate property values for Activity node
     generated_activity_data_dict = generate_triggered_data( trigger_type=TriggerTypeEnum.BEFORE_CREATE
                                                             , normalized_class=normalized_activity_type
+                                                            , request=request
                                                             , user_token=user_token
                                                             , existing_data_dict={}
                                                             , new_data_dict=data_dict_for_activity)
@@ -2164,6 +2170,8 @@ metadata requested e.g. complete data for a another service, indexing data for a
 
 Parameters
 ----------
+request: Flask request object
+    The instance of Flask request passed in from application request
 token: str
     Either the user's globus nexus token or the internal token
 entity_dict : dict
@@ -2179,7 +2187,7 @@ Returns
 dict
     A dictionary of metadata appropriate for the metadata_scope argument value.
 """
-def _get_metadata_result(token, entity_dict, metadata_scope:MetadataScopeEnum, properties_to_skip=[]):
+def _get_metadata_result(request, token, entity_dict, metadata_scope:MetadataScopeEnum, properties_to_skip=[]):
     global _memcached_client
     global _memcached_prefix
 
@@ -2209,10 +2217,9 @@ def _get_metadata_result(token, entity_dict, metadata_scope:MetadataScopeEnum, p
                 # No error handling here since if a 'on_read_trigger' method fails,
                 # the property value will be the error message
                 # Pass {} since no new_data_dict for 'on_read_trigger'
-                #generated_on_read_trigger_data_dict = generate_triggered_data('on_read_trigger', entity_type, token,
-                #                                                              entity_dict, {}, properties_to_skip)
                 generated_on_read_trigger_data_dict = generate_triggered_data(  trigger_type=TriggerTypeEnum.ON_READ
                                                                                 , normalized_class=entity_type
+                                                                                , request=request
                                                                                 , user_token=token
                                                                                 , existing_data_dict=entity_dict
                                                                                 , new_data_dict={}
@@ -2229,6 +2236,7 @@ def _get_metadata_result(token, entity_dict, metadata_scope:MetadataScopeEnum, p
                 # Pass {} since no new_data_dict for 'on_index_trigger'
                 generated_on_index_trigger_data_dict = generate_triggered_data( trigger_type=TriggerTypeEnum.ON_INDEX
                                                                                 , normalized_class=entity_type
+                                                                                , request=request
                                                                                 , user_token=token
                                                                                 , existing_data_dict=entity_dict
                                                                                 , new_data_dict={}

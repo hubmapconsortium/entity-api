@@ -4863,7 +4863,7 @@ def create_multiple_samples_details(request, normalized_entity_type, user_token,
         samples_dict_list.append(sample_dict)
 
     # Generate property values for the only one Activity node
-    activity_data_dict = schema_manager.generate_activity_data(normalized_entity_type, user_token, user_info_dict)
+    activity_data_dict = schema_manager.generate_activity_data(normalized_entity_type, request, user_token, user_info_dict)
 
     # Create new sample nodes and needed relationships as well as activity node in one transaction
     try:
@@ -4985,7 +4985,7 @@ def create_multiple_component_details(request, normalized_entity_type, user_toke
         dataset_dict['dataset_link_abs_dir'] = dataset_link_abs_dir
         datasets_dict_list.append(dataset_dict)
 
-    activity_data_dict = schema_manager.generate_activity_data(normalized_entity_type, user_token, user_info_dict)
+    activity_data_dict = schema_manager.generate_activity_data(normalized_entity_type, request, user_token, user_info_dict)
     activity_data_dict['creation_action'] = creation_action
     try:
         created_datasets = app_neo4j_queries.create_multiple_datasets(neo4j_driver_instance, datasets_dict_list, activity_data_dict, direct_ancestor)
@@ -5510,7 +5510,7 @@ def _get_metadata_by_id(entity_id:str=None, metadata_scope:MetadataScopeEnum=Met
     normalized_entity_type = entity_dict['entity_type']
     excluded_fields = schema_manager.get_fields_to_exclude(normalized_entity_type)
     # Get the entity result of the indexable dictionary from cache if exists, otherwise regenerate and cache
-    metadata_dict = schema_manager.get_index_metadata(token, entity_dict) \
+    metadata_dict = schema_manager.get_index_metadata(request, token, entity_dict) \
                     if metadata_scope==MetadataScopeEnum.INDEX \
                     else schema_manager.get_complete_entity_result(request, token, entity_dict)
 
