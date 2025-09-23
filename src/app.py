@@ -1204,7 +1204,7 @@ def create_entity(entity_type):
     # For Dataset: link to direct ancestors
     # For Collection: link to member Datasets
     # For Upload: link to parent Lab node
-    after_create(normalized_entity_type, user_token, merged_dict)
+    after_create(normalized_entity_type, request, user_token, merged_dict)
 
     # By default we'll return all the properties but skip these time-consuming ones
     # Donor doesn't need to skip any
