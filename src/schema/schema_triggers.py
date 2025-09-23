@@ -2566,14 +2566,20 @@ def _sync_component_dataset_status(property_key, normalized_type, request, user_
 
                 # When the parent dataset status update disables reindex via query string '?reindex=false'
                 # We'll also disable the reindex call to search-api upon each subsequent child dataset update
+                reindex = 'followed'
                 if schema_manager.suppress_reindex(request): 
                     url += '?reindex=false'
+                    reindex = 'suppressed'
+
+                logger.info(f"Parent Multi-Assay Split dataset {existing_data_dict['uuid']} status update to {status}, with reindex {reindex}.")
+                logger.info(f'Internal PUT call to update child component dataset {child_uuid} status to {status}, with reindex {reindex}.')
 
                 request_headers = {
-                    'Authorization': f'Bearer {user_token}'
+                    'Authorization': f'Bearer {user_token}',
+                    SchemaConstants.HUBMAP_APP_HEADER: SchemaConstants.INGEST_API_APP,
+                    SchemaConstants.INTERNAL_TRIGGER: SchemaConstants.COMPONENT_DATASET
                 }
-                request_headers[SchemaConstants.HUBMAP_APP_HEADER] = SchemaConstants.INGEST_API_APP
-                request_headers[SchemaConstants.INTERNAL_TRIGGER] = SchemaConstants.COMPONENT_DATASET
+
                 response = requests.put(url=url, headers=request_headers, json=status_body)
 
 

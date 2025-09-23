@@ -1456,7 +1456,7 @@ def update_entity(id):
 
         # Handle linkages update via `after_update_trigger` methods
         if has_direct_ancestor_uuid:
-            after_update(normalized_entity_type, user_token, merged_updated_dict)
+            after_update(normalized_entity_type, request, user_token, merged_updated_dict)
     # 2/17/23 - Adding direct ancestor checks to publication as well as dataset.
     elif normalized_entity_type in ['Dataset', 'Publication']:
         # A bit more validation if `direct_ancestor_uuids` provided
@@ -1485,7 +1485,7 @@ def update_entity(id):
 
         # Handle linkages update via `after_update_trigger` methods
         if has_direct_ancestor_uuids or has_associated_collection_uuid or has_updated_status:
-            after_update(normalized_entity_type, user_token, merged_updated_dict)
+            after_update(normalized_entity_type, request, user_token, merged_updated_dict)
     elif normalized_entity_type == 'Upload':
         has_dataset_uuids_to_link = False
         if ('dataset_uuids_to_link' in json_data_dict) and (json_data_dict['dataset_uuids_to_link']):
@@ -1500,13 +1500,13 @@ def update_entity(id):
 
         # Handle linkages update via `after_update_trigger` methods
         if has_dataset_uuids_to_link or has_dataset_uuids_to_unlink or has_updated_status:
-            after_update(normalized_entity_type, user_token, merged_updated_dict)
+            after_update(normalized_entity_type, request, user_token, merged_updated_dict)
     elif schema_manager.entity_type_instanceof(normalized_entity_type, 'Collection'):
         # Generate 'before_update_trigger' data and update the entity details in Neo4j
         merged_updated_dict = update_entity_details(request, normalized_entity_type, user_token, json_data_dict, entity_dict)
 
         # Handle linkages update via `after_update_trigger` methods
-        after_update(normalized_entity_type, user_token, merged_updated_dict)
+        after_update(normalized_entity_type, request, user_token, merged_updated_dict)
     else:
         # Generate 'before_update_trigger' data and update the entity details in Neo4j
         merged_updated_dict = update_entity_details(request, normalized_entity_type, user_token, json_data_dict, entity_dict)
