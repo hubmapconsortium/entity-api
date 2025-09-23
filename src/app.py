@@ -1196,7 +1196,7 @@ def create_entity(entity_type):
 
     # If the preceding "additional validations" did not raise an error,
     # generate 'before_create_trigger' data and create the entity details in Neo4j
-    merged_dict = create_entity_details(request, normalized_entity_type, user_token, json_data_dict)
+    merged_dict = create_entity_details(request, normalized_entity_type, request, user_token, json_data_dict)
 
     # For Donor: link to parent Lab node
     # For Sample: link to existing direct ancestor
@@ -1451,7 +1451,7 @@ def update_entity(id):
                 bad_request_error(f"The uuid: {direct_ancestor_uuid} is not a Donor neither a Sample, cannot be used as the direct ancestor of this Sample")
 
         # Generate 'before_update_triiger' data and update the entity details in Neo4j
-        merged_updated_dict = update_entity_details(request, normalized_entity_type, user_token, json_data_dict, entity_dict)
+        merged_updated_dict = update_entity_details(request, normalized_entity_type, request, user_token, json_data_dict, entity_dict)
 
         # Handle linkages update via `after_update_trigger` methods
         if has_direct_ancestor_uuid:
@@ -1480,7 +1480,7 @@ def update_entity(id):
             associated_collection_dict = query_target_entity(json_data_dict['associated_collection_uuid'], user_token)
 
         # Generate 'before_update_trigger' data and update the entity details in Neo4j
-        merged_updated_dict = update_entity_details(request, normalized_entity_type, user_token, json_data_dict, entity_dict)
+        merged_updated_dict = update_entity_details(request, normalized_entity_type, request, user_token, json_data_dict, entity_dict)
 
         # Handle linkages update via `after_update_trigger` methods
         if has_direct_ancestor_uuids or has_associated_collection_uuid or has_updated_status:
@@ -1495,20 +1495,20 @@ def update_entity(id):
             has_dataset_uuids_to_unlink = True
 
         # Generate 'before_update_trigger' data and update the entity details in Neo4j
-        merged_updated_dict = update_entity_details(request, normalized_entity_type, user_token, json_data_dict, entity_dict)
+        merged_updated_dict = update_entity_details(request, normalized_entity_type, request, user_token, json_data_dict, entity_dict)
 
         # Handle linkages update via `after_update_trigger` methods
         if has_dataset_uuids_to_link or has_dataset_uuids_to_unlink or has_updated_status:
             after_update(normalized_entity_type, user_token, merged_updated_dict)
     elif schema_manager.entity_type_instanceof(normalized_entity_type, 'Collection'):
         # Generate 'before_update_trigger' data and update the entity details in Neo4j
-        merged_updated_dict = update_entity_details(request, normalized_entity_type, user_token, json_data_dict, entity_dict)
+        merged_updated_dict = update_entity_details(request, normalized_entity_type, request, user_token, json_data_dict, entity_dict)
 
         # Handle linkages update via `after_update_trigger` methods
         after_update(normalized_entity_type, user_token, merged_updated_dict)
     else:
         # Generate 'before_update_trigger' data and update the entity details in Neo4j
-        merged_updated_dict = update_entity_details(request, normalized_entity_type, user_token, json_data_dict, entity_dict)
+        merged_updated_dict = update_entity_details(request, normalized_entity_type, request, user_token, json_data_dict, entity_dict)
 
     # Remove the cached entities if Memcached is being used
     # DO NOT update the cache with new entity dict because the returned dict from PUT (some properties maybe skipped)
@@ -3081,7 +3081,7 @@ def retract_dataset(id):
         bad_request_error(e)
 
     # No need to call after_update() afterwards because retraction doesn't call any after_update_trigger methods
-    merged_updated_dict = update_entity_details(request, normalized_entity_type, token, json_data_dict, entity_dict)
+    merged_updated_dict = update_entity_details(request, normalized_entity_type, request, token, json_data_dict, entity_dict)
 
     complete_dict = schema_manager.get_complete_entity_result(token, merged_updated_dict)
 
@@ -4598,6 +4598,8 @@ request : flask.Request object
     The incoming request
 normalized_entity_type : str
     One of the normalized entity types: Donor/Dataset/Sample/Upload/Collection/EPICollection/Publication
+request: Flask request object
+    The instance of Flask request passed in from application request
 user_token: str
     The user's globus groups token
 json_data_dict: dict
@@ -4608,7 +4610,7 @@ Returns
 dict
     A dict of all the newly created entity detials
 """
-def create_entity_details(request, normalized_entity_type, user_token, json_data_dict):
+def create_entity_details(request, normalized_entity_type, request, user_token, json_data_dict):
     # Get user info based on request
     user_info_dict = schema_manager.get_user_info(request)
 
@@ -4659,6 +4661,7 @@ def create_entity_details(request, normalized_entity_type, user_token, json_data
         # Use {} since no existing dict
         generated_before_create_trigger_data_dict = schema_manager.generate_triggered_data( trigger_type=TriggerTypeEnum.BEFORE_CREATE
                                                                                             , normalized_class=normalized_entity_type
+                                                                                            , request=request
                                                                                             , user_token=user_token
                                                                                             , existing_data_dict={}
                                                                                             , new_data_dict=new_data_dict)
@@ -4747,6 +4750,8 @@ request : flask.Request object
     The incoming request
 normalized_entity_type : str
     Must be "Sample" in this case
+request: Flask request object
+    The instance of Flask request passed in from application request
 user_token: str
     The user's globus groups token
 json_data_dict: dict
@@ -4759,7 +4764,7 @@ Returns
 list
     A list of all the newly generated ids via uuid-api
 """
-def create_multiple_samples_details(request, normalized_entity_type, user_token, json_data_dict, count):
+def create_multiple_samples_details(request, normalized_entity_type, request, user_token, json_data_dict, count):
     # Get user info based on request
     user_info_dict = schema_manager.get_user_info(request)
 
@@ -4817,6 +4822,7 @@ def create_multiple_samples_details(request, normalized_entity_type, user_token,
         # Use {} since no existing dict
         generated_before_create_trigger_data_dict = schema_manager.generate_triggered_data( trigger_type=TriggerTypeEnum.BEFORE_CREATE
                                                                                             , normalized_class=normalized_entity_type
+                                                                                            , request=request
                                                                                             , user_token=user_token
                                                                                             , existing_data_dict={}
                                                                                             , new_data_dict=new_data_dict)
@@ -4897,6 +4903,8 @@ request : flask.Request object
     The incoming request
 normalized_entity_type : str
     Must be "Dataset" in this case
+request: Flask request object
+    The instance of Flask request passed in from application request
 user_token: str
     The user's globus groups token
 json_data_dict_list: list
@@ -4909,7 +4917,7 @@ Returns
 list
     A list of all the newly created datasets with generated fields represented as dictionaries
 """
-def create_multiple_component_details(request, normalized_entity_type, user_token, json_data_dict_list, creation_action):
+def create_multiple_component_details(request, normalized_entity_type, request, user_token, json_data_dict_list, creation_action):
     # Get user info based on request
     user_info_dict = schema_manager.get_user_info(request)
     direct_ancestor = json_data_dict_list[0].get('direct_ancestor_uuids')[0]
@@ -4946,6 +4954,7 @@ def create_multiple_component_details(request, normalized_entity_type, user_toke
             # Use {} since no existing dict
             generated_before_create_trigger_data_dict = schema_manager.generate_triggered_data( trigger_type=TriggerTypeEnum.BEFORE_CREATE
                                                                                                 , normalized_class=normalized_entity_type
+                                                                                                , request=request
                                                                                                 , user_token=user_token
                                                                                                 , existing_data_dict={}
                                                                                                 , new_data_dict=new_data_dict)
@@ -5013,19 +5022,22 @@ Parameters
 ----------
 normalized_entity_type : str
     One of the normalized entity types: Donor/Dataset/Sample/Upload/Collection/EPICollection/Publication
+request: Flask request object
+    The instance of Flask request passed in from application request
 user_token: str
     The user's globus groups token
 merged_data_dict: dict
     The merged dict that contains the entity dict newly created and 
     information from user request json that are not stored in Neo4j
 """
-def after_create(normalized_entity_type, user_token, merged_data_dict):
+def after_create(normalized_entity_type, request, user_token, merged_data_dict):
     try:
         # 'after_create_trigger' and 'after_update_trigger' don't generate property values
         # It just returns the empty dict, no need to assign value
         # Use {} since no new dict
         schema_manager.generate_triggered_data( trigger_type=TriggerTypeEnum.AFTER_CREATE
                                                 , normalized_class=normalized_entity_type
+                                                , request=request
                                                 , user_token=user_token
                                                 , existing_data_dict=merged_data_dict
                                                 , new_data_dict={})
@@ -5048,6 +5060,8 @@ request : flask.Request object
     The incoming request
 normalized_entity_type : str
     One of the normalized entity types: Donor/Dataset/Sample/Upload/Collection/EPICollection/Publication
+request: Flask request object
+    The instance of Flask request passed in from application request
 user_token: str
     The user's globus groups token
 json_data_dict: dict
@@ -5060,7 +5074,7 @@ Returns
 dict
     A dict of all the updated entity detials
 """
-def update_entity_details(request, normalized_entity_type, user_token, json_data_dict, existing_entity_dict):
+def update_entity_details(request, normalized_entity_type, request, user_token, json_data_dict, existing_entity_dict):
     # Get user info based on request
     user_info_dict = schema_manager.get_user_info(request)
 
@@ -5070,6 +5084,7 @@ def update_entity_details(request, normalized_entity_type, user_token, json_data
     try:
         generated_before_update_trigger_data_dict = schema_manager.generate_triggered_data( trigger_type=TriggerTypeEnum.BEFORE_UPDATE
                                                                                             , normalized_class=normalized_entity_type
+                                                                                            , request=request
                                                                                             , user_token=user_token
                                                                                             , existing_data_dict=existing_entity_dict
                                                                                             , new_data_dict=new_data_dict)
@@ -5132,18 +5147,21 @@ Parameters
 ----------
 normalized_entity_type : str
     One of the normalized entity types: Donor/Dataset/Sample/Upload/Collection/EPICollection/Publication
+request: Flask request object
+    The instance of Flask request passed in from application request
 user_token: str
     The user's globus groups token
 entity_dict: dict
     The entity dict newly updated
 """
-def after_update(normalized_entity_type, user_token, entity_dict):
+def after_update(normalized_entity_type, request, user_token, entity_dict):
     try:
         # 'after_create_trigger' and 'after_update_trigger' don't generate property values
         # It just returns the empty dict, no need to assign value
         # Use {} sicne no new dict
         schema_manager.generate_triggered_data( trigger_type=TriggerTypeEnum.AFTER_UPDATE
                                                 , normalized_class=normalized_entity_type
+                                                , request=request
                                                 , user_token=user_token
                                                 , existing_data_dict=entity_dict
                                                 , new_data_dict={})

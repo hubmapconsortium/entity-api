@@ -358,6 +358,8 @@ trigger_type : str
     One of the trigger types: on_create_trigger, on_update_trigger, on_read_trigger
 normalized_class : str
     One of the types defined in the schema yaml: Activity, Collection, Donor, Sample, Dataset
+request: Flask request object
+    The instance of Flask request passed in from application request
 user_token: str
     The user's globus nexus token, 'on_read_trigger' doesn't really need this
 existing_data_dict : dict
@@ -372,7 +374,7 @@ Returns
 dict
     A dictionary of trigger event methods generated data
 """
-def generate_triggered_data(trigger_type: TriggerTypeEnum, normalized_class, user_token, existing_data_dict
+def generate_triggered_data(trigger_type: TriggerTypeEnum, normalized_class, request, user_token, existing_data_dict
                             , new_data_dict, properties_to_skip = []):
     global _schema
 
@@ -422,7 +424,7 @@ def generate_triggered_data(trigger_type: TriggerTypeEnum, normalized_class, use
                         # because the property value is already set and stored in neo4j
                         # Normally it's building linkages between entity nodes
                         # Use {} since no incoming new_data_dict 
-                        trigger_method_to_call(key, normalized_class, user_token, existing_data_dict, {})
+                        trigger_method_to_call(key, normalized_class, request, user_token, existing_data_dict, {})
                     except Exception:
                         msg = f"Failed to call the {trigger_type.value} method: {trigger_method_name}"
                         # Log the full stack trace, prepend a line with our message
@@ -456,9 +458,9 @@ def generate_triggered_data(trigger_type: TriggerTypeEnum, normalized_class, use
                         #within this dictionary and return it so it can be saved in the scope of this loop and
                         #passed to other 'updated_peripherally' triggers                        
                         if 'updated_peripherally' in properties[key] and properties[key]['updated_peripherally']: 
-                            trigger_generated_data_dict = trigger_method_to_call(key, normalized_class, user_token, existing_data_dict, new_data_dict, trigger_generated_data_dict)
+                            trigger_generated_data_dict = trigger_method_to_call(key, normalized_class, request, user_token, existing_data_dict, new_data_dict, trigger_generated_data_dict)
                         else:
-                            target_key, target_value = trigger_method_to_call(key, normalized_class, user_token, existing_data_dict, new_data_dict)
+                            target_key, target_value = trigger_method_to_call(key, normalized_class, request, user_token, existing_data_dict, new_data_dict)
                             trigger_generated_data_dict[target_key] = target_value
                             
                             # Meanwhile, set the original property as None if target_key is different
@@ -503,9 +505,9 @@ def generate_triggered_data(trigger_type: TriggerTypeEnum, normalized_class, use
                     # within this dictionary and return it so it can be saved in the scope of this loop and
                     # passed to other 'updated_peripherally' triggers                    
                     if 'updated_peripherally' in properties[key] and properties[key]['updated_peripherally']:
-                        trigger_generated_data_dict = trigger_method_to_call(key, normalized_class, user_token, existing_data_dict, new_data_dict, trigger_generated_data_dict)
+                        trigger_generated_data_dict = trigger_method_to_call(key, normalized_class, request, user_token, existing_data_dict, new_data_dict, trigger_generated_data_dict)
                     else:  
-                        target_key, target_value = trigger_method_to_call(key, normalized_class, user_token, existing_data_dict, new_data_dict)
+                        target_key, target_value = trigger_method_to_call(key, normalized_class, request, user_token, existing_data_dict, new_data_dict)
                         trigger_generated_data_dict[target_key] = target_value
 
                         # Meanwhile, set the original property as None if target_key is different
