@@ -1754,7 +1754,7 @@ def update_status(property_key, normalized_type, request, user_token, existing_d
     status = existing_data_dict['status']
 
     # Only apply to non-published parent datasets
-    if status.lower() != "published":
+    if status.lower() != 'published':
         # Only sync the child component datasets status for Multi-Assay Split
         component_dataset_uuids = schema_neo4j_queries.get_component_dataset_uuids(schema_manager.get_neo4j_driver_instance(), uuid)
         
@@ -1780,6 +1780,9 @@ def update_status(property_key, normalized_type, request, user_token, existing_d
             status_body = {"status": status}
 
             response = requests.put(url=url, headers=request_headers, json=status_body)
+
+            if response.status_code != 200:
+                logger.error(f'Failed to update child component dataset {child_uuid} status: {response.text}')
 
 
 ####################################################################################################
