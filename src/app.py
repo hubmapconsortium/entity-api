@@ -1482,11 +1482,6 @@ def update_entity(id):
 
         # Generate 'before_update_trigger' data and update the entity details in Neo4j
         merged_updated_dict = update_entity_details(request, normalized_entity_type, user_token, json_data_dict, entity_dict)
-        
-        print("==========DEBUG Begin")
-        print(merged_updated_dict)
-        print("==========DEBUG End")
-
 
         # Handle linkages update via `after_update_trigger` methods
         if has_direct_ancestor_uuids or has_associated_collection_uuid or has_updated_status:
