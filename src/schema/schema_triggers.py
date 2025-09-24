@@ -1782,7 +1782,7 @@ def update_status(property_key, normalized_type, request, user_token, existing_d
             response = requests.put(url=url, headers=request_headers, json=status_body)
 
             if response.status_code != 200:
-                logger.error(f'Failed to update child component dataset {child_uuid} status: {response.text}')
+                logger.error(f'Failed to update child component dataset {comp_uuid} status: {response.text}')
 
 
 ####################################################################################################
