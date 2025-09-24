@@ -410,8 +410,7 @@ def generate_triggered_data(trigger_type: TriggerTypeEnum, normalized_class, req
             if trigger_type in [TriggerTypeEnum.AFTER_CREATE, TriggerTypeEnum.AFTER_UPDATE]:
                 # Only call the triggers if the propery key presents from the incoming data
                 # E.g., 'direct_ancestor_uuid' for Sample, 'dataset_uuids' for Collection
-                # This `existing_data_dict` is the newly created or updated entity dict
-                if key in existing_data_dict:
+                if key in new_data_dict:
                     trigger_method_name = properties[key][trigger_type.value]
 
                     try:
@@ -423,8 +422,7 @@ def generate_triggered_data(trigger_type: TriggerTypeEnum, normalized_class, req
                         # No return values for 'after_create_trigger' and 'after_update_trigger'
                         # because the property value is already set and stored in neo4j
                         # Normally it's building linkages between entity nodes
-                        # Use {} since no incoming new_data_dict 
-                        trigger_method_to_call(key, normalized_class, request, user_token, existing_data_dict, {})
+                        trigger_method_to_call(key, normalized_class, request, user_token, existing_data_dict, new_data_dict)
                     except Exception:
                         msg = f"Failed to call the {trigger_type.value} method: {trigger_method_name}"
                         # Log the full stack trace, prepend a line with our message

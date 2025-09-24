@@ -1204,7 +1204,7 @@ def create_entity(entity_type):
     # For Dataset: link to direct ancestors
     # For Collection: link to member Datasets
     # For Upload: link to parent Lab node
-    after_create(normalized_entity_type, request, user_token, merged_dict)
+    after_create(normalized_entity_type, request, user_token, merged_dict, json_data_dict)
 
     # By default we'll return all the properties but skip these time-consuming ones
     # Donor doesn't need to skip any
@@ -1451,12 +1451,12 @@ def update_entity(id):
             if direct_ancestor_dict['entity_type'] not in ['Donor', 'Sample']:
                 bad_request_error(f"The uuid: {direct_ancestor_uuid} is not a Donor neither a Sample, cannot be used as the direct ancestor of this Sample")
 
-        # Generate 'before_update_triiger' data and update the entity details in Neo4j
+        # Generate 'before_update_trigger' data and update the entity details in Neo4j
         merged_updated_dict = update_entity_details(request, normalized_entity_type, user_token, json_data_dict, entity_dict)
 
         # Handle linkages update via `after_update_trigger` methods
         if has_direct_ancestor_uuid:
-            after_update(normalized_entity_type, request, user_token, merged_updated_dict)
+            after_update(normalized_entity_type, request, user_token, merged_updated_dict, json_data_dict)
     # 2/17/23 - Adding direct ancestor checks to publication as well as dataset.
     elif normalized_entity_type in ['Dataset', 'Publication']:
         # A bit more validation if `direct_ancestor_uuids` provided
@@ -1485,7 +1485,7 @@ def update_entity(id):
 
         # Handle linkages update via `after_update_trigger` methods
         if has_direct_ancestor_uuids or has_associated_collection_uuid or has_updated_status:
-            after_update(normalized_entity_type, request, user_token, merged_updated_dict)
+            after_update(normalized_entity_type, request, user_token, merged_updated_dict, json_data_dict)
     elif normalized_entity_type == 'Upload':
         has_dataset_uuids_to_link = False
         if ('dataset_uuids_to_link' in json_data_dict) and (json_data_dict['dataset_uuids_to_link']):
@@ -1500,13 +1500,13 @@ def update_entity(id):
 
         # Handle linkages update via `after_update_trigger` methods
         if has_dataset_uuids_to_link or has_dataset_uuids_to_unlink or has_updated_status:
-            after_update(normalized_entity_type, request, user_token, merged_updated_dict)
+            after_update(normalized_entity_type, request, user_token, merged_updated_dict, json_data_dict)
     elif schema_manager.entity_type_instanceof(normalized_entity_type, 'Collection'):
         # Generate 'before_update_trigger' data and update the entity details in Neo4j
         merged_updated_dict = update_entity_details(request, normalized_entity_type, user_token, json_data_dict, entity_dict)
 
         # Handle linkages update via `after_update_trigger` methods
-        after_update(normalized_entity_type, request, user_token, merged_updated_dict)
+        after_update(normalized_entity_type, request, user_token, merged_updated_dict, json_data_dict)
     else:
         # Generate 'before_update_trigger' data and update the entity details in Neo4j
         merged_updated_dict = update_entity_details(request, normalized_entity_type, user_token, json_data_dict, entity_dict)
@@ -4580,7 +4580,7 @@ def _get_dataset_associated_metadata(dataset_dict, dataset_visibility, valid_use
 
 
 """
-Generate 'before_create_triiger' data and create the entity details in Neo4j
+Generate 'before_create_trigger' data and create the entity details in Neo4j
 
 Parameters
 ----------
@@ -5000,7 +5000,7 @@ def create_multiple_component_details(request, normalized_entity_type, user_toke
 
 
 """
-Execute 'after_create_triiger' methods
+Execute 'after_create_trigger' methods
 
 Parameters
 ----------
@@ -5013,8 +5013,10 @@ user_token: str
 merged_data_dict: dict
     The merged dict that contains the entity dict newly created and 
     information from user request json that are not stored in Neo4j
+json_data_dict: dict
+    The json request dict
 """
-def after_create(normalized_entity_type, request, user_token, merged_data_dict):
+def after_create(normalized_entity_type, request, user_token, merged_data_dict, json_data_dict):
     try:
         # 'after_create_trigger' and 'after_update_trigger' don't generate property values
         # It just returns the empty dict, no need to assign value
@@ -5024,7 +5026,7 @@ def after_create(normalized_entity_type, request, user_token, merged_data_dict):
                                                 , request=request
                                                 , user_token=user_token
                                                 , existing_data_dict=merged_data_dict
-                                                , new_data_dict={})
+                                                , new_data_dict=json_data_dict)
     except schema_errors.AfterCreateTriggerException:
         # Log the full stack trace, prepend a line with our message
         msg = "The entity has been created, but failed to execute one of the 'after_create_trigger' methods"
@@ -5036,7 +5038,7 @@ def after_create(normalized_entity_type, request, user_token, merged_data_dict):
 
 
 """
-Generate 'before_create_triiger' data and create the entity details in Neo4j
+Generate 'before_create_trigger' data and create the entity details in Neo4j
 
 Parameters
 ----------
@@ -5133,20 +5135,19 @@ request: Flask request object
     The instance of Flask request passed in from application request
 user_token: str
     The user's globus groups token
-entity_dict: dict
-    The entity dict newly updated
+merged_updated_dict: dict
+    The merged entity dict containing newly updated values and existing values
+json_data_dict: dict
+    The data dict containing new values 
 """
-def after_update(normalized_entity_type, request, user_token, entity_dict):
+def after_update(normalized_entity_type, request, user_token, merged_updated_dict, json_data_dict):
     try:
-        # 'after_create_trigger' and 'after_update_trigger' don't generate property values
-        # It just returns the empty dict, no need to assign value
-        # Use {} sicne no new dict
         schema_manager.generate_triggered_data( trigger_type=TriggerTypeEnum.AFTER_UPDATE
                                                 , normalized_class=normalized_entity_type
                                                 , request=request
                                                 , user_token=user_token
-                                                , existing_data_dict=entity_dict
-                                                , new_data_dict={})
+                                                , existing_data_dict=merged_updated_dict
+                                                , new_data_dict=json_data_dict)
     except schema_errors.AfterUpdateTriggerException:
         # Log the full stack trace, prepend a line with our message
         msg = "The entity information has been updated, but failed to execute one of the 'after_update_trigger' methods"

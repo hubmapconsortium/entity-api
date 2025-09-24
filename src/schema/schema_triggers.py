@@ -26,6 +26,8 @@ logger = logging.getLogger(__name__)
 ####################################################################################################
 
 """
+TriggerTypeEnum.BEFORE_CREATE
+
 Trigger event method of generating current timestamp
 
 Parameters
@@ -56,6 +58,8 @@ def set_timestamp(property_key, normalized_type, request, user_token, existing_d
 
 
 """
+TriggerTypeEnum.BEFORE_CREATE
+
 Trigger event method of setting the entity type of a given entity
 
 Parameters
@@ -83,6 +87,8 @@ def set_entity_type(property_key, normalized_type, request, user_token, existing
 
 
 """
+TriggerTypeEnum.BEFORE_CREATE
+
 Trigger event method of getting user sub
 
 Parameters
@@ -113,6 +119,8 @@ def set_user_sub(property_key, normalized_type, request, user_token, existing_da
 
 
 """
+TriggerTypeEnum.BEFORE_CREATE
+
 Trigger event method of getting user email
 
 Parameters
@@ -143,6 +151,8 @@ def set_user_email(property_key, normalized_type, request, user_token, existing_
 
 
 """
+TriggerTypeEnum.BEFORE_CREATE
+
 Trigger event method of getting user name
 
 Parameters
@@ -173,6 +183,8 @@ def set_user_displayname(property_key, normalized_type, request, user_token, exi
 
 
 """
+TriggerTypeEnum.BEFORE_CREATE
+
 Trigger event method of getting uuid, hubmap_id for a new entity to be created
 
 Parameters
@@ -203,6 +215,8 @@ def set_uuid(property_key, normalized_type, request, user_token, existing_data_d
 
 
 """
+TriggerTypeEnum.BEFORE_CREATE
+
 Trigger event method of getting uuid, hubmap_id for a new entity to be created
 
 Parameters
@@ -238,6 +252,8 @@ def set_hubmap_id(property_key, normalized_type, request, user_token, existing_d
 
 
 """
+TriggerTypeEnum.BEFORE_CREATE
+
 Trigger event method of generating data access level
 
 Parameters
@@ -295,6 +311,8 @@ def set_data_access_level(property_key, normalized_type, request, user_token, ex
 
 
 """
+TriggerTypeEnum.BEFORE_CREATE
+
 Trigger event method of setting the group_uuid
 
 Parameters
@@ -357,6 +375,8 @@ def set_group_uuid(property_key, normalized_type, request, user_token, existing_
 
 
 """
+TriggerTypeEnum.BEFORE_CREATE
+
 Trigger event method of setting the group_name
 
 Parameters
@@ -409,6 +429,8 @@ def set_group_name(property_key, normalized_type, request, user_token, existing_
 ####################################################################################################
 
 """
+TriggerTypeEnum.BEFORE_CREATE
+
 Trigger event method of getting the submission_id
 No submission_id for Dataset, Collection, and Upload
 
@@ -440,6 +462,8 @@ def set_submission_id(property_key, normalized_type, request, user_token, existi
 
 
 """
+TriggerTypeEnum.BEFORE_CREATE
+
 Trigger event method to commit files saved that were previously uploaded with UploadFileHelper.save_file
 
 The information, filename and optional description is saved in the field with name specified by `target_property_key`
@@ -489,6 +513,8 @@ def commit_image_files(property_key, normalized_type, request, user_token, exist
 
 
 """
+TriggerTypeEnum.BEFORE_UPDATE
+
 Trigger event methods for removing files from an entity during update
 
 Files are stored in a json encoded text field with property name 'target_property_key' in the entity dict
@@ -526,6 +552,8 @@ def delete_image_files(property_key, normalized_type, request, user_token, exist
 
 
 """
+TriggerTypeEnum.BEFORE_UPDATE
+
 Trigger event method to ONLY update descriptions of existing files
 
 Parameters
@@ -597,6 +625,8 @@ def update_file_descriptions(property_key, normalized_type, request, user_token,
 ####################################################################################################
 
 """
+TriggerTypeEnum.AFTER_CREATE and TriggerTypeEnum.AFTER_UPDATE
+
 Trigger event method of tracking status change events
 
 Parameters
@@ -649,6 +679,8 @@ def set_status_history(property_key, normalized_type, request, user_token, exist
 ####################################################################################################
 
 """
+TriggerTypeEnum.ON_READ
+
 Trigger event method of getting a list of associated datasets for a given collection
 
 Parameters
@@ -689,6 +721,8 @@ def get_collection_datasets(property_key, normalized_type, request, user_token, 
 ####################################################################################################
 
 """
+TriggerTypeEnum.BEFORE_CREATE
+
 Trigger event method of setting the default "New" status for this new Dataset
 
 Parameters
@@ -717,6 +751,8 @@ def set_dataset_status_new(property_key, normalized_type, request, user_token, e
 
 
 """
+TriggerTypeEnum.ON_READ
+
 Trigger event method of getting a list of collections for this new Dataset
 
 Parameters
@@ -753,6 +789,8 @@ def get_dataset_collections(property_key, normalized_type, request, user_token, 
 
 
 """
+TriggerTypeEnum.ON_READ
+
 Trigger event method of getting the associated collection for this publication
 
 Parameters
@@ -789,6 +827,8 @@ def get_publication_associated_collection(property_key, normalized_type, request
 
 
 """
+TriggerTypeEnum.ON_READ
+
 Trigger event method of getting the associated Upload for this Dataset
 
 Parameters
@@ -827,6 +867,8 @@ def get_dataset_upload(property_key, normalized_type, request, user_token, exist
 
 
 """
+TriggerTypeEnum.AFTER_CREATE and TriggerTypeEnum.AFTER_UPDATE
+
 Trigger event method of creating or recreating linkages between this new Dataset and its direct ancestors
 
 Parameters
@@ -848,11 +890,11 @@ def link_dataset_to_direct_ancestors(property_key, normalized_type, request, use
     if 'uuid' not in existing_data_dict:
         raise KeyError("Missing 'uuid' key in 'existing_data_dict' during calling 'link_dataset_to_direct_ancestors()' trigger method.")
 
-    if 'direct_ancestor_uuids' not in existing_data_dict:
-        raise KeyError("Missing 'direct_ancestor_uuids' key in 'existing_data_dict' during calling 'link_dataset_to_direct_ancestors()' trigger method.")
+    if 'direct_ancestor_uuids' not in new_data_dict:
+        raise KeyError("Missing 'direct_ancestor_uuids' key in 'new_data_dict' during calling 'link_dataset_to_direct_ancestors()' trigger method.")
 
     dataset_uuid = existing_data_dict['uuid']
-    direct_ancestor_uuids = existing_data_dict['direct_ancestor_uuids']
+    direct_ancestor_uuids = new_data_dict['direct_ancestor_uuids']
 
     # Generate property values for Activity node
     activity_data_dict = schema_manager.generate_activity_data(normalized_type, request, user_token, existing_data_dict)
@@ -870,6 +912,8 @@ def link_dataset_to_direct_ancestors(property_key, normalized_type, request, use
 
 
 """
+TriggerTypeEnum.AFTER_CREATE and TriggerTypeEnum.AFTER_UPDATE
+
 Trigger event method for creating or recreating linkages between this new Collection and the Datasets it contains
 
 Parameters
@@ -891,11 +935,11 @@ def link_collection_to_datasets(property_key, normalized_type, request, user_tok
     if 'uuid' not in existing_data_dict:
         raise KeyError("Missing 'uuid' key in 'existing_data_dict' during calling 'link_collection_to_datasets()' trigger method.")
 
-    if 'dataset_uuids' not in existing_data_dict:
-        raise KeyError("Missing 'dataset_uuids' key in 'existing_data_dict' during calling 'link_collection_to_datasets()' trigger method.")
+    if 'dataset_uuids' not in new_data_dict:
+        raise KeyError("Missing 'dataset_uuids' key in 'new_data_dict' during calling 'link_collection_to_datasets()' trigger method.")
 
     collection_uuid = existing_data_dict['uuid']
-    dataset_uuids = existing_data_dict['dataset_uuids']
+    dataset_uuids = new_data_dict['dataset_uuids']
 
     try:
         # Create a linkage (without an Activity node) between the Collection node and each Dataset it contains.
@@ -913,6 +957,8 @@ def link_collection_to_datasets(property_key, normalized_type, request, user_tok
 
 
 """
+TriggerTypeEnum.ON_READ
+
 Trigger event method of getting a list of direct ancestors for a given dataset or publication
 
 Parameters
@@ -949,6 +995,8 @@ def get_dataset_direct_ancestors(property_key, normalized_type, request, user_to
 
 
 """
+TriggerTypeEnum.ON_READ
+
 Trigger event method of getting the relative directory path of a given dataset
 
 Parameters
@@ -1000,6 +1048,8 @@ def get_local_directory_rel_path(property_key, normalized_type, request, user_to
 
 
 """
+TriggerTypeEnum.AFTER_CREATE
+
 Trigger event method of building linkage from this new Dataset to the dataset of its previous revision
 
 Parameters
@@ -1022,14 +1072,14 @@ def link_to_previous_revision(property_key, normalized_type, request, user_token
         if 'uuid' not in existing_data_dict:
             raise KeyError("Missing 'uuid' key in 'existing_data_dict' during calling 'link_to_previous_revision()' trigger method.")
 
-        if 'previous_revision_uuid' not in existing_data_dict:
-            raise KeyError("Missing 'previous_revision_uuid' key in 'existing_data_dict' during calling 'link_to_previous_revision()' trigger method.")
+        if 'previous_revision_uuid' not in new_data_dict:
+            raise KeyError("Missing 'previous_revision_uuid' key in 'new_data_dict' during calling 'link_to_previous_revision()' trigger method.")
 
         entity_uuid = existing_data_dict['uuid']
-        if isinstance(existing_data_dict['previous_revision_uuid'], list):
-            previous_uuid = existing_data_dict['previous_revision_uuid']
+        if isinstance(new_data_dict['previous_revision_uuid'], list):
+            previous_uuid = new_data_dict['previous_revision_uuid']
         else:
-            previous_uuid = [existing_data_dict['previous_revision_uuid']]
+            previous_uuid = [new_data_dict['previous_revision_uuid']]
 
         # Create a revision reltionship from this new Dataset node and its previous revision of dataset node in neo4j
         try:
@@ -1051,123 +1101,8 @@ def link_to_previous_revision(property_key, normalized_type, request, user_token
 
 
 """
-Given a string which contains multiple items, each separated by the substring specified by
-the 'separator' argument, and possibly also ending with 'separator',
-- remove the last instance of 'separator'
-- replaced the remaining last instance of 'separator' with ", and"
-- replace all remaining instances of 'separator' with the substring specified in the 'new_separator' argument
+TriggerTypeEnum.ON_READ
 
-Parameters
-----------
-separated_phrase : str
-    A string which contains multiple items, each separated by the substring specified by
-    the 'separator' argument, and possibly also ending with 'separator'
-separator : str
-    A string which is used to separate items during computation.  This should be something which
-    is statistically improbable to occur within items, such as a comma or a common word.
-new_separator: str
-    The replacement for occurrences of 'separator', such as a comma or a comma followed by a space.
-
-Returns
--------
-str: A version of the 'separated_phase' argument revised per the method description
-"""
-def _make_phrase_from_separator_delineated_str(separated_phrase:str, separator:str, new_separator=', ')->str:
-    # Remove the last separator
-    if re.search(rf"{separator}$", separated_phrase):
-        separated_phrase = re.sub(  pattern=rf"(.*)({separator})$"
-                                    , repl=r"\1"
-                                    , string=separated_phrase)
-    # Replace the last separator with the word 'and' for inclusion in the Dataset title
-    separated_phrase = re.sub(  pattern=rf"(.*)({separator})(.*?)$"
-                                , repl=r"\1, and \3"
-                                , string=separated_phrase)
-    # Replace all remaining separator with commas
-    descriptions = separated_phrase.rsplit(separator)
-    return new_separator.join(descriptions)
-
-
-"""
-Given a string of metadata for a Donor which was returned from Neo4j, and a list of desired attribute names to
-extract from that metadata, return a dictionary containing lower-case version of each attribute found.
-
-Parameters
-----------
-neo4j_donor_metadata : str
-    A string representation of a Python dict returned from Neo4j, containing metadata for a Donor.
-attribute_key_list : list[str]
-    A list of strings, each of which may be the name of a key found in the Donor metadata.
-
-Returns
--------
-dict: A dict keyed using elements of attribute_key_list which were found in the Donor metadata, containing
-      a lower-case version of the value stored in Neo4j
-"""
-def _get_attributes_from_donor_metadata(neo4j_donor_metadata: str, attribute_key_list: list[str]) -> dict:
-    # Note: The donor_metadata is stored in Neo4j as a string representation of the Python dict
-    # It's not stored in Neo4j as a json string! And we can't store it as a json string
-    # due to the way that Cypher handles single/double quotes.
-    donor_metadata_dict = schema_manager.convert_str_literal(neo4j_donor_metadata)
-
-    # Since either 'organ_donor_data' or 'living_donor_data' can be present in donor_metadata_dict, but not
-    # both, just grab the first element.  If neither are present, use the empty list
-    data_list = []
-    if donor_metadata_dict:
-        data_list = list(donor_metadata_dict.values())[0]
-
-    donor_grouping_concepts_dict = dict()
-    for data in data_list:
-        if 'grouping_concept_preferred_term' in data:
-            if data['grouping_concept_preferred_term'].lower() == 'age':
-                # The actual value of age stored in 'data_value' instead of 'preferred_term'
-                donor_grouping_concepts_dict['age'] = data['data_value']
-                donor_grouping_concepts_dict['age_units'] = data['units'][0:-1].lower()
-            elif data['grouping_concept_preferred_term'].lower() == 'race':
-                donor_grouping_concepts_dict['race'] = data['preferred_term'].lower()
-            elif data['grouping_concept_preferred_term'].lower() == 'sex':
-                donor_grouping_concepts_dict['sex'] = data['preferred_term'].lower()
-            else:
-                pass
-    return donor_grouping_concepts_dict
-
-
-"""
-Given a age, race, and sex metadata for a Donor which was returned from Neo4j, generate an appropriate and
-consistent string phrase. 
-
-Parameters
-----------
-age : str
-    A age value found in the metadata for the Donor returned from Neo4j.
-race : str
-    A race value found in the metadata for the Donor returned from Neo4j.
-sex : str
-    A sex value found in the metadata for the Donor returned from Neo4j.
-
-Returns
--------
-str: A consistent string phrase appropriate for the Donor's metadata
-"""
-def _get_age_age_units_race_sex_phrase(age:str=None, age_units:str='units', race:str=None, sex:str=None)->str:
-    if age is None and race is not None and sex is not None:
-        return f"{race} {sex} of unknown age"
-    elif race is None and age is not None and sex is not None:
-        return f"{age}-{age_units}-old {sex} of unknown race"
-    elif sex is None and age is not None and race is not None:
-        return f"{age}-{age_units}-old {race} donor of unknown sex"
-    elif age is None and race is None and sex is not None:
-        return f"{sex} donor of unknown age and race"
-    elif age is None and sex is None and race is not None:
-        return f"{race} donor of unknown age and sex"
-    elif race is None and sex is None and age is not None:
-        return f"{age}-{age_units}-old donor of unknown race and sex"
-    elif age is None and race is None and sex is None:
-        return "donor of unknown age, race and sex"
-    else:
-        return f"{age}-{age_units}-old {race} {sex}"
-
-
-"""
 Trigger event method of auto generating the dataset title
 
 Parameters
@@ -1359,6 +1294,8 @@ def get_dataset_title(property_key, normalized_type, request, user_token, existi
 
 
 """
+TriggerTypeEnum.ON_READ
+
 Trigger event method of getting the uuid of the previous revision dataset if exists
 
 Parameters
@@ -1393,6 +1330,8 @@ def get_previous_revision_uuid(property_key, normalized_type, request, user_toke
 
 
 """
+TriggerTypeEnum.ON_READ
+
 Trigger event method of getting the uuids of the previous revision datasets if they exist
 
 Parameters
@@ -1429,6 +1368,8 @@ def get_previous_revision_uuids(property_key, normalized_type, request, user_tok
 
 
 """
+TriggerTypeEnum.ON_READ
+
 Trigger event method of getting the uuid of the next version dataset if exists
 
 Parameters
@@ -1463,6 +1404,8 @@ def get_next_revision_uuid(property_key, normalized_type, request, user_token, e
 
 
 """
+TriggerTypeEnum.ON_READ
+
 Trigger event method of generating `creation_action`
 
 Parameters
@@ -1500,6 +1443,8 @@ def get_creation_action_activity(property_key, normalized_type, request, user_to
 
 
 """
+TriggerTypeEnum.ON_READ
+
 Trigger event method of getting the uuids of the next version dataset if they exist
 
 Parameters
@@ -1536,6 +1481,8 @@ def get_next_revision_uuids(property_key, normalized_type, request, user_token, 
 
 
 """
+TriggerTypeEnum.BEFORE_CREATE and TriggerTypeEnum.BEFORE_UPDATE
+
 Trigger event method to commit thumbnail file saved that were previously uploaded via ingest-api
 
 The information, filename is saved in the field with name specified by `target_property_key`
@@ -1627,6 +1574,8 @@ def commit_thumbnail_file(property_key, normalized_type, request, user_token, ex
 
 
 """
+TriggerTypeEnum.BEFORE_UPDATE
+
 Trigger event method for removing the thumbnail file from a dataset during update
 
 File is stored in a json encoded text field with property name 'target_property_key' in the entity dict
@@ -1723,6 +1672,8 @@ def delete_thumbnail_file(property_key, normalized_type, request, user_token, ex
 
 
 """
+TriggerTypeEnum.AFTER_UPDATE
+
 Trigger event method that updates the status value of the target dataset
 If the dataset is a parent Multi-Assay Split dataset, will also sync the status update
 to all the child component datasets
@@ -1743,8 +1694,6 @@ new_data_dict : dict
     A merged dictionary that contains all possible input data to be used
 """
 def update_status(property_key, normalized_type, request, user_token, existing_data_dict, new_data_dict):
-    set_status_history(property_key, normalized_type, request, user_token, existing_data_dict, new_data_dict)
-    
     if 'uuid' not in existing_data_dict:
         raise KeyError("Missing 'uuid' key in 'existing_data_dict' during calling 'update_status()' trigger method.")
     uuid = existing_data_dict['uuid']
@@ -1752,6 +1701,8 @@ def update_status(property_key, normalized_type, request, user_token, existing_d
     if 'status' not in existing_data_dict:
         raise KeyError("Missing 'status' key in 'existing_data_dict' during calling 'update_status()' trigger method.")
     status = existing_data_dict['status']
+
+    set_status_history(property_key, normalized_type, request, user_token, existing_data_dict, new_data_dict)
 
     # Only apply to non-published parent datasets
     if status.lower() != 'published':
@@ -1791,6 +1742,8 @@ def update_status(property_key, normalized_type, request, user_token, existing_d
 
 
 """
+TriggerTypeEnum.AFTER_UPDATE
+
 Trigger event method of building linkage between this new Donor and Lab
 
 Parameters
@@ -1812,6 +1765,7 @@ def link_donor_to_lab(property_key, normalized_type, request, user_token, existi
     if 'uuid' not in existing_data_dict:
         raise KeyError("Missing 'uuid' key in 'existing_data_dict' during calling 'link_donor_to_lab()' trigger method.")
 
+    # Use `existing_data_dict` for `group_uuid` lookup as it may not be provided in the user request
     if 'group_uuid' not in existing_data_dict:
         raise KeyError("Missing 'group_uuid' key in 'existing_data_dict' during calling 'link_donor_to_lab()' trigger method.")
 
@@ -1839,6 +1793,8 @@ def link_donor_to_lab(property_key, normalized_type, request, user_token, existi
 ####################################################################################################
 
 """
+TriggerTypeEnum.BEFORE_CREATE and TriggerTypeEnum.BEFORE_UPDATE
+
 Trigger event method to commit files saved that were previously uploaded with UploadFileHelper.save_file
 
 The information, filename and optional description is saved in the field with name specified by `target_property_key`
@@ -1888,6 +1844,8 @@ def commit_metadata_files(property_key, normalized_type, request, user_token, ex
 
 
 """
+TriggerTypeEnum.BEFORE_UPDATE
+
 Trigger event methods for removing files from an entity during update
 
 Files are stored in a json encoded text field with property name 'target_property_key' in the entity dict
@@ -1925,6 +1883,8 @@ def delete_metadata_files(property_key, normalized_type, request, user_token, ex
     
 
 """
+TriggerTypeEnum.BEFORE_CREATE and TriggerTypeEnum.BEFORE_UPDATE
+
 Trigger event method of creating or recreating linkages between this new Sample and its direct ancestor
 
 Parameters
@@ -1946,14 +1906,14 @@ def link_sample_to_direct_ancestor(property_key, normalized_type, request, user_
     if 'uuid' not in existing_data_dict:
         raise KeyError("Missing 'uuid' key in 'existing_data_dict' during calling 'link_sample_to_direct_ancestor()' trigger method.")
 
-    if 'direct_ancestor_uuid' not in existing_data_dict:
-        raise KeyError("Missing 'direct_ancestor_uuid' key in 'existing_data_dict' during calling 'link_sample_to_direct_ancestor()' trigger method.")
+    if 'direct_ancestor_uuid' not in new_data_dict:
+        raise KeyError("Missing 'direct_ancestor_uuid' key in 'new_data_dict' during calling 'link_sample_to_direct_ancestor()' trigger method.")
 
     sample_uuid = existing_data_dict['uuid']
 
     # Build a list of direct ancestor uuids
     # Only one uuid in the list in this case
-    direct_ancestor_uuids = [existing_data_dict['direct_ancestor_uuid']]
+    direct_ancestor_uuids = [new_data_dict['direct_ancestor_uuid']]
 
     # Generate property values for Activity node
     activity_data_dict = schema_manager.generate_activity_data(normalized_type, request, user_token, existing_data_dict)
@@ -1971,6 +1931,8 @@ def link_sample_to_direct_ancestor(property_key, normalized_type, request, user_
         raise
 
 """
+TriggerTypeEnum.BEFORE_CREATE and TriggerTypeEnum.BEFORE_UPDATE
+
 Trigger event method of creating or recreating linkages between this new publication and its associated_collection
 
 Parameters
@@ -1992,10 +1954,10 @@ def link_publication_to_associated_collection(property_key, normalized_type, req
     if 'uuid' not in existing_data_dict:
         raise KeyError("Missing 'uuid' key in 'existing_data_dict' during calling 'link_publication_to_associated_collection()' trigger method.")
 
-    if 'associated_collection_uuid' not in existing_data_dict:
-        raise KeyError("Missing 'associated_collection_uuid' key in 'existing_data_dict' during calling 'link_publication_to_associated_collection()' trigger method.")
+    if 'associated_collection_uuid' not in new_data_dict:
+        raise KeyError("Missing 'associated_collection_uuid' key in 'new_data_dict' during calling 'link_publication_to_associated_collection()' trigger method.")
 
-    associated_collection_uuid = existing_data_dict['associated_collection_uuid']
+    associated_collection_uuid = new_data_dict['associated_collection_uuid']
 
     # No activity node. We are creating a direct link to the associated collection
 
@@ -2011,6 +1973,8 @@ def link_publication_to_associated_collection(property_key, normalized_type, req
 
 
 """
+TriggerTypeEnum.ON_READ
+
 Trigger event method of getting the parent of a Sample, which is a Donor
 
 Parameters
@@ -2052,6 +2016,8 @@ def get_sample_direct_ancestor(property_key, normalized_type, request, user_toke
 ####################################################################################################
 
 """
+TriggerTypeEnum.BEFORE_CREATE
+
 Trigger event method of truncating the time part of publication_date if provided by users
 
 Parameters
@@ -2081,6 +2047,8 @@ def set_publication_date(property_key, normalized_type, request, user_token, exi
 
 
 """
+TriggerTypeEnum.BEFORE_CREATE
+
 Trigger event method setting the dataset_type immutable property for a Publication.
 
 Parameters
@@ -2113,6 +2081,8 @@ def set_publication_dataset_type(property_key, normalized_type, request, user_to
 ####################################################################################################
 
 """
+TriggerTypeEnum.BEFORE_CREATE
+
 Trigger event method of setting the Upload initial status - "New"
 
 Parameters
@@ -2140,6 +2110,8 @@ def set_upload_status_new(property_key, normalized_type, request, user_token, ex
 
 
 """
+TriggerTypeEnum.AFTER_CREATE
+
 Trigger event method of building linkage between this new Upload and Lab
 Parameters
 ----------
@@ -2160,6 +2132,7 @@ def link_upload_to_lab(property_key, normalized_type, request, user_token, exist
     if 'uuid' not in existing_data_dict:
         raise KeyError("Missing 'uuid' key in 'existing_data_dict' during calling 'link_upload_to_lab()' trigger method.")
 
+    # Use `existing_data_dict` for `group_uuid` lookup as it may not be provided in the user request
     if 'group_uuid' not in existing_data_dict:
         raise KeyError("Missing 'group_uuid' key in 'existing_data_dict' during calling 'link_upload_to_lab()' trigger method.")
 
@@ -2182,6 +2155,8 @@ def link_upload_to_lab(property_key, normalized_type, request, user_token, exist
 
 
 """
+TriggerTypeEnum.AFTER_UPDATE
+
 Trigger event method of building linkages between this Submission and the given datasets
 
 Parameters
@@ -2203,11 +2178,11 @@ def link_datasets_to_upload(property_key, normalized_type, request, user_token, 
     if 'uuid' not in existing_data_dict:
         raise KeyError("Missing 'uuid' key in 'existing_data_dict' during calling 'link_datasets_to_upload()' trigger method.")
 
-    if 'dataset_uuids_to_link' not in existing_data_dict:
-        raise KeyError("Missing 'dataset_uuids_to_link' key in 'existing_data_dict' during calling 'link_datasets_to_upload()' trigger method.")
+    if 'dataset_uuids_to_link' not in new_data_dict:
+        raise KeyError("Missing 'dataset_uuids_to_link' key in 'new_data_dict' during calling 'link_datasets_to_upload()' trigger method.")
 
     upload_uuid = existing_data_dict['uuid']
-    dataset_uuids = existing_data_dict['dataset_uuids_to_link']
+    dataset_uuids = new_data_dict['dataset_uuids_to_link']
 
     try:
         # Create a direct linkage (Dataset) - [:IN_UPLOAD] -> (Submission) for each dataset
@@ -2223,6 +2198,8 @@ def link_datasets_to_upload(property_key, normalized_type, request, user_token, 
 
 
 """
+TriggerTypeEnum.AFTER_UPDATE
+
 Trigger event method of deleting linkages between this target Submission and the given datasets
 
 Parameters
@@ -2244,11 +2221,11 @@ def unlink_datasets_from_upload(property_key, normalized_type, request, user_tok
     if 'uuid' not in existing_data_dict:
         raise KeyError("Missing 'uuid' key in 'existing_data_dict' during calling 'unlink_datasets_from_upload()' trigger method.")
 
-    if 'dataset_uuids_to_unlink' not in existing_data_dict:
-        raise KeyError("Missing 'dataset_uuids_to_unlink' key in 'existing_data_dict' during calling 'unlink_datasets_from_upload()' trigger method.")
+    if 'dataset_uuids_to_unlink' not in new_data_dict:
+        raise KeyError("Missing 'dataset_uuids_to_unlink' key in 'new_data_dict' during calling 'unlink_datasets_from_upload()' trigger method.")
 
     upload_uuid = existing_data_dict['uuid']
-    dataset_uuids = existing_data_dict['dataset_uuids_to_unlink']
+    dataset_uuids = new_data_dict['dataset_uuids_to_unlink']
 
     try:
         # Delete the linkage (Dataset) - [:IN_UPLOAD] -> (Upload) for each dataset
@@ -2264,6 +2241,8 @@ def unlink_datasets_from_upload(property_key, normalized_type, request, user_tok
 
 
 """
+TriggerTypeEnum.ON_READ
+
 Trigger event method of getting a list of associated datasets for a given Upload
 
 Parameters
@@ -2303,6 +2282,8 @@ def get_upload_datasets(property_key, normalized_type, request, user_token, exis
 ####################################################################################################
 
 """
+TriggerTypeEnum.BEFORE_CREATE
+
 Trigger event method of getting creation_action for Activity
 
 Lab->Activity->Donor (Not needed for now)
@@ -2568,4 +2549,122 @@ def _delete_files(target_property_key, property_key, normalized_type, request, u
     generated_dict[target_property_key] = files_info_list
 
     return generated_dict
+
+
+"""
+Given a string which contains multiple items, each separated by the substring specified by
+the 'separator' argument, and possibly also ending with 'separator',
+- remove the last instance of 'separator'
+- replaced the remaining last instance of 'separator' with ", and"
+- replace all remaining instances of 'separator' with the substring specified in the 'new_separator' argument
+
+Parameters
+----------
+separated_phrase : str
+    A string which contains multiple items, each separated by the substring specified by
+    the 'separator' argument, and possibly also ending with 'separator'
+separator : str
+    A string which is used to separate items during computation.  This should be something which
+    is statistically improbable to occur within items, such as a comma or a common word.
+new_separator: str
+    The replacement for occurrences of 'separator', such as a comma or a comma followed by a space.
+
+Returns
+-------
+str: A version of the 'separated_phase' argument revised per the method description
+"""
+def _make_phrase_from_separator_delineated_str(separated_phrase:str, separator:str, new_separator=', ')->str:
+    # Remove the last separator
+    if re.search(rf"{separator}$", separated_phrase):
+        separated_phrase = re.sub(  pattern=rf"(.*)({separator})$"
+                                    , repl=r"\1"
+                                    , string=separated_phrase)
+    # Replace the last separator with the word 'and' for inclusion in the Dataset title
+    separated_phrase = re.sub(  pattern=rf"(.*)({separator})(.*?)$"
+                                , repl=r"\1, and \3"
+                                , string=separated_phrase)
+    # Replace all remaining separator with commas
+    descriptions = separated_phrase.rsplit(separator)
+    return new_separator.join(descriptions)
+
+
+"""
+Given a string of metadata for a Donor which was returned from Neo4j, and a list of desired attribute names to
+extract from that metadata, return a dictionary containing lower-case version of each attribute found.
+
+Parameters
+----------
+neo4j_donor_metadata : str
+    A string representation of a Python dict returned from Neo4j, containing metadata for a Donor.
+attribute_key_list : list[str]
+    A list of strings, each of which may be the name of a key found in the Donor metadata.
+
+Returns
+-------
+dict: A dict keyed using elements of attribute_key_list which were found in the Donor metadata, containing
+      a lower-case version of the value stored in Neo4j
+"""
+def _get_attributes_from_donor_metadata(neo4j_donor_metadata: str, attribute_key_list: list[str]) -> dict:
+    # Note: The donor_metadata is stored in Neo4j as a string representation of the Python dict
+    # It's not stored in Neo4j as a json string! And we can't store it as a json string
+    # due to the way that Cypher handles single/double quotes.
+    donor_metadata_dict = schema_manager.convert_str_literal(neo4j_donor_metadata)
+
+    # Since either 'organ_donor_data' or 'living_donor_data' can be present in donor_metadata_dict, but not
+    # both, just grab the first element.  If neither are present, use the empty list
+    data_list = []
+    if donor_metadata_dict:
+        data_list = list(donor_metadata_dict.values())[0]
+
+    donor_grouping_concepts_dict = dict()
+    for data in data_list:
+        if 'grouping_concept_preferred_term' in data:
+            if data['grouping_concept_preferred_term'].lower() == 'age':
+                # The actual value of age stored in 'data_value' instead of 'preferred_term'
+                donor_grouping_concepts_dict['age'] = data['data_value']
+                donor_grouping_concepts_dict['age_units'] = data['units'][0:-1].lower()
+            elif data['grouping_concept_preferred_term'].lower() == 'race':
+                donor_grouping_concepts_dict['race'] = data['preferred_term'].lower()
+            elif data['grouping_concept_preferred_term'].lower() == 'sex':
+                donor_grouping_concepts_dict['sex'] = data['preferred_term'].lower()
+            else:
+                pass
+    return donor_grouping_concepts_dict
+
+
+"""
+Given a age, race, and sex metadata for a Donor which was returned from Neo4j, generate an appropriate and
+consistent string phrase. 
+
+Parameters
+----------
+age : str
+    A age value found in the metadata for the Donor returned from Neo4j.
+race : str
+    A race value found in the metadata for the Donor returned from Neo4j.
+sex : str
+    A sex value found in the metadata for the Donor returned from Neo4j.
+
+Returns
+-------
+str: A consistent string phrase appropriate for the Donor's metadata
+"""
+def _get_age_age_units_race_sex_phrase(age:str=None, age_units:str='units', race:str=None, sex:str=None)->str:
+    if age is None and race is not None and sex is not None:
+        return f"{race} {sex} of unknown age"
+    elif race is None and age is not None and sex is not None:
+        return f"{age}-{age_units}-old {sex} of unknown race"
+    elif sex is None and age is not None and race is not None:
+        return f"{age}-{age_units}-old {race} donor of unknown sex"
+    elif age is None and race is None and sex is not None:
+        return f"{sex} donor of unknown age and race"
+    elif age is None and sex is None and race is not None:
+        return f"{race} donor of unknown age and sex"
+    elif race is None and sex is None and age is not None:
+        return f"{age}-{age_units}-old donor of unknown race and sex"
+    elif age is None and race is None and sex is None:
+        return "donor of unknown age, race and sex"
+    else:
+        return f"{age}-{age_units}-old {race} {sex}"
+
 
