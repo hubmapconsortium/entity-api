@@ -848,11 +848,11 @@ def link_dataset_to_direct_ancestors(property_key, normalized_type, request, use
     if 'uuid' not in existing_data_dict:
         raise KeyError("Missing 'uuid' key in 'existing_data_dict' during calling 'link_dataset_to_direct_ancestors()' trigger method.")
 
-    if 'direct_ancestor_uuids' not in existing_data_dict:
-        raise KeyError("Missing 'direct_ancestor_uuids' key in 'existing_data_dict' during calling 'link_dataset_to_direct_ancestors()' trigger method.")
+    if 'direct_ancestor_uuids' not in new_data_dict:
+        raise KeyError("Missing 'direct_ancestor_uuids' key in 'new_data_dict' during calling 'link_dataset_to_direct_ancestors()' trigger method.")
 
     dataset_uuid = existing_data_dict['uuid']
-    direct_ancestor_uuids = existing_data_dict['direct_ancestor_uuids']
+    direct_ancestor_uuids = new_data_dict['direct_ancestor_uuids']
 
     # Generate property values for Activity node
     activity_data_dict = schema_manager.generate_activity_data(normalized_type, request, user_token, existing_data_dict)
@@ -891,11 +891,11 @@ def link_collection_to_datasets(property_key, normalized_type, request, user_tok
     if 'uuid' not in existing_data_dict:
         raise KeyError("Missing 'uuid' key in 'existing_data_dict' during calling 'link_collection_to_datasets()' trigger method.")
 
-    if 'dataset_uuids' not in existing_data_dict:
-        raise KeyError("Missing 'dataset_uuids' key in 'existing_data_dict' during calling 'link_collection_to_datasets()' trigger method.")
+    if 'dataset_uuids' not in new_data_dict:
+        raise KeyError("Missing 'dataset_uuids' key in 'new_data_dict' during calling 'link_collection_to_datasets()' trigger method.")
 
     collection_uuid = existing_data_dict['uuid']
-    dataset_uuids = existing_data_dict['dataset_uuids']
+    dataset_uuids = new_data_dict['dataset_uuids']
 
     try:
         # Create a linkage (without an Activity node) between the Collection node and each Dataset it contains.
@@ -1022,14 +1022,14 @@ def link_to_previous_revision(property_key, normalized_type, request, user_token
         if 'uuid' not in existing_data_dict:
             raise KeyError("Missing 'uuid' key in 'existing_data_dict' during calling 'link_to_previous_revision()' trigger method.")
 
-        if 'previous_revision_uuid' not in existing_data_dict:
-            raise KeyError("Missing 'previous_revision_uuid' key in 'existing_data_dict' during calling 'link_to_previous_revision()' trigger method.")
+        if 'previous_revision_uuid' not in new_data_dict:
+            raise KeyError("Missing 'previous_revision_uuid' key in 'new_data_dict' during calling 'link_to_previous_revision()' trigger method.")
 
         entity_uuid = existing_data_dict['uuid']
-        if isinstance(existing_data_dict['previous_revision_uuid'], list):
-            previous_uuid = existing_data_dict['previous_revision_uuid']
+        if isinstance(new_data_dict['previous_revision_uuid'], list):
+            previous_uuid = new_data_dict['previous_revision_uuid']
         else:
-            previous_uuid = [existing_data_dict['previous_revision_uuid']]
+            previous_uuid = [new_data_dict['previous_revision_uuid']]
 
         # Create a revision reltionship from this new Dataset node and its previous revision of dataset node in neo4j
         try:
@@ -1743,8 +1743,6 @@ new_data_dict : dict
     A merged dictionary that contains all possible input data to be used
 """
 def update_status(property_key, normalized_type, request, user_token, existing_data_dict, new_data_dict):
-    set_status_history(property_key, normalized_type, request, user_token, existing_data_dict, new_data_dict)
-    
     if 'uuid' not in existing_data_dict:
         raise KeyError("Missing 'uuid' key in 'existing_data_dict' during calling 'update_status()' trigger method.")
     uuid = existing_data_dict['uuid']
@@ -1752,6 +1750,8 @@ def update_status(property_key, normalized_type, request, user_token, existing_d
     if 'status' not in existing_data_dict:
         raise KeyError("Missing 'status' key in 'existing_data_dict' during calling 'update_status()' trigger method.")
     status = existing_data_dict['status']
+
+    set_status_history(property_key, normalized_type, request, user_token, existing_data_dict, new_data_dict)
 
     # Only apply to non-published parent datasets
     if status.lower() != 'published':
@@ -1946,14 +1946,14 @@ def link_sample_to_direct_ancestor(property_key, normalized_type, request, user_
     if 'uuid' not in existing_data_dict:
         raise KeyError("Missing 'uuid' key in 'existing_data_dict' during calling 'link_sample_to_direct_ancestor()' trigger method.")
 
-    if 'direct_ancestor_uuid' not in existing_data_dict:
-        raise KeyError("Missing 'direct_ancestor_uuid' key in 'existing_data_dict' during calling 'link_sample_to_direct_ancestor()' trigger method.")
+    if 'direct_ancestor_uuid' not in new_data_dict:
+        raise KeyError("Missing 'direct_ancestor_uuid' key in 'new_data_dict' during calling 'link_sample_to_direct_ancestor()' trigger method.")
 
     sample_uuid = existing_data_dict['uuid']
 
     # Build a list of direct ancestor uuids
     # Only one uuid in the list in this case
-    direct_ancestor_uuids = [existing_data_dict['direct_ancestor_uuid']]
+    direct_ancestor_uuids = [new_data_dict['direct_ancestor_uuid']]
 
     # Generate property values for Activity node
     activity_data_dict = schema_manager.generate_activity_data(normalized_type, request, user_token, existing_data_dict)
@@ -1992,10 +1992,10 @@ def link_publication_to_associated_collection(property_key, normalized_type, req
     if 'uuid' not in existing_data_dict:
         raise KeyError("Missing 'uuid' key in 'existing_data_dict' during calling 'link_publication_to_associated_collection()' trigger method.")
 
-    if 'associated_collection_uuid' not in existing_data_dict:
-        raise KeyError("Missing 'associated_collection_uuid' key in 'existing_data_dict' during calling 'link_publication_to_associated_collection()' trigger method.")
+    if 'associated_collection_uuid' not in new_data_dict:
+        raise KeyError("Missing 'associated_collection_uuid' key in 'new_data_dict' during calling 'link_publication_to_associated_collection()' trigger method.")
 
-    associated_collection_uuid = existing_data_dict['associated_collection_uuid']
+    associated_collection_uuid = new_data_dict['associated_collection_uuid']
 
     # No activity node. We are creating a direct link to the associated collection
 
@@ -2203,11 +2203,11 @@ def link_datasets_to_upload(property_key, normalized_type, request, user_token, 
     if 'uuid' not in existing_data_dict:
         raise KeyError("Missing 'uuid' key in 'existing_data_dict' during calling 'link_datasets_to_upload()' trigger method.")
 
-    if 'dataset_uuids_to_link' not in existing_data_dict:
-        raise KeyError("Missing 'dataset_uuids_to_link' key in 'existing_data_dict' during calling 'link_datasets_to_upload()' trigger method.")
+    if 'dataset_uuids_to_link' not in new_data_dict:
+        raise KeyError("Missing 'dataset_uuids_to_link' key in 'new_data_dict' during calling 'link_datasets_to_upload()' trigger method.")
 
     upload_uuid = existing_data_dict['uuid']
-    dataset_uuids = existing_data_dict['dataset_uuids_to_link']
+    dataset_uuids = new_data_dict['dataset_uuids_to_link']
 
     try:
         # Create a direct linkage (Dataset) - [:IN_UPLOAD] -> (Submission) for each dataset
@@ -2244,11 +2244,11 @@ def unlink_datasets_from_upload(property_key, normalized_type, request, user_tok
     if 'uuid' not in existing_data_dict:
         raise KeyError("Missing 'uuid' key in 'existing_data_dict' during calling 'unlink_datasets_from_upload()' trigger method.")
 
-    if 'dataset_uuids_to_unlink' not in existing_data_dict:
-        raise KeyError("Missing 'dataset_uuids_to_unlink' key in 'existing_data_dict' during calling 'unlink_datasets_from_upload()' trigger method.")
+    if 'dataset_uuids_to_unlink' not in new_data_dict:
+        raise KeyError("Missing 'dataset_uuids_to_unlink' key in 'new_data_dict' during calling 'unlink_datasets_from_upload()' trigger method.")
 
     upload_uuid = existing_data_dict['uuid']
-    dataset_uuids = existing_data_dict['dataset_uuids_to_unlink']
+    dataset_uuids = new_data_dict['dataset_uuids_to_unlink']
 
     try:
         # Delete the linkage (Dataset) - [:IN_UPLOAD] -> (Upload) for each dataset
