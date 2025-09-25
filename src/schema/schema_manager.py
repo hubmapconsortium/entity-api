@@ -417,7 +417,10 @@ def generate_triggered_data(trigger_type: TriggerTypeEnum, normalized_class, req
                         # Get the target trigger method defined in the schema_triggers.py module
                         trigger_method_to_call = getattr(schema_triggers, trigger_method_name)
                         
-                        logger.info(f"To run {trigger_type.value}: {trigger_method_name} defined for {normalized_class}")
+                        if 'uuid' in existing_data_dict:
+                            logger.info(f"To run {trigger_type.value}: {trigger_method_name} defined for {normalized_class} {existing_data_dict['uuid']}")
+                        else:
+                            logger.info(f"To run {trigger_type.value}: {trigger_method_name} defined for {normalized_class}")
 
                         # No return values for 'after_create_trigger' and 'after_update_trigger'
                         # because the property value is already set and stored in neo4j
@@ -441,7 +444,10 @@ def generate_triggered_data(trigger_type: TriggerTypeEnum, normalized_class, req
                     try:
                         trigger_method_to_call = getattr(schema_triggers, trigger_method_name)
 
-                        logger.info(f"To run {trigger_type.value}: {trigger_method_name} defined for {normalized_class}")
+                        if 'uuid' in existing_data_dict:
+                            logger.info(f"To run {trigger_type.value}: {trigger_method_name} defined for {normalized_class} {existing_data_dict['uuid']}")
+                        else:
+                            logger.info(f"To run {trigger_type.value}: {trigger_method_name} defined for {normalized_class}")
 
                         # Will set the trigger return value as the property value by default
                         # Unless the return value is to be assigned to another property different target key
@@ -488,7 +494,10 @@ def generate_triggered_data(trigger_type: TriggerTypeEnum, normalized_class, req
                 try:
                     trigger_method_to_call = getattr(schema_triggers, trigger_method_name)
 
-                    logger.info(f"To run {trigger_type.value}: {trigger_method_name} defined for {normalized_class}")
+                    if 'uuid' in existing_data_dict:
+                        logger.info(f"To run {trigger_type.value}: {trigger_method_name} defined for {normalized_class} {existing_data_dict['uuid']}")
+                    else:
+                        logger.info(f"To run {trigger_type.value}: {trigger_method_name} defined for {normalized_class}")
 
                     # Will set the trigger return value as the property value by default
                     # Unless the return value is to be assigned to another property different target key
