@@ -512,6 +512,7 @@ def generate_triggered_data(trigger_type: TriggerTypeEnum, normalized_class, req
                     # within this dictionary and return it so it can be saved in the scope of this loop and
                     # passed to other 'updated_peripherally' triggers                    
                     if 'updated_peripherally' in properties[key] and properties[key]['updated_peripherally']:
+                        # Such trigger methods get executed but really do nothing internally
                         trigger_generated_data_dict = trigger_method_to_call(key, normalized_class, request, user_token, existing_data_dict, new_data_dict, trigger_generated_data_dict)
                     else:  
                         target_key, target_value = trigger_method_to_call(key, normalized_class, request, user_token, existing_data_dict, new_data_dict)

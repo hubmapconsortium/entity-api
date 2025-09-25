@@ -2379,6 +2379,7 @@ def _commit_files(target_property_key, property_key, normalized_type, request, u
     # For metadata files the property name is "metadata_files_to_add"
     # But other may be used in the future
     if (not property_key in new_data_dict) or (not new_data_dict[property_key]):
+        logger.info(f"Do nothing with the internal trigger method _commit_files() because {property_key} not found in request payload")
         return generated_dict
 
     #If POST or PUT where the target doesn't exist create the file info array
