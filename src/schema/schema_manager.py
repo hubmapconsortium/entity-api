@@ -417,10 +417,8 @@ def generate_triggered_data(trigger_type: TriggerTypeEnum, normalized_class, req
                         # Get the target trigger method defined in the schema_triggers.py module
                         trigger_method_to_call = getattr(schema_triggers, trigger_method_name)
                         
-                        if 'uuid' in existing_data_dict:
-                            logger.info(f"To run {trigger_type.value}: {trigger_method_name} for {normalized_class} {existing_data_dict['uuid']}")
-                        else:
-                            logger.info(f"To run {trigger_type.value}: {trigger_method_name} for {normalized_class}")
+                        target_uuid = existing_entity_dict['uuid'] if existing_entity_dict and 'uuid' in existing_entity_dict else '';
+                        logger.info(f"To run {trigger_type.value}: {trigger_method_name} for {normalized_class} {target_uuid}")
 
                         # No return values for 'after_create_trigger' and 'after_update_trigger'
                         # because the property value is already set and stored in neo4j
@@ -443,11 +441,9 @@ def generate_triggered_data(trigger_type: TriggerTypeEnum, normalized_class, req
                     trigger_method_name = properties[key][trigger_type.value]
                     try:
                         trigger_method_to_call = getattr(schema_triggers, trigger_method_name)
-
-                        if 'uuid' in existing_data_dict:
-                            logger.info(f"To run {trigger_type.value}: {trigger_method_name} for {normalized_class} {existing_data_dict['uuid']}")
-                        else:
-                            logger.info(f"To run {trigger_type.value}: {trigger_method_name} for {normalized_class}")
+                        
+                        target_uuid = existing_entity_dict['uuid'] if existing_entity_dict and 'uuid' in existing_entity_dict else '';
+                        logger.info(f"To run {trigger_type.value}: {trigger_method_name} for {normalized_class} {target_uuid}")
 
                         # Will set the trigger return value as the property value by default
                         # Unless the return value is to be assigned to another property different target key
@@ -494,10 +490,8 @@ def generate_triggered_data(trigger_type: TriggerTypeEnum, normalized_class, req
                 try:
                     trigger_method_to_call = getattr(schema_triggers, trigger_method_name)
 
-                    if 'uuid' in existing_data_dict:
-                        logger.info(f"To run {trigger_type.value}: {trigger_method_name} for {normalized_class} {existing_data_dict['uuid']}")
-                    else:
-                        logger.info(f"To run {trigger_type.value}: {trigger_method_name} for {normalized_class}")
+                    target_uuid = existing_entity_dict['uuid'] if existing_entity_dict and 'uuid' in existing_entity_dict else '';
+                    logger.info(f"To run {trigger_type.value}: {trigger_method_name} for {normalized_class} {target_uuid}")
 
                     # Will set the trigger return value as the property value by default
                     # Unless the return value is to be assigned to another property different target key
@@ -1043,10 +1037,8 @@ def execute_entity_level_validator(validator_type, normalized_entity_type, reque
                     # Get the target validator method defined in the schema_validators.py module
                     validator_method_to_call = getattr(schema_validators, validator_method_name)
                     
-                    if 'uuid' in existing_entity_dict:
-                        logger.info(f"To run {validator_type}: {validator_method_name} for {normalized_entity_type} {existing_entity_dict['uuid']}")
-                    else:
-                        logger.info(f"To run {validator_type}: {validator_method_name} for {normalized_entity_type}")
+                    target_uuid = existing_entity_dict['uuid'] if existing_entity_dict and 'uuid' in existing_entity_dict else '';
+                    logger.info(f"To run {validator_type}: {validator_method_name} for {normalized_entity_type} {target_uuid}")
 
                     # Create a dictionary to hold data need by any entity validator, which must be populated
                     # with validator specific requirements when the method to be called is determined.
@@ -1111,10 +1103,8 @@ def execute_property_level_validators(validator_type, normalized_entity_type, re
                     # Get the target validator method defined in the schema_validators.py module
                     validator_method_to_call = getattr(schema_validators, validator_method_name)
                     
-                    if 'uuid' in existing_data_dict:
-                        logger.info(f"To run {validator_type}: {validator_method_name} for {normalized_entity_type} {existing_data_dict['uuid']} on property {key}")
-                    else:
-                        logger.info(f"To run {validator_type}: {validator_method_name} for {normalized_entity_type} on property {key}")
+                    target_uuid = existing_entity_dict['uuid'] if existing_entity_dict and 'uuid' in existing_entity_dict else '';
+                    logger.info(f"To run {validator_type}: {validator_method_name} for {normalized_entity_type} {target_uuid} on property {key}")
 
                     validator_method_to_call(key, normalized_entity_type, request, existing_data_dict, new_data_dict)
                 except schema_errors.MissingApplicationHeaderException as e: 
