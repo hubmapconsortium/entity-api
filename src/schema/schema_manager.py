@@ -1103,7 +1103,7 @@ def execute_property_level_validators(validator_type, normalized_entity_type, re
                     # Get the target validator method defined in the schema_validators.py module
                     validator_method_to_call = getattr(schema_validators, validator_method_name)
                     
-                    target_uuid = existing_entity_dict['uuid'] if existing_entity_dict and 'uuid' in existing_entity_dict else '';
+                    target_uuid = existing_data_dict['uuid'] if existing_data_dict and 'uuid' in existing_data_dict else '';
                     logger.info(f"To run {validator_type}: {validator_method_name} for {normalized_entity_type} {target_uuid} on property {key}")
 
                     validator_method_to_call(key, normalized_entity_type, request, existing_data_dict, new_data_dict)
