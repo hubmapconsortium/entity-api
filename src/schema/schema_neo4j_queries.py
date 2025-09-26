@@ -139,7 +139,6 @@ def filter_ancestors_by_type(neo4j_driver, direct_ancestor_uuids, entity_type):
         records = session.run(query).data()
           
     return records if records else None
-   
 
 
 """
@@ -406,6 +405,7 @@ def get_ancestors(neo4j_driver, uuid, property_key = None):
 
     return results
 
+
 """
 Get all descendants by uuid
 
@@ -507,7 +507,6 @@ def get_collections(neo4j_driver, uuid, property_key = None):
     return results
 
 
-
 """
 Get all uploads by uuid
 
@@ -602,6 +601,7 @@ def get_dataset_direct_ancestors(neo4j_driver, uuid, property_key = None):
 
     return results
 
+
 """
 For every Sample organ associated with the given dataset_uuid, retrieve the
 organ information and organ Donor information for use in composing a title for the Dataset.
@@ -639,6 +639,22 @@ def get_dataset_donor_organs_info(neo4j_driver, dataset_uuid):
 
     return record['donorOrganSet'] if record and record['donorOrganSet'] else None
 
+
+"""
+Get entity type for a given uuid
+
+Parameters
+----------
+neo4j_driver : neo4j.Driver object
+    The neo4j database connection pool
+entity_uuid : str
+    The uuid of target entity
+
+Returns
+-------
+str
+    The entity_type string
+"""
 def get_entity_type(neo4j_driver, entity_uuid: str) -> str:
     query: str = f"Match (ent {{uuid: '{entity_uuid}'}}) return ent.entity_type"
 
@@ -653,6 +669,21 @@ def get_entity_type(neo4j_driver, entity_uuid: str) -> str:
     return None
 
 
+"""
+Get Activity.creation_action for a given collection
+
+Parameters
+----------
+neo4j_driver : neo4j.Driver object
+    The neo4j database connection pool
+entity_uuid : str
+    The uuid of given entity
+
+Returns
+-------
+str
+    The creation action string
+"""
 def get_entity_creation_action_activity(neo4j_driver, entity_uuid: str) -> str:
     query: str = f"MATCH (ds:Dataset {{uuid:'{entity_uuid}'}})<-[:ACTIVITY_OUTPUT]-(a:Activity) RETURN a.creation_action"
 
@@ -977,8 +1008,6 @@ def get_previous_revision_uuids(neo4j_driver, uuid):
     return result
 
 
-
-
 """
 Get the uuid of next revision entity for a given entity
 
@@ -1253,6 +1282,7 @@ def get_collection_datasets(neo4j_driver, uuid):
 
     return results
 
+
 """
 Get a dictionary with an entry for each Dataset in a Collection. The dictionary is
 keyed by Dataset uuid and contains the Dataset data_access_level.
@@ -1503,6 +1533,38 @@ def get_found_dataset_uuids(neo4j_driver, uuids):
         uuids_list = record[record_field_name]
 
         return uuids_list               
+
+
+"""
+Get the component dataset uuids for a given parent dataset uuid
+
+Parameters
+----------
+neo4j_driver : neo4j.Driver object
+    The neo4j database connection pool
+uuid : str
+    The uuid of target parent dataset
+
+Returns
+-------
+list
+    A list of component dataset uuids
+"""
+def get_component_dataset_uuids(neo4j_driver, uuid):
+    query = (
+        f"MATCH (c:Dataset)<-[:ACTIVITY_OUTPUT]-(a:Activity)<-[:ACTIVITY_INPUT]-(p:Dataset) "
+        f"WHERE p.uuid='{uuid}' AND a.creation_action='Multi-Assay Split' "
+        f"RETURN COLLECT(c.uuid) AS {record_field_name}")
+
+    logger.info("======get_component_dataset_uuids() query======")
+    logger.debug(query)
+
+    with neo4j_driver.session() as session:
+        record = session.read_transaction(execute_readonly_tx, query)
+
+        uuids_list = record[record_field_name]
+
+        return uuids_list  
 
 
 """
