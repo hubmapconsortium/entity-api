@@ -788,20 +788,24 @@ def link_dataset_to_direct_ancestors(property_key, normalized_type, user_token, 
     dataset_uuid = existing_data_dict['uuid']
     direct_ancestor_uuids = existing_data_dict['direct_ancestor_uuids']
 
-    # Generate property values for Activity node
-    activity_data_dict = schema_manager.generate_activity_data(normalized_type, user_token, existing_data_dict)
-
-    try:
-        # Create a linkage (via one Activity node) between the dataset node and its direct ancestors in neo4j
-        schema_neo4j_queries.link_entity_to_direct_ancestors(schema_manager.get_neo4j_driver_instance(), dataset_uuid, direct_ancestor_uuids, activity_data_dict)
+    existing_dataset_ancestor_uuids = schema_neo4j_queries.get_dataset_direct_ancestors(schema_manager.get_neo4j_driver_instance(), dataset_uuid, "uuid")
+    new_ancestors = set(direct_ancestor_uuids)-set(existing_dataset_ancestor_uuids)
+    ancestors_to_unlink = set(existing_dataset_ancestor_uuids)-set(direct_ancestor_uuids)
+    activity_uuid = schema_neo4j_queries.get_parent_activity_uuid_from_entity(schema_manager.get_neo4j_driver_instance(), dataset_uuid)
+    if new_ancestors:
+        
+        try:
+            schema_neo4j_queries.add_new_ancestors_to_existing_activity(schema_manager.get_neo4j_driver_instance(), list(new_ancestors), activity_uuid)
+        except TransactionError:
+            raise
     
-        # Delete the cache of this dataset if any cache exists
-        # Because the `Dataset.direct_ancestors` field
-        schema_manager.delete_memcached_cache([dataset_uuid])
-    except TransactionError:
-        # No need to log
-        raise
+    if ancestors_to_unlink:
+        try:
+            schema_neo4j_queries.delete_ancestor_linkages_tx(schema_manager.get_neo4j_driver_instance(), dataset_uuid, list(ancestors_to_unlink))
+        except TransactionError:
+            raise
 
+        
 """
 Trigger event method for creating or recreating linkages between this new Collection and the Datasets it contains
 
@@ -1653,10 +1657,10 @@ new_data_dict : dict
 """
 def sync_component_dataset_status(property_key, normalized_type, user_token, existing_data_dict, new_data_dict):
     if 'uuid' not in existing_data_dict:
-        raise KeyError("Missing 'uuid' key in 'existing_data_dict' during calling 'link_dataset_to_direct_ancestors()' trigger method.")
+        raise KeyError("Missing 'uuid' key in 'existing_data_dict' during calling 'update_status()' trigger method.")
     uuid = existing_data_dict['uuid']
     if 'status' not in existing_data_dict:
-        raise KeyError("Missing 'status' key in 'existing_data_dict' during calling 'link_dataset_to_direct_ancestors()' trigger method.")
+        raise KeyError("Missing 'status' key in 'existing_data_dict' during calling 'update_status()' trigger method.")
     status = existing_data_dict['status']
     if status.lower() != "published":
         children_uuids_list = schema_neo4j_queries.get_children(schema_manager.get_neo4j_driver_instance(), uuid, property_key='uuid')
@@ -1834,21 +1838,22 @@ def link_sample_to_direct_ancestor(property_key, normalized_type, user_token, ex
     # Build a list of direct ancestor uuids
     # Only one uuid in the list in this case
     direct_ancestor_uuids = [existing_data_dict['direct_ancestor_uuid']]
+    existing_sample_ancestor_uuids = schema_neo4j_queries.get_sample_direct_ancestor(schema_manager.get_neo4j_driver_instance(), sample_uuid, "uuid")
+    new_ancestors = set(direct_ancestor_uuids)-set(existing_sample_ancestor_uuids)
+    ancestors_to_unlink = set(existing_sample_ancestor_uuids)-set(direct_ancestor_uuids)
+    activity_uuid = schema_neo4j_queries.get_parent_activity_uuid_from_entity(schema_manager.get_neo4j_driver_instance(), sample_uuid)
+    if new_ancestors:
 
-    # Generate property values for Activity node
-    activity_data_dict = schema_manager.generate_activity_data(normalized_type, user_token, existing_data_dict)
-
-    try:
-        # Create a linkage (via Activity node) 
-        # between the Sample node and the source entity node in neo4j
-        schema_neo4j_queries.link_entity_to_direct_ancestors(schema_manager.get_neo4j_driver_instance(), sample_uuid, direct_ancestor_uuids, activity_data_dict)
+        try:
+            schema_neo4j_queries.add_new_ancestors_to_existing_activity(schema_manager.get_neo4j_driver_instance(), list(new_ancestors), activity_uuid)
+        except TransactionError:
+            raise
     
-        # Delete the cache of sample if any cache exists
-        # Because the `Sample.direct_ancestor` field can be updated
-        schema_manager.delete_memcached_cache([sample_uuid])
-    except TransactionError:
-        # No need to log
-        raise
+    if ancestors_to_unlink:
+        try:
+            schema_neo4j_queries.delete_ancestor_linkages_tx(schema_manager.get_neo4j_driver_instance(), sample_uuid, list(ancestors_to_unlink))
+        except TransactionError:
+            raise
 
 """
 Trigger event method of creating or recreating linkages between this new publication and its associated_collection
