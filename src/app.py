@@ -4074,7 +4074,7 @@ def multiple_components():
     # We wait until after the new datasets are linked to their ancestor before performing the remaining post-creation
     # linkeages. This way, in the event of unforseen errors, we don't have orphaned nodes.
     for dataset in dataset_list:
-        schema_triggers.set_status_history('status', 'Dataset', user_token, dataset, {})
+        schema_triggers.set_status_history('status', 'Dataset', request, user_token, dataset, json_data_dict)
 
     properties_to_skip = [
         'direct_ancestors',
