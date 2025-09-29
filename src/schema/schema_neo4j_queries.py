@@ -749,6 +749,70 @@ def link_entity_to_direct_ancestors(neo4j_driver, entity_uuid, direct_ancestor_u
             tx.rollback()
 
         raise TransactionError(msg)
+    
+
+"""
+Create linkages from new direct ancestors to an EXISTING activity node in neo4j.
+
+
+Parameters
+----------
+neo4j_driver : neo4j.Driver object
+    The neo4j database connection pool
+entity_uuid : str
+    The uuid of target child entity
+new_ancestor_uuid : str
+    The uuid of new direct ancestor to be linked
+activity_uuid : str
+    The uuid of the existing activity node to link to
+"""
+def add_new_ancestors_to_existing_activity(neo4j_driver, new_ancestor_uuids, activity_uuid):
+    try:
+        with neo4j_driver.session() as session:
+            tx = session.begin_transaction()
+
+            create_outgoing_activity_relationships_tx(tx=tx
+                                                      , source_node_uuids=new_ancestor_uuids
+                                                      , activity_node_uuid=activity_uuid)
+                    
+            tx.commit()
+    except TransactionError as te:
+        msg = "TransactionError from calling add_new_ancestors_to_existing_activity(): "
+        logger.exception(msg)
+
+        if tx.closed() == False:
+            logger.error("Failed to commit add_new_ancestors_to_existing_activity() transaction, rollback")
+            tx.rollback()
+
+        raise TransactionError(msg)
+
+"""
+Parameters
+----------
+neo4j_driver : neo4j.Driver object
+    The neo4j database connection pool
+entity_uuid : str
+    The uuid of the target entity nodeget_paren
+
+Returns
+-------
+str
+    The uuid of the direct ancestor Activity node
+"""
+def get_parent_activity_uuid_from_entity(neo4j_driver, entity_uuid):
+    query = """
+        MATCH (activity:Activity)-[:ACTIVITY_OUTPUT]->(entity:Entity {uuid: $entity_uuid})
+        RETURN activity.uuid AS activity_uuid
+    """
+    
+    with neo4j_driver.session() as session:
+        result = session.run(query, entity_uuid=entity_uuid)
+        
+        record = result.single()
+        if record:
+            return record["activity_uuid"]
+        else:
+            return None
 
 
 """
@@ -1882,6 +1946,52 @@ def _delete_activity_node_and_linkages_tx(tx, uuid):
     logger.debug(query)
 
     result = tx.run(query)
+
+"""
+Delete only the ACTIVITY_INPUT linkages between a target entity and a specific set of its direct ancestors.
+The Activity node and the entity nodes remain intact.
+
+Parameters
+----------
+neo4j_driver : neo4j.Driver object
+    The neo4j database connection pool
+entity_uuid : str
+    The uuid of the target child entity
+ancestor_uuids : list
+    A list of uuids of ancestors whose relationships should be deleted
+"""
+def delete_ancestor_linkages_tx(neo4j_driver, entity_uuid, ancestor_uuids):
+    query = (
+        "MATCH (a:Entity)-[r:ACTIVITY_INPUT]->(activity:Activity)-[:ACTIVITY_OUTPUT]->(t:Entity {uuid: $entity_uuid}) "
+        "WHERE a.uuid IN $ancestor_uuids "
+        "DELETE r"
+    )
+
+    logger.info("======delete_ancestor_linkages_tx() query======")
+    logger.debug(query)
+
+    try:
+        with neo4j_driver.session() as session:
+            tx = session.begin_transaction()
+
+            result = tx.run(
+                query, 
+                entity_uuid=entity_uuid,
+                ancestor_uuids=ancestor_uuids
+            )
+            
+            
+            tx.commit()
+            
+    except TransactionError as te:
+        msg = "TransactionError from calling delete_ancestor_linkages_tx(): "
+        logger.exception(msg)
+
+        if tx.closed() == False:
+            logger.error("Failed to commit delete_ancestor_linkages_tx() transaction, rollback")
+            tx.rollback()
+
+        raise TransactionError(msg)
 
 """
 Delete linkages between a publication and its associated collection
