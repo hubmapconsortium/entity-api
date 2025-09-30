@@ -616,7 +616,7 @@ dataset_uuid : str
 Returns
 -------
 list : List containing the source metadata (string representation of a Python dict) of each Donor of an
-       organ Sample associated with the Dataset.
+       organ Sample associated with the Dataset. Could also be an empty list [] if no match.
 """
 def get_dataset_donor_organs_info(neo4j_driver, dataset_uuid):
 
@@ -637,7 +637,7 @@ def get_dataset_donor_organs_info(neo4j_driver, dataset_uuid):
             record = session.read_transaction(execute_readonly_tx
                                               , ds_donors_organs_query)
 
-    return record['donorOrganSet'] if record and record['donorOrganSet'] else None
+    return record['donorOrganSet'] if record and record['donorOrganSet'] else []
 
 
 """
