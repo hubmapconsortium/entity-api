@@ -572,7 +572,7 @@ Returns
 list
     A unique list of uuids of source entities
 """
-def get_dataset_direct_ancestors(neo4j_driver, uuid, property_key = None):
+def get_dataset_direct_ancestors(neo4j_driver, uuid, property_key = None, properties_to_exclude = []):
     results = []
 
     if property_key:
@@ -580,9 +580,15 @@ def get_dataset_direct_ancestors(neo4j_driver, uuid, property_key = None):
                  f"WHERE t.uuid = '{uuid}' "
                  f"RETURN apoc.coll.toSet(COLLECT(s.{property_key})) AS {record_field_name}")
     else:
-        query = (f"MATCH (s:Entity)-[:ACTIVITY_INPUT]->(a:Activity)-[:ACTIVITY_OUTPUT]->(t:Dataset) "
-                 f"WHERE t.uuid = '{uuid}' "
-                 f"RETURN apoc.coll.toSet(COLLECT(s)) AS {record_field_name}")
+        if properties_to_exclude:
+            query = (f"MATCH (s:Entity)-[:ACTIVITY_INPUT]->(a:Activity)-[:ACTIVITY_OUTPUT]->(t:Dataset) "
+                     f"WHERE t.uuid = '{uuid}' "
+                     f"WITH apoc.coll.toSet(COLLECT(s)) AS uniqueDirectAncestors "
+                     f"RETURN [a IN uniqueDirectAncestors | apoc.create.vNode(labels(a), apoc.map.removeKeys(properties(a), {properties_to_exclude}))] AS {record_field_name}")
+        else:
+            query = (f"MATCH (s:Entity)-[:ACTIVITY_INPUT]->(a:Activity)-[:ACTIVITY_OUTPUT]->(t:Dataset) "
+                     f"WHERE t.uuid = '{uuid}' "
+                     f"RETURN apoc.coll.toSet(COLLECT(s)) AS {record_field_name}")
 
     logger.info("======get_dataset_direct_ancestors() query======")
     logger.debug(query)

@@ -305,7 +305,7 @@ Removes specified fields from an existing dictionary
 Parameters
 ----------
 excluded_fields : list
-    A list of the fields to be excluded
+    A JSON list of the fields to be excluded, may have nested fields
 output_dict : dictionary
     A dictionary representing the data to be modified
 
@@ -347,6 +347,116 @@ def exclude_properties_from_response(excluded_fields, output_dict):
         delete_nested_field(output_dict, field)
     
     return output_dict
+
+
+"""
+Transform a flat list of dot-notated strings into a hybrid list that:
+- keeps plain strings as-is
+- converts entries with dot-notation (like 'direct_ancestors.files') into a dictionary, grouping by the prefix
+
+Example: ['a.b', 'a.c', 'x'] -> ['x', {'a': ['b', 'c']}]
+
+Used by `GET /entities/<id>?exclude=a.b, a.c, x` to build a JSON list 
+that can be futher processed by `exclude_properties_from_response()`.
+
+Parameters
+----------
+flat_list : list
+    A flat list of strings, dot-notated strings are optional and can be used to indicate nested fields
+    Example: ['a.b', 'a.c', 'x']
+
+Returns
+-------
+list
+    A list mixing strings and grouped dicts
+"""
+def flatten_and_group_dot_notation_fields(flat_list):
+    output_list = []
+    grouped_dict = {}
+
+    for item in flat_list:
+        if '.' in item:
+            prefix, field = item.split('.', 1)
+            grouped_dict.setdefault(prefix, []).append(field)
+        else:
+            output_list.append(item)
+
+    # Add grouped items as dictionaries
+    for prefix, fields in grouped_dict.items():
+        output_list.append({prefix: fields})
+
+    return output_list
+
+
+"""
+Transform a flat list of dot-notated strings into a hybrid list that:
+- keeps plain strings as-is
+- converts entries with dot-notation (like 'direct_ancestors.files') into a dictionary, grouping by the prefix
+
+Example: ['a.b', 'a.c', 'x'] -> ['x', {'a': ['b', 'c']}]
+
+Used by `GET /entities/<id>?exclude=a.b, a.c, x` to build a JSON list 
+that can be futher processed by `exclude_properties_from_response()`.
+
+Parameters
+----------
+flat_list : list
+    A flat list of strings, dot-notated strings are optional and can be used to indicate nested fields
+    Example: ['a.b', 'a.c', 'x']
+
+Returns
+-------
+list
+    A list mixing strings and grouped dicts
+"""
+def determine_property_exclusion_type(normalized_entity_type, flat_list):
+    global _schema
+
+    triggered_properties_to_skip = []
+    neo4j_properties_to_skip = []
+
+    properties = _schema['ENTITIES'][normalized_entity_type]['properties']
+
+    top_level_list = []
+
+    for item in flat_list:
+        # Only target at properties don't use the dot notation
+        if '.' not in item:
+            top_level_list.append(item)
+
+    
+    for item in top_level_list:
+        if item in properties and 'on_read_trigger' in properties[item]:
+            triggered_properties_to_skip.append(item)
+        else:
+            neo4j_properties_to_skip.append(item)
+
+
+    return triggered_properties_to_skip, neo4j_properties_to_skip
+
+ 
+"""
+Use the Flask request.args MultiDict to see if 'reindex' is a URL parameter passed in with the
+request and if it indicates reindexing should be supressed. Default to reindexing in all other cases.
+
+Parameters
+----------
+request: Flask request object
+    The instance of Flask request passed in from application request
+
+Returns
+-------
+bool
+"""
+def get_fields_to_exclude_from_query_string(request):
+    properties_to_exclude_str = request.args.get('exclude')
+
+    properties_to_exclude_list = [item.strip() for item in properties_to_exclude_str.split(",")]
+
+    # Transform the flat JSON string list to a Python list mixing strings and grouped dicts
+    prepared_list = flatten_and_group_dot_notation_fields(properties_to_exclude_list)
+
+    return properties_to_exclude_list
 
 
 """
@@ -395,6 +505,8 @@ def generate_triggered_data(trigger_type: TriggerTypeEnum, normalized_class, req
     # The ordering of properties of this entity class defined in the yaml schema
     # decides the ordering of which trigger method gets to run first
     properties = schema_section[normalized_class]['properties']
+
+    logger.info(f"Skipping triggered data generation for the following properties: {properties_to_skip}")
 
     # Set each property value and put all resulting data into a dictionary for:
     # before_create_trigger|before_update_trigger|on_read_trigger
@@ -2001,7 +2113,6 @@ def convert_str_literal(data_str):
             data = ast.literal_eval(data_str)
 
             if isinstance(data, (list, dict)):
-                logger.info(f"The input string literal has been converted to {type(data)} successfully")
                 return data
             else:
                 logger.info(f"The input string literal is not list or dict after evaluation, return the original string input")

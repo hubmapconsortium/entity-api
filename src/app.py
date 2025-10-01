@@ -774,11 +774,82 @@ def get_entity_by_id(id):
     # Otherwise query against uuid-api and neo4j to get the entity dict if the id exists
     entity_dict = query_target_entity(id, token)
     normalized_entity_type = entity_dict['entity_type']
+    
+    # These are the top-level fields and nested fields defined in the schema yaml
     fields_to_exclude = schema_manager.get_fields_to_exclude(normalized_entity_type)
+
+
+
+    ######
+    
+    # Only support defined query string parameters for filtering purposes
+    # 'property' was initially introduced to return a single field
+    # 'exclude' is newly added as a short-term workaround otherwise AWS API Gateway 
+    # returns 500 error when the large paylod >10 MB
+    # When both 'property' and 'exclude' are specified in the URL, 'property' dominates
+    # since the final result is a single field value - Zhou 10/1/2025
+    supported_qs_params = ['property', 'exclude']
+
+    triggered_properties_to_skip = []
+    neo4j_properties_to_skip = []
+
+    if bool(request.args):
+        # First make sure the user provided query string params are valid
+        for param in request.args:
+            if param not in supported_qs_params:
+                bad_request_error(f"Only the following URL query string parameters (case-sensitive) are supported: {COMMA_SEPARATOR.join(supported_qs_params)}")
+
+        # Return a single property key and value using ?property=<property_key>
+        if 'property' in request.args:
+            single_property_key = request.args.get('property')
+
+            # Single property key that is immediately avaibale in Neo4j without running any triggers
+            # The `data_access_level` property is available in all entities Donor/Sample/Dataset
+            # and this filter is being used by gateway to check the data_access_level for file assets
+            # The `status` property is only available in Dataset and being used by search-api for revision
+            supported_property_keys = ['data_access_level', 'status']
+
+            # Validate the target property
+            if single_property_key not in supported_property_keys:
+                bad_request_error(f"Only the following property keys are supported in the query string: {COMMA_SEPARATOR.join(supported_property_keys)}")
+
+            if single_property_key == 'status' and \
+                    not schema_manager.entity_type_instanceof(normalized_entity_type, 'Dataset'):
+                bad_request_error(f"Only Dataset or Publication supports 'status' property key in the query string")
+
+            # Response with the property value directly
+            # Don't use jsonify() on string value
+            return entity_dict[single_property_key]
+
+        # Exclude fields—either top-level or nested—specified by the user via the URL query string,
+        # using the format `?exclude=a.b,a.c,x`, where:
+        #   - `x` is a top-level property
+        #   - `a.b` and `a.c` are nested fields (dot-notated)
+        #
+        # Note: This is not the most efficient approach, as exclusion is performed after the Neo4j query
+        # rather than within it. However, it leverages the existing `exclude_properties_from_response()` 
+        # function for simplicity and maintainability. - Zhou 10/1/2025
+        if 'exclude' in request.args:
+            properties_to_exclude_str = request.args.get('exclude')
+
+            if properties_to_exclude_str is not None:
+                flat_list = [item.strip() for item in properties_to_exclude_str.split(",")]
+
+                logger.info(f"User specified flat_list: {flat_list}")
+
+                # Determine which properties to exclude from triggers and which to exclude directly from the resulting Neo4j `entity_dict`
+                triggered_properties_to_skip, neo4j_properties_to_skip = schema_manager.determine_property_exclusion_type(normalized_entity_type, flat_list)
+            else:
+                bad_request_error("Must specify the properties to exclude in the form of exclude=[a, b, c, d.e]")
+
+    ######
+ 
 
     # Get the generated complete entity result from cache if exists
     # Otherwise re-generate on the fly
-    complete_dict = schema_manager.get_complete_entity_result(request, token, entity_dict)
+    # NOTE: top-level properties in `triggered_properties_to_skip` will skip the trigger methods
+    # Nested properties like `direct_ancestors.files` will be handled by the trigger method - Zhou 10/1/2025
+    complete_dict = schema_manager.get_complete_entity_result(request, token, entity_dict, triggered_properties_to_skip)
 
     # Determine if the entity is publicly visible base on its data, only.
     # To verify if a Collection is public, it is necessary to have its Datasets, which
@@ -813,37 +884,19 @@ def get_entity_by_id(id):
         forbidden_error(f"The requested {normalized_entity_type} has non-public data."
                         f"  A Globus token with access permission is required.")
 
+    ########
+    # Remove the top-level properties that are directly available in the resulting Neo4j `entity_dict`
+    for item in neo4j_properties_to_skip:
+        complete_dict.pop(item)
+
     # Also normalize the result based on schema
     final_result = schema_manager.normalize_entity_result_for_response(complete_dict)
 
-    # Result filtering based on query string
-    # The `data_access_level` property is available in all entities Donor/Sample/Dataset
-    # and this filter is being used by gateway to check the data_access_level for file assets
-    # The `status` property is only available in Dataset and being used by search-api for revision
-    result_filtering_accepted_property_keys = ['data_access_level', 'status']
-
-    if bool(request.args):
-        property_key = request.args.get('property')
-
-        if property_key is not None:
-            # Validate the target property
-            if property_key not in result_filtering_accepted_property_keys:
-                bad_request_error(f"Only the following property keys are supported in the query string: {COMMA_SEPARATOR.join(result_filtering_accepted_property_keys)}")
-
-            if property_key == 'status' and \
-                    not schema_manager.entity_type_instanceof(normalized_entity_type, 'Dataset'):
-                bad_request_error(f"Only Dataset or Publication supports 'status' property key in the query string")
-
-            # Response with the property value directly
-            # Don't use jsonify() on string value
-            return complete_dict[property_key]
-        else:
-            bad_request_error("The specified query string is not supported. Use '?property=<key>' to filter the result")
-    else:
-        # Response with the dict
-        if public_entity and not user_in_hubmap_read_group(request):
-            final_result = schema_manager.exclude_properties_from_response(fields_to_exclude, final_result)
-        return jsonify(final_result)
+    # Response with the dict
+    if public_entity and not user_in_hubmap_read_group(request):
+        final_result = schema_manager.exclude_properties_from_response(fields_to_exclude, final_result)
+    
+    return jsonify(final_result)
 
 
 """

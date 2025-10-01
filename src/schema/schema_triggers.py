@@ -987,7 +987,28 @@ def get_dataset_direct_ancestors(property_key, normalized_type, request, user_to
 
     logger.info(f"Executing 'get_dataset_direct_ancestors()' trigger method on uuid: {existing_data_dict['uuid']}")
 
-    direct_ancestors_list = schema_neo4j_queries.get_dataset_direct_ancestors(schema_manager.get_neo4j_driver_instance(), existing_data_dict['uuid'])
+    # Get all the mixed fields either top-level or nested from the original query string in request URL
+    all_properties_to_exclude = schema_manager.get_fields_to_exclude_from_query_string(request)
+
+    logger.info(f"all_properties_to_exclude: {all_properties_to_exclude}")
+
+    # Find the specific sub list, depth is limited to 2
+    # For example, direct_ancestors.files is supported, but direct_ancestors.metadata.acquisition_id is not - Zhou 10/1/2025
+    neo4j_properties_to_exclude = []
+
+    parsed_fields = schema_manager.flatten_and_group_dot_notation_fields(all_properties_to_exclude)
+
+    for item in parsed_fields:
+        # Find the depth 2 properties (top-level to this triggered entity)
+        if isinstance(item, dict) and property_key in item:
+            neo4j_properties_to_exclude = item[property_key]
+            
+            logger.info(f"neo4j_properties_to_exclude: {neo4j_properties_to_exclude}")
+            
+            # Stop after finding the first match
+            break
+
+    direct_ancestors_list = schema_neo4j_queries.get_dataset_direct_ancestors(schema_manager.get_neo4j_driver_instance(), existing_data_dict['uuid'], property_key = None, properties_to_exclude = neo4j_properties_to_exclude)
 
     # Get rid of the entity node properties that are not defined in the yaml schema
     # as well as the ones defined as `exposed: false` in the yaml schema
