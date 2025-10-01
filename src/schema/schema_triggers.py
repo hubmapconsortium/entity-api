@@ -892,7 +892,8 @@ def link_dataset_to_direct_ancestors(property_key, normalized_type, request, use
 
     if 'direct_ancestor_uuids' not in new_data_dict:
         raise KeyError("Missing 'direct_ancestor_uuids' key in 'new_data_dict' during calling 'link_dataset_to_direct_ancestors()' trigger method.")
-
+    create_activity = False
+    activity_data_dict = {}
     dataset_uuid = existing_data_dict['uuid']
     direct_ancestor_uuids = new_data_dict['direct_ancestor_uuids']
 
@@ -900,10 +901,16 @@ def link_dataset_to_direct_ancestors(property_key, normalized_type, request, use
     new_ancestors = set(direct_ancestor_uuids)-set(existing_dataset_ancestor_uuids)
     ancestors_to_unlink = set(existing_dataset_ancestor_uuids)-set(direct_ancestor_uuids)
     activity_uuid = schema_neo4j_queries.get_parent_activity_uuid_from_entity(schema_manager.get_neo4j_driver_instance(), dataset_uuid)
+
+    if not activity_uuid:
+        activity_data_dict = schema_manager.generate_activity_data(normalized_type, request, user_token, existing_data_dict)
+        activity_uuid = activity_data_dict['uuid']
+        create_activity = True
+
     if new_ancestors:
         
         try:
-            schema_neo4j_queries.add_new_ancestors_to_existing_activity(schema_manager.get_neo4j_driver_instance(), list(new_ancestors), activity_uuid)
+            schema_neo4j_queries.add_new_ancestors_to_existing_activity(schema_manager.get_neo4j_driver_instance(), list(new_ancestors), activity_uuid, create_activity, activity_data_dict, dataset_uuid)
         except TransactionError:
             raise
     
@@ -1911,7 +1918,8 @@ def link_sample_to_direct_ancestor(property_key, normalized_type, request, user_
 
     if 'direct_ancestor_uuid' not in new_data_dict:
         raise KeyError("Missing 'direct_ancestor_uuid' key in 'new_data_dict' during calling 'link_sample_to_direct_ancestor()' trigger method.")
-
+    create_activity = False
+    activity_data_dict = {}
     sample_uuid = existing_data_dict['uuid']
 
     # Build a list of direct ancestor uuids
@@ -1921,10 +1929,16 @@ def link_sample_to_direct_ancestor(property_key, normalized_type, request, user_
     new_ancestors = set(direct_ancestor_uuids)-set(existing_sample_ancestor_uuids)
     ancestors_to_unlink = set(existing_sample_ancestor_uuids)-set(direct_ancestor_uuids)
     activity_uuid = schema_neo4j_queries.get_parent_activity_uuid_from_entity(schema_manager.get_neo4j_driver_instance(), sample_uuid)
+    
+    if not activity_uuid:
+        activity_data_dict = schema_manager.generate_activity_data(normalized_type, request, user_token, existing_data_dict)
+        activity_uuid = activity_data_dict['uuid']
+        create_activity = True
+
     if new_ancestors:
 
         try:
-            schema_neo4j_queries.add_new_ancestors_to_existing_activity(schema_manager.get_neo4j_driver_instance(), list(new_ancestors), activity_uuid)
+            schema_neo4j_queries.add_new_ancestors_to_existing_activity(schema_manager.get_neo4j_driver_instance(), list(new_ancestors), activity_uuid, create_activity, activity_data_dict, sample_uuid)
         except TransactionError:
             raise
     
