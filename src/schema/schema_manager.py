@@ -305,7 +305,7 @@ Removes specified fields from an existing dictionary
 Parameters
 ----------
 excluded_fields : list
-    A list of the fields to be excluded
+    A JSON list of the fields to be excluded, may have nested fields
 output_dict : dictionary
     A dictionary representing the data to be modified
 
@@ -347,6 +347,171 @@ def exclude_properties_from_response(excluded_fields, output_dict):
         delete_nested_field(output_dict, field)
     
     return output_dict
+
+
+"""
+Use the Flask request.args MultiDict to see if 'exclude' is a URL parameter passed in with the
+request and parse the comma-separated properties to be excluded from final response
+
+For now, only support one dot for nested fields (depth 2)
+
+Parameters
+----------
+request: Flask request object
+    The instance of Flask request passed in from application request
+
+Returns
+-------
+list
+    A flat list of strings containing top-level and/or nested dot-notated properties
+    Example: ['a.b', 'a.c', 'x']
+"""
+def get_all_fields_to_exclude_from_query_string(request):
+    all_properties_to_exclude = []
+
+    if 'exclude' in request.args:
+        # The query string values are case-sensitive as the property keys in schema yaml are case-sensitive
+        properties_to_exclude_str = request.args.get('exclude')
+        
+        if properties_to_exclude_str:
+            # Must all lowercase values
+            has_upper = any(c.isupper() for c in properties_to_exclude_str)
+            
+            if has_upper:
+                raise ValueError("All the properties specified in 'exclude' query string in URL must be lowercase.")
+
+            all_properties_to_exclude = [item.strip() for item in properties_to_exclude_str.split(",")]
+
+            logger.info(f"User specified properties to exclude in request URL: {all_properties_to_exclude}")
+        else:
+            raise ValueError("The value of the 'exclude' query string parameter can not be empty and must be similar to the form of 'a, b, c, d.e, ...' (case-sensitive).")
+
+        # A bit more validation to limit to depth 2
+        for item in all_properties_to_exclude:
+            if '.' in item:
+                if len(item.split('.')) > 2:
+                    raise ValueError("Only single dot-separated keys are allowed in 'exclude' (e.g., a.b). Keys with multiple dots like a.b.c are not supported.")
+        
+        # More validation - ensure prohibited properties are not accepted
+        # This two properties are required internally by `normalize_entity_result_for_response()`
+        prohibited_properties = ['uuid', 'entity_type']
+        second_level_list = []
+
+        for item in all_properties_to_exclude:
+            if item in prohibited_properties or item.split('.')[1] in prohibited_properties:
+                raise ValueError(f"Entity property '{item}' is not allowed in the 'exclude' query parameter.")
+
+    return all_properties_to_exclude
+
+
+"""
+Transform a flat list of dot-notated strings into a hybrid list that:
+- keeps plain strings as-is
+- converts entries with dot-notation (like 'direct_ancestors.files') into a dictionary, grouping by the prefix
+
+Example: ['a.b', 'a.c', 'x'] -> ['x', {'a': ['b', 'c']}]
+
+Used by `GET /entities/<id>?exclude=a.b, a.c, x` to build a JSON list 
+that can be futher processed by `exclude_properties_from_response()`.
+
+Parameters
+----------
+flat_list : list
+    A flat list of strings, dot-notated strings are optional and can be used to indicate nested fields
+    Example: ['a.b', 'a.c', 'x']
+
+Returns
+-------
+list
+    A list mixing strings and grouped dicts, like ['x', {'a': ['b', 'c']}]
+"""
+def group_dot_notation_fields(flat_list):
+    output_list = []
+    grouped_dict = {}
+
+    for item in flat_list:
+        # For now, only support one dot for nested fields (depth 2)
+        if '.' in item:
+            prefix, field = item.split('.', 1)
+            grouped_dict.setdefault(prefix, []).append(field)
+        else:
+            output_list.append(item)
+
+    # Add grouped items as dictionaries
+    for prefix, fields in grouped_dict.items():
+        output_list.append({prefix: fields})
+
+    return output_list
+
+
+"""
+Group properties by exclusion type
+
+Example: ['a.b', 'a.c', 'x', 'y'] where 
+- x and y are top-level properties
+- x is Neo4j node property, and y is generated via trigger method
+- a.b and a.c are nested properties while a is a top-level property of either type
+
+Parameters
+----------
+normalized_entity_type : str
+    One of the normalized entity types: Dataset, Collection, Sample, Donor, Upload, Publication
+flat_list : list
+    A flat list of strings, dot-notated strings are optional and can be used to indicate nested fields
+    Example: ['a.b', 'a.c', 'x']
+
+Returns
+-------
+list
+    Three lists - one for triggered properties and one for Neo4j node properties
+    
+    Example for Dataset:
+    - triggered_top_properties_to_skip: ['direct_ancestors.files', 'direct_ancestors.ingest_metadata', 'upload.title']
+    - neo4j_top_properties_to_skip: ['data_access_level']
+    - neo4j_nested_properties_to_skip: ['status_history.status']
+"""
+def determine_property_exclusion_type(normalized_entity_type, flat_list):
+    global _schema
+
+    triggered_top_properties_to_skip = []
+    neo4j_top_properties_to_skip = []
+    neo4j_nested_properties_to_skip =[]
+    top_level_list = []
+    second_level_list = []
+    properties = _schema['ENTITIES'][normalized_entity_type]['properties']
+
+    # First find the top-level properties without using dot-notation
+    for item in flat_list:
+        if '.' not in item:
+            top_level_list.append(item)
+        else:
+            second_level_list.append(item)
+
+    # Only care about the properties defined in schema yaml
+    for item in top_level_list:
+        if item in properties:
+            if 'on_read_trigger' in properties[item]:
+                triggered_top_properties_to_skip.append(item)
+            else:
+                neo4j_top_properties_to_skip.append(item)
+
+    # Nested second-level properties, such as `direct_ancestors.files`, belong to `triggered_top_properties_to_skip`
+    # `ingest_metadata.dag_provenance_list` belongs to `neo4j_nested_properties_to_skip`
+    for item in second_level_list:
+        prefix = item.split('.')[0]
+        if prefix in properties:
+            if 'on_read_trigger' in properties[prefix]:
+                triggered_top_properties_to_skip.append(item)
+            else:
+                neo4j_nested_properties_to_skip.append(item)
+
+    logger.info(f"Determined property exclusion type - triggered_top_properties_to_skip: {triggered_top_properties_to_skip}")
+    logger.info(f"Determined property exclusion type - neo4j_top_properties_to_skip: {neo4j_top_properties_to_skip}")
+    logger.info(f"Determined property exclusion type - neo4j_nested_properties_to_skip: {neo4j_nested_properties_to_skip}")
+
+    # NOTE: Will need to convert the `neo4j_nested_properties_to_skip` to a format that can be used by 
+    # `exclude_properties_from_response()`  - Zhou 10/1/2025
+    return triggered_top_properties_to_skip, neo4j_top_properties_to_skip, neo4j_nested_properties_to_skip
 
 
 """
@@ -395,6 +560,8 @@ def generate_triggered_data(trigger_type: TriggerTypeEnum, normalized_class, req
     # The ordering of properties of this entity class defined in the yaml schema
     # decides the ordering of which trigger method gets to run first
     properties = schema_section[normalized_class]['properties']
+
+    logger.info(f"Skipping triggered data generation for the following properties: {properties_to_skip}")
 
     # Set each property value and put all resulting data into a dictionary for:
     # before_create_trigger|before_update_trigger|on_read_trigger
@@ -2001,7 +2168,6 @@ def convert_str_literal(data_str):
             data = ast.literal_eval(data_str)
 
             if isinstance(data, (list, dict)):
-                logger.info(f"The input string literal has been converted to {type(data)} successfully")
                 return data
             else:
                 logger.info(f"The input string literal is not list or dict after evaluation, return the original string input")
