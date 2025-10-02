@@ -374,23 +374,22 @@ def get_all_fields_to_exclude_from_query_string(request):
         properties_to_exclude_str = request.args.get('exclude')
         
         if properties_to_exclude_str:
-            # Must all lowercase values
-            has_upper = any(c.isupper() for c in properties_to_exclude_str)
-            
-            if has_upper:
-                raise ValueError("All the properties specified in 'exclude' query string in URL must be lowercase.")
+            # Must contain only lowercase letters or underscores
+            # This check is faster, very readable, and handles the case efficiently
+            if not (all(c.islower() or c == '_' for c in properties_to_exclude_str) and any(c.isalpha() for c in properties_to_exclude_str)):
+                raise ValueError("Properties specified in 'exclude' query parameter must be either only lowercase letters or lowercase letters with underscores.")
 
             all_properties_to_exclude = [item.strip() for item in properties_to_exclude_str.split(",")]
 
             logger.info(f"User specified properties to exclude in request URL: {all_properties_to_exclude}")
         else:
-            raise ValueError("The value of the 'exclude' query string parameter can not be empty and must be similar to the form of 'a, b, c, d.e, ...' (case-sensitive).")
+            raise ValueError("The value of the 'exclude' query parameter can not be empty and must be similar to the form of 'a, b, c, d.e, f_g ...' (case-sensitive).")
 
         # A bit more validation to limit to depth 2
         for item in all_properties_to_exclude:
             if '.' in item:
                 if len(item.split('.')) > 2:
-                    raise ValueError("Only single dot-separated keys are allowed in 'exclude' (e.g., a.b). Keys with multiple dots like a.b.c are not supported.")
+                    raise ValueError("When dot-notation properties are specified in 'exclude', only single dot-notation allowed (e.g., a.b). Properties with multiple dots like a.b.c are not supported.")
         
         # More validation - ensure prohibited properties are not accepted
         # This two properties are required internally by `normalize_entity_result_for_response()`
@@ -425,7 +424,7 @@ Returns
 list
     A list mixing strings and grouped dicts, like ['x', {'a': ['b', 'c']}]
 """
-def group_dot_notation_fields(flat_list):
+def group_dot_notation_properties(flat_list):
     output_list = []
     grouped_dict = {}
 

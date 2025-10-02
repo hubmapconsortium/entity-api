@@ -797,7 +797,7 @@ def get_entity_by_id(id):
         # First make sure the user provided query string params are valid
         for param in request.args:
             if param not in supported_qs_params:
-                bad_request_error(f"Only the following URL query string parameters (case-sensitive) are supported: {COMMA_SEPARATOR.join(supported_qs_params)}")
+                bad_request_error(f"Only the following URL query parameters (case-sensitive) are supported: {COMMA_SEPARATOR.join(supported_qs_params)}")
 
         # Return a single property key and value using ?property=<property_key>
         if 'property' in request.args:
@@ -811,11 +811,11 @@ def get_entity_by_id(id):
 
             # Validate the target property
             if single_property_key not in supported_property_keys:
-                bad_request_error(f"Only the following property keys are supported in the query string: {COMMA_SEPARATOR.join(supported_property_keys)}")
+                bad_request_error(f"Only the following property keys are supported in the query parameter: {COMMA_SEPARATOR.join(supported_property_keys)}")
 
             if single_property_key == 'status' and \
                     not schema_manager.entity_type_instanceof(normalized_entity_type, 'Dataset'):
-                bad_request_error(f"Only Dataset or Publication supports 'status' property key in the query string")
+                bad_request_error(f"Only Dataset or Publication supports 'status' property key in the query parameter")
 
             # Response with the property value directly
             # Don't use jsonify() on string value
@@ -893,7 +893,7 @@ def get_entity_by_id(id):
     # For such cases, we can't handle via simple Neo4j query. Instead, exclude at Python app level.
     # NOTE: need to convert the `neo4j_nested_properties_to_skip` to a format that can be used by 
     # `exclude_properties_from_response()`  - Zhou 10/1/2025
-    final_result = schema_manager.exclude_properties_from_response(schema_manager.group_dot_notation_fields(neo4j_nested_properties_to_skip), final_result)
+    final_result = schema_manager.exclude_properties_from_response(schema_manager.group_dot_notation_properties(neo4j_nested_properties_to_skip), final_result)
 
     # Response with the dict
     if public_entity and not user_in_hubmap_read_group(request):

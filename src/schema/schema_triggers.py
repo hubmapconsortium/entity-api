@@ -2733,7 +2733,7 @@ def _get_neo4j_properties_to_exclude(property_key, request):
     # Find the specific sub list, depth is limited to 2
     # We only care about the Neo4j node properties as we don't run nested triggers inside a trigger method
     # For example, direct_ancestors.files is supported, but direct_ancestors.metadata.acquisition_id is not - Zhou 10/1/2025
-    grouped_fields = schema_manager.group_dot_notation_fields(all_properties_to_exclude)
+    grouped_fields = schema_manager.group_dot_notation_properties(all_properties_to_exclude)
 
     for item in grouped_fields:
         # Find the depth 2 properties (top-level to this triggered entity)
