@@ -766,11 +766,13 @@ new_ancestor_uuid : str
 activity_uuid : str
     The uuid of the existing activity node to link to
 """
-def add_new_ancestors_to_existing_activity(neo4j_driver, new_ancestor_uuids, activity_uuid):
+def add_new_ancestors_to_existing_activity(neo4j_driver, new_ancestor_uuids, activity_uuid, create_activity, activity_data_dict, dataset_uuid):
     try:
         with neo4j_driver.session() as session:
             tx = session.begin_transaction()
-
+            if create_activity:
+                create_activity_tx(tx, activity_data_dict)
+                create_relationship_tx(tx, activity_uuid, dataset_uuid, 'ACTIVITY_OUTPUT', '->')
             create_outgoing_activity_relationships_tx(tx=tx
                                                       , source_node_uuids=new_ancestor_uuids
                                                       , activity_node_uuid=activity_uuid)
