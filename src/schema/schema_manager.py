@@ -378,19 +378,28 @@ def get_all_fields_to_exclude_from_query_string(request):
             has_upper = any(c.isupper() for c in properties_to_exclude_str)
             
             if has_upper:
-                raise Exception("All the properties specified in 'exclude' query string in URL must be lowercase.")
+                raise ValueError("All the properties specified in 'exclude' query string in URL must be lowercase.")
 
             all_properties_to_exclude = [item.strip() for item in properties_to_exclude_str.split(",")]
 
             logger.info(f"User specified properties to exclude in request URL: {all_properties_to_exclude}")
         else:
-            raise Exception("The value of the 'exclude' query string parameter can not be empty and must be similar to the form of 'a, b, c, d.e, ...' (case-sensitive).")
+            raise ValueError("The value of the 'exclude' query string parameter can not be empty and must be similar to the form of 'a, b, c, d.e, ...' (case-sensitive).")
 
         # A bit more validation to limit to depth 2
         for item in all_properties_to_exclude:
             if '.' in item:
                 if len(item.split('.')) > 2:
-                    raise Exception("Only single dot-separated keys are allowed in 'exclude' (e.g., a.b). Keys with multiple dots like a.b.c are not supported.")
+                    raise ValueError("Only single dot-separated keys are allowed in 'exclude' (e.g., a.b). Keys with multiple dots like a.b.c are not supported.")
+        
+        # More validation - ensure prohibited properties are not accepted
+        # This two properties are required internally by `normalize_entity_result_for_response()`
+        prohibited_properties = ['uuid', 'entity_type']
+        second_level_list = []
+
+        for item in all_properties_to_exclude:
+            if item in prohibited_properties or item.split('.')[1] in prohibited_properties:
+                raise ValueError(f"Entity property '{item}' is not allowed in the 'exclude' query parameter.")
 
     return all_properties_to_exclude
 

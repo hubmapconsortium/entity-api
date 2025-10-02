@@ -2725,6 +2725,8 @@ def _get_neo4j_properties_to_exclude(property_key, request):
     # Get all the user specified fields either top-level or nested from the original query string in request URL
     try:
         all_properties_to_exclude = schema_manager.get_all_fields_to_exclude_from_query_string(request)
+    except ValueError as e:
+        raise ValueError(e)
     except Exception as e:
         raise Exception(e)
 

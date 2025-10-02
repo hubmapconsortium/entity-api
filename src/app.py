@@ -835,8 +835,10 @@ def get_entity_by_id(id):
             # Determine which top-level properties to exclude from triggers and which to exclude directly from the resulting Neo4j `entity_dict`
             # Also get nested properties that are directly returned from Neo4j, which will be handled differently
             triggered_top_properties_to_skip, neo4j_top_properties_to_skip, neo4j_nested_properties_to_skip = schema_manager.determine_property_exclusion_type(normalized_entity_type, all_properties_to_exclude)
-        except Exception as e:
+        except ValueError as e:
             bad_request_error(e)
+        except Exception as e:
+            internal_server_error(e)
 
     # Get the generated complete entity result from cache if exists
     # Otherwise re-generate on the fly
