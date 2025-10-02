@@ -887,9 +887,11 @@ def get_entity_by_id(id):
     final_result = schema_manager.normalize_entity_result_for_response(complete_dict)
 
     # In addition, there may be nested fields like `ingest_metadata.dag_provenance_list` (for Dataset) 
-    # where that `ingest_metadata` is an actual Neo4j node property containing `dag_provenance_list`
-    # For such cases, we can't handle via Neo4j query. Instead, exclude at Python app level. - Zhou 10/1/2025
-    final_result = schema_manager.exclude_properties_from_response(neo4j_nested_properties_to_skip, final_result)
+    # where `ingest_metadata` is an actual Neo4j node string property containing `dag_provenance_list`
+    # For such cases, we can't handle via simple Neo4j query. Instead, exclude at Python app level.
+    # NOTE: need to convert the `neo4j_nested_properties_to_skip` to a format that can be used by 
+    # `exclude_properties_from_response()`  - Zhou 10/1/2025
+    final_result = schema_manager.exclude_properties_from_response(schema_manager.group_dot_notation_fields(neo4j_nested_properties_to_skip), final_result)
 
     # Response with the dict
     if public_entity and not user_in_hubmap_read_group(request):

@@ -1083,13 +1083,15 @@ uuid : str
     The uuid of dataset or publication
 property_key : str
     A target property key for result filtering
+properties_to_exclude : list
+    A list of node properties to exclude from result
 
 Returns
 -------
 list
     A list of collection uuids
 """
-def get_dataset_collections(neo4j_driver, uuid, property_key = None):
+def get_dataset_collections(neo4j_driver, uuid, property_key = None, properties_to_exclude = []):
     results = []
 
     if property_key:
@@ -1097,9 +1099,15 @@ def get_dataset_collections(neo4j_driver, uuid, property_key = None):
                  f"WHERE e.uuid = '{uuid}' "
                  f"RETURN apoc.coll.toSet(COLLECT(c.{property_key})) AS {record_field_name}")
     else:
-        query = (f"MATCH (e:Entity)-[:IN_COLLECTION]->(c:Collection) "
-                 f"WHERE e.uuid = '{uuid}' "
-                 f"RETURN apoc.coll.toSet(COLLECT(c)) AS {record_field_name}")
+        if properties_to_exclude:
+            query = (f"MATCH (e:Entity)-[:IN_COLLECTION]->(c:Collection) "
+                     f"WHERE e.uuid = '{uuid}' "
+                     f"WITH apoc.coll.toSet(COLLECT(c)) AS uniqueCollections "
+                     f"RETURN [c IN uniqueCollections | apoc.create.vNode(labels(c), apoc.map.removeKeys(properties(c), {properties_to_exclude}))] AS {record_field_name}")
+        else:
+            query = (f"MATCH (e:Entity)-[:IN_COLLECTION]->(c:Collection) "
+                     f"WHERE e.uuid = '{uuid}' "
+                     f"RETURN apoc.coll.toSet(COLLECT(c)) AS {record_field_name}")
 
     logger.info("======get_dataset_collections() query======")
     logger.debug(query)
@@ -1164,18 +1172,26 @@ neo4j_driver : neo4j.Driver object
     The neo4j database connection pool
 uuid : str
     The uuid of dataset
+properties_to_exclude : list
+    A list of node properties to exclude from result
 
 Returns
 -------
 dict
     A Upload dict
 """
-def get_dataset_upload(neo4j_driver, uuid):
+def get_dataset_upload(neo4j_driver, uuid, properties_to_exclude = []):
     result = {}
 
-    query = (f"MATCH (e:Entity)-[:IN_UPLOAD]->(s:Upload) "
-             f"WHERE e.uuid = '{uuid}' "
-             f"RETURN s AS {record_field_name}")
+    if properties_to_exclude:
+        query = (f"MATCH (e:Entity)-[:IN_UPLOAD]->(s:Upload) "
+                 f"WHERE e.uuid = '{uuid}' "
+                 f"WITH s AS up "
+                 f"RETURN apoc.create.vNode(labels(up), apoc.map.removeKeys(properties(up), {properties_to_exclude})) AS {record_field_name}")
+    else:
+        query = (f"MATCH (e:Entity)-[:IN_UPLOAD]->(s:Upload) "
+                 f"WHERE e.uuid = '{uuid}' "
+                 f"RETURN s AS {record_field_name}")
 
     logger.info("======get_dataset_upload() query======")
     logger.debug(query)

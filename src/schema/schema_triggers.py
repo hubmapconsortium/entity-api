@@ -781,7 +781,13 @@ def get_dataset_collections(property_key, normalized_type, request, user_token, 
 
     logger.info(f"Executing 'get_dataset_collections()' trigger method on uuid: {existing_data_dict['uuid']}")
 
-    collections_list = schema_neo4j_queries.get_dataset_collections(schema_manager.get_neo4j_driver_instance(), existing_data_dict['uuid'])
+    # Get all the user specified fields either top-level or nested from the original query string in request URL
+    # Find the specific sub list, depth is limited to 2
+    # We only care about the Neo4j node properties as we don't run nested triggers inside a trigger method
+    # For example, direct_ancestors.files is supported, but direct_ancestors.metadata.acquisition_id is not - Zhou 10/1/2025
+    neo4j_properties_to_exclude = _get_neo4j_properties_to_exclude(property_key, request)
+
+    collections_list = schema_neo4j_queries.get_dataset_collections(schema_manager.get_neo4j_driver_instance(), existing_data_dict['uuid'], property_key = None, properties_to_exclude = neo4j_properties_to_exclude)
 
     # Get rid of the entity node properties that are not defined in the yaml schema
     # as well as the ones defined as `exposed: false` in the yaml schema
@@ -859,7 +865,13 @@ def get_dataset_upload(property_key, normalized_type, request, user_token, exist
 
     logger.info(f"Executing 'get_dataset_upload()' trigger method on uuid: {existing_data_dict['uuid']}")
 
-    upload_dict = schema_neo4j_queries.get_dataset_upload(schema_manager.get_neo4j_driver_instance(), existing_data_dict['uuid'])
+    # Get all the user specified fields either top-level or nested from the original query string in request URL
+    # Find the specific sub list, depth is limited to 2
+    # We only care about the Neo4j node properties as we don't run nested triggers inside a trigger method
+    # For example, direct_ancestors.files is supported, but direct_ancestors.metadata.acquisition_id is not - Zhou 10/1/2025
+    neo4j_properties_to_exclude = _get_neo4j_properties_to_exclude(property_key, request)
+
+    upload_dict = schema_neo4j_queries.get_dataset_upload(schema_manager.get_neo4j_driver_instance(), existing_data_dict['uuid'], properties_to_exclude = neo4j_properties_to_exclude)
     
     # Get rid of the entity node properties that are not defined in the yaml schema
     # as well as the ones defined as `exposed: false` in the yaml schema

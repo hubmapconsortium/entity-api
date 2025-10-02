@@ -443,7 +443,11 @@ Returns
 -------
 list
     Three lists - one for triggered properties and one for Neo4j node properties
-    Example for Dataset: ['direct_ancestors', 'title'], ['dataset_type'], ['ingest_metadata.dag_provenance_list']
+    
+    Example for Dataset:
+    - triggered_top_properties_to_skip: ['direct_ancestors.files', 'direct_ancestors.ingest_metadata', 'upload.title']
+    - neo4j_top_properties_to_skip: ['data_access_level']
+    - neo4j_nested_properties_to_skip: ['status_history.status']
 """
 def determine_property_exclusion_type(normalized_entity_type, flat_list):
     global _schema
@@ -455,7 +459,7 @@ def determine_property_exclusion_type(normalized_entity_type, flat_list):
     second_level_list = []
     properties = _schema['ENTITIES'][normalized_entity_type]['properties']
 
-    # First find the top-level properties
+    # First find the top-level properties without using dot-notation
     for item in flat_list:
         if '.' not in item:
             top_level_list.append(item)
@@ -464,16 +468,28 @@ def determine_property_exclusion_type(normalized_entity_type, flat_list):
 
     # Only care about the properties defined in schema yaml
     for item in top_level_list:
-        if item in properties and 'on_read_trigger' in properties[item]:
-            triggered_top_properties_to_skip.append(item)
-        else:
-            neo4j_top_properties_to_skip.append(item)
+        if item in properties:
+            if 'on_read_trigger' in properties[item]:
+                triggered_top_properties_to_skip.append(item)
+            else:
+                neo4j_top_properties_to_skip.append(item)
 
-    # # In addition, there may be nested fields like `ingest_metadata.dag_provenance_list` (for Dataset) 
-    # where that `ingest_metadata` is an actual Neo4j node property containing `dag_provenance_list`
-    # For such cases, exclude via `exclude_properties_from_response()` at Python app level.
-    neo4j_nested_properties_to_skip = group_dot_notation_fields(second_level_list)
+    # Nested second-level properties, such as `direct_ancestors.files`, belong to `triggered_top_properties_to_skip`
+    # `ingest_metadata.dag_provenance_list` belongs to `neo4j_nested_properties_to_skip`
+    for item in second_level_list:
+        prefix = item.split('.')[0]
+        if prefix in properties:
+            if 'on_read_trigger' in properties[prefix]:
+                triggered_top_properties_to_skip.append(item)
+            else:
+                neo4j_nested_properties_to_skip.append(item)
 
+    logger.info(f"Determined property exclusion type - triggered_top_properties_to_skip: {triggered_top_properties_to_skip}")
+    logger.info(f"Determined property exclusion type - neo4j_top_properties_to_skip: {neo4j_top_properties_to_skip}")
+    logger.info(f"Determined property exclusion type - neo4j_nested_properties_to_skip: {neo4j_nested_properties_to_skip}")
+
+    # NOTE: Will need to convert the `neo4j_nested_properties_to_skip` to a format that can be used by 
+    # `exclude_properties_from_response()`  - Zhou 10/1/2025
     return triggered_top_properties_to_skip, neo4j_top_properties_to_skip, neo4j_nested_properties_to_skip
 
 
