@@ -987,23 +987,28 @@ def get_dataset_direct_ancestors(property_key, normalized_type, request, user_to
 
     logger.info(f"Executing 'get_dataset_direct_ancestors()' trigger method on uuid: {existing_data_dict['uuid']}")
 
-    # Get all the mixed fields either top-level or nested from the original query string in request URL
-    all_properties_to_exclude = schema_manager.get_fields_to_exclude_from_query_string(request)
-
-    logger.info(f"all_properties_to_exclude: {all_properties_to_exclude}")
+    # Get all the user specified fields either top-level or nested from the original query string in request URL
+    try:
+        all_properties_to_exclude = schema_manager.get_all_fields_to_exclude_from_query_string(request)
+    except Exception as e:
+        raise Exception(e)
 
     # Find the specific sub list, depth is limited to 2
+    # We only care about the Neo4j node properties as we don't run nested triggers inside a trigger method
     # For example, direct_ancestors.files is supported, but direct_ancestors.metadata.acquisition_id is not - Zhou 10/1/2025
     neo4j_properties_to_exclude = []
+    grouped_fields = schema_manager.group_dot_notation_fields(all_properties_to_exclude)
 
-    parsed_fields = schema_manager.flatten_and_group_dot_notation_fields(all_properties_to_exclude)
-
-    for item in parsed_fields:
+    for item in grouped_fields:
         # Find the depth 2 properties (top-level to this triggered entity)
         if isinstance(item, dict) and property_key in item:
+            for field in item[property_key]:
+                if not isinstance(field, str):
+                    item[property_key].pop(field)
+
             neo4j_properties_to_exclude = item[property_key]
             
-            logger.info(f"neo4j_properties_to_exclude: {neo4j_properties_to_exclude}")
+            logger.info(f"User specified neo4j properties to exclude in request URL: {neo4j_properties_to_exclude}")
             
             # Stop after finding the first match
             break

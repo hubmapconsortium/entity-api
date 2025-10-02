@@ -350,6 +350,40 @@ def exclude_properties_from_response(excluded_fields, output_dict):
 
 
 """
+Use the Flask request.args MultiDict to see if 'exclude' is a URL parameter passed in with the
+request and parse the comma-separated properties to be excluded from final response
+
+For now, only support one dot for nested fields (depth 2)
+
+Parameters
+----------
+request: Flask request object
+    The instance of Flask request passed in from application request
+
+Returns
+-------
+list
+    A flat list of strings containing top-level and/or nested dot-notated properties
+    Example: ['a.b', 'a.c', 'x']
+"""
+def get_all_fields_to_exclude_from_query_string(request):
+    all_properties_to_exclude = []
+
+    if 'exclude' in request.args:
+        # Treat query string value as case-insensitive
+        properties_to_exclude_str = request.args.get('exclude').lower()
+        
+        if properties_to_exclude_str is not None:
+            all_properties_to_exclude = [item.strip() for item in properties_to_exclude_str.split(",")]
+
+            logger.info(f"User specified properties to exclude in request URL: {all_properties_to_exclude}")
+        else:
+            raise Exception(f"The value of the 'exclude' query string arameter can not be empty and must be similar to the form of 'a, b, c, d.e, ...' (case-insensitive).")
+
+    return all_properties_to_exclude
+
+
+"""
 Transform a flat list of dot-notated strings into a hybrid list that:
 - keeps plain strings as-is
 - converts entries with dot-notation (like 'direct_ancestors.files') into a dictionary, grouping by the prefix
@@ -368,13 +402,14 @@ flat_list : list
 Returns
 -------
 list
-    A list mixing strings and grouped dicts
+    A list mixing strings and grouped dicts, like ['x', {'a': ['b', 'c']}]
 """
-def flatten_and_group_dot_notation_fields(flat_list):
+def group_dot_notation_fields(flat_list):
     output_list = []
     grouped_dict = {}
 
     for item in flat_list:
+        # For now, only support one dot for nested fields (depth 2)
         if '.' in item:
             prefix, field = item.split('.', 1)
             grouped_dict.setdefault(prefix, []).append(field)
@@ -389,17 +424,17 @@ def flatten_and_group_dot_notation_fields(flat_list):
 
 
 """
-Transform a flat list of dot-notated strings into a hybrid list that:
-- keeps plain strings as-is
-- converts entries with dot-notation (like 'direct_ancestors.files') into a dictionary, grouping by the prefix
+Group properties by exclusion type
 
-Example: ['a.b', 'a.c', 'x'] -> ['x', {'a': ['b', 'c']}]
-
-Used by `GET /entities/<id>?exclude=a.b, a.c, x` to build a JSON list 
-that can be futher processed by `exclude_properties_from_response()`.
+Example: ['a.b', 'a.c', 'x', 'y'] where 
+- x and y are top-level properties
+- x is Neo4j node property, and y is generated via trigger method
+- a.b and a.c are nested properties while a is a top-level property of either type
 
 Parameters
 ----------
+normalized_entity_type : str
+    One of the normalized entity types: Dataset, Collection, Sample, Donor, Upload, Publication
 flat_list : list
     A flat list of strings, dot-notated strings are optional and can be used to indicate nested fields
     Example: ['a.b', 'a.c', 'x']
@@ -407,56 +442,39 @@ flat_list : list
 Returns
 -------
 list
-    A list mixing strings and grouped dicts
+    Three lists - one for triggered properties and one for Neo4j node properties
+    Example for Dataset: ['direct_ancestors', 'title'], ['dataset_type'], ['ingest_metadata.dag_provenance_list']
 """
 def determine_property_exclusion_type(normalized_entity_type, flat_list):
     global _schema
 
-    triggered_properties_to_skip = []
-    neo4j_properties_to_skip = []
-
+    triggered_top_properties_to_skip = []
+    neo4j_top_properties_to_skip = []
+    neo4j_nested_properties_to_skip =[]
+    top_level_list = []
+    second_level_list = []
     properties = _schema['ENTITIES'][normalized_entity_type]['properties']
 
-    top_level_list = []
-
+    # First find the top-level properties
     for item in flat_list:
-        # Only target at properties don't use the dot notation
         if '.' not in item:
             top_level_list.append(item)
+        else:
+            second_level_list.append(item)
 
-    
+    # Only care about the properties defined in schema yaml
     for item in top_level_list:
         if item in properties and 'on_read_trigger' in properties[item]:
-            triggered_properties_to_skip.append(item)
+            triggered_top_properties_to_skip.append(item)
         else:
-            neo4j_properties_to_skip.append(item)
+            neo4j_top_properties_to_skip.append(item)
 
+    # # In addition, there may be nested fields like `ingest_metadata.dag_provenance_list` (for Dataset) 
+    # where that `ingest_metadata` is an actual Neo4j node property containing `dag_provenance_list`
+    # For such cases, exclude via `exclude_properties_from_response()` at Python app level.
+    neo4j_nested_properties_to_skip = group_dot_notation_fields(second_level_list)
 
-    return triggered_properties_to_skip, neo4j_properties_to_skip
-
- 
-"""
-Use the Flask request.args MultiDict to see if 'reindex' is a URL parameter passed in with the
-request and if it indicates reindexing should be supressed. Default to reindexing in all other cases.
-
-Parameters
-----------
-request: Flask request object
-    The instance of Flask request passed in from application request
-
-Returns
--------
-bool
-"""
-def get_fields_to_exclude_from_query_string(request):
-    properties_to_exclude_str = request.args.get('exclude')
-
-    properties_to_exclude_list = [item.strip() for item in properties_to_exclude_str.split(",")]
-
-    # Transform the flat JSON string list to a Python list mixing strings and grouped dicts
-    prepared_list = flatten_and_group_dot_notation_fields(properties_to_exclude_list)
-
-    return properties_to_exclude_list
+    return triggered_top_properties_to_skip, neo4j_top_properties_to_skip, neo4j_nested_properties_to_skip
 
 
 """
