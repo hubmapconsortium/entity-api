@@ -373,12 +373,18 @@ def get_all_fields_to_exclude_from_query_string(request):
         # Treat query string value as case-insensitive
         properties_to_exclude_str = request.args.get('exclude').lower()
         
-        if properties_to_exclude_str is not None:
+        if properties_to_exclude_str:
             all_properties_to_exclude = [item.strip() for item in properties_to_exclude_str.split(",")]
 
             logger.info(f"User specified properties to exclude in request URL: {all_properties_to_exclude}")
         else:
-            raise Exception(f"The value of the 'exclude' query string arameter can not be empty and must be similar to the form of 'a, b, c, d.e, ...' (case-insensitive).")
+            raise Exception("The value of the 'exclude' query string parameter can not be empty and must be similar to the form of 'a, b, c, d.e, ...' (case-insensitive).")
+
+        # A bit more validation to limit to depth 2
+        for item in all_properties_to_exclude:
+            if '.' in item:
+                if len(item.split('.')) > 2:
+                    raise Exception("Only single dot-separated keys are allowed in `exclude` (e.g., a.b). Keys with multiple dots like a.b.c are not supported.")
 
     return all_properties_to_exclude
 
