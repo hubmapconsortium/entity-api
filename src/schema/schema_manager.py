@@ -383,7 +383,7 @@ def get_all_fields_to_exclude_from_query_string(request):
 
             logger.info(f"User specified properties to exclude in request URL: {all_properties_to_exclude}")
         else:
-            raise ValueError("The value of the 'exclude' query parameter can not be empty and must be similar to the form of 'a, b, c, d.e, f_g ...' (case-sensitive).")
+            raise ValueError("Properties specified in 'exclude' query parameter can not be empty and must be similar to the form of 'a, b, c, d.e, f_g ...' (case-sensitive).")
 
         # A bit more validation to limit to depth 2
         for item in all_properties_to_exclude:

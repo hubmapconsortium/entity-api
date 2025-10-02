@@ -709,10 +709,6 @@ def get_collection_datasets(property_key, normalized_type, request, user_token, 
 
     logger.info(f"Executing 'get_collection_datasets()' trigger method on uuid: {existing_data_dict['uuid']}")
     
-    # Get all the user specified fields either top-level or nested from the original query string in request URL
-    # Find the specific sub list, depth is limited to 2
-    # We only care about the Neo4j node properties as we don't run nested triggers inside a trigger method
-    # For example, direct_ancestors.files is supported, but direct_ancestors.metadata.acquisition_id is not - Zhou 10/1/2025
     neo4j_properties_to_exclude = _get_neo4j_properties_to_exclude(property_key, request)
 
     datasets_list = schema_neo4j_queries.get_collection_datasets(schema_manager.get_neo4j_driver_instance(), existing_data_dict['uuid'], properties_to_exclude = neo4j_properties_to_exclude)
@@ -787,10 +783,6 @@ def get_dataset_collections(property_key, normalized_type, request, user_token, 
 
     logger.info(f"Executing 'get_dataset_collections()' trigger method on uuid: {existing_data_dict['uuid']}")
 
-    # Get all the user specified fields either top-level or nested from the original query string in request URL
-    # Find the specific sub list, depth is limited to 2
-    # We only care about the Neo4j node properties as we don't run nested triggers inside a trigger method
-    # For example, direct_ancestors.files is supported, but direct_ancestors.metadata.acquisition_id is not - Zhou 10/1/2025
     neo4j_properties_to_exclude = _get_neo4j_properties_to_exclude(property_key, request)
 
     collections_list = schema_neo4j_queries.get_dataset_collections(schema_manager.get_neo4j_driver_instance(), existing_data_dict['uuid'], property_key = None, properties_to_exclude = neo4j_properties_to_exclude)
@@ -871,10 +863,6 @@ def get_dataset_upload(property_key, normalized_type, request, user_token, exist
 
     logger.info(f"Executing 'get_dataset_upload()' trigger method on uuid: {existing_data_dict['uuid']}")
 
-    # Get all the user specified fields either top-level or nested from the original query string in request URL
-    # Find the specific sub list, depth is limited to 2
-    # We only care about the Neo4j node properties as we don't run nested triggers inside a trigger method
-    # For example, direct_ancestors.files is supported, but direct_ancestors.metadata.acquisition_id is not - Zhou 10/1/2025
     neo4j_properties_to_exclude = _get_neo4j_properties_to_exclude(property_key, request)
 
     upload_dict = schema_neo4j_queries.get_dataset_upload(schema_manager.get_neo4j_driver_instance(), existing_data_dict['uuid'], properties_to_exclude = neo4j_properties_to_exclude)
@@ -1005,10 +993,6 @@ def get_dataset_direct_ancestors(property_key, normalized_type, request, user_to
 
     logger.info(f"Executing 'get_dataset_direct_ancestors()' trigger method on uuid: {existing_data_dict['uuid']}")
 
-    # Get all the user specified fields either top-level or nested from the original query string in request URL
-    # Find the specific sub list, depth is limited to 2
-    # We only care about the Neo4j node properties as we don't run nested triggers inside a trigger method
-    # For example, direct_ancestors.files is supported, but direct_ancestors.metadata.acquisition_id is not - Zhou 10/1/2025
     neo4j_properties_to_exclude = _get_neo4j_properties_to_exclude(property_key, request)
 
     direct_ancestors_list = schema_neo4j_queries.get_dataset_direct_ancestors(schema_manager.get_neo4j_driver_instance(), existing_data_dict['uuid'], property_key = None, properties_to_exclude = neo4j_properties_to_exclude)
@@ -2027,10 +2011,6 @@ def get_sample_direct_ancestor(property_key, normalized_type, request, user_toke
     
     logger.info(f"Executing 'get_sample_direct_ancestor()' trigger method on uuid: {existing_data_dict['uuid']}")
 
-    # Get all the user specified fields either top-level or nested from the original query string in request URL
-    # Find the specific sub list, depth is limited to 2
-    # We only care about the Neo4j node properties as we don't run nested triggers inside a trigger method
-    # For example, direct_ancestors.files is supported, but direct_ancestors.metadata.acquisition_id is not - Zhou 10/1/2025
     neo4j_properties_to_exclude = _get_neo4j_properties_to_exclude(property_key, request)
 
     direct_ancestor_dict = schema_neo4j_queries.get_sample_direct_ancestor(schema_manager.get_neo4j_driver_instance(), existing_data_dict['uuid'], property_key = None, properties_to_exclude = neo4j_properties_to_exclude)
@@ -2300,10 +2280,6 @@ def get_upload_datasets(property_key, normalized_type, request, user_token, exis
 
     logger.info(f"Executing 'get_upload_datasets()' trigger method on uuid: {existing_data_dict['uuid']}")
 
-    # Get all the user specified fields either top-level or nested from the original query string in request URL
-    # Find the specific sub list, depth is limited to 2
-    # We only care about the Neo4j node properties as we don't run nested triggers inside a trigger method
-    # For example, direct_ancestors.files is supported, but direct_ancestors.metadata.acquisition_id is not - Zhou 10/1/2025
     neo4j_properties_to_exclude = _get_neo4j_properties_to_exclude(property_key, request)
 
     datasets_list = schema_neo4j_queries.get_upload_datasets(schema_manager.get_neo4j_driver_instance(), existing_data_dict['uuid'], property_key = None, properties_to_exclude = neo4j_properties_to_exclude)
