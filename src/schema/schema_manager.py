@@ -398,7 +398,7 @@ def get_all_fields_to_exclude_from_query_string(request):
         second_level_list = []
 
         for item in all_properties_to_exclude:
-            if item in prohibited_properties or item.split('.')[1] in prohibited_properties:
+            if item in prohibited_properties or ('.' in item and item.split('.')[1] in prohibited_properties):
                 raise ValueError(f"Entity property '{item}' is not allowed in the 'exclude' query parameter.")
 
     return all_properties_to_exclude
@@ -490,7 +490,7 @@ def determine_property_exclusion_type(normalized_entity_type, flat_list):
     # Only care about the properties defined in schema yaml
     for item in top_level_list:
         if item in properties:
-            if 'on_read_trigger' in properties[item]:
+            if TriggerTypeEnum.ON_READ in properties[item]:
                 triggered_top_properties_to_skip.append(item)
             else:
                 neo4j_top_properties_to_skip.append(item)
@@ -500,7 +500,7 @@ def determine_property_exclusion_type(normalized_entity_type, flat_list):
     for item in second_level_list:
         prefix = item.split('.')[0]
         if prefix in properties:
-            if 'on_read_trigger' in properties[prefix]:
+            if TriggerTypeEnum.ON_READ in properties[prefix]:
                 triggered_top_properties_to_skip.append(item)
             else:
                 neo4j_nested_properties_to_skip.append(item)
