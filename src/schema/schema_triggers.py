@@ -708,8 +708,14 @@ def get_collection_datasets(property_key, normalized_type, request, user_token, 
         raise KeyError("Missing 'uuid' key in 'existing_data_dict' during calling 'get_collection_datasets()' trigger method.")
 
     logger.info(f"Executing 'get_collection_datasets()' trigger method on uuid: {existing_data_dict['uuid']}")
+    
+    # Get all the user specified fields either top-level or nested from the original query string in request URL
+    # Find the specific sub list, depth is limited to 2
+    # We only care about the Neo4j node properties as we don't run nested triggers inside a trigger method
+    # For example, direct_ancestors.files is supported, but direct_ancestors.metadata.acquisition_id is not - Zhou 10/1/2025
+    neo4j_properties_to_exclude = _get_neo4j_properties_to_exclude(property_key, request)
 
-    datasets_list = schema_neo4j_queries.get_collection_datasets(schema_manager.get_neo4j_driver_instance(), existing_data_dict['uuid'])
+    datasets_list = schema_neo4j_queries.get_collection_datasets(schema_manager.get_neo4j_driver_instance(), existing_data_dict['uuid'], properties_to_exclude = neo4j_properties_to_exclude)
 
     # Get rid of the entity node properties that are not defined in the yaml schema
     # as well as the ones defined as `exposed: false` in the yaml schema
@@ -2294,7 +2300,13 @@ def get_upload_datasets(property_key, normalized_type, request, user_token, exis
 
     logger.info(f"Executing 'get_upload_datasets()' trigger method on uuid: {existing_data_dict['uuid']}")
 
-    datasets_list = schema_neo4j_queries.get_upload_datasets(schema_manager.get_neo4j_driver_instance(), existing_data_dict['uuid'])
+    # Get all the user specified fields either top-level or nested from the original query string in request URL
+    # Find the specific sub list, depth is limited to 2
+    # We only care about the Neo4j node properties as we don't run nested triggers inside a trigger method
+    # For example, direct_ancestors.files is supported, but direct_ancestors.metadata.acquisition_id is not - Zhou 10/1/2025
+    neo4j_properties_to_exclude = _get_neo4j_properties_to_exclude(property_key, request)
+
+    datasets_list = schema_neo4j_queries.get_upload_datasets(schema_manager.get_neo4j_driver_instance(), existing_data_dict['uuid'], property_key = None, properties_to_exclude = neo4j_properties_to_exclude)
 
     # Get rid of the entity node properties that are not defined in the yaml schema
     # as well as the ones defined as `exposed: false` in the yaml schema

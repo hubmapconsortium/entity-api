@@ -1215,20 +1215,32 @@ neo4j_driver : neo4j.Driver object
     The neo4j database connection pool
 uuid : str
     The uuid of collection
+properties_to_exclude : list
+    A list of node properties to exclude from result
 
 Returns
 -------
 list
     The list containing associated dataset dicts
 """
-def get_collection_datasets(neo4j_driver, uuid):
+def get_collection_datasets(neo4j_driver, uuid, properties_to_exclude = []):
     results = []
 
     fields_to_omit = SchemaConstants.OMITTED_FIELDS
-    query = (f"MATCH (e:Dataset)-[:IN_COLLECTION]->(c:Collection) "
-             f"WHERE c.uuid = '{uuid}' "
-             f"WITH COLLECT(DISTINCT e) AS uniqueDataset "
-             f"RETURN [a IN uniqueDataset | apoc.create.vNode(labels(a), apoc.map.removeKeys(properties(a), {fields_to_omit}))] AS {record_field_name}")
+
+
+    if properties_to_exclude:
+        merged_list = properties_to_exclude + fields_to_omit
+        
+        query = (f"MATCH (e:Dataset)-[:IN_COLLECTION]->(c:Collection) "
+                 f"WHERE c.uuid = '{uuid}' "
+                 f"WITH COLLECT(DISTINCT e) AS uniqueDataset "
+                 f"RETURN [a IN uniqueDataset | apoc.create.vNode(labels(a), apoc.map.removeKeys(properties(a), {merged_list}))] AS {record_field_name}")
+    else:
+        query = (f"MATCH (e:Dataset)-[:IN_COLLECTION]->(c:Collection) "
+                 f"WHERE c.uuid = '{uuid}' "
+                 f"WITH COLLECT(DISTINCT e) AS uniqueDataset "
+                 f"RETURN [a IN uniqueDataset | apoc.create.vNode(labels(a), apoc.map.removeKeys(properties(a), {fields_to_omit}))] AS {record_field_name}")
 
     logger.info("======get_collection_datasets() query======")
     logger.debug(query)
@@ -1424,13 +1436,15 @@ uuid : str
     The uuid of Upload
 property_key : str
     A target property key for result filtering
+properties_to_exclude : list
+    A list of node properties to exclude from result
 
 Returns
 -------
 list
     The list containing associated dataset dicts
 """
-def get_upload_datasets(neo4j_driver, uuid, property_key = None):
+def get_upload_datasets(neo4j_driver, uuid, property_key = None, properties_to_exclude = []):
     results = []
     fields_to_omit = SchemaConstants.OMITTED_FIELDS
     if property_key:
@@ -1440,10 +1454,18 @@ def get_upload_datasets(neo4j_driver, uuid, property_key = None):
                  # apoc.coll.toSet() reruns a set containing unique nodes
                  f"RETURN apoc.coll.toSet(COLLECT(e.{property_key})) AS {record_field_name}")
     else:
-        query = (f"MATCH (e:Dataset)-[:IN_UPLOAD]->(s:Upload) "
-                 f"WHERE s.uuid = '{uuid}' "
-                 f"WITH COLLECT(DISTINCT e) AS uniqueUploads "
-                 f"RETURN [a IN uniqueUploads | apoc.create.vNode(labels(a), apoc.map.removeKeys(properties(a), {fields_to_omit}))] AS {record_field_name}")
+        if properties_to_exclude:
+            merged_list = properties_to_exclude + fields_to_omit
+
+            query = (f"MATCH (e:Dataset)-[:IN_UPLOAD]->(s:Upload) "
+                     f"WHERE s.uuid = '{uuid}' "
+                     f"WITH COLLECT(DISTINCT e) AS uniqueUploads "
+                     f"RETURN [a IN uniqueUploads | apoc.create.vNode(labels(a), apoc.map.removeKeys(properties(a), {merged_list}))] AS {record_field_name}")
+        else:
+            query = (f"MATCH (e:Dataset)-[:IN_UPLOAD]->(s:Upload) "
+                     f"WHERE s.uuid = '{uuid}' "
+                     f"WITH COLLECT(DISTINCT e) AS uniqueUploads "
+                     f"RETURN [a IN uniqueUploads | apoc.create.vNode(labels(a), apoc.map.removeKeys(properties(a), {fields_to_omit}))] AS {record_field_name}")
 
     logger.info("======get_upload_datasets() query======")
     logger.debug(query)

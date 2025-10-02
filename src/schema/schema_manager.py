@@ -370,21 +370,27 @@ def get_all_fields_to_exclude_from_query_string(request):
     all_properties_to_exclude = []
 
     if 'exclude' in request.args:
-        # Treat query string value as case-insensitive
-        properties_to_exclude_str = request.args.get('exclude').lower()
+        # The query string values are case-sensitive as the property keys in schema yaml are case-sensitive
+        properties_to_exclude_str = request.args.get('exclude')
         
         if properties_to_exclude_str:
+            # Must all lowercase values
+            has_upper = any(c.isupper() for c in properties_to_exclude_str)
+            
+            if has_upper:
+                raise Exception("All the properties specified in 'exclude' query string in URL must be lowercase.")
+
             all_properties_to_exclude = [item.strip() for item in properties_to_exclude_str.split(",")]
 
             logger.info(f"User specified properties to exclude in request URL: {all_properties_to_exclude}")
         else:
-            raise Exception("The value of the 'exclude' query string parameter can not be empty and must be similar to the form of 'a, b, c, d.e, ...' (case-insensitive).")
+            raise Exception("The value of the 'exclude' query string parameter can not be empty and must be similar to the form of 'a, b, c, d.e, ...' (case-sensitive).")
 
         # A bit more validation to limit to depth 2
         for item in all_properties_to_exclude:
             if '.' in item:
                 if len(item.split('.')) > 2:
-                    raise Exception("Only single dot-separated keys are allowed in `exclude` (e.g., a.b). Keys with multiple dots like a.b.c are not supported.")
+                    raise Exception("Only single dot-separated keys are allowed in 'exclude' (e.g., a.b). Keys with multiple dots like a.b.c are not supported.")
 
     return all_properties_to_exclude
 
