@@ -462,7 +462,6 @@ ENTITIES:
         exposed: false
         indexed: false
         description: "The uuids of source entities from which this new entity is derived.  Used to pass source entity ids in on POST or PUT calls used to create the linkages."
-        # Note: link_dataset_to_direct_ancestors() will always delete all the old linkages first
         after_create_trigger: link_dataset_to_direct_ancestors
         after_update_trigger: link_dataset_to_direct_ancestors
       direct_ancestors:
@@ -1062,7 +1061,6 @@ ENTITIES:
         exposed: false
         indexed: false
         description: "The uuid of source entity from which this new entity is derived from. Used on creation or edit to create an action and relationship to the ancestor.  The direct ancestor must be a Donor or Sample.  If the direct ancestor is a Donor, the sample must be of type organ."
-        # Note: link_sample_to_direct_ancestor() will always delete all the old linkages first
         after_create_trigger: link_sample_to_direct_ancestor
         after_update_trigger: link_sample_to_direct_ancestor
         before_property_update_validators:
