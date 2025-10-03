@@ -907,18 +907,22 @@ def link_dataset_to_direct_ancestors(property_key, normalized_type, request, use
         activity_uuid = activity_data_dict['uuid']
         create_activity = True
 
-    if new_ancestors:
-        
+    if new_ancestors:    
+        logger.info(f"Linking the following new ancestors: {', '.join(new_ancestors)}")
         try:
             schema_neo4j_queries.add_new_ancestors_to_existing_activity(schema_manager.get_neo4j_driver_instance(), list(new_ancestors), activity_uuid, create_activity, activity_data_dict, dataset_uuid)
         except TransactionError:
             raise
     
     if ancestors_to_unlink:
+        logger.info(f"Unlinking the following ancestors: {', '.join(ancestors_to_unlink)}")
         try:
             schema_neo4j_queries.delete_ancestor_linkages_tx(schema_manager.get_neo4j_driver_instance(), dataset_uuid, list(ancestors_to_unlink))
         except TransactionError:
             raise
+    
+    if not(ancestors_to_unlink or new_ancestors):
+        logger.info("No new ancestors linked, nor old ancestors unlinked")
 
         
 """
@@ -1921,13 +1925,19 @@ def link_sample_to_direct_ancestor(property_key, normalized_type, request, user_
     create_activity = False
     activity_data_dict = {}
     sample_uuid = existing_data_dict['uuid']
+    new_ancestors = None
+    ancestors_to_unlink = None
 
     # Build a list of direct ancestor uuids
     # Only one uuid in the list in this case
     direct_ancestor_uuids = [new_data_dict['direct_ancestor_uuid']]
     existing_sample_ancestor_uuids = schema_neo4j_queries.get_sample_direct_ancestor(schema_manager.get_neo4j_driver_instance(), sample_uuid, "uuid")
-    new_ancestors = set(direct_ancestor_uuids)-set(existing_sample_ancestor_uuids)
-    ancestors_to_unlink = set(existing_sample_ancestor_uuids)-set(direct_ancestor_uuids)
+    if isinstance(existing_sample_ancestor_uuids, list):
+        existing_sample_ancestor_uuids = existing_sample_ancestor_uuids[0]
+    if existing_sample_ancestor_uuids and existing_sample_ancestor_uuids != direct_ancestor_uuids:
+        new_ancestors = direct_ancestor_uuids
+    if not existing_sample_ancestor_uuids:
+        new_ancestors = direct_ancestor_uuids
     activity_uuid = schema_neo4j_queries.get_parent_activity_uuid_from_entity(schema_manager.get_neo4j_driver_instance(), sample_uuid)
     
     if not activity_uuid:
@@ -1936,17 +1946,22 @@ def link_sample_to_direct_ancestor(property_key, normalized_type, request, user_
         create_activity = True
 
     if new_ancestors:
-
+        ancestors_to_unlink = existing_sample_ancestor_uuids
+        logger.info(f"Linking the following new ancestors: {new_ancestors}")
         try:
-            schema_neo4j_queries.add_new_ancestors_to_existing_activity(schema_manager.get_neo4j_driver_instance(), list(new_ancestors), activity_uuid, create_activity, activity_data_dict, sample_uuid)
+            schema_neo4j_queries.add_new_ancestors_to_existing_activity(schema_manager.get_neo4j_driver_instance(), new_ancestors, activity_uuid, create_activity, activity_data_dict, sample_uuid)
+        except TransactionError:
+            raise
+
+    if ancestors_to_unlink:
+        logger.info(f"Unlinking the following ancestor: {ancestors_to_unlink}")
+        try:
+            schema_neo4j_queries.delete_ancestor_linkages_tx(schema_manager.get_neo4j_driver_instance(), sample_uuid, [ancestors_to_unlink])
         except TransactionError:
             raise
     
-    if ancestors_to_unlink:
-        try:
-            schema_neo4j_queries.delete_ancestor_linkages_tx(schema_manager.get_neo4j_driver_instance(), sample_uuid, list(ancestors_to_unlink))
-        except TransactionError:
-            raise
+    if not(ancestors_to_unlink or new_ancestors):
+        logger.info("No new ancestors linked, nor old ancestors unlinked")
 
 """
 TriggerTypeEnum.BEFORE_CREATE and TriggerTypeEnum.BEFORE_UPDATE
