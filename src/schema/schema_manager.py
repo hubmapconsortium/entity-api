@@ -331,7 +331,7 @@ def exclude_properties_from_response(excluded_fields, output_dict):
                                 for item in data[key]:
                                     if nested_field in item:
                                         del item[nested_field]
-                            elif nested_field in data[key]:
+                            elif isinstance(data[key], dict) and nested_field in data[key]:
                                 del data[key][nested_field]
                     elif isinstance(value, dict):
                         delete_nested_field(data[key], value)
@@ -375,23 +375,16 @@ def get_excluded_query_props(request):
 
         if not validate_comma_separated_exclude_str(props_to_exclude_str):
             raise ValueError(
-                "Properties specified in 'exclude' query parameter must meet the following rules: "
-                "1) Cannot be empty "
-                "2) The string must contain at least one lowercase letter "
-                "3) May include underscores (_) "
-                "4) Have no more than one dot (.) that cannot start or end the string"
+                "The 'exclude' query parameter must be a comma-separated list of properties that follow these rules: "
+                "[1] Each property must include at least one letter; "
+                "[2] Only lowercase letters and underscores '_' are allowed; "
+                "[3] Nested property is limited to 2 depths and must use single dot '.' for dot-notation (like 'a.b')."
             )
 
         all_props_to_exclude = [item.strip() for item in props_to_exclude_str.split(",")]
 
         logger.info(f"User specified properties to exclude in request URL: {all_props_to_exclude}")
 
-        # A bit more validation to limit to depth 2
-        for item in all_props_to_exclude:
-            if '.' in item:
-                if len(item.split('.')) > 2:
-                    raise ValueError("When dot-notation properties are specified in 'exclude', only single dot-notation allowed (e.g., a.b). Properties with multiple dots like a.b.c are not supported.")
-        
         # More validation - ensure prohibited properties are not accepted
         # This two properties are required internally by `normalize_entity_result_for_response()`
         prohibited_properties = ['uuid', 'entity_type']
@@ -405,16 +398,11 @@ def get_excluded_query_props(request):
 
 
 """
-Validate if the value string of 'exclude' query parameter meets the following rules:
+The 'exclude' query parameter must be a comma-separated list of properties that follow these rules:
 
-- Only contains:
-    - At least one lowercase letter (a–z)
-    - 0 or more underscores (_)
-    - No more than 1 dot (.)
-- Can NOT:
-    - Be an empty string
-    - Start or end with a dot (.)
-    - Have multiple consecutive dots (..)
+[1] Each property must include at least one letter;
+[2] Only lowercase letters and underscores '_' are allowed;
+[3] Nested property is limited to 2 depths and must use single dot '.' for dot-notation (like 'a.b').
 
 Parameters
 ----------
@@ -426,7 +414,7 @@ Returns
 bool
     True if valid or False otherwise
 """
-def validate_comma_separated_exclude_str(s: str) -> bool:
+def validate_comma_separated_exclude_str(s: str):
     # No empty string
     if not s:
         return False
@@ -438,12 +426,12 @@ def validate_comma_separated_exclude_str(s: str) -> bool:
     if any(not item.strip() for item in items):
         return False
     
-    def is_valid_item(item: str) -> bool:
+    def is_valid_item(item: str):
         return (
-            all(c.islower() or c in '._' for c in item)  # allowed chars
-            and any(c.isalpha() for c in item)  # at least one letter
-            and item.count('.') <= 1  # max one dot
-            and not (item.startswith('.') or item.endswith('.'))  # no dot at ends
+            all(c.islower() or c in '._' for c in item)
+            and any(c.isalpha() for c in item)
+            and item.count('.') <= 1
+            and not ((item.startswith('.') or item.endswith('.')))
         )
     
     return all(is_valid_item(item.strip()) for item in items)
