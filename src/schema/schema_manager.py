@@ -305,7 +305,7 @@ Removes specified fields from an existing dictionary
 Parameters
 ----------
 excluded_fields : list
-    A list of the fields to be excluded
+    A JSON list of the fields to be excluded, may have nested fields
 output_dict : dictionary
     A dictionary representing the data to be modified
 
@@ -331,7 +331,7 @@ def exclude_properties_from_response(excluded_fields, output_dict):
                                 for item in data[key]:
                                     if nested_field in item:
                                         del item[nested_field]
-                            elif nested_field in data[key]:
+                            elif isinstance(data[key], dict) and nested_field in data[key]:
                                 del data[key][nested_field]
                     elif isinstance(value, dict):
                         delete_nested_field(data[key], value)
@@ -347,6 +347,204 @@ def exclude_properties_from_response(excluded_fields, output_dict):
         delete_nested_field(output_dict, field)
     
     return output_dict
+
+
+"""
+Use the Flask request.args MultiDict to see if 'exclude' is a URL parameter passed in with the
+request and parse the comma-separated properties to be excluded from final response
+
+For now, only support one dot for nested fields (depth 2)
+
+Parameters
+----------
+request: Flask request object
+    The instance of Flask request passed in from application request
+
+Returns
+-------
+list
+    A flat list of strings containing top-level and/or nested dot-notated properties
+    Example: ['a.b', 'a.c', 'x']
+"""
+def get_excluded_query_props(request):
+    all_props_to_exclude = []
+
+    if 'exclude' in request.args:
+        # The query string values are case-sensitive as the property keys in schema yaml are case-sensitive
+        props_to_exclude_str = request.args.get('exclude')
+
+        if not validate_comma_separated_exclude_str(props_to_exclude_str):
+            raise ValueError(
+                "The 'exclude' query parameter must be a comma-separated list of properties that follow these rules: "
+                "[1] Each property must include at least one letter; "
+                "[2] Only lowercase letters and underscores '_' are allowed; "
+                "[3] Nested property is limited to 2 depths and must use single dot '.' for dot-notation (like 'a.b')."
+            )
+
+        all_props_to_exclude = [item.strip() for item in props_to_exclude_str.split(",")]
+
+        logger.info(f"User specified properties to exclude in request URL: {all_props_to_exclude}")
+
+        # More validation - ensure prohibited properties are not accepted
+        # This two properties are required internally by `normalize_entity_result_for_response()`
+        prohibited_properties = ['uuid', 'entity_type']
+        second_level_list = []
+
+        for item in all_props_to_exclude:
+            if item in prohibited_properties or ('.' in item and item.split('.')[1] in prohibited_properties):
+                raise ValueError(f"Entity property '{item}' is not allowed in the 'exclude' query parameter.")
+
+    return all_props_to_exclude
+
+
+"""
+The 'exclude' query parameter must be a comma-separated list of properties that follow these rules:
+
+[1] Each property must include at least one letter;
+[2] Only lowercase letters and underscores '_' are allowed;
+[3] Nested property is limited to 2 depths and must use single dot '.' for dot-notation (like 'a.b').
+
+Parameters
+----------
+s : str
+    Comma-separated input string used to exclude entity properties
+
+Returns
+-------
+bool
+    True if valid or False otherwise
+"""
+def validate_comma_separated_exclude_str(s: str):
+    # No empty string
+    if not s:
+        return False
+    
+    # Split by commas
+    items = s.split(',')
+    
+    # No empty items allowed (prevents ',,' or trailing comma)
+    if any(not item.strip() for item in items):
+        return False
+    
+    def is_valid_item(item: str):
+        return (
+            all(c.islower() or c in '._' for c in item)
+            and any(c.isalpha() for c in item)
+            and item.count('.') <= 1
+            and not ((item.startswith('.') or item.endswith('.')))
+        )
+    
+    return all(is_valid_item(item.strip()) for item in items)
+
+
+"""
+Transform a flat list of dot-notated strings into a hybrid list that:
+- keeps plain strings as-is
+- converts entries with dot-notation (like 'direct_ancestors.files') into a dictionary, grouping by the prefix
+
+Example: ['a.b', 'a.c', 'x'] -> ['x', {'a': ['b', 'c']}]
+
+Used by `GET /entities/<id>?exclude=a.b, a.c, x` to build a JSON list 
+that can be futher processed by `exclude_properties_from_response()`.
+
+Parameters
+----------
+flat_list : list
+    A flat list of strings, dot-notated strings are optional and can be used to indicate nested fields
+    Example: ['a.b', 'a.c', 'x']
+
+Returns
+-------
+list
+    A list mixing strings and grouped dicts, like ['x', {'a': ['b', 'c']}]
+"""
+def group_dot_notation_props(flat_list):
+    output_list = []
+    grouped_dict = {}
+
+    for item in flat_list:
+        # For now, only support one dot for nested fields (depth 2)
+        if '.' in item:
+            prefix, field = item.split('.', 1)
+            grouped_dict.setdefault(prefix, []).append(field)
+        else:
+            output_list.append(item)
+
+    # Add grouped items as dictionaries
+    for prefix, fields in grouped_dict.items():
+        output_list.append({prefix: fields})
+
+    return output_list
+
+
+"""
+Group properties by exclusion type
+
+Example: ['a.b', 'a.c', 'x', 'y'] where 
+- x and y are top-level properties
+- x is Neo4j node property, and y is generated via trigger method
+- a.b and a.c are nested properties while a is a top-level property of either type
+
+Parameters
+----------
+normalized_entity_type : str
+    One of the normalized entity types: Dataset, Collection, Sample, Donor, Upload, Publication
+flat_list : list
+    A flat list of strings, dot-notated strings are optional and can be used to indicate nested fields
+    Example: ['a.b', 'a.c', 'x']
+
+Returns
+-------
+list
+    Three lists - one for triggered properties and one for Neo4j node properties
+    
+    Example for Dataset:
+    - triggered_top_props_to_skip: ['direct_ancestors.files', 'direct_ancestors.ingest_metadata', 'upload.title']
+    - neo4j_top_props_to_skip: ['data_access_level']
+    - neo4j_nested_props_to_skip: ['status_history.status']
+"""
+def get_exclusion_types(normalized_entity_type, flat_list):
+    global _schema
+
+    triggered_top_props_to_skip = []
+    neo4j_top_props_to_skip = []
+    neo4j_nested_props_to_skip =[]
+    top_level_list = []
+    second_level_list = []
+    properties = _schema['ENTITIES'][normalized_entity_type]['properties']
+
+    # First find the top-level properties without using dot-notation
+    for item in flat_list:
+        if '.' not in item:
+            top_level_list.append(item)
+        else:
+            second_level_list.append(item)
+
+    # Only care about the properties defined in schema yaml
+    for item in top_level_list:
+        if item in properties:
+            if TriggerTypeEnum.ON_READ in properties[item]:
+                triggered_top_props_to_skip.append(item)
+            else:
+                neo4j_top_props_to_skip.append(item)
+
+    # Nested second-level properties, such as `direct_ancestors.files`, belong to `triggered_top_props_to_skip`
+    # `ingest_metadata.dag_provenance_list` belongs to `neo4j_nested_props_to_skip`
+    for item in second_level_list:
+        prefix = item.split('.')[0]
+        if prefix in properties:
+            if TriggerTypeEnum.ON_READ in properties[prefix]:
+                triggered_top_props_to_skip.append(item)
+            else:
+                neo4j_nested_props_to_skip.append(item)
+
+    logger.info(f"Determined property exclusion type - triggered_top_props_to_skip: {triggered_top_props_to_skip}")
+    logger.info(f"Determined property exclusion type - neo4j_top_props_to_skip: {neo4j_top_props_to_skip}")
+    logger.info(f"Determined property exclusion type - neo4j_nested_props_to_skip: {neo4j_nested_props_to_skip}")
+
+    # NOTE: Will need to convert the `neo4j_nested_props_to_skip` to a format that can be used by 
+    # `exclude_properties_from_response()`  - Zhou 10/1/2025
+    return triggered_top_props_to_skip, neo4j_top_props_to_skip, neo4j_nested_props_to_skip
 
 
 """
@@ -395,6 +593,8 @@ def generate_triggered_data(trigger_type: TriggerTypeEnum, normalized_class, req
     # The ordering of properties of this entity class defined in the yaml schema
     # decides the ordering of which trigger method gets to run first
     properties = schema_section[normalized_class]['properties']
+
+    logger.info(f"Skipping triggered data generation for the following properties: {properties_to_skip}")
 
     # Set each property value and put all resulting data into a dictionary for:
     # before_create_trigger|before_update_trigger|on_read_trigger
@@ -2001,7 +2201,6 @@ def convert_str_literal(data_str):
             data = ast.literal_eval(data_str)
 
             if isinstance(data, (list, dict)):
-                logger.info(f"The input string literal has been converted to {type(data)} successfully")
                 return data
             else:
                 logger.info(f"The input string literal is not list or dict after evaluation, return the original string input")
