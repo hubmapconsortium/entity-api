@@ -1919,49 +1919,46 @@ new_data_dict : dict
 def link_sample_to_direct_ancestor(property_key, normalized_type, request, user_token, existing_data_dict, new_data_dict):
     if 'uuid' not in existing_data_dict:
         raise KeyError("Missing 'uuid' key in 'existing_data_dict' during calling 'link_sample_to_direct_ancestor()' trigger method.")
-
     if 'direct_ancestor_uuid' not in new_data_dict:
         raise KeyError("Missing 'direct_ancestor_uuid' key in 'new_data_dict' during calling 'link_sample_to_direct_ancestor()' trigger method.")
+    
     create_activity = False
     activity_data_dict = {}
     sample_uuid = existing_data_dict['uuid']
     new_ancestors = None
     ancestors_to_unlink = None
-
-    # Build a list of direct ancestor uuids
-    # Only one uuid in the list in this case
-    direct_ancestor_uuids = [new_data_dict['direct_ancestor_uuid']]
-    existing_sample_ancestor_uuids = schema_neo4j_queries.get_sample_direct_ancestor(schema_manager.get_neo4j_driver_instance(), sample_uuid, "uuid")
-    if isinstance(existing_sample_ancestor_uuids, list):
-        existing_sample_ancestor_uuids = existing_sample_ancestor_uuids[0]
-    if existing_sample_ancestor_uuids and existing_sample_ancestor_uuids != direct_ancestor_uuids:
-        new_ancestors = direct_ancestor_uuids
+    direct_ancestor_uuids = new_data_dict['direct_ancestor_uuid']
+    existing_sample_ancestor_uuids = schema_neo4j_queries.get_parents(schema_manager.get_neo4j_driver_instance(), sample_uuid, "uuid")
+    if direct_ancestor_uuids not in existing_sample_ancestor_uuids:
+        new_ancestors = [direct_ancestor_uuids]
     if not existing_sample_ancestor_uuids:
-        new_ancestors = direct_ancestor_uuids
-    activity_uuid = schema_neo4j_queries.get_parent_activity_uuid_from_entity(schema_manager.get_neo4j_driver_instance(), sample_uuid)
+        new_ancestors = [direct_ancestor_uuids]
     
+    activity_uuid = schema_neo4j_queries.get_parent_activity_uuid_from_entity(schema_manager.get_neo4j_driver_instance(), sample_uuid)
     if not activity_uuid:
         activity_data_dict = schema_manager.generate_activity_data(normalized_type, request, user_token, existing_data_dict)
         activity_uuid = activity_data_dict['uuid']
         create_activity = True
-
     if new_ancestors:
-        ancestors_to_unlink = existing_sample_ancestor_uuids
         logger.info(f"Linking the following new ancestors: {new_ancestors}")
         try:
             schema_neo4j_queries.add_new_ancestors_to_existing_activity(schema_manager.get_neo4j_driver_instance(), new_ancestors, activity_uuid, create_activity, activity_data_dict, sample_uuid)
         except TransactionError:
             raise
-
+        ancestors_to_unlink = existing_sample_ancestor_uuids
+    else:
+        ancestors_to_unlink = existing_sample_ancestor_uuids
+        ancestors_to_unlink.remove(direct_ancestor_uuids)
     if ancestors_to_unlink:
         logger.info(f"Unlinking the following ancestor: {ancestors_to_unlink}")
         try:
-            schema_neo4j_queries.delete_ancestor_linkages_tx(schema_manager.get_neo4j_driver_instance(), sample_uuid, [ancestors_to_unlink])
+            schema_neo4j_queries.delete_ancestor_linkages_tx(schema_manager.get_neo4j_driver_instance(), sample_uuid, ancestors_to_unlink)
         except TransactionError:
             raise
     
     if not(ancestors_to_unlink or new_ancestors):
         logger.info("No new ancestors linked, nor old ancestors unlinked")
+
 
 """
 TriggerTypeEnum.BEFORE_CREATE and TriggerTypeEnum.BEFORE_UPDATE
