@@ -883,7 +883,8 @@ def get_entity_by_id(id):
     # Due to the use of entity cache from `query_target_entity()`, we don't want to exclude the `neo4j_top_props_to_skip`
     # from actual Neo4j query. And it's not s performance concern neither. - Zhou 10/1/2025
     for item in neo4j_top_props_to_skip:
-        complete_dict.pop(item)
+        # Use default value to avoid KeyError if the key is not found
+        complete_dict.pop(item, f'Key {item} not found')
 
     # Also normalize the result based on schema
     final_result = schema_manager.normalize_entity_result_for_response(complete_dict)
