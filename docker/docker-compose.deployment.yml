@@ -3,5 +3,15 @@ services:
   entity-api: 
     # Use the published image and tag from DockerHub
     image: hubmap/entity-api:${ENTITY_API_VERSION:?err}
+    # Setting CPU and Memory Limits - Zhou 10/9/2025
+    deploy:
+      # PROD VM c5.4xlarge - 16 CPUs 32G RAM
+      resources:
+        limits:
+          cpus: '8' # 50%
+          memory: 19.2G # 60%
+        reservations:
+          cpus: '4' # 25%
+          memory: 12.8G # 40%
 
 
