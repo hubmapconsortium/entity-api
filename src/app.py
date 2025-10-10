@@ -840,7 +840,7 @@ def get_entity_by_id(id):
         except Exception as e:
             internal_server_error(e)
 
-    # Get the generated complete entity result from cache if exists
+    # Get the generated complete entity result from cache (only when NO skipped properties) if exists
     # Otherwise re-generate on the fly
     # NOTE: top-level properties in `triggered_top_props_to_skip` will skip the trigger methods
     # Nested properties like `direct_ancestors.files` will be handled by the trigger method - Zhou 10/1/2025
