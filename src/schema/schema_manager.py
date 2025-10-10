@@ -851,10 +851,10 @@ def get_complete_entity_result(request, token, entity_dict, properties_to_skip =
             cache_key = f'{_memcached_prefix}_complete_{entity_uuid}'
             cache_result = _memcached_client.get(cache_key)
 
-        # As long as `properties_to_skip` is specified (including when`?exclude` is used in query parameter) 
+        # As long as `properties_to_skip` is specified or when`?exclude` is used in query parameter
         # Do not return the cached data and store the new cache regardless of it's available or not - Zhou 10/10/2025
-        if properties_to_skip:
-            logger.info(f'Skipped/excluded properties {properties_to_skip} specified in get_complete_entity_result() for {entity_type} {entity_uuid}. Always generate the {TriggerTypeEnum.ON_READ} data and do not cache the result.')
+        if properties_to_skip or get_excluded_query_props(request):
+            logger.info(f'Skipped/excluded properties specified for {entity_type} {entity_uuid}. Always generate the {TriggerTypeEnum.ON_READ} data and do not cache the result.')
             
             # No error handling here since if a 'on_read_trigger' method fails, 
             # the property value will be the error message
@@ -873,7 +873,7 @@ def get_complete_entity_result(request, token, entity_dict, properties_to_skip =
             # Remove properties of None value
             complete_entity = remove_none_values(complete_entity_dict)
         else:
-            logger.info(f'Skipped/excluded properties NOT specified in get_complete_entity_result() for {entity_type} {entity_uuid}.')
+            logger.info(f'Skipped/excluded properties NOT specified for {entity_type} {entity_uuid}.')
             
             # Re-generate the triggered data and add to memcache
             # Otherwise, use the cached data if found and still valid
