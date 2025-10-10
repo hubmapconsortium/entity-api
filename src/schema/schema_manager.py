@@ -851,11 +851,10 @@ def get_complete_entity_result(request, token, entity_dict, properties_to_skip =
             cache_key = f'{_memcached_prefix}_complete_{entity_uuid}'
             cache_result = _memcached_client.get(cache_key)
 
-        # Use the cached data if found and still valid
-        # Otherwise, calculate and add to cache
-        if cache_result is None:
-            if _memcached_client and _memcached_prefix:
-                logger.info(f'Cache of complete entity of {entity_type} {entity_uuid} not found or expired at time {datetime.now()}')
+        # As long as `properties_to_skip` is specified or when`?exclude` is used in query parameter
+        # Do not return the cached data and store the new cache regardless of it's available or not - Zhou 10/10/2025
+        if properties_to_skip or get_excluded_query_props(request):
+            logger.info(f'Skipped/excluded properties specified for {entity_type} {entity_uuid}. Always generate the {TriggerTypeEnum.ON_READ} data and do not cache the result.')
             
             # No error handling here since if a 'on_read_trigger' method fails, 
             # the property value will be the error message
@@ -873,22 +872,47 @@ def get_complete_entity_result(request, token, entity_dict, properties_to_skip =
 
             # Remove properties of None value
             complete_entity = remove_none_values(complete_entity_dict)
-
-            # Need both client and prefix when creating the cache
-            # Do NOT cache when properties_to_skip is specified
-            if _memcached_client and _memcached_prefix and (not properties_to_skip):
-                logger.info(f'Creating complete entity cache of {entity_type} {entity_uuid} at time {datetime.now()}')
-
-                cache_key = f'{_memcached_prefix}_complete_{entity_uuid}'
-                _memcached_client.set(cache_key, complete_entity, expire = SchemaConstants.MEMCACHED_TTL)
-
-                logger.debug(f"Following is the complete {entity_type} cache created at time {datetime.now()} using key {cache_key}:")
-                logger.debug(complete_entity)
         else:
-            logger.info(f'Using complete entity cache of {entity_type} {entity_uuid} at time {datetime.now()}')
-            logger.debug(cache_result)
+            logger.info(f'Skipped/excluded properties NOT specified for {entity_type} {entity_uuid}.')
+            
+            # Re-generate the triggered data and add to memcache
+            # Otherwise, use the cached data if found and still valid
+            if cache_result is None:
+                if _memcached_client and _memcached_prefix:
+                    logger.info(f'Cache of complete entity of {entity_type} {entity_uuid} not found or expired at time {datetime.now()}')
+                
+                # No error handling here since if a 'on_read_trigger' method fails, 
+                # the property value will be the error message
+                # Pass {} since no new_data_dict for 'on_read_trigger'
+                generated_on_read_trigger_data_dict = generate_triggered_data(  trigger_type=TriggerTypeEnum.ON_READ
+                                                                                , normalized_class=entity_type
+                                                                                , request=request
+                                                                                , user_token=token
+                                                                                , existing_data_dict=entity_dict
+                                                                                , new_data_dict={}
+                                                                                , properties_to_skip=properties_to_skip)
 
-            complete_entity = cache_result
+                # Merge the entity info and the generated on read data into one dictionary
+                complete_entity_dict = {**entity_dict, **generated_on_read_trigger_data_dict}
+
+                # Remove properties of None value
+                complete_entity = remove_none_values(complete_entity_dict)
+
+                # Need both client and prefix when creating the cache
+                # Do NOT cache when properties_to_skip is specified
+                if _memcached_client and _memcached_prefix and (not properties_to_skip):
+                    logger.info(f'Creating complete entity cache of {entity_type} {entity_uuid} at time {datetime.now()}')
+
+                    cache_key = f'{_memcached_prefix}_complete_{entity_uuid}'
+                    _memcached_client.set(cache_key, complete_entity, expire = SchemaConstants.MEMCACHED_TTL)
+
+                    logger.debug(f"Following is the complete {entity_type} cache created at time {datetime.now()} using key {cache_key}:")
+                    logger.debug(complete_entity)
+            else:
+                logger.info(f'Using complete entity cache of {entity_type} {entity_uuid} at time {datetime.now()}')
+                logger.debug(cache_result)
+
+                complete_entity = cache_result
     else:
         # Just return the original entity_dict otherwise
         complete_entity = entity_dict
