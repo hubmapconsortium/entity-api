@@ -19,9 +19,6 @@ services:
         limits:
           cpus: '2' # 50%
           memory: 9.6G # 60%
-        reservations:
-          cpus: '1' # 25%
-          memory: 6.4G # 40%
     volumes:  
       # Mount the VERSION file and BUILD file 
       - "../VERSION:/usr/src/app/VERSION" 

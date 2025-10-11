@@ -10,8 +10,5 @@ services:
         limits:
           cpus: '8' # 50%
           memory: 19.2G # 60%
-        reservations:
-          cpus: '4' # 25%
-          memory: 12.8G # 40%
 
 
