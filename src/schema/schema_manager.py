@@ -357,8 +357,8 @@ For now, only support one dot for nested fields (depth 2)
 
 Parameters
 ----------
-request: Flask request object
-    The instance of Flask request passed in from application request
+request_args: ImmutableMultiDict
+    The Flask request.args passed in from application request
 
 Returns
 -------
@@ -366,12 +366,12 @@ list
     A flat list of strings containing top-level and/or nested dot-notated properties
     Example: ['a.b', 'a.c', 'x']
 """
-def get_excluded_query_props(request):
+def get_excluded_query_props(request_args):
     all_props_to_exclude = []
 
-    if 'exclude' in request.args:
+    if 'exclude' in request_args:
         # The query string values are case-sensitive as the property keys in schema yaml are case-sensitive
-        props_to_exclude_str = request.args.get('exclude')
+        props_to_exclude_str = request_args.get('exclude')
 
         if not validate_comma_separated_exclude_str(props_to_exclude_str):
             raise ValueError(
@@ -556,8 +556,8 @@ trigger_type : str
     One of the trigger types: on_create_trigger, on_update_trigger, on_read_trigger
 normalized_class : str
     One of the types defined in the schema yaml: Activity, Collection, Donor, Sample, Dataset
-request: Flask request object
-    The instance of Flask request passed in from application request
+request_args: ImmutableMultiDict
+    The Flask request.args passed in from application request
 user_token: str
     The user's globus nexus token, 'on_read_trigger' doesn't really need this
 existing_data_dict : dict
@@ -572,7 +572,7 @@ Returns
 dict
     A dictionary of trigger event methods generated data
 """
-def generate_triggered_data(trigger_type: TriggerTypeEnum, normalized_class, request, user_token, existing_data_dict
+def generate_triggered_data(trigger_type: TriggerTypeEnum, normalized_class, request_args, user_token, existing_data_dict
                             , new_data_dict, properties_to_skip = []):
     global _schema
 
@@ -623,7 +623,7 @@ def generate_triggered_data(trigger_type: TriggerTypeEnum, normalized_class, req
                         # No return values for 'after_create_trigger' and 'after_update_trigger'
                         # because the property value is already set and stored in neo4j
                         # Normally it's building linkages between entity nodes
-                        trigger_method_to_call(key, normalized_class, request, user_token, existing_data_dict, new_data_dict)
+                        trigger_method_to_call(key, normalized_class, request_args, user_token, existing_data_dict, new_data_dict)
                     except Exception:
                         msg = f"Failed to call the {trigger_type.value} method: {trigger_method_name}"
                         # Log the full stack trace, prepend a line with our message
@@ -658,9 +658,9 @@ def generate_triggered_data(trigger_type: TriggerTypeEnum, normalized_class, req
                         #within this dictionary and return it so it can be saved in the scope of this loop and
                         #passed to other 'updated_peripherally' triggers                        
                         if 'updated_peripherally' in properties[key] and properties[key]['updated_peripherally']: 
-                            trigger_generated_data_dict = trigger_method_to_call(key, normalized_class, request, user_token, existing_data_dict, new_data_dict, trigger_generated_data_dict)
+                            trigger_generated_data_dict = trigger_method_to_call(key, normalized_class, request_args, user_token, existing_data_dict, new_data_dict, trigger_generated_data_dict)
                         else:
-                            target_key, target_value = trigger_method_to_call(key, normalized_class, request, user_token, existing_data_dict, new_data_dict)
+                            target_key, target_value = trigger_method_to_call(key, normalized_class, request_args, user_token, existing_data_dict, new_data_dict)
                             trigger_generated_data_dict[target_key] = target_value
                             
                             # Meanwhile, set the original property as None if target_key is different
@@ -707,9 +707,9 @@ def generate_triggered_data(trigger_type: TriggerTypeEnum, normalized_class, req
                     # passed to other 'updated_peripherally' triggers                    
                     if 'updated_peripherally' in properties[key] and properties[key]['updated_peripherally']:
                         # Such trigger methods get executed but really do nothing internally
-                        trigger_generated_data_dict = trigger_method_to_call(key, normalized_class, request, user_token, existing_data_dict, new_data_dict, trigger_generated_data_dict)
+                        trigger_generated_data_dict = trigger_method_to_call(key, normalized_class, request_args, user_token, existing_data_dict, new_data_dict, trigger_generated_data_dict)
                     else:  
-                        target_key, target_value = trigger_method_to_call(key, normalized_class, request, user_token, existing_data_dict, new_data_dict)
+                        target_key, target_value = trigger_method_to_call(key, normalized_class, request_args, user_token, existing_data_dict, new_data_dict)
                         trigger_generated_data_dict[target_key] = target_value
 
                         # Meanwhile, set the original property as None if target_key is different
@@ -818,8 +818,8 @@ Generate the complete entity record by running the read triggers
 
 Parameters
 ----------
-request: Flask request object
-    The instance of Flask request passed in from application request
+request_args: ImmutableMultiDict
+    The Flask request.args passed in from application request
 token: str
     Either the user's globus nexus token or the internal token
 entity_dict : dict
@@ -832,7 +832,7 @@ Returns
 dict
     A dictionary of complete entity with all the generated 'on_read_trigger' data
 """
-def get_complete_entity_result(request, token, entity_dict, properties_to_skip = []):
+def get_complete_entity_result(request_args, token, entity_dict, properties_to_skip = []):
     global _memcached_client
     global _memcached_prefix
 
@@ -853,7 +853,7 @@ def get_complete_entity_result(request, token, entity_dict, properties_to_skip =
 
         # As long as `properties_to_skip` is specified or when`?exclude` is used in query parameter
         # Do not return the cached data and store the new cache regardless of it's available or not - Zhou 10/10/2025
-        if properties_to_skip or get_excluded_query_props(request):
+        if properties_to_skip or get_excluded_query_props(request_args):
             logger.info(f'Skipped/excluded properties specified for {entity_type} {entity_uuid}. Always generate the {TriggerTypeEnum.ON_READ} data and do not cache the result.')
             
             # No error handling here since if a 'on_read_trigger' method fails, 
@@ -861,7 +861,7 @@ def get_complete_entity_result(request, token, entity_dict, properties_to_skip =
             # Pass {} since no new_data_dict for 'on_read_trigger'
             generated_on_read_trigger_data_dict = generate_triggered_data(  trigger_type=TriggerTypeEnum.ON_READ
                                                                             , normalized_class=entity_type
-                                                                            , request=request
+                                                                            , request_args=request_args
                                                                             , user_token=token
                                                                             , existing_data_dict=entity_dict
                                                                             , new_data_dict={}
@@ -886,7 +886,7 @@ def get_complete_entity_result(request, token, entity_dict, properties_to_skip =
                 # Pass {} since no new_data_dict for 'on_read_trigger'
                 generated_on_read_trigger_data_dict = generate_triggered_data(  trigger_type=TriggerTypeEnum.ON_READ
                                                                                 , normalized_class=entity_type
-                                                                                , request=request
+                                                                                , request_args=request_args
                                                                                 , user_token=token
                                                                                 , existing_data_dict=entity_dict
                                                                                 , new_data_dict={}
@@ -955,8 +955,8 @@ Generate the complete entity records as well as result filtering for response
 
 Parameters
 ----------
-request: Flask request object
-    The instance of Flask request passed in from application request
+request_args: ImmutableMultiDict
+    The Flask request.args passed in from application request
 token: str
     Either the user's globus nexus token or the internal token
 entities_list : list
@@ -969,13 +969,13 @@ Returns
 list
     A list a complete entity dictionaries with all the normalized information
 """
-def get_complete_entities_list(request, token, entities_list, properties_to_skip = []):
+def get_complete_entities_list(request_args, token, entities_list, properties_to_skip = []):
     complete_entities_list = []
     
     # Use a pool of threads to execute the time-consuming iteration asynchronously to avoid timeout - Zhou 2/6/2025
     with concurrent.futures.ThreadPoolExecutor() as executor:
         helper_func = lambda args: get_complete_entity_result(args[0], args[1], args[2], args[3])
-        args_list = [(request, token, entity_dict, properties_to_skip) for entity_dict in entities_list]
+        args_list = [(request_args, token, entity_dict, properties_to_skip) for entity_dict in entities_list]
 
         # The order of donors/organs/samples lists are not gurenteed with using `executor.submit()`
         # `executor.map()` maintains the same order of results as the original submitted tasks
@@ -2068,8 +2068,8 @@ Parameters
 ----------
 normalized_entity_type : str
     One of the entity types defined in the schema yaml: Donor, Sample, Dataset
-request: Flask request object
-    The instance of Flask request passed in from application request
+request_args: ImmutableMultiDict
+    The Flask request.args passed in from application request
 user_token: str
     The user's globus nexus token
 user_info_dict : dict
@@ -2081,7 +2081,7 @@ Returns
 -------
 dict: A dict of gnerated Activity data
 """
-def generate_activity_data(normalized_entity_type, request, user_token, user_info_dict):
+def generate_activity_data(normalized_entity_type, request_args, user_token, user_info_dict):
     # Activity is not an Entity
     normalized_activity_type = 'Activity'
 
@@ -2097,7 +2097,7 @@ def generate_activity_data(normalized_entity_type, request, user_token, user_inf
     # Generate property values for Activity node
     generated_activity_data_dict = generate_triggered_data( trigger_type=TriggerTypeEnum.BEFORE_CREATE
                                                             , normalized_class=normalized_activity_type
-                                                            , request=request
+                                                            , request_args=request_args
                                                             , user_token=user_token
                                                             , existing_data_dict={}
                                                             , new_data_dict=data_dict_for_activity)
@@ -2446,7 +2446,7 @@ def _get_metadata_result(request, token, entity_dict, metadata_scope:MetadataSco
                 # Pass {} since no new_data_dict for 'on_read_trigger'
                 generated_on_read_trigger_data_dict = generate_triggered_data(  trigger_type=TriggerTypeEnum.ON_READ
                                                                                 , normalized_class=entity_type
-                                                                                , request=request
+                                                                                , request_args=request.args
                                                                                 , user_token=token
                                                                                 , existing_data_dict=entity_dict
                                                                                 , new_data_dict={}
@@ -2463,7 +2463,7 @@ def _get_metadata_result(request, token, entity_dict, metadata_scope:MetadataSco
                 # Pass {} since no new_data_dict for 'on_index_trigger'
                 generated_on_index_trigger_data_dict = generate_triggered_data( trigger_type=TriggerTypeEnum.ON_INDEX
                                                                                 , normalized_class=entity_type
-                                                                                , request=request
+                                                                                , request_args=request.args
                                                                                 , user_token=token
                                                                                 , existing_data_dict=entity_dict
                                                                                 , new_data_dict={}

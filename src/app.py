@@ -508,7 +508,7 @@ def get_ancestor_organs(id):
 
     # Skip executing the trigger method to get Sample.direct_ancestor
     properties_to_skip = ['direct_ancestor']
-    complete_entities_list = schema_manager.get_complete_entities_list(request, token, organs, properties_to_skip)
+    complete_entities_list = schema_manager.get_complete_entities_list(request.args, token, organs, properties_to_skip)
 
     # Final result after normalization
     final_result = schema_manager.normalize_entities_list_for_response(complete_entities_list)
@@ -613,7 +613,7 @@ def get_entity_visibility(id):
     # Otherwise re-generate on the fly.  To verify if a Collection is public, it is
     # necessary to have its Datasets, which are populated as triggered data, so
     # pull back the complete entity
-    complete_dict = schema_manager.get_complete_entity_result(request, token, entity_dict)
+    complete_dict = schema_manager.get_complete_entity_result(request.args, token, entity_dict)
 
     # Determine if the entity is publicly visible base on its data, only.
     entity_scope = _get_entity_visibility(normalized_entity_type=normalized_entity_type, entity_dict=complete_dict)
@@ -673,7 +673,7 @@ def get_provenance_metadata_by_id_for_auth_level(id):
 
     # Get the generated complete entity result from cache if exists
     # Otherwise re-generate on the fly
-    complete_dict = schema_manager.get_complete_entity_result(request=request
+    complete_dict = schema_manager.get_complete_entity_result(request_args=request.args
                                                               , token=token
                                                               , entity_dict=dataset_dict)
 
@@ -830,7 +830,7 @@ def get_entity_by_id(id):
         # rather than within it. However, it leverages the existing `exclude_properties_from_response()` 
         # function for simplicity and maintainability. - Zhou 10/1/2025
         try:
-            all_props_to_exclude = schema_manager.get_excluded_query_props(request)
+            all_props_to_exclude = schema_manager.get_excluded_query_props(request.args)
             
             # Determine which top-level properties to exclude from triggers and which to exclude directly from the resulting Neo4j `entity_dict`
             # Also get nested properties that are directly returned from Neo4j, which will be handled differently
@@ -844,7 +844,7 @@ def get_entity_by_id(id):
     # Otherwise re-generate on the fly
     # NOTE: top-level properties in `triggered_top_props_to_skip` will skip the trigger methods
     # Nested properties like `direct_ancestors.files` will be handled by the trigger method - Zhou 10/1/2025
-    complete_dict = schema_manager.get_complete_entity_result(request, token, entity_dict, triggered_top_props_to_skip)
+    complete_dict = schema_manager.get_complete_entity_result(request.args, token, entity_dict, triggered_top_props_to_skip)
 
     # Determine if the entity is publicly visible base on its data, only.
     # To verify if a Collection is public, it is necessary to have its Datasets, which
@@ -1096,7 +1096,7 @@ def get_entities_by_type(entity_type):
         # Get back a list of entity dicts for the given entity type
         entities_list = app_neo4j_queries.get_entities_by_type(neo4j_driver_instance, normalized_entity_type)
 
-        complete_entities_list = schema_manager.get_complete_entities_list(request, token, entities_list, generated_properties_to_skip)
+        complete_entities_list = schema_manager.get_complete_entities_list(request.args, token, entities_list, generated_properties_to_skip)
 
         # Final result after normalization
         final_result = schema_manager.normalize_entities_list_for_response(complete_entities_list)
@@ -1297,7 +1297,7 @@ def create_entity(entity_type):
             properties_to_skip = []
 
     # Generate the filtered or complete entity dict to send back
-    complete_dict = schema_manager.get_complete_entity_result(request, user_token, merged_dict, properties_to_skip)
+    complete_dict = schema_manager.get_complete_entity_result(request.args, user_token, merged_dict, properties_to_skip)
 
     # Will also filter the result based on schema
     normalized_complete_dict = schema_manager.normalize_entity_result_for_response(complete_dict)
@@ -1692,7 +1692,7 @@ def get_ancestors(id):
             'previous_revision_uuid'
         ]
 
-        complete_entities_list = schema_manager.get_complete_entities_list(request, token, ancestors_list, properties_to_skip)
+        complete_entities_list = schema_manager.get_complete_entities_list(request.args, token, ancestors_list, properties_to_skip)
 
         # Final result after normalization
         final_result = schema_manager.normalize_entities_list_for_response(complete_entities_list)
@@ -1777,7 +1777,7 @@ def get_descendants(id):
             'previous_revision_uuid'
         ]
 
-        complete_entities_list = schema_manager.get_complete_entities_list(request, user_token, descendants_list, properties_to_skip)
+        complete_entities_list = schema_manager.get_complete_entities_list(request.args, user_token, descendants_list, properties_to_skip)
 
         # Final result after normalization
         final_result = schema_manager.normalize_entities_list_for_response(complete_entities_list)
@@ -1900,7 +1900,7 @@ def get_parents(id):
             'previous_revision_uuid'
         ]
 
-        complete_entities_list = schema_manager.get_complete_entities_list(request, token, parents_list, properties_to_skip)
+        complete_entities_list = schema_manager.get_complete_entities_list(request.args, token, parents_list, properties_to_skip)
 
         # Final result after normalization
         final_result = schema_manager.normalize_entities_list_for_response(complete_entities_list)
@@ -1984,7 +1984,7 @@ def get_children(id):
             'previous_revision_uuid'
         ]
 
-        complete_entities_list = schema_manager.get_complete_entities_list(request, user_token, children_list, properties_to_skip)
+        complete_entities_list = schema_manager.get_complete_entities_list(request.args, user_token, children_list, properties_to_skip)
 
         # Final result after normalization
         final_result = schema_manager.normalize_entities_list_for_response(complete_entities_list)
@@ -2101,7 +2101,7 @@ def get_siblings(id):
         'local_directory_rel_path'
     ]
 
-    complete_entities_list = schema_manager.get_complete_entities_list(request, token, sibling_list, properties_to_skip)
+    complete_entities_list = schema_manager.get_complete_entities_list(request.args, token, sibling_list, properties_to_skip)
     # Final result after normalization
     final_result = schema_manager.normalize_entities_list_for_response(complete_entities_list)
     filtered_final_result = []
@@ -2216,7 +2216,7 @@ def get_tuplets(id):
         'local_directory_rel_path'
     ]
 
-    complete_entities_list = schema_manager.get_complete_entities_list(request, token, tuplet_list, properties_to_skip)
+    complete_entities_list = schema_manager.get_complete_entities_list(request.args, token, tuplet_list, properties_to_skip)
     # Final result after normalization
     final_result = schema_manager.normalize_entities_list_for_response(complete_entities_list)
     filtered_final_result = []
@@ -2288,7 +2288,7 @@ def get_previous_revisions(id):
             'direct_ancestors'
         ]
 
-        complete_entities_list = schema_manager.get_complete_entities_list(request, user_token, descendants_list, properties_to_skip)
+        complete_entities_list = schema_manager.get_complete_entities_list(request.args, user_token, descendants_list, properties_to_skip)
 
         # Final result after normalization
         final_result = schema_manager.normalize_entities_list_for_response(complete_entities_list)
@@ -2352,7 +2352,7 @@ def get_next_revisions(id):
             'direct_ancestors'
         ]
 
-        complete_entities_list = schema_manager.get_complete_entities_list(request, user_token, descendants_list, properties_to_skip)
+        complete_entities_list = schema_manager.get_complete_entities_list(request.args, user_token, descendants_list, properties_to_skip)
 
         # Final result after normalization
         final_result = schema_manager.normalize_entities_list_for_response(complete_entities_list)
@@ -2444,7 +2444,7 @@ def get_collections(id):
             'previous_revision_uuid'
         ]
 
-        complete_entities_list = schema_manager.get_complete_entities_list(request, token, collection_list, properties_to_skip)
+        complete_entities_list = schema_manager.get_complete_entities_list(request.args, token, collection_list, properties_to_skip)
 
         # Final result after normalization
         final_result = schema_manager.normalize_entities_list_for_response(complete_entities_list)
@@ -2551,7 +2551,7 @@ def get_uploads(id):
             'previous_revision_uuid'
         ]
 
-        complete_entities_list = schema_manager.get_complete_entities_list(request, token, uploads_list, properties_to_skip)
+        complete_entities_list = schema_manager.get_complete_entities_list(request.args, token, uploads_list, properties_to_skip)
 
         # Final result after normalization
         final_result = schema_manager.normalize_entities_list_for_response(complete_entities_list)
@@ -2902,7 +2902,7 @@ def get_dataset_latest_revision(id):
     ]
 
     # On entity retrieval, the 'on_read_trigger' doesn't really need a token
-    complete_dict = schema_manager.get_complete_entity_result(request, token, latest_revision_dict, properties_to_skip)
+    complete_dict = schema_manager.get_complete_entity_result(request.args, token, latest_revision_dict, properties_to_skip)
 
     # Also normalize the result based on schema
     final_result = schema_manager.normalize_entity_result_for_response(complete_dict)
@@ -3037,7 +3037,7 @@ def get_dataset_revision_number(id):
 #
 #     if property_key is None:
 #         for revision in sorted_revisions_list_merged:
-#             complete_revision_list = schema_manager.get_complete_entities_list(request, token, revision, properties_to_skip)
+#             complete_revision_list = schema_manager.get_complete_entities_list(request.args, token, revision, properties_to_skip)
 #             normal = schema_manager.normalize_entities_list_for_response(complete_revision_list)
 #             normalized_revisions_list.append(normal)
 #     else:
@@ -3141,7 +3141,7 @@ def retract_dataset(id):
     # No need to call after_update() afterwards because retraction doesn't call any after_update_trigger methods
     merged_updated_dict = update_entity_details(request, normalized_entity_type, token, json_data_dict, entity_dict)
 
-    complete_dict = schema_manager.get_complete_entity_result(request, token, merged_updated_dict)
+    complete_dict = schema_manager.get_complete_entity_result(request.args, token, merged_updated_dict)
 
     # Will also filter the result based on schema
     normalized_complete_dict = schema_manager.normalize_entity_result_for_response(complete_dict)
@@ -3217,7 +3217,7 @@ def get_revisions_list(id):
         'upload',
         'title'
     ]
-    complete_revisions_list = schema_manager.get_complete_entities_list(request, token, sorted_revisions_list, properties_to_skip)
+    complete_revisions_list = schema_manager.get_complete_entities_list(request.args, token, sorted_revisions_list, properties_to_skip)
     normalized_revisions_list = schema_manager.normalize_entities_list_for_response(complete_revisions_list)
     fields_to_exclude = schema_manager.get_fields_to_exclude(normalized_entity_type)
     # Only check the very last revision (the first revision dict since normalized_revisions_list is already sorted DESC)
@@ -3300,7 +3300,7 @@ def get_associated_organs_from_dataset(id):
     if len(associated_organs) < 1:
         not_found_error("the dataset does not have any associated organs")
 
-    complete_entities_list = schema_manager.get_complete_entities_list(request, token, associated_organs)
+    complete_entities_list = schema_manager.get_complete_entities_list(request.args, token, associated_organs)
 
     # Final result after normalization
     final_result = schema_manager.normalize_entities_list_for_response(complete_entities_list)
@@ -3360,7 +3360,7 @@ def get_associated_samples_from_dataset(id):
     if len(associated_samples) < 1:
         not_found_error("the dataset does not have any associated samples")
 
-    complete_entities_list = schema_manager.get_complete_entities_list(request, token, associated_samples)
+    complete_entities_list = schema_manager.get_complete_entities_list(request.args, token, associated_samples)
 
     # Final result after normalization
     final_result = schema_manager.normalize_entities_list_for_response(complete_entities_list)
@@ -3420,7 +3420,7 @@ def get_associated_donors_from_dataset(id):
     if len(associated_donors) < 1:
         not_found_error("the dataset does not have any associated donors")
 
-    complete_entities_list = schema_manager.get_complete_entities_list(request, token, associated_donors)
+    complete_entities_list = schema_manager.get_complete_entities_list(request.args, token, associated_donors)
 
     # Final result after normalization
     final_result = schema_manager.normalize_entities_list_for_response(complete_entities_list)
@@ -4154,7 +4154,7 @@ def multiple_components():
         # Remove dataset_link_abs_dir once more before entity creation
         dataset_link_abs_dir = dataset.pop('dataset_link_abs_dir', None)
         # Generate the filtered or complete entity dict to send back
-        complete_dict = schema_manager.get_complete_entity_result(request, user_token, dataset, properties_to_skip)
+        complete_dict = schema_manager.get_complete_entity_result(request.args, user_token, dataset, properties_to_skip)
 
         # Will also filter the result based on schema
         normalized_complete_dict = schema_manager.normalize_entity_result_for_response(complete_dict)
@@ -4616,7 +4616,7 @@ def _get_dataset_associated_metadata(dataset_dict, dataset_visibility, valid_use
     # Use the internal token to query the target entity to assure it is returned. This way public
     # entities can be accessed even if valid_user_token is None.
     internal_token = auth_helper_instance.getProcessSecret()
-    complete_entities_list = schema_manager.get_complete_entities_list( request=request 
+    complete_entities_list = schema_manager.get_complete_entities_list( request_args=request.args 
                                                                         , token=internal_token
                                                                         , entities_list=associated_entities)
     # Final result after normalization
@@ -4706,7 +4706,7 @@ def create_entity_details(request, normalized_entity_type, user_token, json_data
         # Use {} since no existing dict
         generated_before_create_trigger_data_dict = schema_manager.generate_triggered_data( trigger_type=TriggerTypeEnum.BEFORE_CREATE
                                                                                             , normalized_class=normalized_entity_type
-                                                                                            , request=request
+                                                                                            , request_args=request.args
                                                                                             , user_token=user_token
                                                                                             , existing_data_dict={}
                                                                                             , new_data_dict=new_data_dict)
@@ -4865,7 +4865,7 @@ def create_multiple_samples_details(request, normalized_entity_type, user_token,
         # Use {} since no existing dict
         generated_before_create_trigger_data_dict = schema_manager.generate_triggered_data( trigger_type=TriggerTypeEnum.BEFORE_CREATE
                                                                                             , normalized_class=normalized_entity_type
-                                                                                            , request=request
+                                                                                            , request_args=request.args
                                                                                             , user_token=user_token
                                                                                             , existing_data_dict={}
                                                                                             , new_data_dict=new_data_dict)
@@ -4920,7 +4920,7 @@ def create_multiple_samples_details(request, normalized_entity_type, user_token,
         samples_dict_list.append(sample_dict)
 
     # Generate property values for the only one Activity node
-    activity_data_dict = schema_manager.generate_activity_data(normalized_entity_type, request, user_token, user_info_dict)
+    activity_data_dict = schema_manager.generate_activity_data(normalized_entity_type, request.args, user_token, user_info_dict)
 
     # Create new sample nodes and needed relationships as well as activity node in one transaction
     try:
@@ -4995,7 +4995,7 @@ def create_multiple_component_details(request, normalized_entity_type, user_toke
             # Use {} since no existing dict
             generated_before_create_trigger_data_dict = schema_manager.generate_triggered_data( trigger_type=TriggerTypeEnum.BEFORE_CREATE
                                                                                                 , normalized_class=normalized_entity_type
-                                                                                                , request=request
+                                                                                                , request_args=request.args
                                                                                                 , user_token=user_token
                                                                                                 , existing_data_dict={}
                                                                                                 , new_data_dict=new_data_dict)
@@ -5042,7 +5042,7 @@ def create_multiple_component_details(request, normalized_entity_type, user_toke
         dataset_dict['dataset_link_abs_dir'] = dataset_link_abs_dir
         datasets_dict_list.append(dataset_dict)
 
-    activity_data_dict = schema_manager.generate_activity_data(normalized_entity_type, request, user_token, user_info_dict)
+    activity_data_dict = schema_manager.generate_activity_data(normalized_entity_type, request.args, user_token, user_info_dict)
     activity_data_dict['creation_action'] = creation_action
     try:
         created_datasets = app_neo4j_queries.create_multiple_datasets(neo4j_driver_instance, datasets_dict_list, activity_data_dict, direct_ancestor)
@@ -5080,7 +5080,7 @@ def after_create(normalized_entity_type, request, user_token, merged_data_dict, 
         # Use {} since no new dict
         schema_manager.generate_triggered_data( trigger_type=TriggerTypeEnum.AFTER_CREATE
                                                 , normalized_class=normalized_entity_type
-                                                , request=request
+                                                , request_args=request.args
                                                 , user_token=user_token
                                                 , existing_data_dict=merged_data_dict
                                                 , new_data_dict=json_data_dict)
@@ -5125,7 +5125,7 @@ def update_entity_details(request, normalized_entity_type, user_token, json_data
     try:
         generated_before_update_trigger_data_dict = schema_manager.generate_triggered_data( trigger_type=TriggerTypeEnum.BEFORE_UPDATE
                                                                                             , normalized_class=normalized_entity_type
-                                                                                            , request=request
+                                                                                            , request_args=request.args
                                                                                             , user_token=user_token
                                                                                             , existing_data_dict=existing_entity_dict
                                                                                             , new_data_dict=new_data_dict)
@@ -5201,7 +5201,7 @@ def after_update(normalized_entity_type, request, user_token, merged_updated_dic
     try:
         schema_manager.generate_triggered_data( trigger_type=TriggerTypeEnum.AFTER_UPDATE
                                                 , normalized_class=normalized_entity_type
-                                                , request=request
+                                                , request_args=request.args
                                                 , user_token=user_token
                                                 , existing_data_dict=merged_updated_dict
                                                 , new_data_dict=json_data_dict)
@@ -5570,7 +5570,7 @@ def _get_metadata_by_id(entity_id:str=None, metadata_scope:MetadataScopeEnum=Met
     # Get the entity result of the indexable dictionary from cache if exists, otherwise regenerate and cache
     metadata_dict = schema_manager.get_index_metadata(request, token, entity_dict) \
                     if metadata_scope==MetadataScopeEnum.INDEX \
-                    else schema_manager.get_complete_entity_result(request, token, entity_dict)
+                    else schema_manager.get_complete_entity_result(request.args, token, entity_dict)
 
     # Determine if the entity is publicly visible base on its data, only.
     # To verify if a Collection is public, it is necessary to have its Datasets, which
