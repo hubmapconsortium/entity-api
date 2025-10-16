@@ -1737,7 +1737,7 @@ def update_status(property_key, normalized_type, request_args, user_token, exist
             # When the parent dataset status update disables reindex via query string '?reindex=false'
             # We'll also disable the reindex call to search-api upon each subsequent child component dataset update
             reindex = 'followed'
-            if schema_manager.suppress_reindex(request): 
+            if schema_manager.suppress_reindex(request_args): 
                 url += '?reindex=false'
                 reindex = 'suppressed'
 

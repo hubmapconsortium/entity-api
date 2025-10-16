@@ -1177,7 +1177,7 @@ def create_entity(entity_type):
     #
     # Check if re-indexing is to be suppressed after entity creation.
     try:
-        supress_reindex = schema_manager.suppress_reindex(request)
+        supress_reindex = schema_manager.suppress_reindex(request.args)
     except Exception as e:
         bad_request_error(e)
 
@@ -1486,7 +1486,7 @@ def update_entity(id):
     #
     # Check if re-indexing is to be suppressed after entity creation.
     try:
-        suppress_reindex = schema_manager.suppress_reindex(request)
+        suppress_reindex = schema_manager.suppress_reindex(request.args)
     except Exception as e:
         bad_request_error(e)
 
@@ -4122,7 +4122,7 @@ def multiple_components():
     #
     # Check if re-indexing is to be suppressed after entity creation.
     try:
-        suppress_reindex = schema_manager.suppress_reindex(request)
+        suppress_reindex = schema_manager.suppress_reindex(request.args)
     except Exception as e:
         bad_request_error(e)
 

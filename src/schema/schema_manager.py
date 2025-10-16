@@ -2363,28 +2363,28 @@ def get_organ_types():
 
 
 """
-Use the Flask request.args MultiDict to see if 'reindex' is a URL parameter passed in with the
-request and if it indicates reindexing should be supressed. Default to reindexing in all other cases.
+See if 'reindex' is a URL parameter passed in with the request and 
+if it indicates reindexing should be supressed. Default to reindexing in all other cases.
 
 Parameters
 ----------
-request: Flask request object
-    The instance of Flask request passed in from application request
+request_args: ImmutableMultiDict
+    The Flask request.args passed in from application request
 
 Returns
 -------
 bool
 """
-def suppress_reindex(request) -> bool:
-    if 'reindex' not in request.args:
+def suppress_reindex(request_args) -> bool:
+    if 'reindex' not in request_args:
         return False
-    reindex_str = request.args.get('reindex').lower()
+    reindex_str = request_args.get('reindex').lower()
     if reindex_str == 'false':
         return True
     elif reindex_str == 'true':
         return False
     raise Exception(f"The value of the 'reindex' parameter must be True or False (case-insensitive)."
-                    f" '{request.args.get('reindex')}' is not recognized.")
+                    f" '{request_args.get('reindex')}' is not recognized.")
 
 
 ####################################################################################################
