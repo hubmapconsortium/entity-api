@@ -36,8 +36,8 @@ property_key : str
     The target property key of the value to be generated
 normalized_type : str
     One of the types defined in the schema yaml: Activity, Collection, Donor, Sample, Dataset, Upload, Publication
-request: Flask request object
-    The instance of Flask request passed in from application request
+request_args: ImmutableMultiDict
+    The Flask request.args passed in from application request
 user_token: str
     The user's globus nexus token
 existing_data_dict : dict
@@ -50,7 +50,7 @@ Returns
 str: The target property key
 str: The neo4j TIMESTAMP() function as string
 """
-def set_timestamp(property_key, normalized_type, request, user_token, existing_data_dict, new_data_dict):
+def set_timestamp(property_key, normalized_type, request_args, user_token, existing_data_dict, new_data_dict):
     # Use the neo4j TIMESTAMP() function during entity creation
     # Will be proessed in app_neo4j_queries._build_properties_map() 
     # and schema_neo4j_queries._build_properties_map()
@@ -68,8 +68,8 @@ property_key : str
     The target property key of the value to be generated
 normalized_type : str
     One of the types defined in the schema yaml: Activity, Collection, Donor, Sample, Dataset, Upload, Publication
-request: Flask request object
-    The instance of Flask request passed in from application request
+request_args: ImmutableMultiDict
+    The Flask request.args passed in from application request
 user_token: str
     The user's globus nexus token
 existing_data_dict : dict
@@ -82,7 +82,7 @@ Returns
 str: The target property key
 str: The string of normalized entity type
 """
-def set_entity_type(property_key, normalized_type, request, user_token, existing_data_dict, new_data_dict):
+def set_entity_type(property_key, normalized_type, request_args, user_token, existing_data_dict, new_data_dict):
     return property_key, normalized_type
 
 
@@ -97,8 +97,8 @@ property_key : str
     The target property key of the value to be generated
 normalized_type : str
     One of the types defined in the schema yaml: Activity, Collection, Donor, Sample, Dataset, Upload, Publication
-request: Flask request object
-    The instance of Flask request passed in from application request
+request_args: ImmutableMultiDict
+    The Flask request.args passed in from application request
 user_token: str
     The user's globus nexus token
 existing_data_dict : dict
@@ -111,7 +111,7 @@ Returns
 str: The target property key
 str: The 'sub' string
 """
-def set_user_sub(property_key, normalized_type, request, user_token, existing_data_dict, new_data_dict):
+def set_user_sub(property_key, normalized_type, request_args, user_token, existing_data_dict, new_data_dict):
     if 'sub' not in new_data_dict:
         raise KeyError("Missing 'sub' key in 'new_data_dict' during calling 'set_user_sub()' trigger method.")
     
@@ -129,8 +129,8 @@ property_key : str
     The target property key of the value to be generated
 normalized_type : str
     One of the types defined in the schema yaml: Activity, Collection, Donor, Sample, Dataset, Upload, Publication
-request: Flask request object
-    The instance of Flask request passed in from application request
+request_args: ImmutableMultiDict
+    The Flask request.args passed in from application request
 user_token: str
     The user's globus nexus token
 existing_data_dict : dict
@@ -143,7 +143,7 @@ Returns
 str: The target property key
 str: The 'email' string
 """
-def set_user_email(property_key, normalized_type, request, user_token, existing_data_dict, new_data_dict):
+def set_user_email(property_key, normalized_type, request_args, user_token, existing_data_dict, new_data_dict):
     if 'email' not in new_data_dict:
         raise KeyError("Missing 'email' key in 'new_data_dict' during calling 'set_user_email()' trigger method.")
     
@@ -161,8 +161,8 @@ property_key : str
     The target property key of the value to be generated
 normalized_type : str
     One of the types defined in the schema yaml: Activity, Collection, Donor, Sample, Dataset, Upload, Publication
-request: Flask request object
-    The instance of Flask request passed in from application request
+request_args: ImmutableMultiDict
+    The Flask request.args passed in from application request
 user_token: str
     The user's globus nexus token
 existing_data_dict : dict
@@ -175,7 +175,7 @@ Returns
 str: The target property key
 str: The 'name' string
 """
-def set_user_displayname(property_key, normalized_type, request, user_token, existing_data_dict, new_data_dict):
+def set_user_displayname(property_key, normalized_type, request_args, user_token, existing_data_dict, new_data_dict):
     if 'name' not in new_data_dict:
         raise KeyError("Missing 'name' key in 'new_data_dict' during calling 'set_user_displayname()' trigger method.")
     
@@ -193,8 +193,8 @@ property_key : str
     The target property key of the value to be generated
 normalized_type : str
     One of the types defined in the schema yaml: Activity, Collection, Donor, Sample, Dataset, Upload, Publication
-request: Flask request object
-    The instance of Flask request passed in from application request
+request_args: ImmutableMultiDict
+    The Flask request.args passed in from application request
 user_token: str
     The user's globus nexus token
 existing_data_dict : dict
@@ -207,7 +207,7 @@ Returns
 str: The target property key
 str: The uuid created via uuid-api
 """
-def set_uuid(property_key, normalized_type, request, user_token, existing_data_dict, new_data_dict):
+def set_uuid(property_key, normalized_type, request_args, user_token, existing_data_dict, new_data_dict):
     if 'uuid' not in new_data_dict:
         raise KeyError("Missing 'uuid' key in 'new_data_dict' during calling 'set_uuid()' trigger method.")
     
@@ -225,8 +225,8 @@ property_key : str
     The target property key of the value to be generated
 normalized_type : str
     One of the types defined in the schema yaml: Activity, Collection, Donor, Sample, Dataset, Upload, Publication
-request: Flask request object
-    The instance of Flask request passed in from application request
+request_args: ImmutableMultiDict
+    The Flask request.args passed in from application request
 user_token: str
     The user's globus nexus token
 existing_data_dict : dict
@@ -239,7 +239,7 @@ Returns
 str: The target property key
 str: The hubmap_id created via uuid-api
 """
-def set_hubmap_id(property_key, normalized_type, request, user_token, existing_data_dict, new_data_dict):
+def set_hubmap_id(property_key, normalized_type, request_args, user_token, existing_data_dict, new_data_dict):
     if 'hubmap_id' not in new_data_dict:
         raise KeyError("Missing 'hubmap_id' key in 'new_data_dict' during calling 'set_hubmap_id()' trigger method.")
     
@@ -262,8 +262,8 @@ property_key : str
     The target property key of the value to be generated
 normalized_type : str
     One of the entity types defined in the schema yaml: Donor, Sample, Dataset
-request: Flask request object
-    The instance of Flask request passed in from application request
+request_args: ImmutableMultiDict
+    The Flask request.args passed in from application request
 user_token: str
     The user's globus nexus token
 existing_data_dict : dict
@@ -276,7 +276,7 @@ Returns
 str: The target property key
 str: The data access level string
 """
-def set_data_access_level(property_key, normalized_type, request, user_token, existing_data_dict, new_data_dict):
+def set_data_access_level(property_key, normalized_type, request_args, user_token, existing_data_dict, new_data_dict):
     if 'uuid' not in new_data_dict:
         raise KeyError("Missing 'uuid' key in 'new_data_dict' during calling 'set_data_access_level()' trigger method.")
 
@@ -321,8 +321,8 @@ property_key : str
     The target property key of the value to be generated
 normalized_type : str
     One of the types defined in the schema yaml: Donor, Sample, Dataset
-request: Flask request object
-    The instance of Flask request passed in from application request
+request_args: ImmutableMultiDict
+    The Flask request.args passed in from application request
 user_token: str
     The user's globus nexus token
 existing_data_dict : dict
@@ -335,7 +335,7 @@ Returns
 str: The target property key
 str: The group uuid
 """
-def set_group_uuid(property_key, normalized_type, request, user_token, existing_data_dict, new_data_dict):
+def set_group_uuid(property_key, normalized_type, request_args, user_token, existing_data_dict, new_data_dict):
     group_uuid = None
 
     # Look for membership in a single "data provider" group and sets to that. 
@@ -385,8 +385,8 @@ property_key : str
     The target property key of the value to be generated
 normalized_type : str
     One of the types defined in the schema yaml: Donor, Sample, Dataset
-request: Flask request object
-    The instance of Flask request passed in from application request
+request_args: ImmutableMultiDict
+    The Flask request.args passed in from application request
 user_token: str
     The user's globus nexus token
 existing_data_dict : dict
@@ -399,7 +399,7 @@ Returns
 str: The target property key
 str: The group name
 """
-def set_group_name(property_key, normalized_type, request, user_token, existing_data_dict, new_data_dict):
+def set_group_name(property_key, normalized_type, request_args, user_token, existing_data_dict, new_data_dict):
     group_name = None
     
     # If `group_uuid` is not already set, looks for membership in a single "data provider" group and sets to that. 
@@ -440,8 +440,8 @@ property_key : str
     The target property key of the value to be generated
 normalized_type : str
     One of the types defined in the schema yaml: Donor, Sample
-request: Flask request object
-    The instance of Flask request passed in from application request
+request_args: ImmutableMultiDict
+    The Flask request.args passed in from application request
 user_token: str
     The user's globus nexus token
 existing_data_dict : dict
@@ -454,7 +454,7 @@ Returns
 str: The target property key
 str: The submission_id
 """
-def set_submission_id(property_key, normalized_type, request, user_token, existing_data_dict, new_data_dict):
+def set_submission_id(property_key, normalized_type, request_args, user_token, existing_data_dict, new_data_dict):
     if 'submission_id' not in new_data_dict:
         raise KeyError("Missing 'submission_id' key in 'new_data_dict' during calling 'set_submission_id()' trigger method.")
     
@@ -494,8 +494,8 @@ property_key : str
     The target property key of the value to be generated
 normalized_type : str
     One of the types defined in the schema yaml: Donor, Sample
-request: Flask request object
-    The instance of Flask request passed in from application request
+request_args: ImmutableMultiDict
+    The Flask request.args passed in from application request
 user_token: str
     The user's globus nexus token
 existing_data_dict : dict
@@ -508,8 +508,8 @@ Returns
 str: The target property key
 list: The file info dicts in a list
 """
-def commit_image_files(property_key, normalized_type, request, user_token, existing_data_dict, new_data_dict, generated_dict):
-    return _commit_files('image_files', property_key, normalized_type, request, user_token, existing_data_dict, new_data_dict, generated_dict)
+def commit_image_files(property_key, normalized_type, request_args, user_token, existing_data_dict, new_data_dict, generated_dict):
+    return _commit_files('image_files', property_key, normalized_type, request_args, user_token, existing_data_dict, new_data_dict, generated_dict)
 
 
 """
@@ -529,8 +529,8 @@ property_key : str
     The target property key
 normalized_type : str
     One of the types defined in the schema yaml: Donor, Sample
-request: Flask request object
-    The instance of Flask request passed in from application request
+request_args: ImmutableMultiDict
+    The Flask request.args passed in from application request
 user_token: str
     The user's globus nexus token
 existing_data_dict : dict
@@ -547,8 +547,8 @@ Returns
 str: The target property key
 list: The file info dicts in a list
 """
-def delete_image_files(property_key, normalized_type, request, user_token, existing_data_dict, new_data_dict, generated_dict):
-    return _delete_files('image_files', property_key, normalized_type, request, user_token, existing_data_dict, new_data_dict, generated_dict)
+def delete_image_files(property_key, normalized_type, request_args, user_token, existing_data_dict, new_data_dict, generated_dict):
+    return _delete_files('image_files', property_key, normalized_type, request_args, user_token, existing_data_dict, new_data_dict, generated_dict)
 
 
 """
@@ -562,8 +562,8 @@ property_key : str
     The target property key of the value to be generated
 normalized_type : str
     One of the types defined in the schema yaml: Donor, Sample
-request: Flask request object
-    The instance of Flask request passed in from application request
+request_args: ImmutableMultiDict
+    The Flask request.args passed in from application request
 user_token: str
     The user's globus nexus token
 existing_data_dict : dict
@@ -576,7 +576,7 @@ Returns
 str: The target property key
 list: The file info dicts (with updated descriptions) in a list
 """
-def update_file_descriptions(property_key, normalized_type, request, user_token, existing_data_dict, new_data_dict, generated_dict):
+def update_file_descriptions(property_key, normalized_type, request_args, user_token, existing_data_dict, new_data_dict, generated_dict):
     if property_key not in new_data_dict:
         raise KeyError(f"Missing '{property_key}' key in 'new_data_dict' during calling 'update_file_descriptions()' trigger method.")
 
@@ -635,8 +635,8 @@ property_key : str
     The target property key of the value to be generated
 normalized_type : str
     One of the types defined in the schema yaml: Activity, Collection, Donor, Sample, Dataset, Upload, Publication
-request: Flask request object
-    The instance of Flask request passed in from application request
+request_args: ImmutableMultiDict
+    The Flask request.args passed in from application request
 user_token: str
     The user's globus nexus token
 existing_data_dict : dict
@@ -644,7 +644,7 @@ existing_data_dict : dict
 new_data_dict : dict
     A merged dictionary that contains all possible input data to be used
 """
-def set_status_history(property_key, normalized_type, request, user_token, existing_data_dict, new_data_dict):
+def set_status_history(property_key, normalized_type, request_args, user_token, existing_data_dict, new_data_dict):
     new_status_history = []
     status_entry = {}
 
@@ -689,8 +689,8 @@ property_key : str
     The target property key of the value to be generated
 normalized_type : str
     One of the types defined in the schema yaml: Collection
-request: Flask request object
-    The instance of Flask request passed in from application request
+request_args: ImmutableMultiDict
+    The Flask request.args passed in from application request
 user_token: str
     The user's globus nexus token
 existing_data_dict : dict
@@ -703,13 +703,13 @@ Returns
 str: The target property key
 list: A list of associated dataset dicts with all the normalized information
 """
-def get_collection_datasets(property_key, normalized_type, request, user_token, existing_data_dict, new_data_dict):
+def get_collection_datasets(property_key, normalized_type, request_args, user_token, existing_data_dict, new_data_dict):
     if 'uuid' not in existing_data_dict:
         raise KeyError("Missing 'uuid' key in 'existing_data_dict' during calling 'get_collection_datasets()' trigger method.")
 
     logger.info(f"Executing 'get_collection_datasets()' trigger method on uuid: {existing_data_dict['uuid']}")
     
-    neo4j_props_to_exclude = _get_excluded_neo4j_props(property_key, request)
+    neo4j_props_to_exclude = _get_excluded_neo4j_props(property_key, request_args)
 
     datasets_list = schema_neo4j_queries.get_collection_datasets(schema_manager.get_neo4j_driver_instance(), existing_data_dict['uuid'], properties_to_exclude = neo4j_props_to_exclude)
 
@@ -733,8 +733,8 @@ property_key : str
     The target property key
 normalized_type : str
     One of the types defined in the schema yaml: Dataset
-request: Flask request object
-    The instance of Flask request passed in from application request
+request_args: ImmutableMultiDict
+    The Flask request.args passed in from application request
 user_token: str
     The user's globus nexus token
 existing_data_dict : dict
@@ -747,7 +747,7 @@ Returns
 str: The target property key
 str: Initial status of "New"
 """
-def set_dataset_status_new(property_key, normalized_type, request, user_token, existing_data_dict, new_data_dict):
+def set_dataset_status_new(property_key, normalized_type, request_args, user_token, existing_data_dict, new_data_dict):
     # Always 'New' on dataset creation
     return property_key, 'New'
 
@@ -763,8 +763,8 @@ property_key : str
     The target property key
 normalized_type : str
     One of the types defined in the schema yaml: Dataset
-request: Flask request object
-    The instance of Flask request passed in from application request
+request_args: ImmutableMultiDict
+    The Flask request.args passed in from application request
 user_token: str
     The user's globus nexus token
 existing_data_dict : dict
@@ -777,13 +777,13 @@ Returns
 str: The target property key
 list: A list of associated collections with all the normalized information
 """
-def get_dataset_collections(property_key, normalized_type, request, user_token, existing_data_dict, new_data_dict):
+def get_dataset_collections(property_key, normalized_type, request_args, user_token, existing_data_dict, new_data_dict):
     if 'uuid' not in existing_data_dict:
         raise KeyError("Missing 'uuid' key in 'existing_data_dict' during calling 'get_dataset_collections()' trigger method.")
 
     logger.info(f"Executing 'get_dataset_collections()' trigger method on uuid: {existing_data_dict['uuid']}")
 
-    neo4j_props_to_exclude = _get_excluded_neo4j_props(property_key, request)
+    neo4j_props_to_exclude = _get_excluded_neo4j_props(property_key, request_args)
 
     collections_list = schema_neo4j_queries.get_dataset_collections(schema_manager.get_neo4j_driver_instance(), existing_data_dict['uuid'], property_key = None, properties_to_exclude = neo4j_props_to_exclude)
 
@@ -803,8 +803,8 @@ property_key : str
     The target property key
 normalized_type : str
     One of the types defined in the schema yaml: Dataset
-request: Flask request object
-    The instance of Flask request passed in from application request
+request_args: ImmutableMultiDict
+    The Flask request.args passed in from application request
 user_token: str
     The user's globus nexus token
 existing_data_dict : dict
@@ -817,7 +817,7 @@ Returns
 str: The target property key
 dict: A dictionary representation of the associated collection with all the normalized information
 """
-def get_publication_associated_collection(property_key, normalized_type, request, user_token, existing_data_dict, new_data_dict):
+def get_publication_associated_collection(property_key, normalized_type, request_args, user_token, existing_data_dict, new_data_dict):
     if 'uuid' not in existing_data_dict:
         raise KeyError("Missing 'uuid' key in 'existing_data_dict' during calling 'get_publication_associated_collection()' trigger method.")
 
@@ -841,8 +841,8 @@ property_key : str
     The target property key
 normalized_type : str
     One of the types defined in the schema yaml: Dataset
-request: Flask request object
-    The instance of Flask request passed in from application request
+request_args: ImmutableMultiDict
+    The Flask request.args passed in from application request
 user_token: str
     The user's globus nexus token
 existing_data_dict : dict
@@ -855,7 +855,7 @@ Returns
 str: The target property key
 dict: A dict of associated Upload detail with all the normalized information
 """
-def get_dataset_upload(property_key, normalized_type, request, user_token, existing_data_dict, new_data_dict):
+def get_dataset_upload(property_key, normalized_type, request_args, user_token, existing_data_dict, new_data_dict):
     return_dict = None
     
     if 'uuid' not in existing_data_dict:
@@ -863,7 +863,7 @@ def get_dataset_upload(property_key, normalized_type, request, user_token, exist
 
     logger.info(f"Executing 'get_dataset_upload()' trigger method on uuid: {existing_data_dict['uuid']}")
 
-    neo4j_props_to_exclude = _get_excluded_neo4j_props(property_key, request)
+    neo4j_props_to_exclude = _get_excluded_neo4j_props(property_key, request_args)
 
     upload_dict = schema_neo4j_queries.get_dataset_upload(schema_manager.get_neo4j_driver_instance(), existing_data_dict['uuid'], properties_to_exclude = neo4j_props_to_exclude)
     
@@ -883,8 +883,8 @@ property_key : str
     The target property key
 normalized_type : str
     One of the types defined in the schema yaml: Dataset
-request: Flask request object
-    The instance of Flask request passed in from application request
+request_args: ImmutableMultiDict
+    The Flask request.args passed in from application request
 user_token: str
     The user's globus nexus token
 existing_data_dict : dict
@@ -892,7 +892,7 @@ existing_data_dict : dict
 new_data_dict : dict
     A merged dictionary that contains all possible input data to be used
 """
-def link_dataset_to_direct_ancestors(property_key, normalized_type, request, user_token, existing_data_dict, new_data_dict):
+def link_dataset_to_direct_ancestors(property_key, normalized_type, request_args, user_token, existing_data_dict, new_data_dict):
     if 'uuid' not in existing_data_dict:
         raise KeyError("Missing 'uuid' key in 'existing_data_dict' during calling 'link_dataset_to_direct_ancestors()' trigger method.")
 
@@ -909,7 +909,7 @@ def link_dataset_to_direct_ancestors(property_key, normalized_type, request, use
     activity_uuid = schema_neo4j_queries.get_parent_activity_uuid_from_entity(schema_manager.get_neo4j_driver_instance(), dataset_uuid)
 
     if not activity_uuid:
-        activity_data_dict = schema_manager.generate_activity_data(normalized_type, request, user_token, existing_data_dict)
+        activity_data_dict = schema_manager.generate_activity_data(normalized_type, request_args, user_token, existing_data_dict)
         activity_uuid = activity_data_dict['uuid']
         create_activity = True
 
@@ -942,8 +942,8 @@ property_key : str
     The target property key
 normalized_type : str
     One of the types defined in the schema yaml: Dataset
-request: Flask request object
-    The instance of Flask request passed in from application request
+request_args: ImmutableMultiDict
+    The Flask request.args passed in from application request
 user_token: str
     The user's globus nexus token
 existing_data_dict : dict
@@ -951,7 +951,7 @@ existing_data_dict : dict
 new_data_dict : dict
     A merged dictionary that contains all possible input data to be used
 """
-def link_collection_to_datasets(property_key, normalized_type, request, user_token, existing_data_dict, new_data_dict):
+def link_collection_to_datasets(property_key, normalized_type, request_args, user_token, existing_data_dict, new_data_dict):
     if 'uuid' not in existing_data_dict:
         raise KeyError("Missing 'uuid' key in 'existing_data_dict' during calling 'link_collection_to_datasets()' trigger method.")
 
@@ -987,8 +987,8 @@ property_key : str
     The target property key of the value to be generated
 normalized_type : str
     One of the types defined in the schema yaml: Dataset/Publication
-request: Flask request object
-    The instance of Flask request passed in from application request
+request_args: ImmutableMultiDict
+    The Flask request.args passed in from application request
 user_token: str
     The user's globus nexus token
 existing_data_dict : dict
@@ -1001,13 +1001,13 @@ Returns
 str: The target property key
 list: A list of associated direct ancestors with all the normalized information
 """
-def get_dataset_direct_ancestors(property_key, normalized_type, request, user_token, existing_data_dict, new_data_dict):
+def get_dataset_direct_ancestors(property_key, normalized_type, request_args, user_token, existing_data_dict, new_data_dict):
     if 'uuid' not in existing_data_dict:
         raise KeyError("Missing 'uuid' key in 'existing_data_dict' during calling 'get_dataset_direct_ancestors()' trigger method.")
 
     logger.info(f"Executing 'get_dataset_direct_ancestors()' trigger method on uuid: {existing_data_dict['uuid']}")
 
-    neo4j_props_to_exclude = _get_excluded_neo4j_props(property_key, request)
+    neo4j_props_to_exclude = _get_excluded_neo4j_props(property_key, request_args)
 
     direct_ancestors_list = schema_neo4j_queries.get_dataset_direct_ancestors(schema_manager.get_neo4j_driver_instance(), existing_data_dict['uuid'], property_key = None, properties_to_exclude = neo4j_props_to_exclude)
 
@@ -1027,8 +1027,8 @@ property_key : str
     The target property key of the value to be generated
 normalized_type : str
     One of the types defined in the schema yaml: Dataset
-request: Flask request object
-    The instance of Flask request passed in from application request
+request_args: ImmutableMultiDict
+    The Flask request.args passed in from application request
 user_token: str
     The user's globus nexus token
 existing_data_dict : dict
@@ -1041,7 +1041,7 @@ Returns
 str: The target property key
 str: The relative directory path
 """
-def get_local_directory_rel_path(property_key, normalized_type, request, user_token, existing_data_dict, new_data_dict):
+def get_local_directory_rel_path(property_key, normalized_type, request_args, user_token, existing_data_dict, new_data_dict):
     if 'uuid' not in existing_data_dict:
         raise KeyError("Missing 'uuid' key in 'existing_data_dict' during calling 'get_local_directory_rel_path()' trigger method.")
     
@@ -1080,8 +1080,8 @@ property_key : str
     The target property key
 normalized_type : str
     One of the types defined in the schema yaml: Dataset
-request: Flask request object
-    The instance of Flask request passed in from application request
+request_args: ImmutableMultiDict
+    The Flask request.args passed in from application request
 user_token: str
     The user's globus nexus token
 existing_data_dict : dict
@@ -1089,7 +1089,7 @@ existing_data_dict : dict
 new_data_dict : dict
     A merged dictionary that contains all possible input data to be used
 """
-def link_to_previous_revision(property_key, normalized_type, request, user_token, existing_data_dict, new_data_dict):
+def link_to_previous_revision(property_key, normalized_type, request_args, user_token, existing_data_dict, new_data_dict):
     try:
         if 'uuid' not in existing_data_dict:
             raise KeyError("Missing 'uuid' key in 'existing_data_dict' during calling 'link_to_previous_revision()' trigger method.")
@@ -1133,8 +1133,8 @@ property_key : str
     The target property key
 normalized_type : str
     One of the types defined in the schema yaml: Dataset
-request: Flask request object
-    The instance of Flask request passed in from application request
+request_args: ImmutableMultiDict
+    The Flask request.args passed in from application request
 user_token: str
     The user's globus nexus token
 existing_data_dict : dict
@@ -1147,7 +1147,7 @@ Returns
 str: The target property key
 str: The generated dataset title 
 """
-def get_dataset_title(property_key, normalized_type, request, user_token, existing_data_dict, new_data_dict):
+def get_dataset_title(property_key, normalized_type, request_args, user_token, existing_data_dict, new_data_dict):
 
     MAX_ENTITY_LIST_LENGTH = 5
 
@@ -1326,8 +1326,8 @@ property_key : str
     The target property key
 normalized_type : str
     One of the types defined in the schema yaml: Dataset
-request: Flask request object
-    The instance of Flask request passed in from application request
+request_args: ImmutableMultiDict
+    The Flask request.args passed in from application request
 user_token: str
     The user's globus nexus token
 existing_data_dict : dict
@@ -1340,7 +1340,7 @@ Returns
 str: The target property key
 str: The uuid string of previous revision entity or None if not found
 """
-def get_previous_revision_uuid(property_key, normalized_type, request, user_token, existing_data_dict, new_data_dict):
+def get_previous_revision_uuid(property_key, normalized_type, request_args, user_token, existing_data_dict, new_data_dict):
     if 'uuid' not in existing_data_dict:
         raise KeyError("Missing 'uuid' key in 'existing_data_dict' during calling 'get_previous_revision_uuid()' trigger method.")
 
@@ -1362,8 +1362,8 @@ property_key : str
     The target property key
 normalized_type : str
     One of the types defined in the schema yaml: Dataset
-request: Flask request object
-    The instance of Flask request passed in from application request
+request_args: ImmutableMultiDict
+    The Flask request.args passed in from application request
 user_token: str
     The user's globus nexus token
 existing_data_dict : dict
@@ -1376,7 +1376,7 @@ Returns
 str: The target property key
 str: A list of the uuid strings of previous revision entity or an empty list if not found
 """
-def get_previous_revision_uuids(property_key, normalized_type, request, user_token, existing_data_dict, new_data_dict):
+def get_previous_revision_uuids(property_key, normalized_type, request_args, user_token, existing_data_dict, new_data_dict):
     if 'uuid' not in existing_data_dict:
         raise KeyError(
             "Missing 'uuid' key in 'existing_data_dict' during calling 'get_previous_revision_uuid()' trigger method.")
@@ -1400,8 +1400,8 @@ property_key : str
     The target property key
 normalized_type : str
     One of the types defined in the schema yaml: Dataset
-request: Flask request object
-    The instance of Flask request passed in from application request
+request_args: ImmutableMultiDict
+    The Flask request.args passed in from application request
 user_token: str
     The user's globus nexus token
 existing_data_dict : dict
@@ -1414,7 +1414,7 @@ Returns
 str: The target property key
 str: The uuid string of next version entity or None if not found
 """
-def get_next_revision_uuid(property_key, normalized_type, request, user_token, existing_data_dict, new_data_dict):
+def get_next_revision_uuid(property_key, normalized_type, request_args, user_token, existing_data_dict, new_data_dict):
     if 'uuid' not in existing_data_dict:
         raise KeyError("Missing 'uuid' key in 'existing_data_dict' during calling 'get_next_revision_uuid()' trigger method.")
 
@@ -1436,8 +1436,8 @@ property_key : str
     The target property key of the value to be generated
 normalized_type : str
     One of the types defined in the schema yaml: Activity, Collection, Donor, Sample, Dataset, Upload, Publication
-request: Flask request object
-    The instance of Flask request passed in from application request
+request_args: ImmutableMultiDict
+    The Flask request.args passed in from application request
 user_token: str
     The user's globus nexus token
 existing_data_dict : dict
@@ -1450,7 +1450,7 @@ Returns
 str: The target property key
 str: The `creation_action` as string
 """
-def get_creation_action_activity(property_key, normalized_type, request, user_token, existing_data_dict, new_data_dict):
+def get_creation_action_activity(property_key, normalized_type, request_args, user_token, existing_data_dict, new_data_dict):
     if 'uuid' not in existing_data_dict:
         raise KeyError("Missing 'uuid' key in 'existing_data_dict' during calling 'get_creation_action_activity()' trigger method.")
 
@@ -1475,8 +1475,8 @@ property_key : str
     The target property key
 normalized_type : str
     One of the types defined in the schema yaml: Dataset
-request: Flask request object
-    The instance of Flask request passed in from application request
+request_args: ImmutableMultiDict
+    The Flask request.args passed in from application request
 user_token: str
     The user's globus nexus token
 existing_data_dict : dict
@@ -1489,7 +1489,7 @@ Returns
 str: The target property key
 str: The list of uuid strings of next version entity or empty string if not found
 """
-def get_next_revision_uuids(property_key, normalized_type, request, user_token, existing_data_dict, new_data_dict):
+def get_next_revision_uuids(property_key, normalized_type, request_args, user_token, existing_data_dict, new_data_dict):
     if 'uuid' not in existing_data_dict:
         raise KeyError(
             "Missing 'uuid' key in 'existing_data_dict' during calling 'get_next_revision_uuid()' trigger method.")
@@ -1521,8 +1521,8 @@ property_key : str
     The property key for which the original trigger method is defined
 normalized_type : str
     One of the types defined in the schema yaml: Dataset
-request: Flask request object
-    The instance of Flask request passed in from application request
+request_args: ImmutableMultiDict
+    The Flask request.args passed in from application request
 user_token: str
     The user's globus nexus token
 existing_data_dict : dict
@@ -1536,7 +1536,7 @@ Returns
 -------
 dict: The updated generated dict
 """
-def commit_thumbnail_file(property_key, normalized_type, request, user_token, existing_data_dict, new_data_dict, generated_dict):
+def commit_thumbnail_file(property_key, normalized_type, request_args, user_token, existing_data_dict, new_data_dict, generated_dict):
     # The name of the property where the file information is stored
     target_property_key = 'thumbnail_file'
 
@@ -1609,8 +1609,8 @@ property_key : str
     The property key for which the original trigger method is defined
 normalized_type : str
     One of the types defined in the schema yaml: Dataset
-request: Flask request object
-    The instance of Flask request passed in from application request
+request_args: ImmutableMultiDict
+    The Flask request.args passed in from application request
 user_token: str
     The user's globus nexus token
 existing_data_dict : dict
@@ -1624,7 +1624,7 @@ Returns
 -------
 dict: The updated generated dict
 """
-def delete_thumbnail_file(property_key, normalized_type, request, user_token, existing_data_dict, new_data_dict, generated_dict):
+def delete_thumbnail_file(property_key, normalized_type, request_args, user_token, existing_data_dict, new_data_dict, generated_dict):
     # The name of the property where the file information is stored
     target_property_key = 'thumbnail_file'
     
@@ -1706,8 +1706,8 @@ property_key : str
     The target property key
 normalized_type : str
     One of the types defined in the schema yaml: Dataset
-request: Flask request object
-    The instance of Flask request passed in from application request
+request_args: ImmutableMultiDict
+    The Flask request.args passed in from application request
 user_token: str
     The user's globus nexus token
 existing_data_dict : dict
@@ -1715,7 +1715,7 @@ existing_data_dict : dict
 new_data_dict : dict
     A merged dictionary that contains all possible input data to be used
 """
-def update_status(property_key, normalized_type, request, user_token, existing_data_dict, new_data_dict):
+def update_status(property_key, normalized_type, request_args, user_token, existing_data_dict, new_data_dict):
     if 'uuid' not in existing_data_dict:
         raise KeyError("Missing 'uuid' key in 'existing_data_dict' during calling 'update_status()' trigger method.")
     uuid = existing_data_dict['uuid']
@@ -1724,7 +1724,7 @@ def update_status(property_key, normalized_type, request, user_token, existing_d
         raise KeyError("Missing 'status' key in 'existing_data_dict' during calling 'update_status()' trigger method.")
     status = existing_data_dict['status']
 
-    set_status_history(property_key, normalized_type, request, user_token, existing_data_dict, new_data_dict)
+    set_status_history(property_key, normalized_type, request_args, user_token, existing_data_dict, new_data_dict)
 
     # Only apply to non-published parent datasets
     if status.lower() != 'published':
@@ -1737,7 +1737,7 @@ def update_status(property_key, normalized_type, request, user_token, existing_d
             # When the parent dataset status update disables reindex via query string '?reindex=false'
             # We'll also disable the reindex call to search-api upon each subsequent child component dataset update
             reindex = 'followed'
-            if schema_manager.suppress_reindex(request): 
+            if schema_manager.suppress_reindex(request_args): 
                 url += '?reindex=false'
                 reindex = 'suppressed'
 
@@ -1774,8 +1774,8 @@ property_key : str
     The target property key
 normalized_type : str
     One of the types defined in the schema yaml: Donor
-request: Flask request object
-    The instance of Flask request passed in from application request
+request_args: ImmutableMultiDict
+    The Flask request.args passed in from application request
 user_token: str
     The user's globus nexus token
 existing_data_dict : dict
@@ -1783,7 +1783,7 @@ existing_data_dict : dict
 new_data_dict : dict
     A merged dictionary that contains all possible input data to be used
 """
-def link_donor_to_lab(property_key, normalized_type, request, user_token, existing_data_dict, new_data_dict):
+def link_donor_to_lab(property_key, normalized_type, request_args, user_token, existing_data_dict, new_data_dict):
     if 'uuid' not in existing_data_dict:
         raise KeyError("Missing 'uuid' key in 'existing_data_dict' during calling 'link_donor_to_lab()' trigger method.")
 
@@ -1796,7 +1796,7 @@ def link_donor_to_lab(property_key, normalized_type, request, user_token, existi
     direct_ancestor_uuids = [existing_data_dict['group_uuid']]
 
     # Generate property values for Activity node
-    activity_data_dict = schema_manager.generate_activity_data(normalized_type, request, user_token, existing_data_dict)
+    activity_data_dict = schema_manager.generate_activity_data(normalized_type, request_args, user_token, existing_data_dict)
 
     try:
         # Create a linkage (via Activity node) 
@@ -1847,8 +1847,8 @@ property_key : str
     The target property key of the value to be generated
 normalized_type : str
     One of the types defined in the schema yaml: Sample
-request: Flask request object
-    The instance of Flask request passed in from application request
+request_args: ImmutableMultiDict
+    The Flask request.args passed in from application request
 user_token: str
     The user's globus nexus token
 existing_data_dict : dict
@@ -1861,8 +1861,8 @@ Returns
 str: The target property key
 list: The file info dicts in a list
 """
-def commit_metadata_files(property_key, normalized_type, request, user_token, existing_data_dict, new_data_dict, generated_dict):
-    return _commit_files('metadata_files', property_key, normalized_type, request, user_token, existing_data_dict, new_data_dict, generated_dict)
+def commit_metadata_files(property_key, normalized_type, request_args, user_token, existing_data_dict, new_data_dict, generated_dict):
+    return _commit_files('metadata_files', property_key, normalized_type, request_args, user_token, existing_data_dict, new_data_dict, generated_dict)
 
 
 """
@@ -1882,8 +1882,8 @@ property_key : str
     The target property key
 normalized_type : str
     One of the types defined in the schema yaml: Sample
-request: Flask request object
-    The instance of Flask request passed in from application request
+request_args: ImmutableMultiDict
+    The Flask request.args passed in from application request
 user_token: str
     The user's globus nexus token
 existing_data_dict : dict
@@ -1900,8 +1900,8 @@ Returns
 str: The target property key
 list: The file info dicts in a list
 """
-def delete_metadata_files(property_key, normalized_type, request, user_token, existing_data_dict, new_data_dict, generated_dict):
-    return _delete_files('metadata_files', property_key, normalized_type, request, user_token, existing_data_dict, new_data_dict, generated_dict)
+def delete_metadata_files(property_key, normalized_type, request_args, user_token, existing_data_dict, new_data_dict, generated_dict):
+    return _delete_files('metadata_files', property_key, normalized_type, request_args, user_token, existing_data_dict, new_data_dict, generated_dict)
     
 
 """
@@ -1915,8 +1915,8 @@ property_key : str
     The target property key
 normalized_type : str
     One of the types defined in the schema yaml: Sample
-request: Flask request object
-    The instance of Flask request passed in from application request
+request_args: ImmutableMultiDict
+    The Flask request.args passed in from application request
 user_token: str
     The user's globus nexus token
 existing_data_dict : dict
@@ -1924,7 +1924,7 @@ existing_data_dict : dict
 new_data_dict : dict
     A merged dictionary that contains all possible input data to be used
 """
-def link_sample_to_direct_ancestor(property_key, normalized_type, request, user_token, existing_data_dict, new_data_dict):
+def link_sample_to_direct_ancestor(property_key, normalized_type, request_args, user_token, existing_data_dict, new_data_dict):
     if 'uuid' not in existing_data_dict:
         raise KeyError("Missing 'uuid' key in 'existing_data_dict' during calling 'link_sample_to_direct_ancestor()' trigger method.")
     if 'direct_ancestor_uuid' not in new_data_dict:
@@ -1944,7 +1944,7 @@ def link_sample_to_direct_ancestor(property_key, normalized_type, request, user_
     
     activity_uuid = schema_neo4j_queries.get_parent_activity_uuid_from_entity(schema_manager.get_neo4j_driver_instance(), sample_uuid)
     if not activity_uuid:
-        activity_data_dict = schema_manager.generate_activity_data(normalized_type, request, user_token, existing_data_dict)
+        activity_data_dict = schema_manager.generate_activity_data(normalized_type, request_args, user_token, existing_data_dict)
         activity_uuid = activity_data_dict['uuid']
         create_activity = True
     if new_ancestors:
@@ -1979,8 +1979,8 @@ property_key : str
     The target property key
 normalized_type : str
     One of the types defined in the schema yaml: Publication
-request: Flask request object
-    The instance of Flask request passed in from application request
+request_args: ImmutableMultiDict
+    The Flask request.args passed in from application request
 user_token: str
     The user's globus nexus token
 existing_data_dict : dict
@@ -1988,7 +1988,7 @@ existing_data_dict : dict
 new_data_dict : dict
     A merged dictionary that contains all possible input data to be used
 """
-def link_publication_to_associated_collection(property_key, normalized_type, request, user_token, existing_data_dict, new_data_dict):
+def link_publication_to_associated_collection(property_key, normalized_type, request_args, user_token, existing_data_dict, new_data_dict):
     if 'uuid' not in existing_data_dict:
         raise KeyError("Missing 'uuid' key in 'existing_data_dict' during calling 'link_publication_to_associated_collection()' trigger method.")
 
@@ -2021,8 +2021,8 @@ property_key : str
     The target property key of the value to be generated
 normalized_type : str
     One of the types defined in the schema yaml: Sample
-request: Flask request object
-    The instance of Flask request passed in from application request
+request_args: ImmutableMultiDict
+    The Flask request.args passed in from application request
 user_token: str
     The user's globus nexus token
 existing_data_dict : dict
@@ -2035,13 +2035,13 @@ Returns
 str: The target property key
 dict: The direct ancestor entity (either another Sample or a Donor) with all the normalized information
 """
-def get_sample_direct_ancestor(property_key, normalized_type, request, user_token, existing_data_dict, new_data_dict):
+def get_sample_direct_ancestor(property_key, normalized_type, request_args, user_token, existing_data_dict, new_data_dict):
     if 'uuid' not in existing_data_dict:
         raise KeyError("Missing 'uuid' key in 'existing_data_dict' during calling 'get_sample_direct_ancestor()' trigger method.")
     
     logger.info(f"Executing 'get_sample_direct_ancestor()' trigger method on uuid: {existing_data_dict['uuid']}")
 
-    neo4j_props_to_exclude = _get_excluded_neo4j_props(property_key, request)
+    neo4j_props_to_exclude = _get_excluded_neo4j_props(property_key, request_args)
 
     direct_ancestor_dict = schema_neo4j_queries.get_sample_direct_ancestor(schema_manager.get_neo4j_driver_instance(), existing_data_dict['uuid'], property_key = None, properties_to_exclude = neo4j_props_to_exclude)
 
@@ -2066,8 +2066,8 @@ property_key : str
     The target property key of the value to be generated
 normalized_type : str
     One of the types defined in the schema yaml: Publication
-request: Flask request object
-    The instance of Flask request passed in from application request
+request_args: ImmutableMultiDict
+    The Flask request.args passed in from application request
 user_token: str
     The user's globus nexus token
 existing_data_dict : dict
@@ -2079,7 +2079,7 @@ Returns
 -------
 str: The date part YYYY-MM-DD of ISO 8601
 """
-def set_publication_date(property_key, normalized_type, request, user_token, existing_data_dict, new_data_dict):
+def set_publication_date(property_key, normalized_type, request_args, user_token, existing_data_dict, new_data_dict):
     # We only store the date part 'YYYY-MM-DD', base on the ISO 8601 format, it's fine if the user entered the time part
     date_obj = datetime.fromisoformat(new_data_dict[property_key])
 
@@ -2097,8 +2097,8 @@ property_key : str
     The target property key of the value to be generated
 normalized_type : str
     One of the types defined in the schema yaml: Publication
-request: Flask request object
-    The instance of Flask request passed in from application request
+request_args: ImmutableMultiDict
+    The Flask request.args passed in from application request
 user_token: str
     The user's globus nexus token
 existing_data_dict : dict
@@ -2111,7 +2111,7 @@ Returns
 str: The target property key
 str: Immutable dataset_type of "Publication"
 """
-def set_publication_dataset_type(property_key, normalized_type, request, user_token, existing_data_dict, new_data_dict):
+def set_publication_dataset_type(property_key, normalized_type, request_args, user_token, existing_data_dict, new_data_dict):
     # Count upon the dataset_type generated: true property in provenance_schema.yaml to assure the
     # request does not contain a value which will be overwritten.
     return property_key, 'Publication'
@@ -2131,8 +2131,8 @@ property_key : str
     The target property key of the value to be generated
 normalized_type : str
     One of the types defined in the schema yaml: Upload
-request: Flask request object
-    The instance of Flask request passed in from application request
+request_args: ImmutableMultiDict
+    The Flask request.args passed in from application request
 user_token: str
     The user's globus nexus token
 existing_data_dict : dict
@@ -2145,7 +2145,7 @@ Returns
 str: The target property key
 str: The "New" status
 """
-def set_upload_status_new(property_key, normalized_type, request, user_token, existing_data_dict, new_data_dict):
+def set_upload_status_new(property_key, normalized_type, request_args, user_token, existing_data_dict, new_data_dict):
     return property_key, 'New'
 
 
@@ -2159,8 +2159,8 @@ property_key : str
     The target property key
 normalized_type : str
     One of the types defined in the schema yaml: Upload
-request: Flask request object
-    The instance of Flask request passed in from application request
+request_args: ImmutableMultiDict
+    The Flask request.args passed in from application request
 user_token: str
     The user's globus nexus token
 existing_data_dict : dict
@@ -2168,7 +2168,7 @@ existing_data_dict : dict
 new_data_dict : dict
     A merged dictionary that contains all possible input data to be used
 """
-def link_upload_to_lab(property_key, normalized_type, request, user_token, existing_data_dict, new_data_dict):
+def link_upload_to_lab(property_key, normalized_type, request_args, user_token, existing_data_dict, new_data_dict):
     if 'uuid' not in existing_data_dict:
         raise KeyError("Missing 'uuid' key in 'existing_data_dict' during calling 'link_upload_to_lab()' trigger method.")
 
@@ -2181,7 +2181,7 @@ def link_upload_to_lab(property_key, normalized_type, request, user_token, exist
     direct_ancestor_uuids = [existing_data_dict['group_uuid']]
 
     # Generate property values for Activity node
-    activity_data_dict = schema_manager.generate_activity_data(normalized_type, request, user_token, existing_data_dict)
+    activity_data_dict = schema_manager.generate_activity_data(normalized_type, request_args, user_token, existing_data_dict)
 
     try:
         # Create a linkage (via Activity node) 
@@ -2205,8 +2205,8 @@ property_key : str
     The target property key
 normalized_type : str
     One of the types defined in the schema yaml: Upload
-request: Flask request object
-    The instance of Flask request passed in from application request
+request_args: ImmutableMultiDict
+    The Flask request.args passed in from application request
 user_token: str
     The user's globus nexus token
 existing_data_dict : dict
@@ -2214,7 +2214,7 @@ existing_data_dict : dict
 new_data_dict : dict
     A merged dictionary that contains all possible input data to be used
 """
-def link_datasets_to_upload(property_key, normalized_type, request, user_token, existing_data_dict, new_data_dict):
+def link_datasets_to_upload(property_key, normalized_type, request_args, user_token, existing_data_dict, new_data_dict):
     if 'uuid' not in existing_data_dict:
         raise KeyError("Missing 'uuid' key in 'existing_data_dict' during calling 'link_datasets_to_upload()' trigger method.")
 
@@ -2248,8 +2248,8 @@ property_key : str
     The target property key
 normalized_type : str
     One of the types defined in the schema yaml: Upload
-request: Flask request object
-    The instance of Flask request passed in from application request
+request_args: ImmutableMultiDict
+    The Flask request.args passed in from application request
 user_token: str
     The user's globus nexus token
 existing_data_dict : dict
@@ -2257,7 +2257,7 @@ existing_data_dict : dict
 new_data_dict : dict
     A merged dictionary that contains all possible input data to be used
 """
-def unlink_datasets_from_upload(property_key, normalized_type, request, user_token, existing_data_dict, new_data_dict):
+def unlink_datasets_from_upload(property_key, normalized_type, request_args, user_token, existing_data_dict, new_data_dict):
     if 'uuid' not in existing_data_dict:
         raise KeyError("Missing 'uuid' key in 'existing_data_dict' during calling 'unlink_datasets_from_upload()' trigger method.")
 
@@ -2291,8 +2291,8 @@ property_key : str
     The target property key of the value to be generated
 normalized_type : str
     One of the types defined in the schema yaml: Upload
-request: Flask request object
-    The instance of Flask request passed in from application request
+request_args: ImmutableMultiDict
+    The Flask request.args passed in from application request
 user_token: str
     The user's globus nexus token
 existing_data_dict : dict
@@ -2304,13 +2304,13 @@ Returns
 str: The target property key
 list: A list of associated dataset dicts with all the normalized information
 """
-def get_upload_datasets(property_key, normalized_type, request, user_token, existing_data_dict, new_data_dict):
+def get_upload_datasets(property_key, normalized_type, request_args, user_token, existing_data_dict, new_data_dict):
     if 'uuid' not in existing_data_dict:
         raise KeyError("Missing 'uuid' key in 'existing_data_dict' during calling 'get_upload_datasets()' trigger method.")
 
     logger.info(f"Executing 'get_upload_datasets()' trigger method on uuid: {existing_data_dict['uuid']}")
 
-    neo4j_props_to_exclude = _get_excluded_neo4j_props(property_key, request)
+    neo4j_props_to_exclude = _get_excluded_neo4j_props(property_key, request_args)
 
     datasets_list = schema_neo4j_queries.get_upload_datasets(schema_manager.get_neo4j_driver_instance(), existing_data_dict['uuid'], property_key = None, properties_to_exclude = neo4j_props_to_exclude)
 
@@ -2341,8 +2341,8 @@ property_key : str
     The target property key of the value to be generated
 normalized_type : str
     One of the types defined in the schema yaml: Activity
-request: Flask request object
-    The instance of Flask request passed in from application request
+request_args: ImmutableMultiDict
+    The Flask request.args passed in from application request
 user_token: str
     The user's globus nexus token
 existing_data_dict : dict
@@ -2355,7 +2355,7 @@ Returns
 str: The target property key
 str: The creation_action string
 """
-def set_activity_creation_action(property_key, normalized_type, request, user_token, existing_data_dict, new_data_dict):
+def set_activity_creation_action(property_key, normalized_type, request_args, user_token, existing_data_dict, new_data_dict):
     if 'normalized_entity_type' not in new_data_dict:
         raise KeyError("Missing 'normalized_entity_type' key in 'existing_data_dict' during calling 'set_activity_creation_action()' trigger method.")
     if new_data_dict and new_data_dict.get('creation_action'):
@@ -2400,8 +2400,8 @@ property_key : str
     The property key for which the original trigger method is defined
 normalized_type : str
     One of the types defined in the schema yaml: Donor, Sample
-request: Flask request object
-    The instance of Flask request passed in from application request
+request_args: ImmutableMultiDict
+    The Flask request.args passed in from application request
 user_token: str
     The user's globus nexus token
 existing_data_dict : dict
@@ -2415,7 +2415,7 @@ Returns
 -------
 dict: The updated generated dict
 """
-def _commit_files(target_property_key, property_key, normalized_type, request, user_token, existing_data_dict, new_data_dict, generated_dict):
+def _commit_files(target_property_key, property_key, normalized_type, request_args, user_token, existing_data_dict, new_data_dict, generated_dict):
     # Do nothing if no files to add are provided (missing or empty property)
     # For image files the property name is "image_files_to_add"
     # For metadata files the property name is "metadata_files_to_add"
@@ -2516,8 +2516,8 @@ property_key : str
     The property key for which the original trigger method is defined
 normalized_type : str
     One of the types defined in the schema yaml: Donor, Sample
-request: Flask request object
-    The instance of Flask request passed in from application request
+request_args: ImmutableMultiDict
+    The Flask request.args passed in from application request
 user_token: str
     The user's globus nexus token
 existing_data_dict : dict
@@ -2531,7 +2531,7 @@ Returns
 -------
 dict: The updated generated dict
 """
-def _delete_files(target_property_key, property_key, normalized_type, request, user_token, existing_data_dict, new_data_dict, generated_dict):
+def _delete_files(target_property_key, property_key, normalized_type, request_args, user_token, existing_data_dict, new_data_dict, generated_dict):
     #do nothing if no files to delete are provided in the field specified by property_key
     if (not property_key in new_data_dict) or (not new_data_dict[property_key]):
         return generated_dict
@@ -2718,19 +2718,19 @@ Parameters
 ----------
 property_key : str
     The target property key of the value to be generated
-request: Flask request object
-    The instance of Flask request passed in from application request
+request_args: ImmutableMultiDict
+    The Flask request.args passed in from application request
 
 Returns
 -------
 list: A list containing Neo4j node properties to exclude
 """
-def _get_excluded_neo4j_props(property_key, request):
+def _get_excluded_neo4j_props(property_key, request_args):
     neo4j_props_to_exclude = []
 
     # Get all the user specified fields either top-level or nested from the original query string in request URL
     try:
-        all_props_to_exclude = schema_manager.get_excluded_query_props(request)
+        all_props_to_exclude = schema_manager.get_excluded_query_props(request_args)
     except ValueError as e:
         raise ValueError(e)
     except Exception as e:
