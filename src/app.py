@@ -95,7 +95,7 @@ else:
 
 # Read the secret key which may be submitted in HTTP Request Headers to override the lockout of
 # updates to entities with characteristics prohibiting their modification.
-# LOCKED_ENTITY_UPDATE_OVERRIDE_KEY = app.config['LOCKED_ENTITY_UPDATE_OVERRIDE_KEY']
+LOCKED_ENTITY_UPDATE_OVERRIDE_KEY = app.config['LOCKED_ENTITY_UPDATE_OVERRIDE_KEY']
 
 # Suppress InsecureRequestWarning warning when requesting status on https with ssl cert verify disabled
 requests.packages.urllib3.disable_warnings(category = InsecureRequestWarning)
