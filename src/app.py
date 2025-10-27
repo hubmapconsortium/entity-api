@@ -95,7 +95,7 @@ else:
 
 # Read the secret key which may be submitted in HTTP Request Headers to override the lockout of
 # updates to entities with characteristics prohibiting their modification.
-LOCKED_ENTITY_UPDATE_OVERRIDE_KEY = app.config['LOCKED_ENTITY_UPDATE_OVERRIDE_KEY']
+# LOCKED_ENTITY_UPDATE_OVERRIDE_KEY = app.config['LOCKED_ENTITY_UPDATE_OVERRIDE_KEY']
 
 # Suppress InsecureRequestWarning warning when requesting status on https with ssl cert verify disabled
 requests.packages.urllib3.disable_warnings(category = InsecureRequestWarning)
@@ -762,6 +762,8 @@ json
 """
 @app.route('/entities/<id>', methods = ['GET'])
 def get_entity_by_id(id):
+    global anS3Worker
+
     # Token is not required, but if an invalid token provided,
     # we need to tell the client with a 401 error
     validate_token_if_auth_header_exists(request)
@@ -900,6 +902,23 @@ def get_entity_by_id(id):
     if public_entity and not user_in_hubmap_read_group(request):
         final_result = schema_manager.exclude_properties_from_response(fields_to_exclude, final_result)
     
+    try:
+        resp_body = json.dumps(final_result).encode('utf-8')
+        s3_url = anS3Worker.stash_response_body_if_big(resp_body)
+        if s3_url is not None:
+            return Response(response=s3_url
+                            , status=303)  # See Other
+        # The HuBMAP Commons S3Worker will return None for a URL when the response body is
+        # smaller than it is configured to store, so the response should be returned through
+        # the AWS Gateway
+    except Exception as s3exception:
+        logger.error(f"Error using anS3Worker to handle len(resp_body)="
+                     f"{len(resp_body)}.")
+        logger.error(s3exception, exc_info=True)
+        return Response(response=f"Unexpected error storing large results in S3. See logs."
+                        , status=500)
+
+    # Return a regular response through the AWS Gateway
     return jsonify(final_result)
 
 
@@ -1616,6 +1635,8 @@ json
 """
 @app.route('/ancestors/<id>', methods = ['GET'])
 def get_ancestors(id):
+    global anS3Worker
+
     final_result = []
 
     # Token is not required, but if an invalid token provided,
@@ -1706,6 +1727,26 @@ def get_ancestors(id):
             else:
                 filtered_final_result.append(ancestor)
         final_result = filtered_final_result
+    
+    # Check the size of what is to be returned through the AWS Gateway, and replace it with
+    # a response that links to an Object in the AWS S3 Bucket, if appropriate.
+    try:
+        resp_body = json.dumps(final_result).encode('utf-8')
+        s3_url = anS3Worker.stash_response_body_if_big(resp_body)
+        if s3_url is not None:
+            return Response(response=s3_url
+                            , status=303)  # See Other
+        # The HuBMAP Commons S3Worker will return None for a URL when the response body is
+        # smaller than it is configured to store, so the response should be returned through
+        # the AWS Gateway
+    except Exception as s3exception:
+        logger.error(f"Error using anS3Worker to handle len(resp_body)="
+                     f"{len(resp_body)}.")
+        logger.error(s3exception, exc_info=True)
+        return Response(response=f"Unexpected error storing large results in S3. See logs."
+                        , status=500)
+    
+    # Return a regular response through the AWS Gateway
     return jsonify(final_result)
 
 
@@ -1824,6 +1865,7 @@ json
 """
 @app.route('/parents/<id>', methods = ['GET'])
 def get_parents(id):
+    global anS3Worker
     final_result = []
 
     # Token is not required, but if an invalid token provided,
@@ -1915,6 +1957,25 @@ def get_parents(id):
                 filtered_final_result.append(parent)
         final_result = filtered_final_result
 
+    # Check the size of what is to be returned through the AWS Gateway, and replace it with
+    # a response that links to an Object in the AWS S3 Bucket, if appropriate.
+    try:
+        resp_body = json.dumps(final_result).encode('utf-8')
+        s3_url = anS3Worker.stash_response_body_if_big(resp_body)
+        if s3_url is not None:
+            return Response(response=s3_url
+                            , status=303)  # See Other
+        # The HuBMAP Commons S3Worker will return None for a URL when the response body is
+        # smaller than it is configured to store, so the response should be returned through
+        # the AWS Gateway
+    except Exception as s3exception:
+        logger.error(f"Error using anS3Worker to handle len(resp_body)="
+                     f"{len(resp_body)}.")
+        logger.error(s3exception, exc_info=True)
+        return Response(response=f"Unexpected error storing large results in S3. See logs."
+                        , status=500)
+
+    # Return a regular response through the AWS Gateway
     return jsonify(final_result)
 
 
@@ -1935,6 +1996,8 @@ json
 """
 @app.route('/children/<id>', methods = ['GET'])
 def get_children(id):
+    global anS3Worker
+
     final_result = []
 
     # Get user token from Authorization header
@@ -1989,6 +2052,25 @@ def get_children(id):
         # Final result after normalization
         final_result = schema_manager.normalize_entities_list_for_response(complete_entities_list)
 
+    # Check the size of what is to be returned through the AWS Gateway, and replace it with
+    # a response that links to an Object in the AWS S3 Bucket, if appropriate.
+    try:
+        resp_body = json.dumps(final_result).encode('utf-8')
+        s3_url = anS3Worker.stash_response_body_if_big(resp_body)
+        if s3_url is not None:
+            return Response(response=s3_url
+                            , status=303)  # See Other
+        # The HuBMAP Commons S3Worker will return None for a URL when the response body is
+        # smaller than it is configured to store, so the response should be returned through
+        # the AWS Gateway
+    except Exception as s3exception:
+        logger.error(f"Error using anS3Worker to handle len(resp_body)="
+                     f"{len(resp_body)}.")
+        logger.error(s3exception, exc_info=True)
+        return Response(response=f"Unexpected error storing large results in S3. See logs."
+                        , status=500)
+    
+    # Return a regular response through the AWS Gateway
     return jsonify(final_result)
 
 
@@ -2012,6 +2094,8 @@ json
 """
 @app.route('/entities/<id>/siblings', methods = ['GET'])
 def get_siblings(id):
+    global anS3Worker
+
     final_result = []
 
     # Token is not required, but if an invalid token provided,
@@ -2081,39 +2165,60 @@ def get_siblings(id):
                 include_revisions = False
     sibling_list = app_neo4j_queries.get_siblings(neo4j_driver_instance, uuid, status, property_key, include_revisions)
     if property_key is not None:
-        return jsonify(sibling_list)
+        final_result =  sibling_list
     # Generate trigger data
     # Skip some of the properties that are time-consuming to generate via triggers
     # Also skip next_revision_uuid and previous_revision_uuid for Dataset to avoid additional
     # checks when the target Dataset is public but the revisions are not public
-    properties_to_skip = [
-        # Properties to skip for Sample
-        'direct_ancestor',
-        # Properties to skip for Dataset
-        'direct_ancestors',
-        'collections',
-        'upload',
-        'title',
-        'next_revision_uuid',
-        'previous_revision_uuid',
-        'associated_collection',
-        'creation_action',
-        'local_directory_rel_path'
-    ]
+    else:
+        properties_to_skip = [
+            # Properties to skip for Sample
+            'direct_ancestor',
+            # Properties to skip for Dataset
+            'direct_ancestors',
+            'collections',
+            'upload',
+            'title',
+            'next_revision_uuid',
+            'previous_revision_uuid',
+            'associated_collection',
+            'creation_action',
+            'local_directory_rel_path'
+        ]
 
-    complete_entities_list = schema_manager.get_complete_entities_list(request.args, token, sibling_list, properties_to_skip)
-    # Final result after normalization
-    final_result = schema_manager.normalize_entities_list_for_response(complete_entities_list)
-    filtered_final_result = []
-    for sibling in final_result:
-        sibling_entity_type = sibling.get('entity_type')
-        fields_to_exclude = schema_manager.get_fields_to_exclude(sibling_entity_type)
-        if public_entity and not user_in_hubmap_read_group(request):
-            filtered_sibling = schema_manager.exclude_properties_from_response(fields_to_exclude, sibling)
-            filtered_final_result.append(filtered_sibling)
-        else:
-            filtered_final_result.append(sibling)
-    final_result = filtered_final_result
+        complete_entities_list = schema_manager.get_complete_entities_list(request.args, token, sibling_list, properties_to_skip)
+        # Final result after normalization
+        output = schema_manager.normalize_entities_list_for_response(complete_entities_list)
+        filtered_final_result = []
+        for sibling in output:
+            sibling_entity_type = sibling.get('entity_type')
+            fields_to_exclude = schema_manager.get_fields_to_exclude(sibling_entity_type)
+            if public_entity and not user_in_hubmap_read_group(request):
+                filtered_sibling = schema_manager.exclude_properties_from_response(fields_to_exclude, sibling)
+                filtered_final_result.append(filtered_sibling)
+            else:
+                filtered_final_result.append(sibling)
+        final_result = filtered_final_result
+
+    # Check the size of what is to be returned through the AWS Gateway, and replace it with
+    # a response that links to an Object in the AWS S3 Bucket, if appropriate.
+    try:
+        resp_body = json.dumps(final_result).encode('utf-8')
+        s3_url = anS3Worker.stash_response_body_if_big(resp_body)
+        if s3_url is not None:
+            return Response(response=s3_url
+                            , status=303)  # See Other
+        # The HuBMAP Commons S3Worker will return None for a URL when the response body is
+        # smaller than it is configured to store, so the response should be returned through
+        # the AWS Gateway
+    except Exception as s3exception:
+        logger.error(f"Error using anS3Worker to handle len(resp_body)="
+                     f"{len(resp_body)}.")
+        logger.error(s3exception, exc_info=True)
+        return Response(response=f"Unexpected error storing large results in S3. See logs."
+                        , status=500)
+    
+    # Return a regular response through the AWS Gateway
     return jsonify(final_result)
 
 
@@ -2137,6 +2242,7 @@ json
 """
 @app.route('/entities/<id>/tuplets', methods = ['GET'])
 def get_tuplets(id):
+    global anS3Worker
     final_result = []
 
     # Token is not required, but if an invalid token provided,
@@ -2196,39 +2302,60 @@ def get_tuplets(id):
                 bad_request_error(f"Only the following property keys are supported in the query string: {COMMA_SEPARATOR.join(result_filtering_accepted_property_keys)}")
     tuplet_list = app_neo4j_queries.get_tuplets(neo4j_driver_instance, uuid, status, property_key)
     if property_key is not None:
-        return jsonify(tuplet_list)
+        final_result = tuplet_list
     # Generate trigger data
     # Skip some of the properties that are time-consuming to generate via triggers
     # Also skip next_revision_uuid and previous_revision_uuid for Dataset to avoid additional
     # checks when the target Dataset is public but the revisions are not public
-    properties_to_skip = [
-        # Properties to skip for Sample
-        'direct_ancestor',
-        # Properties to skip for Dataset
-        'direct_ancestors',
-        'collections',
-        'upload',
-        'title',
-        'next_revision_uuid',
-        'previous_revision_uuid',
-        'associated_collection',
-        'creation_action',
-        'local_directory_rel_path'
-    ]
+    else:
+        properties_to_skip = [
+            # Properties to skip for Sample
+            'direct_ancestor',
+            # Properties to skip for Dataset
+            'direct_ancestors',
+            'collections',
+            'upload',
+            'title',
+            'next_revision_uuid',
+            'previous_revision_uuid',
+            'associated_collection',
+            'creation_action',
+            'local_directory_rel_path'
+        ]
 
-    complete_entities_list = schema_manager.get_complete_entities_list(request.args, token, tuplet_list, properties_to_skip)
-    # Final result after normalization
-    final_result = schema_manager.normalize_entities_list_for_response(complete_entities_list)
-    filtered_final_result = []
-    for tuplet in final_result:
-        tuple_entity_type = tuplet.get('entity_type')
-        fields_to_exclude = schema_manager.get_fields_to_exclude(tuple_entity_type)
-        if public_entity and not user_in_hubmap_read_group(request):
-            filtered_tuplet = schema_manager.exclude_properties_from_response(fields_to_exclude, tuplet)
-            filtered_final_result.append(filtered_tuplet)
-        else:
-            filtered_final_result.append(tuplet)
-    final_result = filtered_final_result
+        complete_entities_list = schema_manager.get_complete_entities_list(request.args, token, tuplet_list, properties_to_skip)
+        # Final result after normalization
+        output = schema_manager.normalize_entities_list_for_response(complete_entities_list)
+        filtered_final_result = []
+        for tuplet in output:
+            tuple_entity_type = tuplet.get('entity_type')
+            fields_to_exclude = schema_manager.get_fields_to_exclude(tuple_entity_type)
+            if public_entity and not user_in_hubmap_read_group(request):
+                filtered_tuplet = schema_manager.exclude_properties_from_response(fields_to_exclude, tuplet)
+                filtered_final_result.append(filtered_tuplet)
+            else:
+                filtered_final_result.append(tuplet)
+        final_result = filtered_final_result
+    
+    # Check the size of what is to be returned through the AWS Gateway, and replace it with
+    # a response that links to an Object in the AWS S3 Bucket, if appropriate.
+    try:
+        resp_body = json.dumps(final_result).encode('utf-8')
+        s3_url = anS3Worker.stash_response_body_if_big(resp_body)
+        if s3_url is not None:
+            return Response(response=s3_url
+                            , status=303)  # See Other
+        # The HuBMAP Commons S3Worker will return None for a URL when the response body is
+        # smaller than it is configured to store, so the response should be returned through
+        # the AWS Gateway
+    except Exception as s3exception:
+        logger.error(f"Error using anS3Worker to handle len(resp_body)="
+                     f"{len(resp_body)}.")
+        logger.error(s3exception, exc_info=True)
+        return Response(response=f"Unexpected error storing large results in S3. See logs."
+                        , status=500)
+    
+    # Return a regular response through the AWS Gateway
     return jsonify(final_result)
 
 
