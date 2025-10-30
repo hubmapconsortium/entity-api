@@ -902,21 +902,12 @@ def get_entity_by_id(id):
     if public_entity and not user_in_hubmap_read_group(request):
         final_result = schema_manager.exclude_properties_from_response(fields_to_exclude, final_result)
     
-    try:
-        resp_body = json.dumps(final_result).encode('utf-8')
-        s3_url = anS3Worker.stash_response_body_if_big(resp_body)
-        if s3_url is not None:
-            return Response(response=s3_url
-                            , status=303)  # See Other
-        # The HuBMAP Commons S3Worker will return None for a URL when the response body is
-        # smaller than it is configured to store, so the response should be returned through
-        # the AWS Gateway
-    except Exception as s3exception:
-        logger.error(f"Error using anS3Worker to handle len(resp_body)="
-                     f"{len(resp_body)}.")
-        logger.error(s3exception, exc_info=True)
-        return Response(response=f"Unexpected error storing large results in S3. See logs."
-                        , status=500)
+    # Check the size of what is to be returned through the AWS Gateway, and replace it with
+    # a response that links to an Object in the AWS S3 Bucket, if appropriate.
+    resp_body = json.dumps(final_result).encode('utf-8')
+    try_resp = try_stash_response_body(resp_body)
+    if try_resp is not None:
+        return try_resp
 
     # Return a regular response through the AWS Gateway
     return jsonify(final_result)
@@ -1730,21 +1721,10 @@ def get_ancestors(id):
     
     # Check the size of what is to be returned through the AWS Gateway, and replace it with
     # a response that links to an Object in the AWS S3 Bucket, if appropriate.
-    try:
-        resp_body = json.dumps(final_result).encode('utf-8')
-        s3_url = anS3Worker.stash_response_body_if_big(resp_body)
-        if s3_url is not None:
-            return Response(response=s3_url
-                            , status=303)  # See Other
-        # The HuBMAP Commons S3Worker will return None for a URL when the response body is
-        # smaller than it is configured to store, so the response should be returned through
-        # the AWS Gateway
-    except Exception as s3exception:
-        logger.error(f"Error using anS3Worker to handle len(resp_body)="
-                     f"{len(resp_body)}.")
-        logger.error(s3exception, exc_info=True)
-        return Response(response=f"Unexpected error storing large results in S3. See logs."
-                        , status=500)
+    resp_body = json.dumps(final_result).encode('utf-8')
+    try_resp = try_stash_response_body(resp_body)
+    if try_resp is not None:
+        return try_resp
     
     # Return a regular response through the AWS Gateway
     return jsonify(final_result)
@@ -1825,22 +1805,11 @@ def get_descendants(id):
 
     # Check the size of what is to be returned through the AWS Gateway, and replace it with
     # a response that links to an Object in the AWS S3 Bucket, if appropriate.
-    try:
-        resp_body = json.dumps(final_result).encode('utf-8')
-        s3_url = anS3Worker.stash_response_body_if_big(resp_body)
-        if s3_url is not None:
-            return Response(response=s3_url
-                            , status=303)  # See Other
-        # The HuBMAP Commons S3Worker will return None for a URL when the response body is
-        # smaller than it is configured to store, so the response should be returned through
-        # the AWS Gateway
-    except Exception as s3exception:
-        logger.error(f"Error using anS3Worker to handle len(resp_body)="
-                     f"{len(resp_body)}.")
-        logger.error(s3exception, exc_info=True)
-        return Response(response=f"Unexpected error storing large results in S3. See logs."
-                        , status=500)
-
+    resp_body = json.dumps(final_result).encode('utf-8')
+    try_resp = try_stash_response_body(resp_body)
+    if try_resp is not None:
+        return try_resp
+    
     # Return a regular response through the AWS Gateway
     return jsonify(final_result)
 
@@ -1959,22 +1928,11 @@ def get_parents(id):
 
     # Check the size of what is to be returned through the AWS Gateway, and replace it with
     # a response that links to an Object in the AWS S3 Bucket, if appropriate.
-    try:
-        resp_body = json.dumps(final_result).encode('utf-8')
-        s3_url = anS3Worker.stash_response_body_if_big(resp_body)
-        if s3_url is not None:
-            return Response(response=s3_url
-                            , status=303)  # See Other
-        # The HuBMAP Commons S3Worker will return None for a URL when the response body is
-        # smaller than it is configured to store, so the response should be returned through
-        # the AWS Gateway
-    except Exception as s3exception:
-        logger.error(f"Error using anS3Worker to handle len(resp_body)="
-                     f"{len(resp_body)}.")
-        logger.error(s3exception, exc_info=True)
-        return Response(response=f"Unexpected error storing large results in S3. See logs."
-                        , status=500)
-
+    resp_body = json.dumps(final_result).encode('utf-8')
+    try_resp = try_stash_response_body(resp_body)
+    if try_resp is not None:
+        return try_resp
+    
     # Return a regular response through the AWS Gateway
     return jsonify(final_result)
 
@@ -2054,21 +2012,10 @@ def get_children(id):
 
     # Check the size of what is to be returned through the AWS Gateway, and replace it with
     # a response that links to an Object in the AWS S3 Bucket, if appropriate.
-    try:
-        resp_body = json.dumps(final_result).encode('utf-8')
-        s3_url = anS3Worker.stash_response_body_if_big(resp_body)
-        if s3_url is not None:
-            return Response(response=s3_url
-                            , status=303)  # See Other
-        # The HuBMAP Commons S3Worker will return None for a URL when the response body is
-        # smaller than it is configured to store, so the response should be returned through
-        # the AWS Gateway
-    except Exception as s3exception:
-        logger.error(f"Error using anS3Worker to handle len(resp_body)="
-                     f"{len(resp_body)}.")
-        logger.error(s3exception, exc_info=True)
-        return Response(response=f"Unexpected error storing large results in S3. See logs."
-                        , status=500)
+    resp_body = json.dumps(final_result).encode('utf-8')
+    try_resp = try_stash_response_body(resp_body)
+    if try_resp is not None:
+        return try_resp
     
     # Return a regular response through the AWS Gateway
     return jsonify(final_result)
@@ -2202,21 +2149,10 @@ def get_siblings(id):
 
     # Check the size of what is to be returned through the AWS Gateway, and replace it with
     # a response that links to an Object in the AWS S3 Bucket, if appropriate.
-    try:
-        resp_body = json.dumps(final_result).encode('utf-8')
-        s3_url = anS3Worker.stash_response_body_if_big(resp_body)
-        if s3_url is not None:
-            return Response(response=s3_url
-                            , status=303)  # See Other
-        # The HuBMAP Commons S3Worker will return None for a URL when the response body is
-        # smaller than it is configured to store, so the response should be returned through
-        # the AWS Gateway
-    except Exception as s3exception:
-        logger.error(f"Error using anS3Worker to handle len(resp_body)="
-                     f"{len(resp_body)}.")
-        logger.error(s3exception, exc_info=True)
-        return Response(response=f"Unexpected error storing large results in S3. See logs."
-                        , status=500)
+    resp_body = json.dumps(final_result).encode('utf-8')
+    try_resp = try_stash_response_body(resp_body)
+    if try_resp is not None:
+        return try_resp
     
     # Return a regular response through the AWS Gateway
     return jsonify(final_result)
@@ -2339,21 +2275,10 @@ def get_tuplets(id):
     
     # Check the size of what is to be returned through the AWS Gateway, and replace it with
     # a response that links to an Object in the AWS S3 Bucket, if appropriate.
-    try:
-        resp_body = json.dumps(final_result).encode('utf-8')
-        s3_url = anS3Worker.stash_response_body_if_big(resp_body)
-        if s3_url is not None:
-            return Response(response=s3_url
-                            , status=303)  # See Other
-        # The HuBMAP Commons S3Worker will return None for a URL when the response body is
-        # smaller than it is configured to store, so the response should be returned through
-        # the AWS Gateway
-    except Exception as s3exception:
-        logger.error(f"Error using anS3Worker to handle len(resp_body)="
-                     f"{len(resp_body)}.")
-        logger.error(s3exception, exc_info=True)
-        return Response(response=f"Unexpected error storing large results in S3. See logs."
-                        , status=500)
+    resp_body = json.dumps(final_result).encode('utf-8')
+    try_resp = try_stash_response_body(resp_body)
+    if try_resp is not None:
+        return try_resp
     
     # Return a regular response through the AWS Gateway
     return jsonify(final_result)
@@ -3846,21 +3771,11 @@ def get_prov_info_for_dataset(id):
         writer.writerows(dataset_prov_list)
         new_tsv_file.seek(0)
         resp_body = new_tsv_file.read()
-
-    # Check the size of what is to be returned through the AWS Gateway, and replace it with
-    # a response that links to an Object in the AWS S3 Bucket, if appropriate.
-    try:
-        s3_url = anS3Worker.stash_response_body_if_big(resp_body)
-        if s3_url is not None:
-            return Response(response=s3_url
-                            , status=303)  # See Other
-    except Exception as s3exception:
-        logger.error(f"Error using anS3Worker to handle len(resp_body)="
-                     f"{len(resp_body)}.")
-        logger.error(s3exception, exc_info=True)
-        return Response(response=f"Unexpected error storing large results in S3. See logs."
-                        , status=500)
-
+    
+    try_resp = try_stash_response_body(resp_body)
+    if try_resp is not None:
+        return try_resp
+    
     # Return a regular response through the AWS Gateway
     if return_json:
         return jsonify(dataset_prov_list[0])
@@ -4588,6 +4503,25 @@ def validate_token_if_auth_header_exists(request):
 
         if isinstance(user_info, Response):
             unauthorized_error(user_info.get_data().decode())
+
+
+def try_stash_response_body(resp_body):
+    try:
+        s3_url = anS3Worker.stash_response_body_if_big(resp_body)
+        if s3_url is not None:
+            return Response(response=s3_url
+                            , status=303)  # See Other
+        # The HuBMAP Commons S3Worker will return None for a URL when the response body is
+        # smaller than it is configured to store, so the response should be returned through
+        # the AWS Gateway
+    except Exception as s3exception:
+        logger.error(f"Error using anS3Worker to handle len(resp_body)="
+                     f"{len(resp_body)}.")
+        logger.error(s3exception, exc_info=True)
+        return Response(response=f"Unexpected error storing large results in S3. See logs."
+                        , status=500)
+    return None
+    
 
 
 """
