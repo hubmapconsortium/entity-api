@@ -106,7 +106,7 @@ else
         cp ../VERSION entity-api
         cp ../BUILD entity-api
 
-	docker compose -f docker-compose.yml -f docker-compose.development.yml -p entity-api build
+	docker compose -f docker-compose.yml -f docker-compose.development.yml -p entity-api build --no-cache
     elif [ "$1" = "start" ]; then
 	docker compose -f docker-compose.yml -f docker-compose.development.yml -p entity-api up -d
     elif [ "$1" = "stop" ]; then

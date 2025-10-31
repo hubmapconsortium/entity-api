@@ -12,7 +12,7 @@ nested-lookup==0.2.22
 
 # The commons package requires requests>=2.22.0 and PyYAML>=5.3.1
 requests==2.32.3
-PyYAML==5.4.1
+PyYAML==6.0.3
 
 # Use the published package from PyPI as default
 # Use the branch name of commons from github for testing new changes made in commons from different branch
