@@ -2841,7 +2841,8 @@ def get_globus_url(id):
 
     # The user is in the Globus group with full access to thie dataset,
     # so they have protected level access to it
-    if ('hmgroupids' in user_info) and (group_uuid in user_info['hmgroupids']):
+    protected_group_uuid = auth_helper_instance.get_protected_data_group_uuid()
+    if 'hmgroupids' in user_info and (group_uuid in user_info['hmgroupids'] or (not protected_group_uuid is None and protected_group_uuid in user_info['hmgroupids'])):
         user_data_access_level = ACCESS_LEVEL_PROTECTED
     else:
         if not 'data_access_level' in user_info:
@@ -2875,6 +2876,10 @@ def get_globus_url(id):
         globus_server_uuid = app.config['GLOBUS_PROTECTED_ENDPOINT_UUID']
         access_dir = access_level_prefix_dir(app.config['PROTECTED_DATA_SUBDIR'])
         dir_path = dir_path + access_dir + group_name + "/"
+    elif (entity_data_access_level == ACCESS_LEVEL_PROTECTED) and (entity_dict['status'] == 'Published'):
+        globus_server_uuid = app.config['GLOBUS_PUBLIC_ENDPOINT_UUID']
+        access_dir = access_level_prefix_dir(app.config['PUBLIC_DATA_SUBDIR'])
+        dir_path = dir_path +  access_dir + "/"
 
     if globus_server_uuid is None:
         forbidden_error("Access not granted")
