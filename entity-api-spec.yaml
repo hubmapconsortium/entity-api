@@ -937,6 +937,10 @@ components:
           type: string
           readOnly: true
           description: 'The email address of the person or process authenticated when creating the object.'
+        associated_publication:
+          type: object
+          description: 'The publication associated with the given collection'
+          readOnly: true
         created_by_user_sub:
           type: string
           readOnly: true
