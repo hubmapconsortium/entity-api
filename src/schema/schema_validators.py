@@ -11,6 +11,7 @@ from schema import schema_errors
 from schema import schema_neo4j_queries
 from schema.schema_constants import SchemaConstants
 from hubmap_commons import hm_auth
+from app_neo4j_queries import get_entities_by_uuid
 
 logger = logging.getLogger(__name__)
 
@@ -692,6 +693,25 @@ new_data_dict : dict
     The json data in request body, already after the regular validations
 """
 def validate_ancestor_type(property_key, normalized_entity_type, request, existing_data_dict, new_data_dict):
+    allowed_ancestor_types = ["dataset", "sample"]
+    direct_ancestor_uuids = new_data_dict[property_key]
+    ancestors = get_entities_by_uuid(schema_manager.get_neo4j_driver_instance(), direct_ancestor_uuids, fields=["entity_type", "sample_category", "uuid"])
+    invalid_uuids = []
+    for ancestor in ancestors:
+        ancestor_uuid = ancestor['uuid']
+        ancestor_type = ancestor['entity_type']
+        ancestor_type_superclass = schema_manager.get_entity_superclass(ancestor_type)
+        ancestor_type_superclass = ancestor_type_superclass.lower() if ancestor_type_superclass is not None else None
+        if not any(t in allowed_ancestor_types for t in (ancestor_type.lower(), ancestor_type_superclass)):
+            invalid_uuids.append(ancestor_uuid)
+            continue
+        if ancestor_type.lower() == "sample":
+            sample_category = ancestor.get('sample_category')
+            if sample_category and sample_category.lower() == 'organ':
+                invalid_uuids.append(ancestor_uuid)
+                continue
+    if invalid_uuids:
+        raise ValueError(f"Invalid direct_ancestor_uuid(s). Allowed entity_types are: {', '.join(allowed_ancestor_types)} and their subclasses. For samples, 'organ' is not allowed.")
 
 
 """
