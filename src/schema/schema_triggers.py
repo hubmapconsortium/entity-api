@@ -853,7 +853,7 @@ new_data_dict : dict
 Returns
 -------
 str: The target property key
-dict: A dictionary representation of the associated collection with all the normalized information
+dict: A dictionary representation of the associated publication with all the normalized information
 """
 def get_collection_associated_publication(property_key, normalized_type, request_args, user_token, existing_data_dict, new_data_dict):
     if 'uuid' not in existing_data_dict:
@@ -861,11 +861,11 @@ def get_collection_associated_publication(property_key, normalized_type, request
 
     logger.info(f"Executing 'get_collection_associated_publication()' trigger method on uuid: {existing_data_dict['uuid']}")
 
-    collection_dict = schema_neo4j_queries.get_collection_associated_publication(schema_manager.get_neo4j_driver_instance(), existing_data_dict['uuid'])
+    publication_dict = schema_neo4j_queries.get_collection_associated_publication(schema_manager.get_neo4j_driver_instance(), existing_data_dict['uuid'])
 
     # Get rid of the entity node properties that are not defined in the yaml schema
     # as well as the ones defined as `exposed: false` in the yaml schema
-    return property_key, collection_dict
+    return property_key, publication_dict
 
 
 
