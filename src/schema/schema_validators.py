@@ -674,6 +674,25 @@ def validate_sample_category(property_key, normalized_entity_type, request, exis
     if new_data_dict[property_key] != sample_category:
         raise ValueError(f"The case of sample_category '{new_data_dict[property_key]}'"
                          f" must be specified as '{sample_category}'.")
+    
+"""
+Validate the provided value of Dataset.direct_ancestor on create via POST and update via PUT
+
+Parameters
+----------
+property_key : str
+    The target property key
+normalized_type : str
+    Submission
+request: Flask request object
+    The instance of Flask request passed in from application request
+existing_data_dict : dict
+    A dictionary that contains all existing entity properties
+new_data_dict : dict
+    The json data in request body, already after the regular validations
+"""
+def validate_ancestor_type(property_key, normalized_entity_type, request, existing_data_dict, new_data_dict):
+
 
 """
 Validate the provided value of Publication.publication_date is in the correct format against ISO 8601 Format: 
