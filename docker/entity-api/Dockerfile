@@ -37,27 +37,27 @@ EOF
 # 8 - Make the start script executable
 # 9 - Clean the dnf/yum cache and other locations to reduce Docker Image layer size.
 # Assume the base image has upgraded dnf and installed its dnf-plugins-core
- RUN dnf install --assumeyes nginx && \
-     # Push aside nginx default.conf files that may exist on the system
-     [ ! -f /etc/nginx/conf.d/default.conf ] || mv /etc/nginx/conf.d/default.conf /tmp/etc_nginx_conf.d_default.conf.ORIGINAL && \
-     [ ! -f /etc/nginx/nginx.conf ] || mv /etc/nginx/nginx.conf /tmp/etc_nginx_nginx.conf.ORIGINAL && \
-     # Install the nginx default.conf file just installed in WORKDIR
-     mv nginx/nginx.conf /etc/nginx/nginx.conf && \
-     # Clean up the nginx install directory in WORKDIR
-     [ ! -d nginx ] || mv nginx /tmp/nginx_from_WORKDIR && \
-     # Push aside the verification file from the base image which will
-     # no longer report correctly once uWSGI is started for the service.
-     [ ! -f /tmp/verify_uwsgi.sh ] || mv /tmp/verify_uwsgi.sh /tmp/verify_uwsgi.sh.ORIGINAL && \
-     # Install the requirements.txt file for the service
-     pip3.13 install --no-cache-dir --upgrade pip -r src/requirements.txt && \
-     # Make the script referenced in the CMD directive below executable.
-     chmod a+x start.sh && \
-     # Clean up artifacts to slim down this layer of the Docker Image
-     dnf clean all && \
-     rm -rf /var/cache/dnf \
-            /var/log/dnf \
-     	     /var/log/yum \
-     	     /root/.cache
+RUN dnf install --assumeyes nginx && \
+    # Push aside nginx default.conf files that may exist on the system
+    [ ! -f /etc/nginx/conf.d/default.conf ] || mv /etc/nginx/conf.d/default.conf /tmp/etc_nginx_conf.d_default.conf.ORIGINAL && \
+    [ ! -f /etc/nginx/nginx.conf ] || mv /etc/nginx/nginx.conf /tmp/etc_nginx_nginx.conf.ORIGINAL && \
+    # Install the nginx default.conf file just installed in WORKDIR
+    mv nginx/nginx.conf /etc/nginx/nginx.conf && \
+    # Clean up the nginx install directory in WORKDIR
+    [ ! -d nginx ] || mv nginx /tmp/nginx_from_WORKDIR && \
+    # Push aside the verification file from the base image which will
+    # no longer report correctly once uWSGI is started for the service.
+    [ ! -f /tmp/verify_uwsgi.sh ] || mv /tmp/verify_uwsgi.sh /tmp/verify_uwsgi.sh.ORIGINAL && \
+    # Install the requirements.txt file for the service
+    pip3.13 install --no-cache-dir --upgrade pip -r src/requirements.txt && \
+    # Make the script referenced in the CMD directive below executable.
+    chmod a+x start.sh && \
+    # Clean up artifacts to slim down this layer of the Docker Image
+    dnf clean all && \
+    rm -rf /var/cache/dnf \
+        /var/log/dnf \
+        /var/log/yum \
+        /root/.cache
 
 # The EXPOSE instruction informs Docker that the container listens on the specified network ports at runtime. 
 # EXPOSE does not make the ports of the container accessible to the host.
