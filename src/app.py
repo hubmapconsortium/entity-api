@@ -5383,7 +5383,6 @@ def delete_cache(entity_uuid, entity_type):
         collection_uuids = []
         dataset_upload_dict = {}
         publication_collection_dict = {}
-        collection_publication_uuid = []
 
         # Determine the associated cache keys based on the entity type
         # For Donor/Datasets/Sample/Publication, delete the cache of all the descendants
@@ -5393,7 +5392,6 @@ def delete_cache(entity_uuid, entity_type):
         # For Collection/Epicollection, delete the cache for each of its associated datasets (via [:IN_COLLECTION])
         if schema_manager.entity_type_instanceof(entity_type, 'Collection'):
             collection_dataset_uuids = schema_neo4j_queries.get_collection_associated_datasets(neo4j_driver_instance, entity_uuid , 'uuid')
-            collection_publication_uuid = schema_neo4j_queries.get_collection_associated_publication(neo4j_driver_instance, entity_uuid)['uuid']
 
         # For Upload, delete the cache for each of its associated Datasets (via [:IN_UPLOAD])
         if entity_type == 'Upload':
@@ -5409,7 +5407,7 @@ def delete_cache(entity_uuid, entity_type):
             publication_collection_dict = schema_neo4j_queries.get_publication_associated_collection(neo4j_driver_instance, entity_uuid)
             
         # We only use uuid in the cache key acorss all the cache types
-        uuids_list = [entity_uuid] + descendant_uuids + collection_dataset_uuids + upload_dataset_uuids + collection_uuids + [collection_publication_uuid]
+        uuids_list = [entity_uuid] + descendant_uuids + collection_dataset_uuids + upload_dataset_uuids + collection_uuids
 
         # Add to the list if the target dataset has linked upload
         if dataset_upload_dict:
