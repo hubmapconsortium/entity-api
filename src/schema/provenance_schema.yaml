@@ -308,6 +308,15 @@ ENTITIES:
         indexed: true
         description: "The displayname of globus group which the user who created this entity is a member of"
         before_create_trigger: set_group_name #same as group_uuid, except set group_name
+      associated_publication:
+        type: json_string #dict
+        generated: true
+        indexed: true
+        transient: true
+        description: "A JSON containing the UUID, HuBMAP_ID, and Title for the associated publication"
+        on_read_trigger: get_collection_associated_publication
+        on_index_trigger: get_collection_associated_publication
+
 
 
   ############################################# Dataset #############################################
@@ -786,9 +795,6 @@ ENTITIES:
         type: string
         indexed: true
         description: 'A DOI pointing to an Organ Mapping Antibody Panel relevant to this publication'
-      
-      # NOTE: As of 5/30/2025, the [:USES_DATA] workaround has been deprecated.
-      # Still keep it in the code until further decision - Zhou
       associated_collection:
         type: json_string # dict
         generated: true

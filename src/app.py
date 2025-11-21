@@ -5403,8 +5403,6 @@ def delete_cache(entity_uuid, entity_type):
             dataset_upload_dict = schema_neo4j_queries.get_dataset_upload(neo4j_driver_instance, entity_uuid)
 
         # For Publication, also delete cache of the associated collection
-        # NOTE: As of 5/30/2025, the [:USES_DATA] workaround has been deprecated.
-        # Still keep it in the code until further decision - Zhou
         if entity_type == 'Publication':
             publication_collection_dict = schema_neo4j_queries.get_publication_associated_collection(neo4j_driver_instance, entity_uuid)
             
