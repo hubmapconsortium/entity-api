@@ -463,10 +463,12 @@ ENTITIES:
         type: list
         before_property_create_validators:
           - validate_no_duplicates_in_list
+          - validate_ancestor_type
         before_property_update_validators:
           - validate_no_duplicates_in_list
           - validate_not_invalid_creation_action
           - validate_id_not_in_direct_ancestor
+          - validate_ancestor_type
         transient: true
         exposed: false
         indexed: false

@@ -227,6 +227,34 @@ def get_entity_superclass(normalized_entity_class):
 
 
 """
+Get the optional subclass (if defined) of the given entity class
+
+Parameters
+----------
+normalized_entity_class : str
+    The normalized target entity class
+
+Returns
+-------
+string or None
+    One of the normalized entity classes if defined. None otherwise
+"""
+def get_entity_subclasses(normalized_entity_class):
+    subclasses = []
+    all_entity_types = get_all_entity_types()
+
+    if normalized_entity_class not in all_entity_types:
+        raise ValueError(f"Unrecognized entity class: {normalized_entity_class}")
+
+    for name, data in _schema["ENTITIES"].items():
+        superclass = data.get("superclass")
+        if superclass and normalize_entity_type(superclass) == normalized_entity_class:
+            subclasses.append(normalize_entity_type(name))
+
+    return subclasses
+
+
+"""
 Determine if the Entity type with 'entity_type' is an instance of 'entity_class'.
 Use this function if you already have the Entity type. Use `entity_instanceof(uuid, class)` 
 if you just have the Entity uuid.
