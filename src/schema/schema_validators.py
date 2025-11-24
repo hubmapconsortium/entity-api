@@ -674,6 +674,34 @@ def validate_sample_category(property_key, normalized_entity_type, request, exis
     if new_data_dict[property_key] != sample_category:
         raise ValueError(f"The case of sample_category '{new_data_dict[property_key]}'"
                          f" must be specified as '{sample_category}'.")
+    
+"""
+Validate the provided value of Dataset.direct_ancestor on create via POST and update via PUT
+
+Parameters
+----------
+property_key : str
+    The target property key
+normalized_type : str
+    Submission
+request: Flask request object
+    The instance of Flask request passed in from application request
+existing_data_dict : dict
+    A dictionary that contains all existing entity properties
+new_data_dict : dict
+    The json data in request body, already after the regular validations
+"""
+def validate_ancestor_type(property_key, normalized_entity_type, request, existing_data_dict, new_data_dict):
+    allowed_ancestor_types = ["Dataset", "Sample"]
+    for allowed_ancestor in list(allowed_ancestor_types):
+        subclasses = schema_manager.get_entity_subclasses(schema_manager.normalize_entity_type(allowed_ancestor))
+        allowed_ancestor_types.extend(subclasses)
+    direct_ancestor_uuids = new_data_dict[property_key]
+    disallowed_properties = [{"property": "sample_category", "value": "organ"}]
+    invalid_uuids = schema_neo4j_queries.validate_direct_ancestors(schema_manager.get_neo4j_driver_instance(), direct_ancestor_uuids, allowed_ancestor_types, disallowed_properties)
+    if invalid_uuids:
+        raise ValueError(f"Invalid or not-found direct_ancestor_uuid(s). Allowed entity_types are: {', '.join(allowed_ancestor_types)}. For samples, 'organ' is not allowed. Invalid uuids: {', '.join(invalid_uuids)}")
+
 
 """
 Validate the provided value of Publication.publication_date is in the correct format against ISO 8601 Format: 
