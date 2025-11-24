@@ -1828,22 +1828,15 @@ def create_activity_tx(tx, activity_data_dict):
 def validate_direct_ancestors(neo4j_driver, entity_uuids, allowed_types, disallowed_property_values=None):
     disallowed_rules_list = disallowed_property_values
     query = """
-    UNWIND $uuids AS uid
-    OPTIONAL MATCH (n) WHERE n.uuid = uid
-    WITH uid, n,
-         CASE
-           WHEN n IS NULL THEN false
-           ELSE any(l IN labels(n) WHERE l IN $allowed_labels)
-         END AS label_ok,
-         $disallowed AS rules
-    WITH uid, label_ok, 
-         any(rule IN rules WHERE 
-             n IS NOT NULL 
-             AND n[rule.property] IS NOT NULL 
-             AND n[rule.property] = rule.value
-         ) AS has_forbidden_prop
+    MATCH (n)
+    WHERE n.uuid IN $uuids
+    WITH n,
+        any(l IN labels(n) WHERE l IN $allowed_labels) AS label_ok,
+        $disallowed AS rules
+    WITH n, label_ok,
+        any(rule IN rules WHERE n[rule.property] IS NOT NULL AND n[rule.property] = rule.value) AS has_forbidden_prop
     WHERE NOT label_ok OR has_forbidden_prop
-    RETURN DISTINCT uid AS invalid_uuid
+    RETURN DISTINCT n.uuid AS invalid_uuid
     """
     with neo4j_driver.session() as session:
         result = session.run(query, 
