@@ -11,7 +11,6 @@ from schema import schema_errors
 from schema import schema_neo4j_queries
 from schema.schema_constants import SchemaConstants
 from hubmap_commons import hm_auth
-from app_neo4j_queries import get_entities_by_uuid
 
 logger = logging.getLogger(__name__)
 
