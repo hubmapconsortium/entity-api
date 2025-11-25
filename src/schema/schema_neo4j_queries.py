@@ -839,8 +839,6 @@ associated_collection_uuid : str
     the uuid of the associated collection
 """
 def link_publication_to_associated_collection(neo4j_driver, entity_uuid, associated_collection_uuid):
-    # NOTE: As of 5/30/2025, the [:USES_DATA] workaround has been deprecated.
-    # Still keep it in the code until further decision - Zhou
     try:
         with neo4j_driver.session() as session:
             tx = session.begin_transaction()
@@ -1109,9 +1107,6 @@ list
 """
 def get_collection_associated_datasets(neo4j_driver, uuid, property_key = None):
     results = []
-
-    # NOTE: As of 5/30/2025, the [:USES_DATA] workaround has been deprecated. 
-    # Still keep it in the code until further decision - Zhou
     if property_key:
         query = (f"MATCH (e:Entity)-[:IN_COLLECTION|:USES_DATA]->(c:Collection) "
                  f"WHERE c.uuid = '{uuid}' "
@@ -1210,9 +1205,6 @@ dict
 """
 def get_publication_associated_collection(neo4j_driver, uuid):
     result = {}
-
-    # NOTE: As of 5/30/2025, the [:USES_DATA] workaround has been deprecated.
-    # Still keep it in the code until further decision - Zhou
     query = (f"MATCH (p:Publication)-[:USES_DATA]->(c:Collection) "
              f"WHERE p.uuid = '{uuid}' "
              f"RETURN c as {record_field_name}")
@@ -1228,6 +1220,41 @@ def get_publication_associated_collection(neo4j_driver, uuid):
             result = node_to_dict(record[record_field_name])
 
     return result
+
+
+"""
+Get the associated collection for a given publication
+
+Parameters
+----------
+neo4j_driver : neo4j.Driver object
+    The neo4j database connection pool
+uuid : str
+    The uuid of publication
+property_key : str
+    A target property key for result filtering
+
+Returns
+-------
+dict
+    A dictionary representation of the chosen values
+"""
+def get_collection_associated_publication(neo4j_driver, uuid):
+    result = {}
+    query = (f"MATCH (p:Publication)-[:USES_DATA]->(c:Collection) "
+             f"WHERE c.uuid = '{uuid}' "
+             f"RETURN {{uuid: p.uuid, hubmap_id: p.hubmap_id, title: p.title}} AS publication")
+
+    logger.info("=====get_collection_associated_publication() query======")
+    logger.debug(query)
+
+    with neo4j_driver.session() as session:
+        record = session.run(query).single()
+        if record:
+            result = record["publication"]
+    return result
+
+
 
 """
 Get the associated Upload for a given dataset
@@ -2057,8 +2084,6 @@ uuid : str
     The uuid to target publication
 """
 def _delete_publication_associated_collection_linkages_tx(tx, uuid):
-    # NOTE: As of 5/30/2025, the [:USES_DATA] workaround has been deprecated.
-    # Still keep it in the code until further decision - Zhou
     query = (f"MATCH (p:Publication)-[r:USES_DATA]->(c:Collection) "
              f"WHERE p.uuid = '{uuid}' "
              f"DELETE r")
