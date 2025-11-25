@@ -83,7 +83,7 @@ else
 
         echo 'Checks complete, all good :)'
     elif [ "$1" = "config" ]; then
-        docker-compose -f docker-compose.yml -f docker-compose.development.yml -p entity-api config
+        docker compose -f docker-compose.yml -f docker-compose.development.yml -p entity-api config
     elif [ "$1" = "build" ]; then
         # Delete the copied source code dir if exists
         if [ -d "entity-api/src" ]; then
