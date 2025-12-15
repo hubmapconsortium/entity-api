@@ -2009,6 +2009,24 @@ def create_relationship_tx(tx, source_node_uuid, target_node_uuid, relationship,
 
     result = tx.run(query)
 
+"""
+Create multiple relationships between a target node and each node in
+a list of source nodes in neo4j
+
+Parameters
+----------
+tx : neo4j.Session object
+    The neo4j.Session object instance
+source_uuid_list : list[str]
+    A list of UUIDs for nodes which will have a relationship to the node with target_uuid
+target_uuid : str
+    The UUID of target node
+relationship : Neo4jRelationshipEnum
+    The string for the Neo4j relationship type between each source node and the target node.
+direction: str
+    The relationship direction of each source node to the target node: outgoing `->` or incoming `<-`
+    Neo4j CQL CREATE command supports only directional relationships
+"""
 def _create_relationships_unwind_tx(tx:Neo4jSession, source_uuid_list:list, target_uuid:str
                                    , relationship:Neo4jRelationshipEnum, direction:str)->None:
     logger.info("====== enter _create_relationships_unwind_tx() ======")
