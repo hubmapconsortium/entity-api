@@ -298,7 +298,8 @@ def verify_DOI_pair(property_key, normalized_entity_type, request, existing_data
                             f" the prefix {SchemaConstants.DOI_BASE_URL}.")
 
 """
-Validate every entity in a list is of entity_type accepted
+Validate every entity in a list is of entity_type that can be in a
+Collection and already exists in Neo4j. 
 
 Parameters
 ----------
@@ -318,41 +319,32 @@ def collection_entities_are_existing_datasets(property_key, normalized_entity_ty
     # Verify each UUID specified exists in the uuid-api, exists in Neo4j, and is for a Dataset before
     # proceeding with creation of Collection.
     bad_dataset_uuids = []
-    for dataset_uuid in new_data_dict['dataset_uuids']:
-        try:
-            ## The following code duplicates some functionality existing in app.py, in
-            ## query_target_entity(), which also deals with caching. In the future, the
-            ## validation logic shared by this file and app.py should become a utility
-            ## module, shared by validators as well as app.py.  But for now, the code
-            ## is repeated for the following.
+    dataset_uuid_list = new_data_dict['dataset_uuids']
+    if not dataset_uuid_list:
+        return
 
-            # Get cached ids if exist otherwise retrieve from UUID-API. Expect an
-            # Exception to be raised if not found.
-            dataset_uuid_entity = schema_manager.get_hubmap_ids(id=dataset_uuid)
+    existing_uuid_entities = schema_neo4j_queries.get_entities( neo4j_driver=schema_manager.get_neo4j_driver_instance()
+                                                                , uuid_list=dataset_uuid_list)
 
-            # If the uuid exists per the uuid-api, make sure it also exists as a Neo4j entity.
-            uuid = dataset_uuid_entity['uuid']
-            entity_dict = schema_neo4j_queries.get_entity(schema_manager.get_neo4j_driver_instance(), dataset_uuid)
+    # If any UUIDs which were passed in do not exist in Neo4j or are not Datasets, identify them
+    missing_uuid_set = set(dataset_uuid_list) - set(existing_uuid_entities)
+    if missing_uuid_set:
+        logger.info(f"Request for inclusion in Collection but not found in Neo4j:"
+                    f" {sorted(missing_uuid_set)}")
 
-            # If dataset_uuid is not found in Neo4j or is not for a Dataset, fail the validation.
-            if not entity_dict:
-                logger.info(f"Request for {dataset_uuid} inclusion in Collection,"
-                            f" but not found in Neo4j.")
-                bad_dataset_uuids.append(dataset_uuid)
-            elif entity_dict['entity_type'] != 'Dataset':
-                logger.info(f"Request for {dataset_uuid} inclusion in Collection,"
-                            f" but entity_type={entity_dict['entity_type']}, not Dataset.")
-                bad_dataset_uuids.append(dataset_uuid)
-        except Exception as nfe:
-            # If the dataset_uuid is not found, fail the validation.
-            logger.info(f"Request for {dataset_uuid} inclusion in Collection"
-                        f" failed uuid-api retrieval.")
-            bad_dataset_uuids.append(dataset_uuid)
+    non_dataset_uuid_set = set()
+    for uuid, neo4j_entity in existing_uuid_entities.items():
+        if neo4j_entity['entity_type'] != 'Dataset':
+            non_dataset_uuid_set.add(uuid)
+    if non_dataset_uuid_set:
+        logger.info(f"Request for inclusion in Collection, but non-Dataset entities in Neo4j:"
+                    f" {sorted(non_dataset_uuid_set)}")
+
     # If any uuids in the request dataset_uuids are not for an existing Dataset entity which
-    # exists in uuid-api and Neo4j, raise an Exception so the validation fails and the
-    # operation can be rejected.
-    if bad_dataset_uuids:
-        raise ValueError(f"Unable to find Datasets for {bad_dataset_uuids}.")
+    # exists in Neo4j, raise an Exception so the validation fails and the operation can be rejected.
+    if missing_uuid_set or non_dataset_uuid_set:
+        raise ValueError(f"Unable to find Datasets for"
+                            f" {sorted(missing_uuid_set.union(non_dataset_uuid_set))}")
 
 """
 Validate the provided value of Dataset.status on update via PUT
