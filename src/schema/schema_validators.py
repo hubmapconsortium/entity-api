@@ -323,8 +323,8 @@ def collection_entities_are_existing_datasets(property_key, normalized_entity_ty
     if not dataset_uuid_list:
         return
 
-    existing_datasets_list = schema_neo4j_queries.get_existing_dataset_entities(    neo4j_driver=schema_manager.get_neo4j_driver_instance()
-                                                                                    , dataset_uuid_list=dataset_uuid_list)
+    existing_datasets_list = schema_neo4j_queries.identify_existing_dataset_entities(   neo4j_driver=schema_manager.get_neo4j_driver_instance()
+                                                                                        , dataset_uuid_list=dataset_uuid_list)
 
     # If any UUIDs which were passed in do not exist in Neo4j or are not Datasets, identify them
     missing_uuid_set = set(dataset_uuid_list) - set(existing_datasets_list)

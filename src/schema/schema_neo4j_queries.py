@@ -127,7 +127,7 @@ dict
     A dictionary of entity details returned from the Cypher query, keyed by
     the uuid provided in uuid_list.
 """
-def get_existing_dataset_entities(neo4j_driver, dataset_uuid_list:list):
+def identify_existing_dataset_entities(neo4j_driver, dataset_uuid_list:list):
 
     if not dataset_uuid_list:
         return {}
