@@ -323,28 +323,16 @@ def collection_entities_are_existing_datasets(property_key, normalized_entity_ty
     if not dataset_uuid_list:
         return
 
-    existing_uuid_entities = schema_neo4j_queries.get_entities( neo4j_driver=schema_manager.get_neo4j_driver_instance()
-                                                                , uuid_list=dataset_uuid_list)
+    existing_datasets_list = schema_neo4j_queries.get_existing_dataset_entities(    neo4j_driver=schema_manager.get_neo4j_driver_instance()
+                                                                                    , dataset_uuid_list=dataset_uuid_list)
 
     # If any UUIDs which were passed in do not exist in Neo4j or are not Datasets, identify them
-    missing_uuid_set = set(dataset_uuid_list) - set(existing_uuid_entities)
+    missing_uuid_set = set(dataset_uuid_list) - set(existing_datasets_list)
     if missing_uuid_set:
-        logger.info(f"Request for inclusion in Collection but not found in Neo4j:"
+        logger.info(f"Only existing Datasets may be included in a Collection:"
                     f" {sorted(missing_uuid_set)}")
-
-    non_dataset_uuid_set = set()
-    for uuid, neo4j_entity in existing_uuid_entities.items():
-        if neo4j_entity['entity_type'] != 'Dataset':
-            non_dataset_uuid_set.add(uuid)
-    if non_dataset_uuid_set:
-        logger.info(f"Request for inclusion in Collection, but non-Dataset entities in Neo4j:"
-                    f" {sorted(non_dataset_uuid_set)}")
-
-    # If any uuids in the request dataset_uuids are not for an existing Dataset entity which
-    # exists in Neo4j, raise an Exception so the validation fails and the operation can be rejected.
-    if missing_uuid_set or non_dataset_uuid_set:
-        raise ValueError(f"Unable to find Datasets for"
-                            f" {sorted(missing_uuid_set.union(non_dataset_uuid_set))}")
+        raise ValueError(   f"Only existing Datasets may be included in a Collection, not these: "
+                            f" {sorted(missing_uuid_set)}")
 
 """
 Validate the provided value of Dataset.status on update via PUT

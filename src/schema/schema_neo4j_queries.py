@@ -127,20 +127,21 @@ dict
     A dictionary of entity details returned from the Cypher query, keyed by
     the uuid provided in uuid_list.
 """
-def get_entities(neo4j_driver, uuid_list):
+def get_existing_dataset_entities(neo4j_driver, dataset_uuid_list:list):
 
-    if not uuid_list:
+    if not dataset_uuid_list:
         return {}
 
     query = """
         MATCH (e:Entity)
         WHERE e.uuid IN $param_uuids
-        RETURN e.uuid AS uuid, e AS entity
+          AND e.entity_type='Dataset'
+        RETURN  e.uuid AS uuid
     """
 
     with neo4j_driver.session() as session:
-        results = session.run(query, param_uuids=uuid_list)
-        return {record["uuid"]: record["entity"] for record in results}
+        results = session.run(query, param_uuids=dataset_uuid_list)
+        return [record["uuid"] for record in results]
 
 """
 Get the uuids for each entity in a list that doesn't belong to a certain entity type. Uuids are ordered by type
