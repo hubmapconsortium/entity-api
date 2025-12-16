@@ -1,12 +1,13 @@
+import neo4j
 from neo4j.exceptions import TransactionError
-from schema.schema_constants import SchemaConstants
+from neo4j import Session as Neo4jSession
+from schema.schema_constants import SchemaConstants, Neo4jRelationshipEnum
 import logging
 
 logger = logging.getLogger(__name__)
 
 # The filed name of the single result record
 record_field_name = 'result'
-
 
 ####################################################################################################
 ## Functions can be called by app.py, schema_manager.py, and schema_triggers.py
@@ -109,7 +110,38 @@ def get_entity(neo4j_driver, uuid):
 
     return result
 
+"""
+Given a list of UUIDs, return a dict mapping uuid -> entity_node
+Only UUIDs present in Neo4j will be returned.
 
+Parameters
+----------
+neo4j_driver : neo4j.Driver object
+    The neo4j database connection pool
+uuid_list : list of str
+    The uuids of target entities to retrieve from Neo4j 
+
+Returns
+-------
+dict
+    A dictionary of entity details returned from the Cypher query, keyed by
+    the uuid provided in uuid_list.
+"""
+def identify_existing_dataset_entities(neo4j_driver, dataset_uuid_list:list):
+
+    if not dataset_uuid_list:
+        return {}
+
+    query = """
+        MATCH (e:Entity)
+        WHERE e.uuid IN $param_uuids
+          AND e.entity_type='Dataset'
+        RETURN  e.uuid AS uuid
+    """
+
+    with neo4j_driver.session() as session:
+        results = session.run(query, param_uuids=dataset_uuid_list)
+        return [record["uuid"] for record in results]
 
 """
 Get the uuids for each entity in a list that doesn't belong to a certain entity type. Uuids are ordered by type
@@ -889,13 +921,11 @@ def link_collection_to_datasets(neo4j_driver, collection_uuid, dataset_uuid_list
             _delete_collection_linkages_tx(tx=tx
                                            , uuid=collection_uuid)
 
-            # Create relationship from each member Dataset node to this Collection node
-            for dataset_uuid in dataset_uuid_list:
-                create_relationship_tx(tx=tx
-                                       , source_node_uuid=dataset_uuid
-                                       , direction='->'
-                                       , target_node_uuid=collection_uuid
-                                       , relationship='IN_COLLECTION')
+            _create_relationships_unwind_tx(tx=tx
+                                            , source_uuid_list=dataset_uuid_list
+                                            , target_uuid=collection_uuid
+                                            , relationship=Neo4jRelationshipEnum.IN_COLLECTION
+                                            , direction='->')
 
             tx.commit()
     except TransactionError as te:
@@ -1979,6 +2009,43 @@ def create_relationship_tx(tx, source_node_uuid, target_node_uuid, relationship,
     logger.debug(query)
 
     result = tx.run(query)
+
+"""
+Create multiple relationships between a target node and each node in
+a list of source nodes in neo4j
+
+Parameters
+----------
+tx : neo4j.Session object
+    The neo4j.Session object instance
+source_uuid_list : list[str]
+    A list of UUIDs for nodes which will have a relationship to the node with target_uuid
+target_uuid : str
+    The UUID of target node
+relationship : Neo4jRelationshipEnum
+    The string for the Neo4j relationship type between each source node and the target node.
+direction: str
+    The relationship direction of each source node to the target node: outgoing `->` or incoming `<-`
+    Neo4j CQL CREATE command supports only directional relationships
+"""
+def _create_relationships_unwind_tx(tx:Neo4jSession, source_uuid_list:list, target_uuid:str
+                                   , relationship:Neo4jRelationshipEnum, direction:str)->None:
+    logger.info("====== enter _create_relationships_unwind_tx() ======")
+    incoming = direction if direction == "<-" else "-"
+    outgoing = direction if direction == "->" else "-"
+
+    query = (
+        f"MATCH (t {{uuid: $target_uuid}}) "
+        f"UNWIND $source_uuid_list AS src_uuid "
+        f"MATCH (s {{uuid: src_uuid}}) "
+        f"CREATE (s){incoming}[r:{relationship.value}]{outgoing}(t) "
+        f"RETURN src_uuid AS linked_uuid"
+    )
+
+    result = tx.run(  query=query
+                    , target_uuid=target_uuid
+                    , source_uuid_list=source_uuid_list)
+    logger.info("====== returning from _create_relationships_unwind_tx() ======")
 
 """
 Execute one query to create all outgoing relationships from each node whose

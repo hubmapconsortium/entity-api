@@ -54,3 +54,13 @@ class TriggerTypeEnum(Enum):
     BEFORE_UPDATE = 'before_update_trigger'
     AFTER_CREATE = 'after_create_trigger'
     AFTER_UPDATE = 'after_update_trigger'
+
+# Define an enumeration of accepted Neo4j relationship types.
+class Neo4jRelationshipEnum(Enum):
+    ACTIVITY_INPUT = 'ACTIVITY_INPUT'
+    ACTIVITY_OUTPUT = 'ACTIVITY_INPUT'
+    IN_COLLECTION = 'IN_COLLECTION'
+    IN_UPLOAD = 'IN_UPLOAD'
+    REVISION_OF = 'REVISION_OF'
+    USES_DATA = 'USES_DATA'
+
