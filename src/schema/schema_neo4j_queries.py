@@ -916,7 +916,6 @@ def link_collection_to_datasets(neo4j_driver, collection_uuid, dataset_uuid_list
     try:
         with neo4j_driver.session() as session:
             tx = session.begin_transaction()
-
             # First delete all the old linkages between this Collection and its member Datasets
             _delete_collection_linkages_tx(tx=tx
                                            , uuid=collection_uuid)
@@ -2035,9 +2034,9 @@ def _create_relationships_unwind_tx(tx:Neo4jSession, source_uuid_list:list, targ
     outgoing = direction if direction == "->" else "-"
 
     query = (
-        f"MATCH (t {{uuid: $target_uuid}}) "
+        f"MATCH (t:Collection {{uuid: $target_uuid}}) "
         f"UNWIND $source_uuid_list AS src_uuid "
-        f"MATCH (s {{uuid: src_uuid}}) "
+        f"MATCH (s:Dataset {{uuid: src_uuid}}) "
         f"CREATE (s){incoming}[r:{relationship.value}]{outgoing}(t) "
         f"RETURN src_uuid AS linked_uuid"
     )
