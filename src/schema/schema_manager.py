@@ -9,6 +9,7 @@ from datetime import datetime
 
 # Don't confuse urllib (Python native library) with urllib3 (3rd-party library, requests also uses urllib3)
 from requests.packages.urllib3.exceptions import InsecureRequestWarning
+from werkzeug.datastructures import ImmutableMultiDict
 
 # Local modules
 from schema import schema_errors
@@ -18,6 +19,7 @@ from schema import schema_neo4j_queries
 from schema.schema_constants import SchemaConstants
 from schema.schema_constants import MetadataScopeEnum
 from schema.schema_constants import TriggerTypeEnum
+from schema.schema_constants import ReindexPriorityLevelEnum
 
 # HuBMAP commons
 from hubmap_commons.hm_auth import AuthHelper
@@ -2392,7 +2394,7 @@ def get_organ_types():
 
 """
 See if 'reindex' is a URL parameter passed in with the request and 
-if it indicates reindexing should be supressed. Default to reindexing in all other cases.
+if it indicates reindexing should be suppressed. Default to reindexing in all other cases.
 
 Parameters
 ----------
@@ -2414,6 +2416,35 @@ def suppress_reindex(request_args) -> bool:
     raise Exception(f"The value of the 'reindex' parameter must be True or False (case-insensitive)."
                     f" '{request_args.get('reindex')}' is not recognized.")
 
+"""
+See if 'reindex-priority' is a URL parameter passed in with the request, if it is valid, and
+if it is compatible with the calculated suppress_reindex() result. Default to 1 when not specified.
+
+Parameters
+----------
+request_args:
+    The Flask request.args passed in from application request
+
+calc_suppress_reindex:
+    The value returned from the suppress_reindex() method, if previously called. 
+Returns
+-------
+int value from the enumeration ReindexPriorityLevelEnum
+"""
+def get_reindex_priority(request_args:ImmutableMultiDict, calc_suppress_reindex:bool) -> int:
+    if calc_suppress_reindex and 'reindex-priority' in request_args:
+        raise Exception("Specifying a re-index priority is incompatible with suppressing re-indexing.")
+    if 'reindex-priority' not in request_args:
+        return ReindexPriorityLevelEnum.HIGH.value
+    try:
+        priority_int = int(request_args.get('reindex-priority'))
+    except ValueError as ve:
+        raise Exception("The value of the 'reindex-priority' parameter must be an integer.")
+    if priority_int not in ReindexPriorityLevelEnum:
+        raise Exception(f"The value of the 'reindex-priority' parameter must be"
+                        f" greater than or equal to {ReindexPriorityLevelEnum.HIGH.value} (high priority)"
+                        f" and less than or equal to {ReindexPriorityLevelEnum.LOW.value} (low priority).")
+    return priority_int
 
 ####################################################################################################
 ## Internal functions

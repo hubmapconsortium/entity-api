@@ -32,7 +32,7 @@ from schema import schema_errors
 from schema import schema_triggers
 from schema import schema_validators
 from schema import schema_neo4j_queries
-from schema.schema_constants import SchemaConstants
+from schema.schema_constants import SchemaConstants, ReindexPriorityLevelEnum
 from schema.schema_constants import DataVisibilityEnum
 from schema.schema_constants import MetadataScopeEnum
 from schema.schema_constants import TriggerTypeEnum
@@ -1185,9 +1185,12 @@ def create_entity(entity_type):
 
     # Check URL parameters before proceeding to any CRUD operations, halting on validation failures.
     #
-    # Check if re-indexing is to be suppressed after entity creation.
     try:
-        supress_reindex = schema_manager.suppress_reindex(request.args)
+        # Check if re-indexing is to be suppressed after entity creation.
+        suppress_reindex = schema_manager.suppress_reindex(request_args=request.args)
+        # Determine valid re-indexing priority using Request parameters.
+        reindex_priority = schema_manager.get_reindex_priority(request_args=request.args
+                                                               , calc_suppress_reindex=suppress_reindex)
     except Exception as e:
         bad_request_error(e)
 
@@ -1312,7 +1315,7 @@ def create_entity(entity_type):
     # Will also filter the result based on schema
     normalized_complete_dict = schema_manager.normalize_entity_result_for_response(complete_dict)
 
-    if supress_reindex:
+    if suppress_reindex:
         logger.log(level=logging.INFO
                    , msg=f"Re-indexing suppressed during creation of {complete_dict['entity_type']}"
                          f" with UUID {complete_dict['uuid']}")
@@ -1321,7 +1324,9 @@ def create_entity(entity_type):
         logger.log(level=logging.INFO
                    , msg=f"Re-indexing for creation of {complete_dict['entity_type']}"
                          f" with UUID {complete_dict['uuid']}")
-        reindex_entity(complete_dict['uuid'], user_token)
+        reindex_entity(uuid=complete_dict['uuid']
+                       , user_token=user_token
+                       , priority_level=reindex_priority)
 
     return jsonify(normalized_complete_dict)
 
@@ -1494,9 +1499,12 @@ def update_entity(id):
 
     # Check URL parameters before proceeding to any CRUD operations, halting on validation failures.
     #
-    # Check if re-indexing is to be suppressed after entity creation.
     try:
-        suppress_reindex = schema_manager.suppress_reindex(request.args)
+        # Check if re-indexing is to be suppressed after entity creation.
+        suppress_reindex = schema_manager.suppress_reindex(request_args=request.args)
+        # Determine valid re-indexing priority using Request parameters.
+        reindex_priority = schema_manager.get_reindex_priority(request_args=request.args
+                                                               , calc_suppress_reindex=suppress_reindex)
     except Exception as e:
         bad_request_error(e)
 
@@ -1594,7 +1602,9 @@ def update_entity(id):
         logger.log(level=logging.INFO
                    , msg=f"Re-indexing for modification of {normalized_entity_type}"
                          f" with UUID {entity_uuid}")
-        reindex_entity(entity_uuid, user_token)
+        reindex_entity(uuid=entity_uuid
+                       , user_token=user_token
+                       , priority_level=reindex_priority)
 
     # Do not return the updated dict to avoid computing overhead - 7/14/2023 by Zhou
     message_returned = f"The update request on {normalized_entity_type} of {id} has been accepted, the backend may still be processing"
@@ -4167,9 +4177,12 @@ def multiple_components():
 
     # Check URL parameters before proceeding to any CRUD operations, halting on validation failures.
     #
-    # Check if re-indexing is to be suppressed after entity creation.
     try:
-        suppress_reindex = schema_manager.suppress_reindex(request.args)
+        # Check if re-indexing is to be suppressed after entity creation.
+        suppress_reindex = schema_manager.suppress_reindex(request_args=request.args)
+        # Determine valid re-indexing priority using Request parameters.
+        reindex_priority = schema_manager.get_reindex_priority(request_args=request.args
+                                                               , calc_suppress_reindex=suppress_reindex)
     except Exception as e:
         bad_request_error(e)
 
@@ -4215,7 +4228,9 @@ def multiple_components():
             logger.log(level=logging.INFO
                        , msg=f"Re-indexing for multiple component creation of {complete_dict['entity_type']}"
                              f" with UUID {complete_dict['uuid']}")
-            reindex_entity(complete_dict['uuid'], user_token)
+            reindex_entity(uuid=complete_dict['uuid']
+                           , user_token=user_token
+                           , priority_level=reindex_priority)
         # Add back in dataset_link_abs_dir one last time
         normalized_complete_dict['dataset_link_abs_dir'] = dataset_link_abs_dir
         normalized_complete_entity_list.append(normalized_complete_dict)
@@ -5426,19 +5441,23 @@ Make a call to search-api to trigger reindex of this entity document in elastics
 
 Parameters
 ----------
-uuid : str
+uuid :
     The uuid of the target entity
-user_token: str
+user_token:
     The user's globus groups token
+priority_level:
+    Value from the enumeration ReindexPriorityLevelEnum
 """
-def reindex_entity(uuid, user_token):
+def reindex_entity(uuid:str, user_token:str, priority_level:int = ReindexPriorityLevelEnum.HIGH.value) -> None:
     headers = {
         'Authorization': f'Bearer {user_token}'
     }
 
     logger.info(f"Making a call to search-api to reindex uuid: {uuid}")
 
-    response = requests.put(f"{app.config['SEARCH_API_URL']}/reindex/{uuid}", headers = headers)
+    response = requests.put(f"{app.config['SEARCH_API_URL']}/reindex/{uuid}"
+                            , headers=headers
+                            , params={'priority': priority_level})
 
     # The reindex takes time, so 202 Accepted response status code indicates that
     # the request has been accepted for processing, but the processing has not been completed
