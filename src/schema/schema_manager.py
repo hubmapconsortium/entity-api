@@ -2406,6 +2406,9 @@ Returns
 bool
 """
 def suppress_reindex(request_args) -> bool:
+    # N.B. This logic should be the same as that used by
+    #      ingest-api app.py _suppress_reindex()
+    #      https://github.com/hubmapconsortium/ingest-api/blob/main/src/app.py
     if 'reindex' not in request_args:
         return False
     reindex_str = request_args.get('reindex').lower()
@@ -2432,6 +2435,9 @@ Returns
 int value from the enumeration ReindexPriorityLevelEnum
 """
 def get_reindex_priority(request_args:ImmutableMultiDict, calc_suppress_reindex:bool) -> int:
+    # N.B. This logic should be the same as that used by
+    #      ingest-api app.py _get_reindex_priority()
+    #      https://github.com/hubmapconsortium/ingest-api/blob/main/src/app.py
     if calc_suppress_reindex and 'reindex-priority' in request_args:
         raise Exception("Specifying a re-index priority is incompatible with suppressing re-indexing.")
     if 'reindex-priority' not in request_args:
