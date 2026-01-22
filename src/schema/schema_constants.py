@@ -64,3 +64,11 @@ class Neo4jRelationshipEnum(Enum):
     REVISION_OF = 'REVISION_OF'
     USES_DATA = 'USES_DATA'
 
+# Define an enumeration of re-index priority level types.
+# N.B. These are the same values maintained in ingest-api app.py _get_reindex_priority(), which
+#      must be the same levels defined for the enqueue() method at
+#      https://github.com/x-atlas-consortia/jobq/blob/main/src/atlas_consortia_jobq/queue.py
+class ReindexPriorityLevelEnum(Enum):
+    HIGH = 1
+    MEDIUM = 2
+    LOW = 3
