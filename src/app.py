@@ -95,7 +95,7 @@ else:
 
 # Read the secret key which may be submitted in HTTP Request Headers to override the lockout of
 # updates to entities with characteristics prohibiting their modification.
-LOCKED_ENTITY_UPDATE_OVERRIDE_KEY = app.config['LOCKED_ENTITY_UPDATE_OVERRIDE_KEY']
+# LOCKED_ENTITY_UPDATE_OVERRIDE_KEY = app.config['LOCKED_ENTITY_UPDATE_OVERRIDE_KEY']
 
 # Suppress InsecureRequestWarning warning when requesting status on https with ssl cert verify disabled
 requests.packages.urllib3.disable_warnings(category = InsecureRequestWarning)
@@ -4317,6 +4317,28 @@ def entity_bulk_update():
     thread_instance.start()
 
     return jsonify(list(uuids)), 202
+
+
+"""
+Retrieve ids (uuid, hubmap_id) for a given id
+
+Parameters
+----------
+id : str
+    The HuBMAP ID (e.g. HBM123.ABCD.456) or UUID of target entity (Dataset/Sample)
+
+Returns
+-------
+json array
+    Each item in the array is a json object containing the uuid and hubmap_id for the given entity.
+"""
+@app.route('/entities/batch-ids/', methods = ['POST'])
+def get_batch_ids():
+    validate_token_if_auth_header_exists(request)
+    require_json(request)
+    json_data_dict = request.get_json()
+    ids = app_neo4j_queries.get_batch_ids(neo4j_driver_instance, json_data_dict)    
+    return jsonify(ids)
 
 
 ####################################################################################################
