@@ -1182,7 +1182,20 @@ def get_entities_by_uuid(neo4j_driver,
 
         return records
 
+"""
+Get the uuid and hubmap_id for each entity in a list of ids.
 
+Parameters
+----------
+neo4j_driver : neo4j.Driver object
+    The neo4j database connection pool
+id_list : list
+    The list of ids
+
+Returns
+-------
+Dictionary containing the uuid and hubmap_id of each entity in the list, keyed by that entities original id given
+"""
 def get_batch_ids(neo4j_driver, id_list):
     query = """
     MATCH (e) 
