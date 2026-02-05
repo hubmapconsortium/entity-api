@@ -4332,7 +4332,7 @@ Returns
 json array
     Each item in the array is a json object containing the uuid and hubmap_id for the given entity.
 """
-@app.route('/entities/batch-ids/', methods = ['POST'])
+@app.route('/entities/batch-ids', methods = ['POST'])
 def get_batch_ids():
     validate_token_if_auth_header_exists(request)
     require_json(request)
