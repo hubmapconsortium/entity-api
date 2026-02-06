@@ -4322,15 +4322,20 @@ def entity_bulk_update():
 """
 Retrieve ids (uuid, hubmap_id) for a given id
 
-Parameters
-----------
-id : str
-    The HuBMAP ID (e.g. HBM123.ABCD.456) or UUID of target entity (Dataset/Sample)
+Request Body
+------------
+JSON array of entity identifiers (either uuids or HuBMAP IDs)
+
+Example:
+[
+    "HBM123.ABCD.456",
+    "a1234b56-c78d-90de-fg1h-23456789i01j"    
+]
 
 Returns
 -------
-json array
-    Each item in the array is a json object containing the uuid and hubmap_id for the given entity.
+json
+    JSON object keyed by the entity identifier. Each value is a mapping containing the HuBMAP ID and UUID for that entity
 """
 @app.route('/entities/batch-ids', methods = ['POST'])
 def get_batch_ids():
