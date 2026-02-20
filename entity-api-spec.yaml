@@ -3140,3 +3140,46 @@ paths:
           description: The given dataset is unpublished and the user does not have the authorization to view it.
         '500':
           description: Internal error
+  '/entities/batch-ids':
+    post:
+      summary: Retrieve the HuBMAP ID and UUID for each entity id provided in a list. 
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: array
+              description: List of entity identifiers (HuBMAP IDs or UUIDs)
+              items:
+                type: string
+      responses:
+        '200':
+          description: Mapping of input entity identifiers to their resolved HuBMAP ID and UUID. If no items are found, will simply return empty. 
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties:
+                  type: object
+                  properties:
+                    hubmap_id:
+                      type: string
+                      description: Canonical HuBMAP ID for the entity
+                    uuid:
+                      type: string
+                      format: uuid
+                      description: UUID for the entity
+                  required:
+                    - hubmap_id
+                    - uuid
+              examples:
+                batchidsexample:
+                  value:
+                    HBM123.ABCD.456:
+                      hubmap_id: "HBM123.ABCD.456"
+                      uuid: "a8098c1a-f86e-11da-bd1a-00112444be1e"
+                    abcd1234-ef56-gh78-ij90-klmnop123456:
+                      hubmap_id: "HBM987.WXYZ.321"
+                      uuid: "abcd1234-ef56-gh78-ij90-klmnop123456"
+        '500': 
+          description: Internal Error

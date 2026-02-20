@@ -4319,6 +4319,33 @@ def entity_bulk_update():
     return jsonify(list(uuids)), 202
 
 
+"""
+Retrieve ids (uuid, hubmap_id) for a given id
+
+Request Body
+------------
+JSON array of entity identifiers (either uuids or HuBMAP IDs)
+
+Example:
+[
+    "HBM123.ABCD.456",
+    "a1234b56-c78d-90de-fg1h-23456789i01j"    
+]
+
+Returns
+-------
+json
+    JSON object keyed by the entity identifier. Each value is a mapping containing the HuBMAP ID and UUID for that entity
+"""
+@app.route('/entities/batch-ids', methods = ['POST'])
+def get_batch_ids():
+    validate_token_if_auth_header_exists(request)
+    require_json(request)
+    json_data_dict = request.get_json()
+    ids = app_neo4j_queries.get_batch_ids(neo4j_driver_instance, json_data_dict)    
+    return jsonify(ids)
+
+
 ####################################################################################################
 ## Internal Functions
 ####################################################################################################
