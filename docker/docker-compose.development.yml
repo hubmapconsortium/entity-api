@@ -3,7 +3,7 @@ services:
   entity-api:
     build: 
       context: ./entity-api
-      # Uncomment if tesitng against a specific branch of commons other than the PyPI package
+      # Uncomment if testing against a specific branch of commons other than the PyPI package
       # Will also need to use the 'git+https://github.com/hubmapconsortium/commons.git@${COMMONS_BRANCH}#egg=hubmap-commons'
       # in src/requirements.txt accordingly
       args:
@@ -25,3 +25,5 @@ services:
       - "../BUILD:/usr/src/app/BUILD" 
       # Mount the source code to container  
       - "../src:/usr/src/app/src"
+      - # Mount conf.d on host machine to the nginx conf.d on container
+      - "./entity-api/nginx/conf.d:/etc/nginx/conf.d"

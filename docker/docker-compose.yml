@@ -27,8 +27,6 @@ services:
       - "../log:/usr/src/app/log"
       # Mount the schema yaml file
       - "../src/schema/provenance_schema.yaml:/usr/src/app/src/schema/provenance_schema.yaml"
-      # Mount conf.d on host machine to the nginx conf.d on container
-      - "./entity-api/nginx/conf.d:/etc/nginx/conf.d"
     networks:
       - gateway_hubmap
     # Send docker logs to AWS CloudWatch
