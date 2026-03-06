@@ -38,6 +38,6 @@ services:
         awslogs-stream: ${LOG_STREAM}
 
 networks:
-  # This is the network created by gateway to enable communicaton between multiple docker-compose projects
+  # This is the network created by gateway to enable communication between multiple docker-compose projects
   gateway_hubmap:
     external: true
