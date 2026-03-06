@@ -1,0 +1,33 @@
+services:
+
+  entity-api:
+    build:
+      context: ./entity-api
+      args:
+        - COMMONS_BRANCH=${COMMONS_BRANCH:-main}
+    image: hubmap/entity-api:${ENTITY_API_VERSION:?err}
+    environment:
+      - DEPLOY_MODE=localhost
+    volumes:
+      # Mount VERSION and BUILD files
+      - "../VERSION:/usr/src/app/VERSION"
+      - "../BUILD:/usr/src/app/BUILD"
+      ## Mount source code for live development
+      #- "../src:/usr/src/app/src"
+      # Mount localhost-specific nginx config
+      - "${PWD}/entity-api/nginx/conf.d-localhost:/etc/nginx/conf.d"
+    healthcheck:
+      # Replaces base healthcheck - Check port 8080 inside container (nginx listening port)
+      test: [ "CMD", "curl", "--fail", "http://localhost:8080/status" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    logging:
+      # Override CloudWatch logging - use local json-file driver for localhost
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"  # Keep 3 files, rotating oldest out
+    networks:
+      - gateway_hubmap # Same network as hubmap-auth for communication
