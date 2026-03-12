@@ -38,6 +38,7 @@ from schema.schema_constants import MetadataScopeEnum
 from schema.schema_constants import TriggerTypeEnum
 from metadata_constraints import get_constraints, constraints_json_is_valid
 # from lib.ontology import initialize_ubkg, init_ontology, Ontology, UbkgSDK
+from setup_lifecycle_hooks import setup_flask_lifecycle_hooks
 
 # HuBMAP commons
 from hubmap_commons import string_helper
@@ -63,6 +64,9 @@ else:
 # Use `getLogger()` instead of `getLogger(__name__)` to apply the config to the root logger
 # will be inherited by the sub-module loggers
 logger = logging.getLogger()
+
+# Add in Flask lifecycle hooks which rely on the logger being instantiated
+setup_flask_lifecycle_hooks(app)
 
 # Remove trailing slash / from URL base to avoid "//" caused by config with trailing slash
 app.config['UUID_API_URL'] = app.config['UUID_API_URL'].strip('/')
