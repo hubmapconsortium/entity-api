@@ -13,8 +13,8 @@ replacement for AWS API Gateway custom access log format:
     $context.status $context.responseLength $context.requestId
 
 Example log output:
-    [2026-03-07 10:30:45] DEBUG in setup_lifecycle_hooks: Request started: GET /entities/abc123 from 172.19.0.1 [ID: req-1709809845-1234]
-    [2026-03-07 10:30:45] INFO in setup_lifecycle_hooks: 172.19.0.1 - user@example.com [07/Mar/2026:10:30:45 +0000] "GET /entities/abc123 HTTP/1.1" 200 1234 req-1709809845-1234
+    [2026-03-18 18:52:25] API_USAGE in setup_lifecycle_hooks: Request started: DELETE /flush-cache/12345678901234567890123456789012 from 172.19.0.1 [ID: req-1773859945850-1262]
+    [2026-03-18 18:52:25] API_USAGE in setup_lifecycle_hooks: 172.19.0.1 - - [18/Mar/2026:18:52:25 +0000] "DELETE /flush-cache/12345678901234567890123456789012 HTTP/1.1" 200 69 req-1773859945850-1262
 """
 
 import logging
@@ -24,6 +24,12 @@ from datetime import datetime
 
 # Use the same logger configuration as app.py
 logger = logging.getLogger(__name__)
+
+# For the hooks used to log endpoint usage, set the level to use while
+# logging these events, and to be used to return quickly when the
+# logger is not enabled for that level.
+ENDPOINT_LOG_LEVEL=logging.INFO-1
+logging.addLevelName(ENDPOINT_LOG_LEVEL, "API_USAGE")
 
 def setup_flask_lifecycle_hooks(app):
     """
@@ -46,22 +52,25 @@ def setup_flask_lifecycle_hooks(app):
     @app.before_request
     def log_endpoint_request():
         """
-        Log basic request information at DEBUG level when request starts.
+        Log basic request information at ENDPOINT_LOG_LEVEL level when request starts.
         
         Runs BEFORE any route function executes.
         Captures request start time and generates unique request ID.
         """
+        # Bail out on this hook method immediately if the logger statement at
+        # the end of the method would not be logged.
+        if not logger.isEnabledFor(ENDPOINT_LOG_LEVEL):
+            return
+
         # Store request start time for potential duration calculation
         g.request_start_time = time.time()
         
         # Generate unique request ID for tracking this request
         g.request_id = f"req-{int(time.time() * 1000)}-{hash(request.remote_addr) % 10000}"
         
-        # Log request start at DEBUG level
-        logger.debug(
-            f"Request started: {request.method} {request.path} "
-            f"from {request.remote_addr} [ID: {g.request_id}]"
-        )
+        logger.log(level=ENDPOINT_LOG_LEVEL
+                   , msg=   f"Request started: {request.method} {request.path} "
+                            f"from {request.remote_addr} [ID: {g.request_id}]")
     
     @app.after_request
     def log_endpoint_response(response):
@@ -80,6 +89,11 @@ def setup_flask_lifecycle_hooks(app):
         Returns:
             response: Must return the response unchanged
         """
+        # Bail out on this hook method immediately if the logger statement at
+        # the end of the method would not be logged.
+        if not logger.isEnabledFor(ENDPOINT_LOG_LEVEL):
+            return response
+
         # Extract request details
         source_ip = request.remote_addr or '-'
         
@@ -119,9 +133,9 @@ def setup_flask_lifecycle_hooks(app):
             f'"{method} {resource_path} {protocol}" '
             f'{status} {response_length} {request_id}'
         )
-        
-        # Log at INFO level using existing logger
-        logger.info(log_message)
+
+        logger.log(level=ENDPOINT_LOG_LEVEL
+                   , msg=log_message)
         
         # Must return response unchanged for Flask
         return response
