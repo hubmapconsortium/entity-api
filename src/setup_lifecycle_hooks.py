@@ -20,7 +20,7 @@ Example log output:
 import logging
 import time
 from flask import request, g
-from datetime import datetime
+from datetime import datetime, timezone
 
 # Use the same logger configuration as app.py
 logger = logging.getLogger(__name__)
@@ -105,7 +105,7 @@ def setup_flask_lifecycle_hooks(app):
         user = request.headers.get('X-Hubmap-User', '-')
         
         # Request time in AWS/Apache format: [DD/MMM/YYYY:HH:MM:SS +0000]
-        request_time = datetime.utcnow().strftime('%d/%b/%Y:%H:%M:%S +0000')
+        request_time = datetime.now(timezone.utc).strftime('%d/%b/%Y:%H:%M:%S +0000')
         
         # HTTP method, path, and protocol
         method = request.method
