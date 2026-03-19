@@ -95,7 +95,7 @@ else:
 
 # Read the secret key which may be submitted in HTTP Request Headers to override the lockout of
 # updates to entities with characteristics prohibiting their modification.
-LOCKED_ENTITY_UPDATE_OVERRIDE_KEY = app.config['LOCKED_ENTITY_UPDATE_OVERRIDE_KEY']
+# LOCKED_ENTITY_UPDATE_OVERRIDE_KEY = app.config['LOCKED_ENTITY_UPDATE_OVERRIDE_KEY']
 
 # Suppress InsecureRequestWarning warning when requesting status on https with ssl cert verify disabled
 requests.packages.urllib3.disable_warnings(category = InsecureRequestWarning)
@@ -243,18 +243,18 @@ except Exception:
 ## Initialize an S3Worker from hubmap-commons
 ####################################################################################################
 
-try:
-    anS3Worker = S3Worker(ACCESS_KEY_ID=S3_settings_dict['aws_access_key_id']
-                          , SECRET_ACCESS_KEY=S3_settings_dict['aws_secret_access_key']
-                          , S3_BUCKET_NAME=S3_settings_dict['aws_s3_bucket_name']
-                          , S3_OBJECT_URL_EXPIRATION_IN_SECS=S3_settings_dict['aws_object_url_expiration_in_secs']
-                          , LARGE_RESPONSE_THRESHOLD=S3_settings_dict['large_response_threshold']
-                          , SERVICE_S3_OBJ_PREFIX=S3_settings_dict['service_configured_obj_prefix'])
-    logger.info('Initialized anS3Worker successfully :)')
-except Exception:
-    msg = 'Failed to initialize anS3Worker :('
-    # Log the full stack trace, prepend a line with our message
-    logger.exception(msg)
+# try:
+#     anS3Worker = S3Worker(ACCESS_KEY_ID=S3_settings_dict['aws_access_key_id']
+#                           , SECRET_ACCESS_KEY=S3_settings_dict['aws_secret_access_key']
+#                           , S3_BUCKET_NAME=S3_settings_dict['aws_s3_bucket_name']
+#                           , S3_OBJECT_URL_EXPIRATION_IN_SECS=S3_settings_dict['aws_object_url_expiration_in_secs']
+#                           , LARGE_RESPONSE_THRESHOLD=S3_settings_dict['large_response_threshold']
+#                           , SERVICE_S3_OBJ_PREFIX=S3_settings_dict['service_configured_obj_prefix'])
+#     logger.info('Initialized anS3Worker successfully :)')
+# except Exception:
+#     msg = 'Failed to initialize anS3Worker :('
+#     # Log the full stack trace, prepend a line with our message
+#     logger.exception(msg)
 
 
 ####################################################################################################
@@ -762,7 +762,7 @@ json
 """
 @app.route('/entities/<id>', methods = ['GET'])
 def get_entity_by_id(id):
-    global anS3Worker
+    # global anS3Worker
 
     # Token is not required, but if an invalid token provided,
     # we need to tell the client with a 401 error
@@ -905,9 +905,9 @@ def get_entity_by_id(id):
     # Check the size of what is to be returned through the AWS Gateway, and replace it with
     # a response that links to an Object in the AWS S3 Bucket, if appropriate.
     resp_body = json.dumps(final_result).encode('utf-8')
-    try_resp = try_stash_response_body(resp_body)
-    if try_resp is not None:
-        return try_resp
+    # try_resp = try_stash_response_body(resp_body)
+    # if try_resp is not None:
+    #     return try_resp
 
     # Return a regular response through the AWS Gateway
     return jsonify(final_result)
@@ -1636,7 +1636,7 @@ json
 """
 @app.route('/ancestors/<id>', methods = ['GET'])
 def get_ancestors(id):
-    global anS3Worker
+    # global anS3Worker
 
     final_result = []
 
@@ -1732,9 +1732,9 @@ def get_ancestors(id):
     # Check the size of what is to be returned through the AWS Gateway, and replace it with
     # a response that links to an Object in the AWS S3 Bucket, if appropriate.
     resp_body = json.dumps(final_result).encode('utf-8')
-    try_resp = try_stash_response_body(resp_body)
-    if try_resp is not None:
-        return try_resp
+    # try_resp = try_stash_response_body(resp_body)
+    # if try_resp is not None:
+    #     return try_resp
     
     # Return a regular response through the AWS Gateway
     return jsonify(final_result)
@@ -1757,7 +1757,7 @@ json
 """
 @app.route('/descendants/<id>', methods = ['GET'])
 def get_descendants(id):
-    global anS3Worker
+    # global anS3Worker
 
     final_result = []
 
@@ -1816,9 +1816,9 @@ def get_descendants(id):
     # Check the size of what is to be returned through the AWS Gateway, and replace it with
     # a response that links to an Object in the AWS S3 Bucket, if appropriate.
     resp_body = json.dumps(final_result).encode('utf-8')
-    try_resp = try_stash_response_body(resp_body)
-    if try_resp is not None:
-        return try_resp
+    # try_resp = try_stash_response_body(resp_body)
+    # if try_resp is not None:
+    #     return try_resp
     
     # Return a regular response through the AWS Gateway
     return jsonify(final_result)
@@ -1844,7 +1844,7 @@ json
 """
 @app.route('/parents/<id>', methods = ['GET'])
 def get_parents(id):
-    global anS3Worker
+    # global anS3Worker
     final_result = []
 
     # Token is not required, but if an invalid token provided,
@@ -1939,9 +1939,9 @@ def get_parents(id):
     # Check the size of what is to be returned through the AWS Gateway, and replace it with
     # a response that links to an Object in the AWS S3 Bucket, if appropriate.
     resp_body = json.dumps(final_result).encode('utf-8')
-    try_resp = try_stash_response_body(resp_body)
-    if try_resp is not None:
-        return try_resp
+    # try_resp = try_stash_response_body(resp_body)
+    # if try_resp is not None:
+    #     return try_resp
     
     # Return a regular response through the AWS Gateway
     return jsonify(final_result)
@@ -1964,7 +1964,7 @@ json
 """
 @app.route('/children/<id>', methods = ['GET'])
 def get_children(id):
-    global anS3Worker
+    # global anS3Worker
 
     final_result = []
 
@@ -2023,9 +2023,9 @@ def get_children(id):
     # Check the size of what is to be returned through the AWS Gateway, and replace it with
     # a response that links to an Object in the AWS S3 Bucket, if appropriate.
     resp_body = json.dumps(final_result).encode('utf-8')
-    try_resp = try_stash_response_body(resp_body)
-    if try_resp is not None:
-        return try_resp
+    # try_resp = try_stash_response_body(resp_body)
+    # if try_resp is not None:
+    #     return try_resp
     
     # Return a regular response through the AWS Gateway
     return jsonify(final_result)
@@ -2051,7 +2051,7 @@ json
 """
 @app.route('/entities/<id>/siblings', methods = ['GET'])
 def get_siblings(id):
-    global anS3Worker
+    # global anS3Worker
 
     final_result = []
 
@@ -2160,9 +2160,9 @@ def get_siblings(id):
     # Check the size of what is to be returned through the AWS Gateway, and replace it with
     # a response that links to an Object in the AWS S3 Bucket, if appropriate.
     resp_body = json.dumps(final_result).encode('utf-8')
-    try_resp = try_stash_response_body(resp_body)
-    if try_resp is not None:
-        return try_resp
+    # try_resp = try_stash_response_body(resp_body)
+    # if try_resp is not None:
+    #     return try_resp
     
     # Return a regular response through the AWS Gateway
     return jsonify(final_result)
@@ -2188,7 +2188,7 @@ json
 """
 @app.route('/entities/<id>/tuplets', methods = ['GET'])
 def get_tuplets(id):
-    global anS3Worker
+    # global anS3Worker
     final_result = []
 
     # Token is not required, but if an invalid token provided,
@@ -2286,9 +2286,9 @@ def get_tuplets(id):
     # Check the size of what is to be returned through the AWS Gateway, and replace it with
     # a response that links to an Object in the AWS S3 Bucket, if appropriate.
     resp_body = json.dumps(final_result).encode('utf-8')
-    try_resp = try_stash_response_body(resp_body)
-    if try_resp is not None:
-        return try_resp
+    # try_resp = try_stash_response_body(resp_body)
+    # if try_resp is not None:
+    #     return try_resp
     
     # Return a regular response through the AWS Gateway
     return jsonify(final_result)
@@ -3787,9 +3787,9 @@ def get_prov_info_for_dataset(id):
         new_tsv_file.seek(0)
         resp_body = new_tsv_file.read()
     
-    try_resp = try_stash_response_body(resp_body)
-    if try_resp is not None:
-        return try_resp
+    # try_resp = try_stash_response_body(resp_body)
+    # if try_resp is not None:
+    #     return try_resp
     
     # Return a regular response through the AWS Gateway
     if return_json:
@@ -4552,22 +4552,22 @@ def validate_token_if_auth_header_exists(request):
             unauthorized_error(user_info.get_data().decode())
 
 
-def try_stash_response_body(resp_body):
-    try:
-        s3_url = anS3Worker.stash_response_body_if_big(resp_body)
-        if s3_url is not None:
-            return Response(response=s3_url
-                            , status=303)  # See Other
-        # The HuBMAP Commons S3Worker will return None for a URL when the response body is
-        # smaller than it is configured to store, so the response should be returned through
-        # the AWS Gateway
-    except Exception as s3exception:
-        logger.error(f"Error using anS3Worker to handle len(resp_body)="
-                     f"{len(resp_body)}.")
-        logger.error(s3exception, exc_info=True)
-        return Response(response=f"Unexpected error storing large results in S3. See logs."
-                        , status=500)
-    return None
+# def try_stash_response_body(resp_body):
+#     try:
+#         s3_url = anS3Worker.stash_response_body_if_big(resp_body)
+#         if s3_url is not None:
+#             return Response(response=s3_url
+#                             , status=303)  # See Other
+#         # The HuBMAP Commons S3Worker will return None for a URL when the response body is
+#         # smaller than it is configured to store, so the response should be returned through
+#         # the AWS Gateway
+#     except Exception as s3exception:
+#         logger.error(f"Error using anS3Worker to handle len(resp_body)="
+#                      f"{len(resp_body)}.")
+#         logger.error(s3exception, exc_info=True)
+#         return Response(response=f"Unexpected error storing large results in S3. See logs."
+#                         , status=500)
+#     return None
     
 
 
