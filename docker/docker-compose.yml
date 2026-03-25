@@ -20,6 +20,9 @@ services:
       - HOST_UID=${HOST_UID:-1001}
     init: true
     restart: always
+    sysctls:
+      # Set to 512 to match uwsgi.ini listen = 512
+      net.core.somaxconn: 512
     volumes:
       # Mount the app config to container in order to keep it outside of the image
       - "../src/instance:/usr/src/app/src/instance"
