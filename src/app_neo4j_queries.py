@@ -1198,19 +1198,15 @@ Dictionary containing the uuid and hubmap_id of each entity in the list, keyed b
 """
 def get_batch_ids(neo4j_driver, id_list):
     query = """
-    MATCH (e) 
-    WHERE e.uuid IN $id_list OR e.hubmap_id IN $id_list
-    WITH e, [id IN $id_list WHERE id = e.uuid OR id = e.hubmap_id][0] AS original_id
-    RETURN original_id, e.uuid AS uuid, e.hubmap_id AS hubmap_id
+    UNWIND $id_list AS uid
+    MATCH (e:Entity {uuid: uid})
+    RETURN uid AS uuid, e.hubmap_id AS hubmap_id
     """
 
-    result_map = {}
+    result_dict = {}
 
     with neo4j_driver.session() as session:
         result = session.run(query, id_list=id_list)
         for record in result:
-            result_map[record['original_id']] = {
-                "uuid": record['uuid'],
-                "hubmap_id": record['hubmap_id']
-            }
-    return result_map
+            result_dict[record["uuid"]] = record["hubmap_id"]
+    return result_dict
