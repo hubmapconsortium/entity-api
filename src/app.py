@@ -941,6 +941,69 @@ def get_document_by_id(id):
     result_dict = _get_metadata_by_id(entity_id=id, metadata_scope=MetadataScopeEnum.INDEX)
     return jsonify(result_dict)
 
+"""
+Retrieve all data required to reindex a given entity
+
+Parameters
+----------
+uuid : str
+    The HuBMAP ID or UUID of the target entity
+
+Returns
+-------
+json
+    Entity and its related data (ancestors,
+    descendants, immediate relationships, and optional donor and sample data)
+"""
+@app.route('/entities/<uuid>/reindex-info', methods=['GET'])
+def get_reindex_info(uuid):
+    validate_token_if_auth_header_exists(request)
+    token = get_internal_token()
+
+    raw = app_neo4j_queries.get_reindex_info_raw(neo4j_driver_instance, uuid)
+    if raw is None:
+        return not_found_error(f"Entity {uuid} not found")
+
+    def run_triggers(entity_dict):
+        try:
+            generated = schema_manager.generate_triggered_data(
+                trigger_type=TriggerTypeEnum.ON_INDEX,
+                normalized_class=entity_dict['entity_type'],
+                request_args=request.args,
+                user_token=token,
+                existing_data_dict=entity_dict,
+                new_data_dict={},
+                properties_to_skip=[]
+            )
+            complete = schema_manager.remove_none_values({**entity_dict, **generated})
+            return schema_manager.normalize_document_result_for_response(entity_dict=complete)
+        except Exception as e:
+            logger.error(f"Trigger pipeline failed for {entity_dict.get('uuid')}: {e}")
+            return entity_dict
+        
+    triggered_cache = {}
+
+    def run_triggers_cached(entity_dict):
+        uid = entity_dict.get('uuid')
+        if uid not in triggered_cache:
+            triggered_cache[uid] = run_triggers(entity_dict)
+        return triggered_cache[uid]
+
+    result = {
+        "entity": run_triggers(raw["entity"]),
+        "ancestors": [run_triggers_cached(e) for e in raw["ancestors"]],
+        "descendants": [run_triggers_cached(e) for e in raw["descendants"]],
+        "immediate_ancestors": [run_triggers_cached(e) for e in raw["immediate_ancestors"]],
+        "immediate_descendants": [run_triggers_cached(e) for e in raw["immediate_descendants"]],
+    }
+    if raw.get("donor"):
+        result["donor"] = raw.get("donor")
+    if raw.get("origin_samples"):
+        result["origin_samples"] = raw.get("origin_samples")
+    if raw.get("source_samples"):
+        result["source_samples"] = raw.get("source_samples")
+    return jsonify(result)
+
 
 """
 Retrive the full tree above the referenced entity and build the provenance document
