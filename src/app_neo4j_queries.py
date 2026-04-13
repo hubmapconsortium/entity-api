@@ -207,7 +207,7 @@ def get_reindex_info_raw(neo4j_driver, uuid):
         immediate_record = session.run("""
             MATCH (e:Entity {uuid: $uuid})
             OPTIONAL MATCH (e)<-[:ACTIVITY_OUTPUT]-(:Activity)<-[:ACTIVITY_INPUT]-(parent:Entity)
-            WHERE a.entity_type <> 'Lab'
+            WHERE parent.entity_type <> 'Lab'
             WITH e, apoc.coll.toSet(COLLECT(properties(parent))) AS immediate_ancestors
             OPTIONAL MATCH (e)-[:ACTIVITY_INPUT]->(:Activity)-[:ACTIVITY_OUTPUT]->(child:Entity)
             RETURN immediate_ancestors,
@@ -267,6 +267,55 @@ def get_reindex_info_raw(neo4j_driver, uuid):
             result["source_samples"] = [dict(s) for s in (source_record["source_samples"] or [])]
         return result
 
+"""
+Retrieve dataset documents associated with a collection or upload
+
+Parameters
+----------
+neo4j_driver : neo4j.Driver object
+    The Neo4j database connection pool
+uuid : str
+    The UUID of the target entity (Collection, Epicollection, or Upload)
+
+Returns
+-------
+dict
+    A dictionary mapping dataset UUIDs to their node properties for all datasets
+    directly linked to the given entity via the appropriate relationship
+    (IN_COLLECTION or IN_UPLOAD). Returns an empty dictionary if no datasets
+    are found, or None if the input UUID does not correspond to a supported
+    entity type.
+"""
+def get_dataset_documents_raw(neo4j_driver, uuid):
+    with neo4j_driver.session() as session:
+        entity_record = session.run("""
+            MATCH (e:Entity {uuid: $uuid})
+            RETURN e.entity_type AS entity_type
+        """, uuid=uuid).single()
+        if not entity_record:
+            return None
+        entity_type = entity_record["entity_type"]
+
+        if entity_type in ['Collection', 'Epicollection']:
+            relationship = 'IN_COLLECTION'
+            root_label = 'Collection'
+        elif entity_type == 'Upload':
+            relationship = 'IN_UPLOAD'
+            root_label = 'Upload'
+        else:
+            return None
+
+        record = session.run(f"""
+            MATCH (root:{root_label} {{uuid: $uuid}})<-[:{relationship}]-(d:Dataset)
+            RETURN apoc.map.fromPairs(COLLECT([d.uuid, properties(d)])) AS result
+        """, uuid=uuid).single()
+
+        if not record or not record["result"]:
+            return {}
+
+        return {uuid: dict(props) for uuid, props in record["result"].items()}
+
+    
 """
 Create multiple sample nodes in neo4j
 
