@@ -1037,16 +1037,7 @@ def get_dataset_documents(uuid):
     result = {}
     for dataset_uuid, entity_dict in entity_record.items():
         try:
-            generated = schema_manager.generate_triggered_data(
-                trigger_type=TriggerTypeEnum.ON_INDEX,
-                normalized_class=entity_dict['entity_type'],
-                request_args=request.args,
-                user_token=token,
-                existing_data_dict=entity_dict,
-                new_data_dict={},
-                properties_to_skip=["title"]
-            )
-            complete = schema_manager.remove_none_values({**entity_dict, **generated})
+            complete = schema_manager.remove_none_values({**entity_dict})
             final = schema_manager.normalize_document_result_for_response(entity_dict=complete)
             for field in ['ingest_metadata', 'metadata', 'files']:
                 final.pop(field, None)
