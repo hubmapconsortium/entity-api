@@ -158,7 +158,164 @@ def get_ancestor_organs(neo4j_driver, entity_uuid):
 
     return results
 
+"""
+Retrieve raw Neo4j node properties required for reindexing
 
+Parameters
+----------
+neo4j_driver : neo4j.Driver object
+    The Neo4j database connection pool
+entity_uuid : str
+    The HuBMAP ID or UUID of the target entity
+
+Returns
+-------
+dict
+    A dictionary of node properties matching the structure of get_entity(),
+    including related entities such as ancestors, descendants, donor,
+    origin_samples, source_samples, and immediate relationships
+"""
+def get_reindex_info_raw(neo4j_driver, uuid):
+
+    with neo4j_driver.session() as session:
+
+        # Target entity
+        entity_record = session.run("""
+            MATCH (e:Entity {uuid: $uuid})
+            RETURN properties(e) AS entity
+        """, uuid=uuid).single()
+        if not entity_record:
+            return None
+        entity = dict(entity_record["entity"])
+        entity_type = entity["entity_type"]
+
+        ancestors_record = session.run("""
+            MATCH (e:Entity {uuid: $uuid})
+            OPTIONAL MATCH (e)<-[:ACTIVITY_INPUT|ACTIVITY_OUTPUT*]-(a:Entity)
+            WHERE a.entity_type <> 'Lab'
+            RETURN apoc.coll.toSet(COLLECT(properties(a))) AS ancestors
+        """, uuid=uuid).single()
+        ancestors = [dict(a) for a in (ancestors_record["ancestors"] or [])]
+
+        descendants_record = session.run("""
+            MATCH (e:Entity {uuid: $uuid})
+            OPTIONAL MATCH (e)-[:ACTIVITY_INPUT|ACTIVITY_OUTPUT*]->(d:Entity)
+            RETURN apoc.coll.toSet(COLLECT(properties(d))) AS descendants
+        """, uuid=uuid).single()
+        descendants = [dict(d) for d in (descendants_record["descendants"] or [])]
+
+        immediate_record = session.run("""
+            MATCH (e:Entity {uuid: $uuid})
+            OPTIONAL MATCH (e)<-[:ACTIVITY_OUTPUT]-(:Activity)<-[:ACTIVITY_INPUT]-(parent:Entity)
+            WHERE parent.entity_type <> 'Lab'
+            WITH e, apoc.coll.toSet(COLLECT(properties(parent))) AS immediate_ancestors
+            OPTIONAL MATCH (e)-[:ACTIVITY_INPUT]->(:Activity)-[:ACTIVITY_OUTPUT]->(child:Entity)
+            RETURN immediate_ancestors,
+                   apoc.coll.toSet(COLLECT(properties(child))) AS immediate_descendants
+        """, uuid=uuid).single()
+        immediate_ancestors = [dict(p) for p in (immediate_record["immediate_ancestors"] or [])]
+        immediate_descendants = [dict(c) for c in (immediate_record["immediate_descendants"] or [])]
+        
+        result = {
+            "entity": entity,
+            "ancestors": ancestors,
+            "descendants": descendants,
+            "immediate_ancestors": immediate_ancestors,
+            "immediate_descendants": immediate_descendants,
+        }
+        
+        if entity_type.lower() in ['sample', 'dataset', 'publication']:
+            donor_record = session.run("""
+                MATCH (e:Entity {uuid: $uuid})
+                MATCH (e)<-[:ACTIVITY_INPUT|ACTIVITY_OUTPUT*]-(d:Entity {entity_type: 'Donor'})
+                RETURN properties(d) AS donor
+                LIMIT 1
+            """, uuid=uuid).single()
+            donor = dict(donor_record["donor"]) if donor_record and donor_record["donor"] else None
+            if donor is not None:
+                result['donor'] = donor
+            
+            origin_samples_record = session.run("""
+                MATCH (e:Entity {uuid: $uuid})
+                OPTIONAL MATCH (e)<-[:ACTIVITY_INPUT|ACTIVITY_OUTPUT*]-(s:Entity)
+                WHERE s.entity_type = 'Sample'
+                AND s.sample_category IS NOT NULL
+                AND toLower(s.sample_category) = 'organ'
+                AND s.organ IS NOT NULL
+                AND trim(s.organ) <> ''
+                RETURN apoc.coll.toSet(COLLECT(properties(s))) AS origin_samples
+            """, uuid=uuid).single()
+            origin_samples = [dict(s) for s in (origin_samples_record["origin_samples"] or [])]
+            
+            if (entity_type == 'Sample'
+                    and entity.get('sample_category', '').lower() == 'organ'
+                    and entity.get('organ', '').strip() != ''):
+                origin_samples = [entity]
+            if origin_samples is not None:
+                result['origin_samples'] = origin_samples
+
+        if entity_type.lower() in ['dataset', 'publication']:
+            source_record = session.run("""
+                MATCH (e:Entity {uuid: $uuid})
+                MATCH (e)<-[:ACTIVITY_OUTPUT]-(:Activity)<-[:ACTIVITY_INPUT|ACTIVITY_OUTPUT*]-(s:Entity {entity_type: 'Sample'})
+                WHERE NOT EXISTS {
+                    MATCH (s)<-[:ACTIVITY_OUTPUT]-(:Activity)<-[:ACTIVITY_INPUT]-(closer:Entity {entity_type: 'Sample'})
+                    MATCH (closer)-[:ACTIVITY_INPUT|ACTIVITY_OUTPUT*]->(e)
+                }
+                RETURN apoc.coll.toSet(COLLECT(properties(s))) AS source_samples
+            """, uuid=uuid).single()
+            result["source_samples"] = [dict(s) for s in (source_record["source_samples"] or [])]
+        return result
+
+"""
+Retrieve dataset documents associated with a collection or upload
+
+Parameters
+----------
+neo4j_driver : neo4j.Driver object
+    The Neo4j database connection pool
+uuid : str
+    The UUID of the target entity (Collection, Epicollection, or Upload)
+
+Returns
+-------
+dict
+    A dictionary mapping dataset UUIDs to their node properties for all datasets
+    directly linked to the given entity via the appropriate relationship
+    (IN_COLLECTION or IN_UPLOAD). Returns an empty dictionary if no datasets
+    are found, or None if the input UUID does not correspond to a supported
+    entity type.
+"""
+def get_dataset_documents_raw(neo4j_driver, uuid):
+    with neo4j_driver.session() as session:
+        entity_record = session.run("""
+            MATCH (e:Entity {uuid: $uuid})
+            RETURN e.entity_type AS entity_type
+        """, uuid=uuid).single()
+        if not entity_record:
+            return None
+        entity_type = entity_record["entity_type"]
+
+        if entity_type in ['Collection', 'Epicollection']:
+            relationship = 'IN_COLLECTION'
+            root_label = 'Collection'
+        elif entity_type == 'Upload':
+            relationship = 'IN_UPLOAD'
+            root_label = 'Upload'
+        else:
+            return None
+
+        record = session.run(f"""
+            MATCH (root:{root_label} {{uuid: $uuid}})<-[:{relationship}]-(d:Dataset)
+            RETURN apoc.map.fromPairs(COLLECT([d.uuid, properties(d)])) AS result
+        """, uuid=uuid).single()
+
+        if not record or not record["result"]:
+            return {}
+
+        return {uuid: dict(props) for uuid, props in record["result"].items()}
+
+    
 """
 Create multiple sample nodes in neo4j
 

@@ -3183,3 +3183,87 @@ paths:
                       uuid: "abcd1234-ef56-gh78-ij90-klmnop123456"
         '500': 
           description: Internal Error
+  '/entities/{id}/reindex-info':
+    get:
+      summary: Retrieve all data required to reindex a given entity
+      parameters:
+        - name: id
+          in: path
+          description: The unique identifier of entity. This identifier can be either an HuBMAP ID (e.g. HBM123.ABCD.456) or UUID
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Entity and its related data including ancestors, descendants, immediate relationships, and optional donor and sample data
+          content:
+            application/json:
+              schema:
+                type: object
+              examples:
+                reindexinfoexample:
+                  summary: 'An example of a reindex-info response'
+                  value:
+                    entity: object
+                    ancestors: [entity objects]
+                    descendants: [entity objects]
+                    immediate_ancestors: [entity objects]
+                    immediate_descendants: [entity objects]
+                    donor: object
+                    origin_samples: [entity objects]
+                    source_samples: [entity objects]
+        '400':
+          description: Invalid or misformatted entity identifier
+        '401':
+          description: The user's token has expired or the user did not supply a valid token
+        '403':
+          description: The user is not authorized to access the entity
+        '404':
+          description: The target entity could not be found
+        '500':
+          description: An unexpected error occurred
+  '/entities/{id}/dataset-documents':
+    get:
+      summary: Retrieve processed dataset documents associated with a collection, epicollection, or upload
+      parameters:
+        - name: id
+          in: path
+          description: The unique identifier of entity. This identifier can be either an HuBMAP ID (e.g. HBM123.ABCD.456) or UUID of a Collection, Epicollection, or Upload
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: A JSON object mapping dataset UUIDs to their processed document representations enriched via the trigger pipeline and normalized for response
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties:
+                  type: object
+              examples:
+                datasetdocumentsexample:
+                  summary: 'An example of a dataset-documents response'
+                  value:
+                    abcd1234-ef56-gh78-ij90-klmnop123456:
+                      entity_type: 'Dataset'
+                      uuid: 'abcd1234-ef56-gh78-ij90-klmnop123456'
+                      hubmap_id: 'HBM123.ABCD.456'
+                      status: 'Published'
+                      data_types: ['CODEX']
+                    wxyz5678-ab12-cd34-ef56-ghijklmnopqr:
+                      entity_type: 'Dataset'
+                      uuid: 'wxyz5678-ab12-cd34-ef56-ghijklmnopqr'
+                      hubmap_id: 'HBM456.WXYZ.789'
+                      status: 'Published'
+                      data_types: ['MxIF']
+        '400':
+          description: Invalid or misformatted entity identifier
+        '401':
+          description: The user's token has expired or the user did not supply a valid token
+        '403':
+          description: The user is not authorized to access the entity
+        '404':
+          description: The target entity could not be found
+        '500':
+          description: An unexpected error occurred

@@ -941,6 +941,125 @@ def get_document_by_id(id):
     result_dict = _get_metadata_by_id(entity_id=id, metadata_scope=MetadataScopeEnum.INDEX)
     return jsonify(result_dict)
 
+"""
+Retrieve all data required to reindex a given entity
+
+Parameters
+----------
+uuid : str
+    The HuBMAP ID or UUID of the target entity
+
+Returns
+-------
+json
+    Entity and its related data (ancestors,
+    descendants, immediate relationships, and optional donor and sample data)
+"""
+@app.route('/entities/<uuid>/reindex-info', methods=['GET'])
+def get_reindex_info(uuid):
+    validate_token_if_auth_header_exists(request)
+    token = get_internal_token()
+
+    raw = app_neo4j_queries.get_reindex_info_raw(neo4j_driver_instance, uuid)
+    if raw is None:
+        return not_found_error(f"Entity {uuid} not found")
+
+    def run_triggers(entity_dict):
+        try:
+            generated = schema_manager.generate_triggered_data(
+                trigger_type=TriggerTypeEnum.ON_INDEX,
+                normalized_class=entity_dict['entity_type'],
+                request_args=request.args,
+                user_token=token,
+                existing_data_dict=entity_dict,
+                new_data_dict={},
+                properties_to_skip=[]
+            )
+            complete = schema_manager.remove_none_values({**entity_dict, **generated})
+            return schema_manager.normalize_document_result_for_response(entity_dict=complete)
+        except Exception as e:
+            logger.error(f"Trigger pipeline failed for {entity_dict.get('uuid')}: {e}")
+            return entity_dict
+    # There can be a ton of overlap between the multiple values we're fetching, so we don't want to run the triggers on the same data more 
+    # than once. So a simple cache is useful here.
+    triggered_cache = {}
+
+    def run_triggers_cached(entity_dict):
+        uid = entity_dict.get('uuid')
+        if uid not in triggered_cache:
+            triggered_cache[uid] = run_triggers(entity_dict)
+        return triggered_cache[uid]
+
+    result = {
+        "entity": run_triggers(raw["entity"]),
+        "ancestors": [run_triggers_cached(e) for e in raw["ancestors"]],
+        "descendants": [run_triggers_cached(e) for e in raw["descendants"]],
+        "immediate_ancestors": [run_triggers_cached(e) for e in raw["immediate_ancestors"]],
+        "immediate_descendants": [run_triggers_cached(e) for e in raw["immediate_descendants"]],
+    }
+    if raw.get("donor"):
+        result["donor"] = run_triggers_cached(raw["donor"])
+    if raw.get("origin_samples"):
+        result["origin_samples"] = [run_triggers_cached(e) for e in raw["origin_samples"]]
+    if raw.get("source_samples"):
+        result["source_samples"] = [run_triggers_cached(e) for e in raw["source_samples"]]
+    resp_body = json.dumps(result).encode('utf-8')
+    try_resp = try_stash_response_body(resp_body)
+    if try_resp is not None:
+        return try_resp
+    return jsonify(result)
+
+"""
+Retrieve processed dataset documents associated with a collection or upload
+
+Parameters
+----------
+uuid : str
+    The UUID of the target entity (Collection, Epicollection, or Upload)
+
+Returns
+-------
+json
+    A JSON object mapping dataset UUIDs to their processed document representations.
+    Each dataset is enriched via the trigger pipeline (ON_INDEX), normalized for response,
+    and stripped of selected large or unnecessary fields (e.g., ingest_metadata, metadata, files).
+    Returns a 404 error if the entity is not found.
+"""
+@app.route('/entities/<uuid>/dataset-documents', methods=['GET'])
+def get_dataset_documents(uuid):
+    validate_token_if_auth_header_exists(request)
+    token = get_internal_token()
+
+    entity_record = app_neo4j_queries.get_dataset_documents_raw(neo4j_driver_instance, uuid)
+    if entity_record is None:
+        return not_found_error(f"Entity {uuid} not found")
+
+    result = {}
+    for dataset_uuid, entity_dict in entity_record.items():
+        try:
+            generated = schema_manager.generate_triggered_data(
+                trigger_type=TriggerTypeEnum.ON_INDEX,
+                normalized_class=entity_dict['entity_type'],
+                request_args=request.args,
+                user_token=token,
+                existing_data_dict=entity_dict,
+                new_data_dict={},
+                properties_to_skip=["title"]
+            )
+            complete = schema_manager.remove_none_values({**entity_dict, **generated})
+            final = schema_manager.normalize_document_result_for_response(entity_dict=complete)
+            for field in ['ingest_metadata', 'metadata', 'files']:
+                final.pop(field, None)
+            result[dataset_uuid] = final
+        except Exception as e:
+            logger.error(f"Failed to process document for {dataset_uuid}: {e}")
+            continue
+
+    resp_body = json.dumps(result).encode('utf-8')
+    try_resp = try_stash_response_body(resp_body)
+    if try_resp is not None:
+        return try_resp
+    return jsonify(result)
 
 """
 Retrive the full tree above the referenced entity and build the provenance document
