@@ -230,7 +230,7 @@ def get_reindex_info_raw(neo4j_driver, uuid):
                 RETURN apoc.coll.toSet(COLLECT(properties(d))) AS donors
             """, uuid=uuid).single()
             donors = [dict(d) for d in (donors_record["donors"] or [])]
-            donor = donors[0]
+            donor = donors[0] if donors else None
             if donors is not None:
                 result['donors'] = donors
             if donor is not None:
