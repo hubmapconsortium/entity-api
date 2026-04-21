@@ -999,6 +999,8 @@ def get_reindex_info(uuid):
     }
     if raw.get("donor"):
         result["donor"] = run_triggers_cached(raw["donor"])
+    if raw.get("donors"):
+        result["donors"] = [run_triggers_cached(e) for e in raw["donors"]]
     if raw.get("origin_samples"):
         result["origin_samples"] = [run_triggers_cached(e) for e in raw["origin_samples"]]
     if raw.get("source_samples"):
