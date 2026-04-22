@@ -38,6 +38,7 @@ from schema.schema_constants import MetadataScopeEnum
 from schema.schema_constants import TriggerTypeEnum
 from metadata_constraints import get_constraints, constraints_json_is_valid
 # from lib.ontology import initialize_ubkg, init_ontology, Ontology, UbkgSDK
+from setup_lifecycle_hooks import setup_flask_lifecycle_hooks
 
 # HuBMAP commons
 from hubmap_commons import string_helper
@@ -63,6 +64,9 @@ else:
 # Use `getLogger()` instead of `getLogger(__name__)` to apply the config to the root logger
 # will be inherited by the sub-module loggers
 logger = logging.getLogger()
+
+# Add in Flask lifecycle hooks which rely on the logger being instantiated
+setup_flask_lifecycle_hooks(app)
 
 # Remove trailing slash / from URL base to avoid "//" caused by config with trailing slash
 app.config['UUID_API_URL'] = app.config['UUID_API_URL'].strip('/')
@@ -390,7 +394,17 @@ json
 @app.route('/usergroups', methods = ['GET'])
 def get_user_groups():
     token = get_user_token(request)
-    groups_list = auth_helper_instance.get_user_groups_deprecated(token)
+    try:
+        groups_list = auth_helper_instance.get_user_groups_deprecated(token)
+    except HTTPException as he:
+        # Retrieve the appropriate error handling function based upon the
+        # code, or the HTTP 500 handling function if nothing is mapped.
+        handler = error_handlers.get(he.status_code
+                                     , error_handlers[500])
+        # Execute the error handler, using the description from the HTTPException
+        handler(he.description)
+    except Exception as e:
+        internal_server_error(e)
     return jsonify(groups_list)
 
 
@@ -4521,6 +4535,15 @@ err_msg : str
 def internal_server_error(err_msg):
     abort(500, description = err_msg)
 
+# Create a dict which allows preceding error handling functions to be invoked with
+# less if-then-else coding.
+error_handlers = {
+    400: bad_request_error,
+    401: unauthorized_error,
+    403: forbidden_error,
+    404: not_found_error,
+    500: internal_server_error
+}
 
 """
 Parse the token from Authorization header
