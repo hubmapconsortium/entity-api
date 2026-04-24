@@ -1079,9 +1079,9 @@ ENTITIES:
         indexed: true
         description: "The sample specific metadata derived from the uploaded sample_metadata.tsv file"
         before_property_create_validators:
-          - validate_sample_metadata_dissalowed_fields
+          - validate_sample_metadata_disallowed_fields
         before_property_update_validators:
-          - validate_sample_metadata_dissalowed_fields
+          - validate_sample_metadata_disallowed_fields
       rui_location:
         type: json_string
         indexed: true

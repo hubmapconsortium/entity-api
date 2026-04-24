@@ -176,7 +176,7 @@ def validate_ids_exist_and_datasets(property_key, normalized_entity_type, reques
 
 
 """
-Validate provided data does not include include metadata.source_id or metadata.sample_id
+Validate provided data does not include include prohibited fields (e.g. sample_id, source_id)
 
 Parameters
 ----------
@@ -191,7 +191,7 @@ existing_data_dict : dict
 new_data_dict : dict
     The json data in request body, already after the regular validations
 """
-def validate_sample_metadata_dissalowed_fields(property_key, normalized_entity_type, request, existing_data_dict, new_data_dict):
+def validate_sample_metadata_disallowed_fields(property_key, normalized_entity_type, request, existing_data_dict, new_data_dict):
     data = new_data_dict
     disallowed_values = ['source_id', 'sample_id']
     invalid_entries = []
