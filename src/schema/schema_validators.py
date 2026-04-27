@@ -176,6 +176,38 @@ def validate_ids_exist_and_datasets(property_key, normalized_entity_type, reques
 
 
 """
+Validate provided data does not include include prohibited fields (e.g. sample_id, source_id)
+
+Parameters
+----------
+property_key : str
+    The target property key
+normalized_type : str
+    Submission
+request: Flask request object
+    The instance of Flask request passed in from application request
+existing_data_dict : dict
+    A dictionary that contains all existing entity properties
+new_data_dict : dict
+    The json data in request body, already after the regular validations
+"""
+def validate_sample_metadata_disallowed_fields(property_key, normalized_entity_type, request, existing_data_dict, new_data_dict):
+    data = new_data_dict
+    disallowed_values = ['source_id', 'sample_id']
+    invalid_entries = []
+    metadata = data.get('metadata')
+    if metadata and isinstance(metadata, dict):
+        metadata_fields = metadata.keys()
+        normalized_metadata_fields = [f.lower() for f in metadata_fields]
+        for field in normalized_metadata_fields:
+            if field in disallowed_values:
+                invalid_entries.append(field)
+    if len(invalid_entries) > 0:
+        raise ValueError(f'Disallowed field(s) inside Sample.metadata: {", ".join(invalid_entries)}')
+
+
+
+"""
 Validate that a given dataset is not a component of a multi-assay split parent dataset fore allowing status to be 
 updated. If a component dataset needs to be updated, update it via its parent multi-assay dataset
 
