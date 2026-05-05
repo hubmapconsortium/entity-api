@@ -577,6 +577,35 @@ def get_exclusion_types(normalized_entity_type, flat_list):
     return triggered_top_props_to_skip, neo4j_top_props_to_skip, neo4j_nested_props_to_skip
 
 
+
+"""
+Get all non-transient properties across all entity types
+
+Parameters
+----------
+None
+
+Returns
+-------
+list
+    A list of property names defined in the provenance schema where transient != True
+"""
+def get_persistent_fields():
+    global _schema
+
+    persistent_fields = set()
+
+    for entity in _schema['ENTITIES'].values():
+        properties = entity.get('properties', {})
+
+        for field, props in properties.items():
+            if not props.get('transient', False):
+                persistent_fields.add(field)
+
+    return list(persistent_fields)
+
+
+
 """
 Generating triggered data based on the target events and methods
 

@@ -1114,6 +1114,178 @@ def get_entities_by_type(entity_type):
     # Response with the final result
     return jsonify(final_result)
 
+@app.route('/entities/<uuid>/ancestor-info', methods=['GET'])
+def get_ancestor_info(uuid):
+    validate_token_if_auth_header_exists(request)
+    include_fields = None
+    if bool(request.args):
+        included = request.args.get('include')
+        if included:
+            include_fields = [
+                f.strip().strip("'").strip('"')
+                for f in included.split(',')
+                if f.strip()
+            ]
+            valid_fields = set(schema_manager.get_persistent_fields())
+            invalid = [f for f in include_fields if f not in valid_fields]
+            if invalid:
+                return bad_request_error(f"Invalid include fields: {invalid}")
+    result = app_neo4j_queries.get_ancestors_trimmed(neo4j_driver_instance, uuid, included_fields=include_fields)
+    if result is None:
+        return not_found_error(f"Entity {uuid} not found")
+    return jsonify(result)
+
+
+@app.route('/entities/<uuid>/descendant-info', methods=['GET'])
+def get_descendant_info(uuid):
+    validate_token_if_auth_header_exists(request)
+    include_fields = None
+    if bool(request.args):
+        included = request.args.get('include')
+        if included:
+            include_fields = [
+                f.strip().strip("'").strip('"')
+                for f in included.split(',')
+                if f.strip()
+            ]
+            valid_fields = set(schema_manager.get_persistent_fields())
+            invalid = [f for f in include_fields if f not in valid_fields]
+            if invalid:
+                return bad_request_error(f"Invalid include fields: {invalid}")
+    result = app_neo4j_queries.get_descendants_trimmed(neo4j_driver_instance, uuid, included_fields=include_fields)
+    if result is None:
+        return not_found_error(f"Entity {uuid} not found")
+    return jsonify(result)
+
+@app.route('/entities/<uuid>/parent-info', methods=['GET'])
+def get_parent_info(uuid):
+    validate_token_if_auth_header_exists(request)
+    included_fields = None
+    if bool(request.args):
+        included = request.args.get('include')
+        if included:
+            included_fields = [
+                f.strip().strip("'").strip('"')
+                for f in included.split(',')
+                if f.strip()
+            ]
+            valid_fields = set(schema_manager.get_persistent_fields())
+            invalid = [f for f in included_fields if f not in valid_fields]
+            if invalid:
+                return bad_request_error(f"Invalid include fields: {invalid}")
+    result = app_neo4j_queries.get_parent_info(neo4j_driver_instance, uuid, included_fields=included_fields)
+    if result is None:
+        return not_found_error(f"Entity {uuid} not found")
+    return jsonify(result)
+
+
+@app.route('/entities/<uuid>/child-info', methods=['GET'])
+def get_child_info(uuid):
+    validate_token_if_auth_header_exists(request)
+    included_fields = None
+    if bool(request.args):
+        included = request.args.get('include')
+        if included:
+            included_fields = [
+                f.strip().strip("'").strip('"')
+                for f in included.split(',')
+                if f.strip()
+            ]
+            valid_fields = set(schema_manager.get_persistent_fields())
+            invalid = [f for f in included_fields if f not in valid_fields]
+            if invalid:
+                return bad_request_error(f"Invalid include fields: {invalid}")
+    result = app_neo4j_queries.get_child_info(neo4j_driver_instance, uuid, included_fields=included_fields)
+    if result is None:
+        return not_found_error(f"Entity {uuid} not found")
+    return jsonify(result)
+
+
+@app.route('/entities/<uuid>/donor-info', methods=['GET'])
+def get_donor_info(uuid):
+    validate_token_if_auth_header_exists(request)
+    result = app_neo4j_queries.get_donor_info(neo4j_driver_instance, uuid)
+    if result is None:
+        return not_found_error(f"Entity {uuid} not found")
+    return jsonify(result)
+
+@app.route('/entities/<uuid>/origin-info', methods=['GET'])
+def get_origin_samples(uuid):
+    validate_token_if_auth_header_exists(request)
+    result = app_neo4j_queries.get_origin_samples(neo4j_driver_instance, uuid)
+    if result is None:
+        return not_found_error(f"Entity {uuid} not found")
+    return jsonify(result)
+
+
+@app.route('/entities/<uuid>/source-info', methods=['GET'])
+def get_source_samples(uuid):
+    validate_token_if_auth_header_exists(request)
+    result = app_neo4j_queries.get_source_samples(neo4j_driver_instance, uuid)
+    if result is None:
+        return not_found_error(f"Entity {uuid} not found")
+    return jsonify(result)
+
+"""
+Retrieve processed dataset documents associated with a collection or upload
+
+Parameters
+----------
+uuid : str
+    The UUID of the target entity (Collection, Epicollection, or Upload)
+
+Returns
+-------
+json
+    A JSON object mapping dataset UUIDs to their processed document representations.
+    Each dataset is enriched via the trigger pipeline (ON_INDEX), normalized for response,
+    and stripped of selected large or unnecessary fields (e.g., ingest_metadata, metadata, files).
+    Returns a 404 error if the entity is not found.
+"""
+@app.route('/entities/<uuid>/dataset-documents', methods=['GET'])
+def get_dataset_documents(uuid):
+    validate_token_if_auth_header_exists(request)
+    token = get_internal_token()
+    excluded_fields = None
+    if bool(request.args):
+        excluded = request.args.get('exclude')
+        if excluded:
+            excluded_fields = [
+                f.strip().strip("'").strip('"')
+                for f in excluded.split(',')
+                if f.strip()
+            ]
+
+        # This is a validation step. Because we're allowing excluded fields to be passed from search-api,
+        # we want to minimally at least make sure these are real property names before using them for 
+        # querying neo4j. 
+        valid_fields = set(schema_manager.get_persistent_fields())
+        invalid = [f for f in excluded_fields if f not in valid_fields]
+        if invalid:
+            return bad_request_error(f"Invalid excluded fields: {invalid}")
+
+    entity_record = app_neo4j_queries.get_dataset_documents_raw(neo4j_driver_instance, uuid, excluded_fields=excluded_fields)
+    if entity_record is None:
+        return not_found_error(f"Entity {uuid} not found")
+
+    result = {}
+    for dataset_uuid, entity_dict in entity_record.items():
+        try:
+            complete = schema_manager.remove_none_values({**entity_dict})
+            final = schema_manager.normalize_document_result_for_response(entity_dict=complete)
+            for field in ['ingest_metadata', 'metadata', 'files']:
+                final.pop(field, None)
+            result[dataset_uuid] = final
+        except Exception as e:
+            logger.error(f"Failed to process document for {dataset_uuid}: {e}")
+            continue
+
+    resp_body = json.dumps(result).encode('utf-8')
+    try_resp = try_stash_response_body(resp_body)
+    if try_resp is not None:
+        return try_resp
+    return jsonify(result)
+
 """
 Create an entity of the target type in neo4j
 
