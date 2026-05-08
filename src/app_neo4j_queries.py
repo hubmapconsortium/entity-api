@@ -198,9 +198,8 @@ def get_origin_samples(neo4j_driver, uuid):
 
         record = session.run("""
             MATCH (e:Entity {uuid: $uuid})
-            OPTIONAL MATCH (e)<-[:ACTIVITY_INPUT|ACTIVITY_OUTPUT*]-(s:Entity)
-            WHERE s.entity_type = 'Sample'
-            AND s.sample_category IS NOT NULL
+            OPTIONAL MATCH (e)<-[:ACTIVITY_INPUT|ACTIVITY_OUTPUT*]-(s:Sample)
+            WHERE s.sample_category IS NOT NULL
             AND toLower(s.sample_category) = 'organ'
             AND s.organ IS NOT NULL
             AND trim(s.organ) <> ''
@@ -220,17 +219,23 @@ def get_source_samples(neo4j_driver, uuid):
             return None
 
         record = session.run("""
-            MATCH (e:Entity {uuid: $uuid})
-            MATCH (e)<-[:ACTIVITY_OUTPUT]-(:Activity)<-[:ACTIVITY_INPUT|ACTIVITY_OUTPUT*]-(s:Entity {entity_type: 'Sample'})
-            WHERE NOT EXISTS {
-                MATCH (s)<-[:ACTIVITY_OUTPUT]-(:Activity)<-[:ACTIVITY_INPUT]-(closer:Entity {entity_type: 'Sample'})
-                MATCH (closer)-[:ACTIVITY_INPUT|ACTIVITY_OUTPUT*]->(e)
-            }
+            MATCH (e:Dataset {uuid: $uuid})
+            CALL apoc.path.expandConfig(e, {
+                relationshipFilter: "<ACTIVITY_OUTPUT|<ACTIVITY_INPUT",
+                minLevel: 1,
+                maxLevel: 20,
+                bfs: true
+            }) YIELD path
+            WITH last(nodes(path)) AS a
+            WHERE a:Activity AND a.creation_action = 'Create Dataset Activity'
+            MATCH (a)<-[:ACTIVITY_INPUT]-(s:Sample)
             RETURN apoc.coll.toSet(COLLECT(properties(s))) AS source_samples
+            LIMIT 1
         """, uuid=uuid).single()
 
+        if record is None:
+            return []
         return [dict(s) for s in (record['source_samples'] or [])]
-
 
 """
 Retrieve dataset documents associated with a collection or upload

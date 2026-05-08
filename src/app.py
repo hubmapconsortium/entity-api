@@ -1114,7 +1114,7 @@ def get_entities_by_type(entity_type):
     # Response with the final result
     return jsonify(final_result)
 
-@app.route('/entities/<uuid>/ancestor-info', methods=['GET'])
+@app.route('/ancestor-info/<uuid>', methods=['GET'])
 def get_ancestor_info(uuid):
     validate_token_if_auth_header_exists(request)
     include_fields = None
@@ -1133,10 +1133,13 @@ def get_ancestor_info(uuid):
     result = app_neo4j_queries.get_ancestors_trimmed(neo4j_driver_instance, uuid, included_fields=include_fields)
     if result is None:
         return not_found_error(f"Entity {uuid} not found")
-    return jsonify(result)
+    cleaned_result = [schema_manager.remove_none_values(entity) for entity in result]
+    complete = [schema_manager.normalize_document_result_for_response(entity) for entity in cleaned_result]
+    ordered_response = [alphabetize_dict_recursive(entity) for entity in complete]
+    return jsonify(ordered_response)
 
 
-@app.route('/entities/<uuid>/descendant-info', methods=['GET'])
+@app.route('/descendant-info/<uuid>', methods=['GET'])
 def get_descendant_info(uuid):
     validate_token_if_auth_header_exists(request)
     include_fields = None
@@ -1155,9 +1158,12 @@ def get_descendant_info(uuid):
     result = app_neo4j_queries.get_descendants_trimmed(neo4j_driver_instance, uuid, included_fields=include_fields)
     if result is None:
         return not_found_error(f"Entity {uuid} not found")
-    return jsonify(result)
+    cleaned_result = [schema_manager.remove_none_values(entity) for entity in result]
+    complete = [schema_manager.normalize_document_result_for_response(entity) for entity in cleaned_result]
+    ordered_response = [alphabetize_dict_recursive(entity) for entity in complete]
+    return jsonify(ordered_response)
 
-@app.route('/entities/<uuid>/parent-info', methods=['GET'])
+@app.route('/parent-info/<uuid>', methods=['GET'])
 def get_parent_info(uuid):
     validate_token_if_auth_header_exists(request)
     included_fields = None
@@ -1176,10 +1182,13 @@ def get_parent_info(uuid):
     result = app_neo4j_queries.get_parent_info(neo4j_driver_instance, uuid, included_fields=included_fields)
     if result is None:
         return not_found_error(f"Entity {uuid} not found")
-    return jsonify(result)
+    cleaned_result = [schema_manager.remove_none_values(entity) for entity in result]
+    complete = [schema_manager.normalize_document_result_for_response(entity) for entity in cleaned_result]
+    ordered_response = [alphabetize_dict_recursive(entity) for entity in complete]
+    return jsonify(ordered_response)
 
 
-@app.route('/entities/<uuid>/child-info', methods=['GET'])
+@app.route('/child-info/<uuid>', methods=['GET'])
 def get_child_info(uuid):
     validate_token_if_auth_header_exists(request)
     included_fields = None
@@ -1198,33 +1207,27 @@ def get_child_info(uuid):
     result = app_neo4j_queries.get_child_info(neo4j_driver_instance, uuid, included_fields=included_fields)
     if result is None:
         return not_found_error(f"Entity {uuid} not found")
-    return jsonify(result)
+    cleaned_result = [schema_manager.remove_none_values(entity) for entity in result]
+    complete = [schema_manager.normalize_document_result_for_response(entity) for entity in cleaned_result]
+    ordered_response = [alphabetize_dict_recursive(entity) for entity in complete]
+    return jsonify(ordered_response)
 
-
-@app.route('/entities/<uuid>/donor-info', methods=['GET'])
-def get_donor_info(uuid):
-    validate_token_if_auth_header_exists(request)
-    result = app_neo4j_queries.get_donor_info(neo4j_driver_instance, uuid)
-    if result is None:
-        return not_found_error(f"Entity {uuid} not found")
-    return jsonify(result)
-
-@app.route('/entities/<uuid>/origin-info', methods=['GET'])
-def get_origin_samples(uuid):
-    validate_token_if_auth_header_exists(request)
-    result = app_neo4j_queries.get_origin_samples(neo4j_driver_instance, uuid)
-    if result is None:
-        return not_found_error(f"Entity {uuid} not found")
-    return jsonify(result)
-
-
-@app.route('/entities/<uuid>/source-info', methods=['GET'])
+@app.route('/source-info/<uuid>', methods=['GET'])
 def get_source_samples(uuid):
     validate_token_if_auth_header_exists(request)
     result = app_neo4j_queries.get_source_samples(neo4j_driver_instance, uuid)
     if result is None:
         return not_found_error(f"Entity {uuid} not found")
     return jsonify(result)
+
+def alphabetize_dict_recursive(obj):
+    if isinstance(obj, dict):
+        return {k: alphabetize_dict_recursive(obj[k]) for k in sorted(obj.keys())}
+    elif isinstance(obj, list):
+        return [alphabetize_dict_recursive(item) for item in obj]
+    else:
+        return obj
+
 
 """
 Retrieve processed dataset documents associated with a collection or upload
