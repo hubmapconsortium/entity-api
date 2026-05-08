@@ -134,7 +134,7 @@ def get_descendants_trimmed(neo4j_driver, uuid, included_fields):
         return [dict(d) for d in (record['result'] or [])]
 
 
-def get_parent_info(neo4j_driver, uuid, included_fields=None):
+def get_parents_info(neo4j_driver, uuid, included_fields=None):
     with neo4j_driver.session() as session:
         projection = 'properties(p)'
         if included_fields:
@@ -153,7 +153,7 @@ def get_parent_info(neo4j_driver, uuid, included_fields=None):
         return [dict(p) for p in (record['result'] or [])]
 
 
-def get_child_info(neo4j_driver, uuid, included_fields=None):
+def get_children_info(neo4j_driver, uuid, included_fields=None):
     with neo4j_driver.session() as session:
         projection = 'properties(c)'
         if included_fields:

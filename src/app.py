@@ -1114,8 +1114,8 @@ def get_entities_by_type(entity_type):
     # Response with the final result
     return jsonify(final_result)
 
-@app.route('/ancestor-info/<uuid>', methods=['GET'])
-def get_ancestor_info(uuid):
+@app.route('/ancestors-info/<uuid>', methods=['GET'])
+def get_ancestors_info(uuid):
     validate_token_if_auth_header_exists(request)
     include_fields = None
     if bool(request.args):
@@ -1139,8 +1139,8 @@ def get_ancestor_info(uuid):
     return jsonify(ordered_response)
 
 
-@app.route('/descendant-info/<uuid>', methods=['GET'])
-def get_descendant_info(uuid):
+@app.route('/descendants-info/<uuid>', methods=['GET'])
+def get_descendants_info(uuid):
     validate_token_if_auth_header_exists(request)
     include_fields = None
     if bool(request.args):
@@ -1163,8 +1163,8 @@ def get_descendant_info(uuid):
     ordered_response = [alphabetize_dict_recursive(entity) for entity in complete]
     return jsonify(ordered_response)
 
-@app.route('/parent-info/<uuid>', methods=['GET'])
-def get_parent_info(uuid):
+@app.route('/parents-info/<uuid>', methods=['GET'])
+def get_parents_info(uuid):
     validate_token_if_auth_header_exists(request)
     included_fields = None
     if bool(request.args):
@@ -1179,7 +1179,7 @@ def get_parent_info(uuid):
             invalid = [f for f in included_fields if f not in valid_fields]
             if invalid:
                 return bad_request_error(f"Invalid include fields: {invalid}")
-    result = app_neo4j_queries.get_parent_info(neo4j_driver_instance, uuid, included_fields=included_fields)
+    result = app_neo4j_queries.get_parents_info(neo4j_driver_instance, uuid, included_fields=included_fields)
     if result is None:
         return not_found_error(f"Entity {uuid} not found")
     cleaned_result = [schema_manager.remove_none_values(entity) for entity in result]
@@ -1188,8 +1188,8 @@ def get_parent_info(uuid):
     return jsonify(ordered_response)
 
 
-@app.route('/child-info/<uuid>', methods=['GET'])
-def get_child_info(uuid):
+@app.route('/children-info/<uuid>', methods=['GET'])
+def get_children_info(uuid):
     validate_token_if_auth_header_exists(request)
     included_fields = None
     if bool(request.args):
@@ -1204,7 +1204,7 @@ def get_child_info(uuid):
             invalid = [f for f in included_fields if f not in valid_fields]
             if invalid:
                 return bad_request_error(f"Invalid include fields: {invalid}")
-    result = app_neo4j_queries.get_child_info(neo4j_driver_instance, uuid, included_fields=included_fields)
+    result = app_neo4j_queries.get_children_info(neo4j_driver_instance, uuid, included_fields=included_fields)
     if result is None:
         return not_found_error(f"Entity {uuid} not found")
     cleaned_result = [schema_manager.remove_none_values(entity) for entity in result]
@@ -1212,8 +1212,8 @@ def get_child_info(uuid):
     ordered_response = [alphabetize_dict_recursive(entity) for entity in complete]
     return jsonify(ordered_response)
 
-@app.route('/source-info/<uuid>', methods=['GET'])
-def get_source_samples(uuid):
+@app.route('/sources-info/<uuid>', methods=['GET'])
+def get_sources_info(uuid):
     validate_token_if_auth_header_exists(request)
     result = app_neo4j_queries.get_source_samples(neo4j_driver_instance, uuid)
     if result is None:
