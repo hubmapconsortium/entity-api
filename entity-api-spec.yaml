@@ -644,7 +644,8 @@ components:
             - Invalid
             - Submitted
             - Incomplete
-          description: 'One of: New|Processing|Published|QA|Error|Hold|Invalid|Submitted|Incomplete'
+            - Approval
+          description: 'One of: New|Processing|Published|QA|Error|Hold|Invalid|Submitted|Incomplete|Approval'
         title:
           type: string
           description: 'The dataset title.'
@@ -883,7 +884,7 @@ components:
             - Reorganized
             - Processing
             - Submitted
-            - Imcomplete
+            - Incomplete
           description: 'One of: New|Valid|Invalid|Error|Reorganized|Processing|Submitted|Incomplete'
         validation_message:
           type: string
@@ -1098,8 +1099,9 @@ components:
             - Hold
             - Invalid
             - Submitted
-            - Imcomplete
-          description: 'One of: New|Processing|Published|QA|Error|Hold|Invalid|Submitted|Incomplete'
+            - Incomplete
+            - Approval
+          description: 'One of: New|Processing|Published|QA|Error|Hold|Invalid|Submitted|Incomplete|Approval'
         title:
           type: string
           description: 'The Publication title.'

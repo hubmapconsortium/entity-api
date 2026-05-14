@@ -600,7 +600,8 @@ x-ref-components:
                 - Error
                 - Hold
                 - Invalid
-              description: "One of: New|Processing|QA|Published|Error|Hold|Invalid"
+                - Approval
+              description: "One of: New|Processing|QA|Published|Error|Hold|Invalid|Approval"
         title:
           type: string
           description: "The dataset title."

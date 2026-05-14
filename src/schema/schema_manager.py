@@ -1441,12 +1441,12 @@ Lowercase and capitalize the status string unless its "qa", then make it capital
 Parameters
 ----------
 status : str
-    One of the status types: New|Processing|QA|Published|Error|Hold|Invalid
+    One of the status types: New|Processing|QA|Published|Error|Hold|Invalid|Approval
     
 Returns
 -------
 string
-    One of the normalized status types: New|Processing|QA|Published|Error|Hold|Invalid
+    One of the normalized status types: New|Processing|QA|Published|Error|Hold|Invalid|Approval
 """
 def normalize_status(status):
     if status.lower() == "qa":

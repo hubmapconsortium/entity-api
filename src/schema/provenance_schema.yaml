@@ -408,7 +408,7 @@ ENTITIES:
           - validate_dataset_not_component
         generated: true
         indexed: true
-        description: "One of: New|Processing|Published|QA|Error|Hold|Invalid|Submitted|Incomplete"
+        description: "One of: New|Processing|Published|QA|Error|Hold|Invalid|Submitted|Incomplete|Approval"
         before_create_trigger: set_dataset_status_new
         after_create_trigger: set_status_history
         after_update_trigger: update_status
