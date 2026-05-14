@@ -1218,7 +1218,32 @@ def get_sources_info(uuid):
     result = app_neo4j_queries.get_source_samples(neo4j_driver_instance, uuid)
     if result is None:
         return not_found_error(f"Entity {uuid} not found")
-    return jsonify(result)
+    cleaned_result = [schema_manager.remove_none_values(entity) for entity in result]
+    complete = [schema_manager.normalize_document_result_for_response(entity) for entity in cleaned_result]
+    ordered_response = [alphabetize_dict_recursive(entity) for entity in complete]
+    return jsonify(ordered_response)
+
+@app.route('/origins-info/<uuid>', methods=['GET'])
+def get_origin_info(uuid):
+    validate_token_if_auth_header_exists(request)
+    result = app_neo4j_queries.get_origin_samples(neo4j_driver_instance, uuid)
+    if result is None:
+        return not_found_error(f"Entity {uuid} not found")
+    cleaned_result = [schema_manager.remove_none_values(entity) for entity in result]
+    complete = [schema_manager.normalize_document_result_for_response(entity) for entity in cleaned_result]
+    ordered_response = [alphabetize_dict_recursive(entity) for entity in complete]
+    return jsonify(ordered_response)
+
+@app.route('/donors-info/<uuid>', methods=['GET'])
+def get_donors_info(uuid):
+    validate_token_if_auth_header_exists(request)
+    result = app_neo4j_queries.get_donor_info(neo4j_driver_instance, uuid)
+    if result is None:
+        return not_found_error(f"Entity {uuid} not found")
+    cleaned_result = [schema_manager.remove_none_values(entity) for entity in result]
+    complete = [schema_manager.normalize_document_result_for_response(entity) for entity in cleaned_result]
+    ordered_response = [alphabetize_dict_recursive(entity) for entity in complete]
+    return jsonify(ordered_response)
 
 def alphabetize_dict_recursive(obj):
     if isinstance(obj, dict):
