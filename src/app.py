@@ -2105,8 +2105,9 @@ def get_siblings(id):
         include_revisions = request.args.get('include-old-revisions')
         if status is not None:
             status = status.lower()
-            if status not in ['new', 'processing', 'published', 'qa', 'error', 'hold', 'invalid', 'submitted']:
-                bad_request_error("Invalid Dataset Status. Must be 'new', 'qa', or 'published' Case-Insensitive")
+            allowed_statuses = ['new', 'processing', 'published', 'qa', 'error', 'hold', 'invalid', 'submitted', 'approval']
+            if status not in allowed_statuses:
+                bad_request_error(f"Invalid Dataset Status. Must be one of: {', '.join(allowed_statuses)}")
         if property_key is not None:
             property_key = property_key.lower()
             result_filtering_accepted_property_keys = ['uuid']
@@ -2239,8 +2240,9 @@ def get_tuplets(id):
         status = request.args.get('status')
         if status is not None:
             status = status.lower()
-            if status not in ['new', 'processing', 'published', 'qa', 'error', 'hold', 'invalid', 'submitted']:
-                bad_request_error("Invalid Dataset Status. Must be 'new', 'qa', or 'published' Case-Insensitive")
+            allowed_statuses = ['new', 'processing', 'published', 'qa', 'error', 'hold', 'invalid', 'submitted', 'approval']
+            if status not in allowed_statuses:
+                bad_request_error(f"Invalid Dataset Status. Must be one of: {', '.join(allowed_statuses)}")
         if property_key is not None:
             property_key = property_key.lower()
             result_filtering_accepted_property_keys = ['uuid']
