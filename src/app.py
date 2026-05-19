@@ -1130,6 +1130,10 @@ def get_ancestors_info(uuid):
             invalid = [f for f in include_fields if f not in valid_fields]
             if invalid:
                 return bad_request_error(f"Invalid include fields: {invalid}")
+        else:
+            return bad_request_error(f"Missing required parameter: 'include'. Must include a list of properties to be returned.")
+    else:
+        return bad_request_error(f"Missing required parameter: 'include'. Must include a list of properties to be returned.")
     result = app_neo4j_queries.get_ancestors_trimmed(neo4j_driver_instance, uuid, included_fields=include_fields)
     if result is None:
         return not_found_error(f"Entity {uuid} not found")
@@ -1155,6 +1159,10 @@ def get_descendants_info(uuid):
             invalid = [f for f in include_fields if f not in valid_fields]
             if invalid:
                 return bad_request_error(f"Invalid include fields: {invalid}")
+        else:
+            return bad_request_error(f"Missing required parameter: 'include'. Must include a list of properties to be returned.")
+    else:
+        return bad_request_error(f"Missing required parameter: 'include'. Must include a list of properties to be returned.")
     result = app_neo4j_queries.get_descendants_trimmed(neo4j_driver_instance, uuid, included_fields=include_fields)
     if result is None:
         return not_found_error(f"Entity {uuid} not found")
