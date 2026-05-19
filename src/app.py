@@ -1114,6 +1114,24 @@ def get_entities_by_type(entity_type):
     # Response with the final result
     return jsonify(final_result)
 
+
+"""
+Retrieve the document info needed for a given entity's ancestors. Result filtering for this 
+endpoint is required and is given by the required parameter 'include'. 
+For example /ancestors-info?include=uuid,status,entity_type
+
+
+Parameters
+----------
+include : str
+    A comma delimited string of all the properties to be retrieved by the endpoint
+
+Returns
+-------
+json
+    A list of dicts where each dict contains the requested fields for the given ancestor. 
+"""
+
 @app.route('/ancestors-info/<uuid>', methods=['GET'])
 def get_ancestors_info(uuid):
     validate_token_if_auth_header_exists(request)
@@ -1143,6 +1161,22 @@ def get_ancestors_info(uuid):
     return jsonify(ordered_response)
 
 
+"""
+Retrieve the document info needed for a given entity's descendant. Result filtering for this 
+endpoint is required and is given by the required parameter 'include'. 
+For example /descendants-info?include=uuid,status,entity_type
+
+
+Parameters
+----------
+include : str
+    A comma delimited string of all the properties to be retrieved by the endpoint
+
+Returns
+-------
+json
+    A list of dicts where each dict contains the requested fields for the given descendant. 
+"""
 @app.route('/descendants-info/<uuid>', methods=['GET'])
 def get_descendants_info(uuid):
     validate_token_if_auth_header_exists(request)
@@ -1171,6 +1205,23 @@ def get_descendants_info(uuid):
     ordered_response = [alphabetize_dict_recursive(entity) for entity in complete]
     return jsonify(ordered_response)
 
+
+"""
+Retrieve the document info needed for a given entity's parents (immediate ancestors). Result filtering for this 
+endpoint is allowed and is given by the required parameter 'include'. 
+For example /parents-info?include=uuid,status,entity_type
+
+
+Parameters
+----------
+include : str
+    A comma delimited string of all the properties to be retrieved by the endpoint
+
+Returns
+-------
+json
+    A list of dicts where each dict contains the requested fields for the given parent. 
+"""
 @app.route('/parents-info/<uuid>', methods=['GET'])
 def get_parents_info(uuid):
     validate_token_if_auth_header_exists(request)
@@ -1196,6 +1247,22 @@ def get_parents_info(uuid):
     return jsonify(ordered_response)
 
 
+"""
+Retrieve the document info needed for a given entity's children (immediate descendants). Result filtering for this 
+endpoint is allowed and is given by the required parameter 'include'. 
+For example /children-info?include=uuid,status,entity_type
+
+
+Parameters
+----------
+include : str
+    A comma delimited string of all the properties to be retrieved by the endpoint
+
+Returns
+-------
+json
+    A list of dicts where each dict contains the requested fields for the given child. 
+"""
 @app.route('/children-info/<uuid>', methods=['GET'])
 def get_children_info(uuid):
     validate_token_if_auth_header_exists(request)
