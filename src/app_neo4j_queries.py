@@ -256,10 +256,7 @@ dict
     are found, or None if the input UUID does not correspond to a supported
     entity type.
 """
-def get_dataset_documents_raw(neo4j_driver, uuid, excluded_fields=None):
-    if excluded_fields is None:
-        excluded_fields = []
-
+def get_dataset_documents_raw(neo4j_driver, uuid, included_fields):
     with neo4j_driver.session() as session:
         entity_record = session.run("""
             MATCH (e:Entity {uuid: $uuid})
@@ -279,22 +276,19 @@ def get_dataset_documents_raw(neo4j_driver, uuid, excluded_fields=None):
             root_label = 'Upload'
         else:
             return None
-        
-        projection = "d { .* }"
 
-        if excluded_fields:
-            null_projection = ", ".join(f"{field}: NULL" for field in excluded_fields)
-            projection = f"d {{ .*, {null_projection} }}"
 
         record = session.run("""
             MATCH (root:%s {uuid: $uuid})<-[:%s]-(d:Dataset)
-            RETURN apoc.map.fromPairs(COLLECT([d.uuid, %s])) AS result
-        """ % (root_label, relationship, projection), uuid=uuid).single()
+            WITH apoc.coll.toSet(COLLECT(d)) AS datasets
+            RETURN [d IN datasets | d { %s }] AS result
+        """ % (root_label, relationship, ', '.join(f'.{f}' for f in included_fields)),
+        uuid=uuid).single()
 
         if not record or not record["result"]:
             return {}
 
-        return {uuid: dict(props) for uuid, props in record["result"].items()}
+        return {d['uuid']: dict(d) for d in record["result"]}
 
 
 
