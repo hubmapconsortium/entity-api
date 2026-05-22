@@ -1349,25 +1349,30 @@ json
 def get_dataset_documents(uuid):
     validate_token_if_auth_header_exists(request)
     token = get_internal_token()
-    excluded_fields = None
+    include_fields = None
     if bool(request.args):
-        excluded = request.args.get('exclude')
-        if excluded:
-            excluded_fields = [
+        included = request.args.get('include')
+        if included:
+            include_fields = [
                 f.strip().strip("'").strip('"')
-                for f in excluded.split(',')
+                for f in included.split(',')
                 if f.strip()
             ]
+            # Validation step to ensure fields are real property names
+            valid_fields = set(schema_manager.get_persistent_fields())
+            invalid = [f for f in include_fields if f not in valid_fields]
+            if invalid:
+                return bad_request_error(f"Invalid include fields: {invalid}")
+        else:
+            return bad_request_error("Missing required parameter: 'include'. Must include a list of properties to be returned.")
+    else:
+        return bad_request_error("Missing required parameter: 'include'. Must include a list of properties to be returned.")
 
-        # This is a validation step. Because we're allowing excluded fields to be passed from search-api,
-        # we want to minimally at least make sure these are real property names before using them for 
-        # querying neo4j. 
-        valid_fields = set(schema_manager.get_persistent_fields())
-        invalid = [f for f in excluded_fields if f not in valid_fields]
-        if invalid:
-            return bad_request_error(f"Invalid excluded fields: {invalid}")
-
-    entity_record = app_neo4j_queries.get_dataset_documents_raw(neo4j_driver_instance, uuid, excluded_fields=excluded_fields)
+    entity_record = app_neo4j_queries.get_dataset_documents_raw(
+        neo4j_driver_instance, 
+        uuid, 
+        included_fields=include_fields
+    )
     if entity_record is None:
         return not_found_error(f"Entity {uuid} not found")
 
