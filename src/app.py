@@ -1440,11 +1440,6 @@ def update_entity(id):
     if ('status' in json_data_dict) and (json_data_dict['status']):
         has_updated_status = True
 
-    # Normalize user provided status
-    if "sub_status" in json_data_dict:
-        normalized_status = schema_manager.normalize_status(json_data_dict["sub_status"])
-        json_data_dict["sub_status"] = normalized_status
-
     # Get the entity dict from cache if exists
     # Otherwise query against uuid-api and neo4j to get the entity dict if the id exists
     entity_dict = query_target_entity(id, user_token)
@@ -2105,7 +2100,7 @@ def get_siblings(id):
         include_revisions = request.args.get('include-old-revisions')
         if status is not None:
             status = status.lower()
-            allowed_statuses = ['new', 'processing', 'published', 'qa', 'error', 'hold', 'invalid', 'submitted', 'approval']
+            allowed_statuses = ['new', 'processing', 'published', 'qa', 'error', 'hold', 'invalid', 'submitted', 'approval', 'retracted']
             if status not in allowed_statuses:
                 bad_request_error(f"Invalid Dataset Status. Must be one of: {', '.join(allowed_statuses)}")
         if property_key is not None:
@@ -2240,7 +2235,7 @@ def get_tuplets(id):
         status = request.args.get('status')
         if status is not None:
             status = status.lower()
-            allowed_statuses = ['new', 'processing', 'published', 'qa', 'error', 'hold', 'invalid', 'submitted', 'approval']
+            allowed_statuses = ['new', 'processing', 'published', 'qa', 'error', 'hold', 'invalid', 'submitted', 'approval', 'retracted']
             if status not in allowed_statuses:
                 bad_request_error(f"Invalid Dataset Status. Must be one of: {', '.join(allowed_statuses)}")
         if property_key is not None:
@@ -3124,101 +3119,6 @@ def get_dataset_revision_number(id):
 #         revision_number -= 1
 #
 #     return jsonify(results)
-
-
-"""
-Retract a published dataset with a retraction reason and sub status
-
-Takes as input a json body with required fields "retracted_reason" and "sub_status".
-Authorization handled by gateway. Only token of HuBMAP-Data-Admin group can use this call. 
-
-Technically, the same can be achieved by making a PUT call to the generic entity update endpoint
-with using a HuBMAP-Data-Admin group token. But doing this is strongly discouraged because we'll
-need to add more validators to ensure when "retracted_reason" is provided, there must be a 
-"sub_status" filed and vise versa. So consider this call a special use case of entity update.
-
-Parameters
-----------
-id : str
-    The HuBMAP ID (e.g. HBM123.ABCD.456) or UUID of target dataset 
-
-Returns
--------
-dict
-    The updated dataset details
-"""
-@app.route('/datasets/<id>/retract', methods=['PUT'])
-def retract_dataset(id):
-    if READ_ONLY_MODE:
-        forbidden_error("Access not granted when entity-api in READ-ONLY mode")
-        
-    # Always expect a json body
-    require_json(request)
-
-    # Parse incoming json string into json data(python dict object)
-    json_data_dict = request.get_json()
-
-    # Normalize user provided status
-    if "sub_status" in json_data_dict:
-        normalized_status = schema_manager.normalize_status(json_data_dict["sub_status"])
-        json_data_dict["sub_status"] = normalized_status
-
-    # Use beblow application-level validations to avoid complicating schema validators
-    # The 'retraction_reason' and `sub_status` are the only required/allowed fields. No other fields allowed.
-    # Must enforce this rule otherwise we'll need to run after update triggers if any other fields
-    # get passed in (which should be done using the generic entity update call)
-    if 'retraction_reason' not in json_data_dict:
-        bad_request_error("Missing required field: retraction_reason")
-
-    if 'sub_status' not in json_data_dict:
-        bad_request_error("Missing required field: sub_status")
-
-    if len(json_data_dict) > 2:
-        bad_request_error("Only retraction_reason and sub_status are allowed fields")
-
-    # Must be a HuBMAP-Data-Admin group token
-    token = get_user_token(request)
-
-    # Retrieves the neo4j data for a given entity based on the id supplied.
-    # The normalized entity-type from this entity is checked to be a dataset
-    # If the entity is not a dataset and the dataset is not published, cannot retract
-    entity_dict = query_target_entity(id, token)
-    normalized_entity_type = entity_dict['entity_type']
-
-    # A bit more application-level validation
-    # Adding publication to validation 2/17/23 ~Derek Furst
-    if not schema_manager.entity_type_instanceof(normalized_entity_type, 'Dataset'):
-        bad_request_error("The entity of given id is not a Dataset or Publication")
-
-    # Validate request json against the yaml schema
-    # The given value of `sub_status` is being validated at this step
-    try:
-        schema_manager.validate_json_data_against_schema(json_data_dict, normalized_entity_type, existing_entity_dict = entity_dict)
-    except schema_errors.SchemaValidationException as e:
-        # No need to log the validation errors
-        bad_request_error(str(e))
-
-    # Execute property level validators defined in schema yaml before entity property update
-    try:
-        schema_manager.execute_property_level_validators('before_property_update_validators', normalized_entity_type, request, entity_dict, json_data_dict)
-    except (schema_errors.MissingApplicationHeaderException,
-            schema_errors.InvalidApplicationHeaderException,
-            KeyError,
-            ValueError) as e:
-        bad_request_error(e)
-
-    # No need to call after_update() afterwards because retraction doesn't call any after_update_trigger methods
-    merged_updated_dict = update_entity_details(request, normalized_entity_type, token, json_data_dict, entity_dict)
-
-    complete_dict = schema_manager.get_complete_entity_result(request.args, token, merged_updated_dict)
-
-    # Will also filter the result based on schema
-    normalized_complete_dict = schema_manager.normalize_entity_result_for_response(complete_dict)
-
-    # Also reindex the updated entity node in elasticsearch via search-api
-    reindex_entity(entity_dict['uuid'], token)
-
-    return jsonify(normalized_complete_dict)
 
 
 """

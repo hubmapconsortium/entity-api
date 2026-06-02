@@ -580,7 +580,8 @@ components:
                 - Hold
                 - Invalid
                 - Approval
-              description: "One of: New|Processing|QA|Published|Error|Hold|Invalid|Approval"
+                - Retracted
+              description: "One of: New|Processing|QA|Published|Error|Hold|Invalid|Approval|Retracted"
         title:
           type: string
           description: "The dataset title."

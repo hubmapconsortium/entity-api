@@ -414,7 +414,7 @@ new_data_dict : dict
 def validate_dataset_status_value(property_key, normalized_entity_type, request, existing_data_dict, new_data_dict):
     # Use lowercase for comparison
     accepted_status_values = [
-        'new', 'processing', 'published', 'qa', 'error', 'hold', 'invalid', 'submitted', 'incomplete', 'approval'
+        'new', 'processing', 'published', 'qa', 'error', 'hold', 'invalid', 'submitted', 'incomplete', 'approval', 'retracted'
     ]
     new_status = new_data_dict[property_key].lower()
 

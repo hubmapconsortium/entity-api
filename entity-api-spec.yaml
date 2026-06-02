@@ -645,7 +645,8 @@ components:
             - Submitted
             - Incomplete
             - Approval
-          description: 'One of: New|Processing|Published|QA|Error|Hold|Invalid|Submitted|Incomplete|Approval'
+            - Retracted
+          description: 'One of: New|Processing|Published|QA|Error|Hold|Invalid|Submitted|Incomplete|Approval|Retracted'
         title:
           type: string
           description: 'The dataset title.'
@@ -1101,7 +1102,8 @@ components:
             - Submitted
             - Incomplete
             - Approval
-          description: 'One of: New|Processing|Published|QA|Error|Hold|Invalid|Submitted|Incomplete|Approval'
+            - Retracted
+          description: 'One of: New|Processing|Published|QA|Error|Hold|Invalid|Submitted|Incomplete|Approval|Retracted'
         title:
           type: string
           description: 'The Publication title.'
