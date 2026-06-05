@@ -492,7 +492,7 @@ def get_ancestor_organs(id):
     public_entity = True
     if schema_manager.entity_type_instanceof(normalized_entity_type, 'Dataset'):
         # Only published/public datasets don't require token
-        if entity_dict['status'].lower() != DATASET_STATUS_PUBLISHED:
+        if entity_dict['status'].lower() not in [DATASET_STATUS_PUBLISHED, 'retracted']:
             public_entity = False
             # Token is required and the user must belong to HuBMAP-READ group
             token = get_user_token(request, non_public_access_required = True)
@@ -981,7 +981,7 @@ def get_entity_provenance(id):
 
     if schema_manager.entity_type_instanceof(normalized_entity_type, 'Dataset'):
         # Only published/public datasets don't require token
-        if entity_dict['status'].lower() != DATASET_STATUS_PUBLISHED:
+        if entity_dict['status'].lower() not in [DATASET_STATUS_PUBLISHED, 'retracted']:
             # Token is required and the user must belong to HuBMAP-READ group
             token = get_user_token(request, non_public_access_required = True)
     else:
@@ -1262,7 +1262,7 @@ def create_entity(entity_type):
 
             # Only published datasets can have revisions made of them. Verify that that status of the Dataset specified
             # by previous_revision_uuid is published. Else, bad request error.
-            if previous_version_dict['status'].lower() != DATASET_STATUS_PUBLISHED:
+            if previous_version_dict['status'].lower() not in [DATASET_STATUS_PUBLISHED, 'retracted']:
                 bad_request_error(f"The previous_revision_uuid specified for this dataset must be 'Published' in order to create a new revision from it")
 
     # If the preceding "additional validations" did not raise an error,
@@ -1655,7 +1655,7 @@ def get_ancestors(id):
 
     if schema_manager.entity_type_instanceof(normalized_entity_type, 'Dataset'):
         # Only published/public datasets don't require token
-        if entity_dict['status'].lower() != DATASET_STATUS_PUBLISHED:
+        if entity_dict['status'].lower() not in [DATASET_STATUS_PUBLISHED, 'retracted']:
             public_entity = False
             # Token is required and the user must belong to HuBMAP-READ group
             token = get_user_token(request, non_public_access_required = True)
@@ -1862,7 +1862,7 @@ def get_parents(id):
 
     if schema_manager.entity_type_instanceof(normalized_entity_type, 'Dataset'):
         # Only published/public datasets don't require token
-        if entity_dict['status'].lower() != DATASET_STATUS_PUBLISHED:
+        if entity_dict['status'].lower() not in [DATASET_STATUS_PUBLISHED, 'retracted']:
             public_entity = False
             # Token is required and the user must belong to HuBMAP-READ group
             token = get_user_token(request, non_public_access_required = True)
@@ -2070,7 +2070,7 @@ def get_siblings(id):
 
     if schema_manager.entity_type_instanceof(normalized_entity_type, 'Dataset'):
         # Only published/public datasets don't require token
-        if entity_dict['status'].lower() != DATASET_STATUS_PUBLISHED:
+        if entity_dict['status'].lower() not in [DATASET_STATUS_PUBLISHED, 'retracted']:
             public_entity = False
             # Token is required and the user must belong to HuBMAP-READ group
             token = get_user_token(request, non_public_access_required = True)
@@ -2207,7 +2207,7 @@ def get_tuplets(id):
 
     if schema_manager.entity_type_instanceof(normalized_entity_type, 'Dataset'):
         # Only published/public datasets don't require token
-        if entity_dict['status'].lower() != DATASET_STATUS_PUBLISHED:
+        if entity_dict['status'].lower() not in [DATASET_STATUS_PUBLISHED, 'retracted']:
             public_entity = False
             # Token is required and the user must belong to HuBMAP-READ group
             token = get_user_token(request, non_public_access_required = True)
@@ -2459,7 +2459,7 @@ def get_collections(id):
     if not schema_manager.entity_type_instanceof(normalized_entity_type, 'Dataset'):
         bad_request_error(f"Unsupported entity type of id {id}: {normalized_entity_type}")
 
-    if entity_dict['status'].lower() != DATASET_STATUS_PUBLISHED:
+    if entity_dict['status'].lower() not in [DATASET_STATUS_PUBLISHED, 'retracted']:
         public_entity = False
         # Token is required and the user must belong to HuBMAP-READ group
         token = get_user_token(request, non_public_access_required = True)
@@ -2567,7 +2567,7 @@ def get_uploads(id):
     if not schema_manager.entity_type_instanceof(normalized_entity_type, 'Dataset'):
         bad_request_error(f"Unsupported entity type of id {id}: {normalized_entity_type}")
 
-    if entity_dict['status'].lower() != DATASET_STATUS_PUBLISHED:
+    if entity_dict['status'].lower() not in [DATASET_STATUS_PUBLISHED, 'retracted']:
         # Token is required and the user must belong to HuBMAP-READ group
         token = get_user_token(request, non_public_access_required = True)
 
@@ -2883,7 +2883,7 @@ def get_globus_url(id):
         globus_server_uuid = app.config['GLOBUS_PROTECTED_ENDPOINT_UUID']
         access_dir = access_level_prefix_dir(app.config['PROTECTED_DATA_SUBDIR'])
         dir_path = dir_path + access_dir + group_name + "/"
-    elif (entity_data_access_level == ACCESS_LEVEL_PROTECTED) and (entity_dict['status'] == 'Published'):
+    elif (entity_data_access_level == ACCESS_LEVEL_PROTECTED) and (entity_dict['status'] in ['Published', 'Retracted']):
         globus_server_uuid = app.config['GLOBUS_PUBLIC_ENDPOINT_UUID']
         access_dir = access_level_prefix_dir(app.config['PUBLIC_DATA_SUBDIR'])
         dir_path = dir_path +  access_dir + "/"
@@ -3016,7 +3016,7 @@ def get_dataset_revision_number(id):
         bad_request_error("The entity of given id is not a Dataset or Publication")
 
     # Only published/public datasets don't require token
-    if entity_dict['status'].lower() != DATASET_STATUS_PUBLISHED:
+    if entity_dict['status'].lower() not in [DATASET_STATUS_PUBLISHED, 'retracted']:
         # Token is required and the user must belong to HuBMAP-READ group
         token = get_user_token(request, non_public_access_required = True)
 
@@ -3170,7 +3170,7 @@ def get_revisions_list(id):
         bad_request_error("The entity is not a Dataset. Found entity type:" + normalized_entity_type)
 
     # Only published/public datasets don't require token
-    if entity_dict['status'].lower() != DATASET_STATUS_PUBLISHED:
+    if entity_dict['status'].lower() not in [DATASET_STATUS_PUBLISHED, 'retracted']:
         # Token is required and the user must belong to HuBMAP-READ group
         token = get_user_token(request, non_public_access_required=True)
 
@@ -3200,7 +3200,7 @@ def get_revisions_list(id):
             normalized_revisions_list.pop(0)
 
             # Also hide the 'next_revision_uuid' of the second last revision from response
-            if 'next_revision_uuid' in normalized_revisions_list[0]:
+            if normalized_revisions_list and 'next_revision_uuid' in normalized_revisions_list[0]:
                 normalized_revisions_list[0].pop('next_revision_uuid')
 
     # Now all we need to do is to compose the result list
@@ -3255,7 +3255,7 @@ def get_associated_organs_from_dataset(id):
     excluded_fields = schema_manager.get_fields_to_exclude('Sample')
     public_entity = True
     # published/public datasets don't require token
-    if entity_dict['status'].lower() != DATASET_STATUS_PUBLISHED:
+    if entity_dict['status'].lower() not in [DATASET_STATUS_PUBLISHED, 'retracted']:
         public_entity = False
         # Token is required and the user must belong to HuBMAP-READ group
         token = get_user_token(request, non_public_access_required=True)
@@ -3316,7 +3316,7 @@ def get_associated_samples_from_dataset(id):
         bad_request_error("The entity of given id is not a Dataset or Publication")
     public_entity = True
     # published/public datasets don't require token
-    if entity_dict['status'].lower() != DATASET_STATUS_PUBLISHED:
+    if entity_dict['status'].lower() not in [DATASET_STATUS_PUBLISHED, 'retracted']:
         # Token is required and the user must belong to HuBMAP-READ group
         public_entity = False
         token = get_user_token(request, non_public_access_required=True)
@@ -3376,7 +3376,7 @@ def get_associated_donors_from_dataset(id):
         bad_request_error("The entity of given id is not a Dataset or Publication")
     public_entity = True
     # published/public datasets don't require token
-    if entity_dict['status'].lower() != DATASET_STATUS_PUBLISHED:
+    if entity_dict['status'].lower() not in [DATASET_STATUS_PUBLISHED, 'retracted']:
         public_entity = False
         # Token is required and the user must belong to HuBMAP-READ group
         token = get_user_token(request, non_public_access_required=True)
@@ -3451,7 +3451,7 @@ def get_prov_info_for_dataset(id):
         bad_request_error("The entity of given id is not a Dataset")
 
     # published/public datasets don't require token
-    if entity_dict['status'].lower() != DATASET_STATUS_PUBLISHED:
+    if entity_dict['status'].lower() not in [DATASET_STATUS_PUBLISHED, 'retracted']:
         # Token is required and the user must belong to HuBMAP-READ group
         token = get_user_token(request, non_public_access_required=True)
 
@@ -3959,14 +3959,14 @@ def paired_dataset(id):
     if normalized_entity_type != 'Dataset':
         bad_request_error("The target entity of the specified id is not a Dataset")
 
-    if entity_dict['status'].lower() != DATASET_STATUS_PUBLISHED:
+    if entity_dict['status'].lower() not in [DATASET_STATUS_PUBLISHED, 'retracted']:
         if not user_in_hubmap_read_group(request):
             forbidden_error("Access not granted")
 
     paired_dataset = app_neo4j_queries.get_paired_dataset(neo4j_driver_instance, uuid, data_type, search_depth)
     out_list = []
     for result in paired_dataset:
-        if user_in_hubmap_read_group(request) or result['status'].lower() == 'published':
+        if user_in_hubmap_read_group(request) or result['status'].lower() in ['published', 'retracted']:
             out_list.append(result['uuid'])
     if len(out_list) < 1:
         not_found_error(f"Search for paired datasets of type {data_type} for dataset with id {uuid} returned no results")
@@ -4512,7 +4512,7 @@ def _get_entity_visibility(normalized_entity_type, entity_dict):
     # it can be used along with the user's authorization to determine access.
     entity_visibility=DataVisibilityEnum.NONPUBLIC
     if schema_manager.entity_type_instanceof(normalized_entity_type, 'Dataset') and \
-       entity_dict['status'].lower() == DATASET_STATUS_PUBLISHED:
+       entity_dict['status'].lower() in [DATASET_STATUS_PUBLISHED, 'retracted']:
         entity_visibility=DataVisibilityEnum.PUBLIC
     elif schema_manager.entity_type_instanceof(normalized_entity_type, 'Collection') and \
         'registered_doi' in entity_dict and \
@@ -4524,12 +4524,10 @@ def _get_entity_visibility(normalized_entity_type, entity_dict):
             # Get the data_access_level for each Dataset in the Collection from Neo4j
             collection_dataset_statuses = schema_neo4j_queries.get_collection_datasets_statuses(neo4j_driver_instance
                                                                                                 ,entity_dict['uuid'])
+            PUBLIC_STATUSES = {SchemaConstants.DATASET_STATUS_PUBLISHED, "retracted"}
 
-            # If the list of distinct statuses for Datasets in the Collection only has one entry, and
-            # it is 'published', the Collection is public
-            if len(collection_dataset_statuses) == 1 and \
-                collection_dataset_statuses[0].lower() == SchemaConstants.DATASET_STATUS_PUBLISHED:
-                entity_visibility=DataVisibilityEnum.PUBLIC
+            if all(status.lower() in PUBLIC_STATUSES for status in collection_dataset_statuses):
+                entity_visibility = DataVisibilityEnum.PUBLIC
     elif normalized_entity_type == 'Upload':
         # Upload entities require authorization to access, so keep the
         # entity_visibility as non-public, as initialized outside block.

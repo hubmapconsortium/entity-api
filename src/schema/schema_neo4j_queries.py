@@ -1692,7 +1692,7 @@ int
 def count_attached_published_datasets(neo4j_driver, entity_type, uuid):
     query = (f"MATCH (e:{entity_type})-[:ACTIVITY_INPUT|ACTIVITY_OUTPUT*]->(d:Dataset) "
              # Use the string function toLower() to avoid case-sensetivity issue
-             f"WHERE e.uuid='{uuid}' AND toLower(d.status) = 'published' "
+             f"WHERE e.uuid='{uuid}' AND toLower(d.status) IN ['published', 'retracted'] "
              # COLLECT() returns a list
              # apoc.coll.toSet() reruns a set containing unique nodes
              f"RETURN COUNT(d) AS {record_field_name}")

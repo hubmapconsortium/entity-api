@@ -349,7 +349,7 @@ dict
 
 def get_sorted_multi_revisions(neo4j_driver, uuid, fetch_all=True, property_key=False):
     results = []
-    match_case = '' if fetch_all is True else 'AND prev.status = "Published" AND next.status = "Published" '
+    match_case = '' if fetch_all is True else 'AND prev.status IN ["Published", "Retracted"] AND next.status IN ["Published", "Retracted"] '
     collect_prop = f".{property_key}" if property_key else ''
 
     query = (
@@ -902,7 +902,7 @@ neo4j_driver : neo4j.Driver object
 def get_sankey_info(neo4j_driver, public_only):
     public_only_query = " "
     if public_only:
-        public_only_query = f"AND toLower(ds.status) = 'published' "
+        public_only_query = f"AND toLower(ds.status) IN ['published', 'retracted'] "
     query = (f"MATCH (donor:Donor)-[:ACTIVITY_INPUT]->(organ_activity:Activity)-[:ACTIVITY_OUTPUT]-> "
             f"(organ:Sample {{sample_category:'organ'}})-[*]->(a:Activity)-[:ACTIVITY_OUTPUT]->(ds:Dataset) "
             f"WHERE toLower(a.creation_action) = 'create dataset activity' "
@@ -945,7 +945,7 @@ neo4j_driver : neo4j.Driver object
 def get_unpublished(neo4j_driver):
     query = (
         "MATCH (ds:Dataset)<-[*]-(d:Donor) "
-        "WHERE ds.status <> 'Published' and ds.status <> 'Hold' "
+        "WHERE NOT ds.status IN ['Published', 'Hold', 'Retracted'] "
         # specimen_type -> sample_category 12/15/2022
         "OPTIONAL MATCH (ds)<-[*]-(s:Sample {sample_category:'organ'}) "
         "RETURN distinct ds.data_types as data_types, ds.group_name as organization, ds.uuid as uuid, "

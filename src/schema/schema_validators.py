@@ -298,8 +298,9 @@ def halt_DOI_if_unpublished_dataset(property_key, normalized_entity_type, reques
         # simply get the existing, distinct 'data_access_level' setting for all the Datasets in the Collection
         distinct_dataset_statuses = schema_neo4j_queries.get_collection_datasets_statuses(neo4j_driver_instance
                                                                                           ,existing_data_dict['uuid'])
-    if len( distinct_dataset_statuses) != 1 or \
-            distinct_dataset_statuses[0].lower() != SchemaConstants.DATASET_STATUS_PUBLISHED:
+    PUBLIC_STATUSES = {SchemaConstants.DATASET_STATUS_PUBLISHED, 'retracted'}
+
+    if not all(status.lower() in PUBLIC_STATUSES for status in distinct_dataset_statuses):
         raise ValueError(f"Unable to modify existing {existing_data_dict['entity_type']}"
                          f" {existing_data_dict['uuid']} for DOI since it contains unpublished Datasets.")
 
@@ -414,8 +415,9 @@ new_data_dict : dict
 def validate_dataset_status_value(property_key, normalized_entity_type, request, existing_data_dict, new_data_dict):
     # Use lowercase for comparison
     accepted_status_values = [
-        'new', 'processing', 'published', 'qa', 'error', 'hold', 'invalid', 'submitted', 'incomplete', 'approval', 'retracted'
+        'new', 'processing', 'published', 'qa', 'error', 'hold', 'invalid', 'submitted', 'incomplete', 'approval'
     ]
+    # Retracted intentionally omitted. Status will be set to retracted only on a manual basis
     new_status = new_data_dict[property_key].lower()
 
     if new_status not in accepted_status_values:
@@ -426,7 +428,7 @@ def validate_dataset_status_value(property_key, normalized_entity_type, request,
 
     # If status == 'Published' already in Neo4j, then fail for any changes at all
     # Because once published, the dataset should be read-only
-    if existing_data_dict['status'].lower() == SchemaConstants.DATASET_STATUS_PUBLISHED:
+    if existing_data_dict['status'].lower() in [SchemaConstants.DATASET_STATUS_PUBLISHED, 'retracted']:
         raise ValueError(f"The status of this {normalized_entity_type} is already 'Published', status change is not allowed")
 
     # HTTP header names are case-insensitive
@@ -480,6 +482,7 @@ new_data_dict : dict
     The json data in request body, already after the regular validations
 """
 def validate_if_retraction_permitted(property_key, normalized_entity_type, request, existing_data_dict, new_data_dict):
+    # This validator is currently unused. Keeping it in case we decide we want an api endpoint for retraction at some point. 
     if 'status' not in existing_data_dict:
         raise KeyError("Missing 'status' key in 'existing_data_dict' during calling 'validate_if_retraction_permitted()' validator method.")
 
@@ -504,27 +507,6 @@ def validate_if_retraction_permitted(property_key, normalized_entity_type, reque
 
     if hubmap_admin_group_uuid not in user_info['hmgroupids']:
         raise ValueError("Permission denied, retraction is not allowed")
-
-
-"""
-Validate the sub_status field is also provided when Dataset.retraction_reason is provided on update via PUT
-
-Parameters
-----------
-property_key : str
-    The target property key
-normalized_type : str
-    Submission
-request: Flask request object
-    The instance of Flask request passed in from application request
-existing_data_dict : dict
-    A dictionary that contains all existing entity properties
-new_data_dict : dict
-    The json data in request body, already after the regular validations
-"""
-def validate_sub_status_provided(property_key, normalized_entity_type, request, existing_data_dict, new_data_dict):
-    if 'sub_status' not in new_data_dict:
-        raise ValueError("Missing sub_status field when retraction_reason is provided")
 
 
 """
@@ -1019,7 +1001,7 @@ request_headers: Flask request.headers object, behaves like a dict
 def _is_entity_locked_against_update(existing_entity_dict):
     entity_type = existing_entity_dict['entity_type']
     if entity_type in ['Publication','Dataset']:
-        if 'status' in existing_entity_dict and existing_entity_dict['status'] == 'Published':
+        if 'status' in existing_entity_dict and existing_entity_dict['status'] in ['Published', 'Retracted']:
             raise schema_errors.LockedEntityUpdateException(f"Permission denied to change a published/public {entity_type}.")
     elif entity_type in ['Donor','Sample']:
         if 'data_access_level' in existing_entity_dict and existing_entity_dict['data_access_level'] == 'public':

@@ -1766,7 +1766,7 @@ def update_status(property_key, normalized_type, request_args, user_token, exist
     set_status_history(property_key, normalized_type, request_args, user_token, existing_data_dict, new_data_dict)
 
     # Only apply to non-published parent datasets
-    if status.lower() != 'published':
+    if status.lower() not in  ['published', 'retracted']:
         # Only sync the child component datasets status for Multi-Assay Split
         component_dataset_uuids = schema_neo4j_queries.get_component_dataset_uuids(schema_manager.get_neo4j_driver_instance(), uuid)
         

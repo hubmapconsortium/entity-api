@@ -640,9 +640,6 @@ ENTITIES:
       retraction_reason:
         type: string
         indexed: true
-        before_property_update_validators:
-          - validate_if_retraction_permitted
-          - validate_sub_status_provided
         description: 'Information recorded about why a the dataset was retracted.'
       provider_info:
         type: string
