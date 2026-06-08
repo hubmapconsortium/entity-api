@@ -1114,6 +1114,286 @@ def get_entities_by_type(entity_type):
     # Response with the final result
     return jsonify(final_result)
 
+
+"""
+Retrieve the document info needed for a given entity's ancestors. Result filtering for this 
+endpoint is required and is given by the required parameter 'include'. 
+For example /ancestors-info?include=uuid,status,entity_type
+
+
+Parameters
+----------
+include : str
+    A comma delimited string of all the properties to be retrieved by the endpoint
+
+Returns
+-------
+json
+    A list of dicts where each dict contains the requested fields for the given ancestor. 
+"""
+
+@app.route('/ancestors-info/<uuid>', methods=['GET'])
+def get_ancestors_info(uuid):
+    validate_token_if_auth_header_exists(request)
+    include_fields = None
+    if bool(request.args):
+        included = request.args.get('include')
+        if included:
+            include_fields = [
+                f.strip().strip("'").strip('"')
+                for f in included.split(',')
+                if f.strip()
+            ]
+            valid_fields = set(schema_manager.get_persistent_fields())
+            invalid = [f for f in include_fields if f not in valid_fields]
+            if invalid:
+                return bad_request_error(f"Invalid include fields: {invalid}")
+        else:
+            return bad_request_error(f"Missing required parameter: 'include'. Must include a list of properties to be returned.")
+    else:
+        return bad_request_error(f"Missing required parameter: 'include'. Must include a list of properties to be returned.")
+    result = app_neo4j_queries.get_ancestors_trimmed(neo4j_driver_instance, uuid, included_fields=include_fields)
+    if result is None:
+        return not_found_error(f"Entity {uuid} not found")
+    cleaned_result = [schema_manager.remove_none_values(entity) for entity in result]
+    complete = [schema_manager.normalize_document_result_for_response(entity) for entity in cleaned_result]
+    ordered_response = [alphabetize_dict_recursive(entity) for entity in complete]
+    return jsonify(ordered_response)
+
+
+"""
+Retrieve the document info needed for a given entity's descendant. Result filtering for this 
+endpoint is required and is given by the required parameter 'include'. 
+For example /descendants-info?include=uuid,status,entity_type
+
+
+Parameters
+----------
+include : str
+    A comma delimited string of all the properties to be retrieved by the endpoint
+
+Returns
+-------
+json
+    A list of dicts where each dict contains the requested fields for the given descendant. 
+"""
+@app.route('/descendants-info/<uuid>', methods=['GET'])
+def get_descendants_info(uuid):
+    validate_token_if_auth_header_exists(request)
+    include_fields = None
+    if bool(request.args):
+        included = request.args.get('include')
+        if included:
+            include_fields = [
+                f.strip().strip("'").strip('"')
+                for f in included.split(',')
+                if f.strip()
+            ]
+            valid_fields = set(schema_manager.get_persistent_fields())
+            invalid = [f for f in include_fields if f not in valid_fields]
+            if invalid:
+                return bad_request_error(f"Invalid include fields: {invalid}")
+        else:
+            return bad_request_error(f"Missing required parameter: 'include'. Must include a list of properties to be returned.")
+    else:
+        return bad_request_error(f"Missing required parameter: 'include'. Must include a list of properties to be returned.")
+    result = app_neo4j_queries.get_descendants_trimmed(neo4j_driver_instance, uuid, included_fields=include_fields)
+    if result is None:
+        return not_found_error(f"Entity {uuid} not found")
+    cleaned_result = [schema_manager.remove_none_values(entity) for entity in result]
+    complete = [schema_manager.normalize_document_result_for_response(entity) for entity in cleaned_result]
+    ordered_response = [alphabetize_dict_recursive(entity) for entity in complete]
+    return jsonify(ordered_response)
+
+
+"""
+Retrieve the document info needed for a given entity's parents (immediate ancestors). Result filtering for this 
+endpoint is allowed and is given by the required parameter 'include'. 
+For example /parents-info?include=uuid,status,entity_type
+
+
+Parameters
+----------
+include : str
+    A comma delimited string of all the properties to be retrieved by the endpoint
+
+Returns
+-------
+json
+    A list of dicts where each dict contains the requested fields for the given parent. 
+"""
+@app.route('/parents-info/<uuid>', methods=['GET'])
+def get_parents_info(uuid):
+    validate_token_if_auth_header_exists(request)
+    included_fields = None
+    if bool(request.args):
+        included = request.args.get('include')
+        if included:
+            included_fields = [
+                f.strip().strip("'").strip('"')
+                for f in included.split(',')
+                if f.strip()
+            ]
+            valid_fields = set(schema_manager.get_persistent_fields())
+            invalid = [f for f in included_fields if f not in valid_fields]
+            if invalid:
+                return bad_request_error(f"Invalid include fields: {invalid}")
+    result = app_neo4j_queries.get_parents_info(neo4j_driver_instance, uuid, included_fields=included_fields)
+    if result is None:
+        return not_found_error(f"Entity {uuid} not found")
+    cleaned_result = [schema_manager.remove_none_values(entity) for entity in result]
+    complete = [schema_manager.normalize_document_result_for_response(entity) for entity in cleaned_result]
+    ordered_response = [alphabetize_dict_recursive(entity) for entity in complete]
+    return jsonify(ordered_response)
+
+
+"""
+Retrieve the document info needed for a given entity's children (immediate descendants). Result filtering for this 
+endpoint is allowed and is given by the required parameter 'include'. 
+For example /children-info?include=uuid,status,entity_type
+
+
+Parameters
+----------
+include : str
+    A comma delimited string of all the properties to be retrieved by the endpoint
+
+Returns
+-------
+json
+    A list of dicts where each dict contains the requested fields for the given child. 
+"""
+@app.route('/children-info/<uuid>', methods=['GET'])
+def get_children_info(uuid):
+    validate_token_if_auth_header_exists(request)
+    included_fields = None
+    if bool(request.args):
+        included = request.args.get('include')
+        if included:
+            included_fields = [
+                f.strip().strip("'").strip('"')
+                for f in included.split(',')
+                if f.strip()
+            ]
+            valid_fields = set(schema_manager.get_persistent_fields())
+            invalid = [f for f in included_fields if f not in valid_fields]
+            if invalid:
+                return bad_request_error(f"Invalid include fields: {invalid}")
+    result = app_neo4j_queries.get_children_info(neo4j_driver_instance, uuid, included_fields=included_fields)
+    if result is None:
+        return not_found_error(f"Entity {uuid} not found")
+    cleaned_result = [schema_manager.remove_none_values(entity) for entity in result]
+    complete = [schema_manager.normalize_document_result_for_response(entity) for entity in cleaned_result]
+    ordered_response = [alphabetize_dict_recursive(entity) for entity in complete]
+    return jsonify(ordered_response)
+
+@app.route('/sources-info/<uuid>', methods=['GET'])
+def get_sources_info(uuid):
+    validate_token_if_auth_header_exists(request)
+    result = app_neo4j_queries.get_source_samples(neo4j_driver_instance, uuid)
+    if result is None:
+        return not_found_error(f"Entity {uuid} not found")
+    cleaned_result = [schema_manager.remove_none_values(entity) for entity in result]
+    complete = [schema_manager.normalize_document_result_for_response(entity) for entity in cleaned_result]
+    ordered_response = [alphabetize_dict_recursive(entity) for entity in complete]
+    return jsonify(ordered_response)
+
+@app.route('/origins-info/<uuid>', methods=['GET'])
+def get_origin_info(uuid):
+    validate_token_if_auth_header_exists(request)
+    result = app_neo4j_queries.get_origin_samples(neo4j_driver_instance, uuid)
+    if result is None:
+        return not_found_error(f"Entity {uuid} not found")
+    cleaned_result = [schema_manager.remove_none_values(entity) for entity in result]
+    complete = [schema_manager.normalize_document_result_for_response(entity) for entity in cleaned_result]
+    ordered_response = [alphabetize_dict_recursive(entity) for entity in complete]
+    return jsonify(ordered_response)
+
+@app.route('/donors-info/<uuid>', methods=['GET'])
+def get_donors_info(uuid):
+    validate_token_if_auth_header_exists(request)
+    result = app_neo4j_queries.get_donor_info(neo4j_driver_instance, uuid)
+    if result is None:
+        return not_found_error(f"Entity {uuid} not found")
+    cleaned_result = [schema_manager.remove_none_values(entity) for entity in result]
+    complete = [schema_manager.normalize_document_result_for_response(entity) for entity in cleaned_result]
+    ordered_response = [alphabetize_dict_recursive(entity) for entity in complete]
+    return jsonify(ordered_response)
+
+def alphabetize_dict_recursive(obj):
+    if isinstance(obj, dict):
+        return {k: alphabetize_dict_recursive(obj[k]) for k in sorted(obj.keys())}
+    elif isinstance(obj, list):
+        return [alphabetize_dict_recursive(item) for item in obj]
+    else:
+        return obj
+
+
+"""
+Retrieve processed dataset documents associated with a collection or upload
+
+Parameters
+----------
+uuid : str
+    The UUID of the target entity (Collection, Epicollection, or Upload)
+
+Returns
+-------
+json
+    A JSON object mapping dataset UUIDs to their processed document representations.
+    Each dataset is enriched via the trigger pipeline (ON_INDEX), normalized for response,
+    and stripped of selected large or unnecessary fields (e.g., ingest_metadata, metadata, files).
+    Returns a 404 error if the entity is not found.
+"""
+@app.route('/entities/<uuid>/dataset-documents', methods=['GET'])
+def get_dataset_documents(uuid):
+    validate_token_if_auth_header_exists(request)
+    token = get_internal_token()
+    include_fields = None
+    if bool(request.args):
+        included = request.args.get('include')
+        if included:
+            include_fields = [
+                f.strip().strip("'").strip('"')
+                for f in included.split(',')
+                if f.strip()
+            ]
+            # Validation step to ensure fields are real property names
+            valid_fields = set(schema_manager.get_persistent_fields())
+            invalid = [f for f in include_fields if f not in valid_fields]
+            if invalid:
+                return bad_request_error(f"Invalid include fields: {invalid}")
+        else:
+            return bad_request_error("Missing required parameter: 'include'. Must include a list of properties to be returned.")
+    else:
+        return bad_request_error("Missing required parameter: 'include'. Must include a list of properties to be returned.")
+
+    entity_record = app_neo4j_queries.get_dataset_documents_raw(
+        neo4j_driver_instance, 
+        uuid, 
+        included_fields=include_fields
+    )
+    if entity_record is None:
+        return not_found_error(f"Entity {uuid} not found")
+
+    result = {}
+    for dataset_uuid, entity_dict in entity_record.items():
+        try:
+            complete = schema_manager.remove_none_values({**entity_dict})
+            final = schema_manager.normalize_document_result_for_response(entity_dict=complete)
+            for field in ['ingest_metadata', 'metadata', 'files']:
+                final.pop(field, None)
+            result[dataset_uuid] = final
+        except Exception as e:
+            logger.error(f"Failed to process document for {dataset_uuid}: {e}")
+            continue
+
+    resp_body = json.dumps(result).encode('utf-8')
+    try_resp = try_stash_response_body(resp_body)
+    if try_resp is not None:
+        return try_resp
+    return jsonify(result)
+
 """
 Create an entity of the target type in neo4j
 
