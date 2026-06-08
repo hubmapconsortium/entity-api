@@ -12,6 +12,12 @@ logger = logging.getLogger(__name__)
 # The filed name of the single result record
 record_field_name = 'result'
 
+TRIMMED_ENTITY_FIELDS = [
+    'uuid', 'hubmap_id', 'entity_type', 'dataset_type', 'rui_location',
+    'group_uuid', 'group_name', 'last_modified_timestamp',
+    'created_by_user_displayname', 'thumbnail_file', 'sample_category',
+    'organ', 'data_access_level', 'status'
+]
 
 ####################################################################################################
 ## Directly called by app.py
@@ -97,6 +103,193 @@ def get_entities_by_type(neo4j_driver, entity_type, property_key = None):
                 results = schema_neo4j_queries.nodes_to_dicts(record[record_field_name])
 
     return results
+
+
+def get_ancestors_trimmed(neo4j_driver, uuid, included_fields):
+    with neo4j_driver.session() as session:
+        record = session.run("""
+            MATCH (e:Entity {uuid: $uuid})
+            OPTIONAL MATCH (e)<-[:ACTIVITY_INPUT|ACTIVITY_OUTPUT*]-(a:Entity)
+            WHERE a.entity_type <> 'Lab'
+            WITH apoc.coll.toSet(COLLECT(a)) AS ancestors
+            RETURN [a IN ancestors | a { %s }] AS result
+        """ % ', '.join(f'.{f}' for f in included_fields),
+        uuid=uuid).single()
+        if record is None:
+            return None
+        return [dict(a) for a in (record['result'] or [])]
+
+
+def get_descendants_trimmed(neo4j_driver, uuid, included_fields):
+    with neo4j_driver.session() as session:
+        record = session.run("""
+            MATCH (e:Entity {uuid: $uuid})
+            OPTIONAL MATCH (e)-[:ACTIVITY_INPUT|ACTIVITY_OUTPUT*]->(d:Entity)
+            WITH apoc.coll.toSet(COLLECT(d)) AS descendants
+            RETURN [d IN descendants | d { %s }] AS result
+        """ % ', '.join(f'.{f}' for f in included_fields),
+        uuid=uuid).single()
+        if record is None:
+            return None
+        return [dict(d) for d in (record['result'] or [])]
+
+
+def get_parents_info(neo4j_driver, uuid, included_fields=None):
+    with neo4j_driver.session() as session:
+        projection = 'properties(p)'
+        if included_fields:
+            projection = 'p { %s }' % ', '.join(f'.{f}' for f in included_fields)
+
+        record = session.run("""
+            MATCH (e:Entity {uuid: $uuid})
+            OPTIONAL MATCH (e)<-[:ACTIVITY_OUTPUT]-(:Activity)<-[:ACTIVITY_INPUT]-(p:Entity)
+            WHERE p.entity_type <> 'Lab'
+            WITH apoc.coll.toSet(COLLECT(p)) AS parents
+            RETURN [p IN parents | %s] AS result
+        """ % projection, uuid=uuid).single()
+
+        if record is None:
+            return None
+        return [dict(p) for p in (record['result'] or [])]
+
+
+def get_children_info(neo4j_driver, uuid, included_fields=None):
+    with neo4j_driver.session() as session:
+        projection = 'properties(c)'
+        if included_fields:
+            projection = 'c { %s }' % ', '.join(f'.{f}' for f in included_fields)
+
+        record = session.run("""
+            MATCH (e:Entity {uuid: $uuid})
+            OPTIONAL MATCH (e)-[:ACTIVITY_INPUT]->(:Activity)-[:ACTIVITY_OUTPUT]->(c:Entity)
+            WITH apoc.coll.toSet(COLLECT(c)) AS children
+            RETURN [c IN children | %s] AS result
+        """ % projection, uuid=uuid).single()
+
+        if record is None:
+            return None
+        return [dict(c) for c in (record['result'] or [])]
+
+def get_donor_info(neo4j_driver, uuid):
+    with neo4j_driver.session() as session:
+        entity_record = session.run("""
+            MATCH (e:Entity {uuid: $uuid})
+            RETURN e.uuid AS uuid
+        """, uuid=uuid).single()
+        if entity_record is None:
+            return None
+
+        record = session.run("""
+            MATCH (e:Entity {uuid: $uuid})<-[:ACTIVITY_INPUT|ACTIVITY_OUTPUT*]-(d:Donor)
+            WITH COLLECT(DISTINCT d) AS donors
+            RETURN [d IN donors | properties(d)] AS donors
+        """, uuid=uuid).single()
+
+        return [dict(d) for d in (record['donors'] or [])]
+
+def get_origin_samples(neo4j_driver, uuid):
+    with neo4j_driver.session() as session:
+        entity_record = session.run("""
+            MATCH (e:Entity {uuid: $uuid})
+            RETURN e.uuid AS uuid
+        """, uuid=uuid).single()
+        if entity_record is None:
+            return None
+
+        record = session.run("""
+            MATCH (e:Entity {uuid: $uuid})
+            OPTIONAL MATCH (e)<-[:ACTIVITY_INPUT|ACTIVITY_OUTPUT*]-(s:Sample)
+            WHERE s.sample_category IS NOT NULL
+            AND toLower(s.sample_category) = 'organ'
+            AND s.organ IS NOT NULL
+            AND trim(s.organ) <> ''
+            RETURN apoc.coll.toSet(COLLECT(properties(s))) AS origin_samples
+        """, uuid=uuid).single()
+
+        return [dict(s) for s in (record['origin_samples'] or [])]
+
+
+def get_source_samples(neo4j_driver, uuid):
+    with neo4j_driver.session() as session:
+        entity_record = session.run("""
+            MATCH (e:Entity {uuid: $uuid})
+            RETURN e.uuid AS uuid
+        """, uuid=uuid).single()
+        if entity_record is None:
+            return None
+
+        record = session.run("""
+            MATCH (e:Dataset {uuid: $uuid})
+            CALL apoc.path.expandConfig(e, {
+                relationshipFilter: "<ACTIVITY_OUTPUT|<ACTIVITY_INPUT",
+                minLevel: 1,
+                maxLevel: 20,
+                bfs: true
+            }) YIELD path
+            WITH last(nodes(path)) AS a
+            WHERE a:Activity AND a.creation_action = 'Create Dataset Activity'
+            MATCH (a)<-[:ACTIVITY_INPUT]-(s:Sample)
+            RETURN apoc.coll.toSet(COLLECT(properties(s))) AS source_samples
+            LIMIT 1
+        """, uuid=uuid).single()
+
+        if record is None:
+            return []
+        return [dict(s) for s in (record['source_samples'] or [])]
+
+"""
+Retrieve dataset documents associated with a collection or upload
+
+Parameters
+----------
+neo4j_driver : neo4j.Driver object
+    The Neo4j database connection pool
+uuid : str
+    The UUID of the target entity (Collection, Epicollection, or Upload)
+
+Returns
+-------
+dict
+    A dictionary mapping dataset UUIDs to their node properties for all datasets
+    directly linked to the given entity via the appropriate relationship
+    (IN_COLLECTION or IN_UPLOAD). Returns an empty dictionary if no datasets
+    are found, or None if the input UUID does not correspond to a supported
+    entity type.
+"""
+def get_dataset_documents_raw(neo4j_driver, uuid, included_fields):
+    with neo4j_driver.session() as session:
+        entity_record = session.run("""
+            MATCH (e:Entity {uuid: $uuid})
+            RETURN e.entity_type AS entity_type
+        """, uuid=uuid).single()
+
+        if not entity_record:
+            return None
+
+        entity_type = entity_record["entity_type"]
+
+        if entity_type in ['Collection', 'Epicollection']:
+            relationship = 'IN_COLLECTION'
+            root_label = 'Collection'
+        elif entity_type == 'Upload':
+            relationship = 'IN_UPLOAD'
+            root_label = 'Upload'
+        else:
+            return None
+
+
+        record = session.run("""
+            MATCH (root:%s {uuid: $uuid})<-[:%s]-(d:Dataset)
+            WITH apoc.coll.toSet(COLLECT(d)) AS datasets
+            RETURN [d IN datasets | d { %s }] AS result
+        """ % (root_label, relationship, ', '.join(f'.{f}' for f in included_fields)),
+        uuid=uuid).single()
+
+        if not record or not record["result"]:
+            return {}
+
+        return {d['uuid']: dict(d) for d in record["result"]}
+
 
 
 """
