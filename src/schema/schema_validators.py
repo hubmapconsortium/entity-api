@@ -531,31 +531,6 @@ def validate_retraction_reason_provided(property_key, normalized_entity_type, re
 
 
 """
-Validate the provided value of Dataset.sub_status on update via PUT
-
-Parameters
-----------
-property_key : str
-    The target property key
-normalized_type : str
-    Submission
-request: Flask request object
-    The instance of Flask request passed in from application request
-existing_data_dict : dict
-    A dictionary that contains all existing entity properties
-new_data_dict : dict
-    The json data in request body, already after the regular validations
-"""
-def validate_retracted_dataset_sub_status_value(property_key, normalized_entity_type, request, existing_data_dict, new_data_dict):
-    # Use lowercase for comparison
-    accepted_sub_status_values = ['retracted']
-    sub_status = new_data_dict[property_key].lower()
-
-    if sub_status not in accepted_sub_status_values:
-        raise ValueError("Invalid sub_status value of the Dataset to be retracted")
-
-
-"""
 Validate the provided value of Upload.status on update via PUT
 
 Parameters
