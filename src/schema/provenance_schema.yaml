@@ -408,7 +408,7 @@ ENTITIES:
           - validate_dataset_not_component
         generated: true
         indexed: true
-        description: "One of: New|Processing|Published|QA|Error|Hold|Invalid|Submitted|Incomplete|Approval"
+        description: "One of: New|Processing|Published|QA|Error|Hold|Invalid|Submitted|Incomplete|Approval|Retracted"
         before_create_trigger: set_dataset_status_new
         after_create_trigger: set_status_history
         after_update_trigger: update_status
@@ -640,18 +640,7 @@ ENTITIES:
       retraction_reason:
         type: string
         indexed: true
-        before_property_update_validators:
-          - validate_if_retraction_permitted
-          - validate_sub_status_provided
         description: 'Information recorded about why a the dataset was retracted.'
-      sub_status:
-        type: string
-        indexed: true
-        before_property_update_validators:
-          - validate_if_retraction_permitted
-          - validate_retraction_reason_provided
-          - validate_retracted_dataset_sub_status_value
-        description: 'A sub-status provided to further define the status. The only current allowable value is "Retracted"'
       provider_info:
         type: string
         indexed: true

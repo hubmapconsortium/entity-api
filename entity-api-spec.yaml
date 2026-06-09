@@ -645,7 +645,8 @@ components:
             - Submitted
             - Incomplete
             - Approval
-          description: 'One of: New|Processing|Published|QA|Error|Hold|Invalid|Submitted|Incomplete|Approval'
+            - Retracted
+          description: 'One of: New|Processing|Published|QA|Error|Hold|Invalid|Submitted|Incomplete|Approval|Retracted'
         title:
           type: string
           description: 'The dataset title.'
@@ -792,9 +793,6 @@ components:
           type: string
           format: uuid
           description: 'The thumbnail image file previously uploaded to delete. Provide as a string of the file_uuid like: "c35002f9c3d49f8b77e1e2cd4a01803d"'
-        sub_status:
-          type: string
-          description: 'A sub-status provided to further define the status. The only current allowable value is "Retracted"'
         retraction_reason:
           type: string
           description: 'Information recorded about why a the dataset was retracted.'
@@ -1101,7 +1099,8 @@ components:
             - Submitted
             - Incomplete
             - Approval
-          description: 'One of: New|Processing|Published|QA|Error|Hold|Invalid|Submitted|Incomplete|Approval'
+            - Retracted
+          description: 'One of: New|Processing|Published|QA|Error|Hold|Invalid|Submitted|Incomplete|Approval|Retracted'
         title:
           type: string
           description: 'The Publication title.'
