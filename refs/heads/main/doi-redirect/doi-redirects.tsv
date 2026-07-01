@@ -1,4 +1,4 @@
 hubmap_id	landing_page_to_register	data_information_page	doi
-HBM377.WFSM.936	test_landing_page1	https://purl.humanatlas.io/vocab/hravs#HRAVS_1000501	test_doi1
-HBM522.KQLL.594	test_landing_page2	https://purl.humanatlas.io/vocab/hravs#HRAVS_1000971	test_doi2
-HBM838.CHFF.356	test_landing_page3	https://purl.humanatlas.io/vocab/hravs#HRAVS_1000361	test_doi3
+HBM377.WFSM.936	test_landing_page1	https://purl.humanatlas.io/omap/1-human-lymph-node-ibex/v1.	test_doi1
+HBM522.KQLL.594	test_landing_page2	https://purl.humanatlas.io/asct-b/lymph-vasculature/v1.5	test_doi2
+HBM838.CHFF.356	test_landing_page3	https://purl.humanatlas.io/asct-b/main-bronchus/v1.2	test_doi3
