@@ -265,29 +265,37 @@ except Exception:
 ## sets the reference_redirects dict which is used
 ## by the /redirect method below
 try:
+    csv_reader_list = []
     reference_redirects = {}
     url = app.config['REDIRECTION_INFO_URL']
+    url2 = app.config['SECONDARY_REDIRECTION_INFO_URL']
     # Use Memcached to improve performance
     response = schema_manager.make_request_get(url)
     resp_txt = response.content.decode('utf-8')
     cr = csv.reader(resp_txt.splitlines(), delimiter='\t')
-
-    first = True
-    id_column = None
-    redir_url_column = None
-    for row in cr:
-        if first:
-            first = False
-            header = row
-            column = 0
-            for label in header:
-                if label == 'hubmap_id': id_column = column
-                if label == 'data_information_page': redir_url_column = column
-                column = column + 1
-            if id_column is None: raise Exception(f"Column hubmap_id not found in {url}")
-            if redir_url_column is None: raise Exception (f"Column data_information_page not found in {url}")
-        else:
-            reference_redirects[row[id_column].upper().strip()] = row[redir_url_column]
+    csv_reader_list.append(cr)
+    response2 = schema_manager.make_request_get(url2)
+    resp_txt2 = response2.content.decode('utf-8')
+    cr2 = csv.reader(resp_txt2.splitlines(), delimiter='\t')
+    csv_reader_list.append(cr2)
+    
+    for csv_reader in csv_reader_list:
+        first = True
+        id_column = None
+        redir_url_column = None
+        for row in csv_reader:
+            if first:
+                first = False
+                header = row
+                column = 0
+                for label in header:
+                    if label == 'hubmap_id': id_column = column
+                    if label == 'data_information_page': redir_url_column = column
+                    column = column + 1
+                if id_column is None: raise Exception(f"Column hubmap_id not found in {url}")
+                if redir_url_column is None: raise Exception (f"Column data_information_page not found in {url}")
+            else:
+                reference_redirects[row[id_column].upper().strip()] = row[redir_url_column]
     rr = redirect('abc', code = 307)
     print(rr)
 except Exception:
