@@ -483,9 +483,6 @@ components:
             - UR
             - UT
           description: 'Organ code specifier, only set if sample_category == organ.  Valid values found in: [organ types](https://ontology.api.hubmapconsortium.org/organs/by-code?application_context=HUBMAP)'
-        organ_other:
-          type: string
-          description: The organ type provided by the user if "other" organ type is selected
         direct_ancestor_uuid:
           type: string
           writeOnly: true
@@ -1407,7 +1404,6 @@ components:
         data_access_level: 'public'
         sample_category: 'organ'
         organ: 'AO'
-        organ_other: 'other'
         image_files: [image_files objects]
         image_files_to_add: [strings]
         image_files_to_remove: [strings]
@@ -1729,7 +1725,6 @@ components:
           data_access_level: 'public'
           sample_category: 'organ'
           organ: 'AO'
-          organ_other: 'other'
           image_files: [image_files objects]
           image_files_to_add: [strings]
           image_files_to_remove: [strings]
@@ -1763,7 +1758,6 @@ components:
           data_access_level: 'public'
           sample_category: 'organ'
           organ: 'AO'
-          organ_other: 'other'
           image_files: [image_files objects]
           image_files_to_add: [strings]
           image_files_to_remove: [strings]
