@@ -1019,10 +1019,6 @@ ENTITIES:
         indexed: true
         immutable: true
         description: "Organ code specifier, only set if sample_category == organ"
-      organ_other:
-        type: string
-        indexed: true
-        description: The organ type provided by the user if "other" organ type is selected
       direct_ancestor_uuid:
         type: string
         required_on_create: true # Creating the hubmap ids via uuid-api requires `parent_ids`

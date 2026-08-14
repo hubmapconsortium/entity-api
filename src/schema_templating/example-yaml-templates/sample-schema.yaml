@@ -88,9 +88,6 @@ Sample:
         X-replace-enum-list:
           enum-file-ref: https://raw.githubusercontent.com/hubmapconsortium/search-api/main/src/search-schema/data/definitions/enums/organ_types.yaml
       description: "Organ code specifier, only set if sample_type == organ.  Valid values found in: [organ types](https://github.com/hubmapconsortium/search-api/blob/main/src/search-schema/data/definitions/enums/organ_types.yaml)"
-    organ_other:
-      type: string
-      description: The organ type provided by the user if "other" organ type is selected
     direct_ancestor_uuid:
       type: string
       writeOnly: true
