@@ -5069,7 +5069,7 @@ def create_entity_details(request, normalized_entity_type, user_token, json_data
 
 
     # Important: use `entity_dict` instead of `filtered_merged_dict` to keep consistent with the stored
-    # string expression literals of Python list/dict being used with entity update, e.g., `image_files`
+    # string expression literals of Python list/dict being used with entity update
     # Important: the same property keys in entity_dict will overwrite the same key in json_data_dict
     # and this is what we wanted. Adding json_data_dict back is to include those `transient` properties
     # provided in the JSON input but not stored in neo4j, and will be needed for after_create_trigger/after_update_trigger,

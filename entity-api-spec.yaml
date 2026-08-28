@@ -300,12 +300,6 @@ components:
             - consortium
             - public
           description: 'One of the values: public, consortium'
-        image_files:
-          readOnly: true
-          type: array
-          items:
-            $ref: '#/components/schemas/File'
-          description: 'List of uploaded image files and descriptions of the files. Stored in db as a stringfied json array.'
         image_files_to_add:
           writeOnly: true
           type: array
@@ -503,12 +497,6 @@ components:
         visit:
           type: string
           description: 'The visit id for the donor/patient when the sample was obtained.'
-        image_files:
-          readOnly: true
-          type: array
-          items:
-            $ref: '#/components/schemas/File'
-          description: 'List of uploaded image files and descriptions of the files. Stored in db as a stringfied json array.'
         image_files_to_add:
           writeOnly: true
           type: array
@@ -522,12 +510,6 @@ components:
             type: string
             format: uuid
           description: 'List of image files previously uploaded to delete. Provide as a json array of the file_uuids of the file like: ["232934234234234234234270c0ea6c51d604a850558ef2247d0b4", "230948203482234234234a57bfe9c056d08a0f8e6cd612baa3bfa"]'
-        metadata_files:
-          readOnly: true
-          type: array
-          items:
-            $ref: '#/components/schemas/File'
-          description: 'List of uploaded image files and descriptions of the files. Stored in db as a stringfied json array.'
         metadata_files_to_add:
           type: array
           items:
@@ -1372,7 +1354,6 @@ components:
         contacts: [contact objects]
         description: 'Description of the property'
         data_access_level: 'public'
-        image_files: [image_files objects]
         image_files_to_add: [strings]
         image_files_to_remove: [strings]
         metadata: object
@@ -1404,10 +1385,8 @@ components:
         data_access_level: 'public'
         sample_category: 'organ'
         organ: 'AO'
-        image_files: [image_files objects]
         image_files_to_add: [strings]
         image_files_to_remove: [strings]
-        metadata_files: [file object]
         metadata_files_to_add: [string]
         metadata_files_to_remove: [string]
         protocol_url: '10.35079/protocols.io.abcdefghijkl'
@@ -1725,10 +1704,8 @@ components:
           data_access_level: 'public'
           sample_category: 'organ'
           organ: 'AO'
-          image_files: [image_files objects]
           image_files_to_add: [strings]
           image_files_to_remove: [strings]
-          metadata_files: [file object]
           metadata_files_to_add: [string]
           metadata_files_to_remove: [string]
           protocol_url: '10.35079/protocols.io.abcdefghijkl'
@@ -1758,10 +1735,8 @@ components:
           data_access_level: 'public'
           sample_category: 'organ'
           organ: 'AO'
-          image_files: [image_files objects]
           image_files_to_add: [strings]
           image_files_to_remove: [strings]
-          metadata_files: [file object]
           metadata_files_to_add: [string]
           metadata_files_to_remove: [string]
           protocol_url: '10.35079/protocols.io.abcdefghijkl'
@@ -1934,7 +1909,6 @@ components:
           contacts: [contact objects]
           description: 'Description of the property'
           data_access_level: 'public'
-          image_files: [image_files objects]
           image_files_to_add: [strings]
           image_files_to_remove: [strings]
           metadata: object
@@ -1961,7 +1935,6 @@ components:
           contacts: [contact objects]
           description: 'Description of the property'
           data_access_level: 'public'
-          image_files: [image_files objects]
           image_files_to_add: [strings]
           image_files_to_remove: [strings]
           metadata: object

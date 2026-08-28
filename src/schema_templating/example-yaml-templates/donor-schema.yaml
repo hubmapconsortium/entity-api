@@ -73,12 +73,6 @@ Donor:
         - consortium
         - public
       description: "One of the values: public, consortium"
-    image_files:
-      readOnly: true
-      type: array
-      items:
-        $ref: '#/components/schemas/File'
-      description: "List of uploaded image files and descriptions of the files. Stored in db as a stringfied json array."
     image_files_to_add:
       writeOnly: true
       type: array
