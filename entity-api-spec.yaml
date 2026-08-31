@@ -300,19 +300,6 @@ components:
             - consortium
             - public
           description: 'One of the values: public, consortium'
-        image_files_to_add:
-          writeOnly: true
-          type: array
-          items:
-            type: string
-          description: 'List of temporary file ids with an optional description. Provide as a json array with an temp_file_id and description attribute for each element like {"files": [{"temp_file_id":"dzevgd6xjs4d5grmcp4n","description":"This is image file one"},{"temp_file_id":"yrahjadfhadf","description":"This is image file two"}]}'
-        image_files_to_remove:
-          writeOnly: true
-          type: array
-          items:
-            type: string
-            format: uuid
-          description: 'List of image files previously uploaded to delete. Provide as a json array of the file_uuids of the file like: ["232934234234234234234270c0ea6c51d604a850558ef2247d0b4", "230948203482234234234a57bfe9c056d08a0f8e6cd612baa3bfa"]'
         metadata:
           type: object
           properties:
@@ -497,30 +484,6 @@ components:
         visit:
           type: string
           description: 'The visit id for the donor/patient when the sample was obtained.'
-        image_files_to_add:
-          writeOnly: true
-          type: array
-          items:
-            type: string
-          description: 'List of temporary file ids with an optional description. Provide as a json array with an temp_file_id and description attribute for each element like {"files": [{"temp_file_id":"dzevgd6xjs4d5grmcp4n","description":"This is image file one"},{"temp_file_id":"yrahjadfhadf","description":"This is image file two"}]}'
-        image_files_to_remove:
-          writeOnly: true
-          type: array
-          items:
-            type: string
-            format: uuid
-          description: 'List of image files previously uploaded to delete. Provide as a json array of the file_uuids of the file like: ["232934234234234234234270c0ea6c51d604a850558ef2247d0b4", "230948203482234234234a57bfe9c056d08a0f8e6cd612baa3bfa"]'
-        metadata_files_to_add:
-          type: array
-          items:
-            type: string
-          description: 'List of temporary file ids with an optional description. Provide as a json array with an temp_file_id and description attribute for each element like {"files": [{"temp_file_id":"dzevgd6xjs4d5grmcp4n","description":"This is image file one"},{"temp_file_id":"yrahjadfhadf","description":"This is image file two"}]}'
-        metadata_files_to_remove:
-          type: array
-          items:
-            type: string
-            format: uuid
-          description: 'List of image files previously uploaded to delete. Provide as a json array of the file_uuids of the file like: ["232934234234234234234270c0ea6c51d604a850558ef2247d0b4", "230948203482234234234a57bfe9c056d08a0f8e6cd612baa3bfa"]'
         rui_exemption:
           type: boolean
           description: 'Identifies Sample Blocks that are exempt from spatial registration via RUI.'
@@ -1354,8 +1317,6 @@ components:
         contacts: [contact objects]
         description: 'Description of the property'
         data_access_level: 'public'
-        image_files_to_add: [strings]
-        image_files_to_remove: [strings]
         metadata: object
         protocol_url: '10.35079/protocols.io.abcdefghijkl'
         lab_donor_id: 'AB123'
@@ -1385,10 +1346,6 @@ components:
         data_access_level: 'public'
         sample_category: 'organ'
         organ: 'AO'
-        image_files_to_add: [strings]
-        image_files_to_remove: [strings]
-        metadata_files_to_add: [string]
-        metadata_files_to_remove: [string]
         protocol_url: '10.35079/protocols.io.abcdefghijkl'
         lab_tissue_sample_id: '12-345 Aorta AA-1'
         submission_id: 'AB1234'
@@ -1704,10 +1661,6 @@ components:
           data_access_level: 'public'
           sample_category: 'organ'
           organ: 'AO'
-          image_files_to_add: [strings]
-          image_files_to_remove: [strings]
-          metadata_files_to_add: [string]
-          metadata_files_to_remove: [string]
           protocol_url: '10.35079/protocols.io.abcdefghijkl'
           lab_tissue_sample_id: '12-345 Aorta AA-1'
           submission_id: 'AB1234'
@@ -1735,10 +1688,6 @@ components:
           data_access_level: 'public'
           sample_category: 'organ'
           organ: 'AO'
-          image_files_to_add: [strings]
-          image_files_to_remove: [strings]
-          metadata_files_to_add: [string]
-          metadata_files_to_remove: [string]
           protocol_url: '10.35079/protocols.io.abcdefghijkl'
           lab_tissue_sample_id: '12-345 Aorta AA-1'
           submission_id: 'AB1234'
@@ -1909,8 +1858,6 @@ components:
           contacts: [contact objects]
           description: 'Description of the property'
           data_access_level: 'public'
-          image_files_to_add: [strings]
-          image_files_to_remove: [strings]
           metadata: object
           protocol_url: '10.35079/protocols.io.abcdefghijkl'
           lab_donor_id: 'AB123'
@@ -1935,8 +1882,6 @@ components:
           contacts: [contact objects]
           description: 'Description of the property'
           data_access_level: 'public'
-          image_files_to_add: [strings]
-          image_files_to_remove: [strings]
           metadata: object
           protocol_url: '10.35079/protocols.io.abcdefghijkl'
           lab_donor_id: 'AB123'

@@ -5049,7 +5049,7 @@ def create_entity_details(request, normalized_entity_type, user_token, json_data
     # Filter out the merged_dict by getting rid of the transitent properties (not to be stored)
     # and properties with None value
     # Meaning the returned target property key is different from the original key
-    # in the trigger method, e.g., Donor.image_files_to_add
+    # in the trigger method
     filtered_merged_dict = schema_manager.remove_transient_and_none_values(merged_dict, normalized_entity_type)
     # Create new entity
     try:
@@ -5204,7 +5204,7 @@ def create_multiple_samples_details(request, normalized_entity_type, user_token,
     # Filter out the merged_dict by getting rid of the transitent properties (not to be stored)
     # and properties with None value
     # Meaning the returned target property key is different from the original key
-    # in the trigger method, e.g., Donor.image_files_to_add
+    # in the trigger method
     filtered_merged_dict = schema_manager.remove_transient_and_none_values(merged_dict, normalized_entity_type)
 
     samples_dict_list = []
@@ -5332,7 +5332,7 @@ def create_multiple_component_details(request, normalized_entity_type, user_toke
         # Filter out the merged_dict by getting rid of the transitent properties (not to be stored)
         # and properties with None value
         # Meaning the returned target property key is different from the original key
-        # in the trigger method, e.g., Donor.image_files_to_add
+        # in the trigger method
         filtered_merged_dict = schema_manager.remove_transient_and_none_values(merged_dict, normalized_entity_type)
         dataset_dict = {**filtered_merged_dict, **new_ids_dict_list[i]}
         dataset_dict['dataset_link_abs_dir'] = dataset_link_abs_dir
@@ -5445,7 +5445,7 @@ def update_entity_details(request, normalized_entity_type, user_token, json_data
     # Filter out the merged_dict by getting rid of the transitent properties (not to be stored)
     # and properties with None value
     # Meaning the returned target property key is different from the original key
-    # in the trigger method, e.g., Donor.image_files_to_add
+    # in the trigger method
     filtered_merged_dict = schema_manager.remove_transient_and_none_values(merged_dict, normalized_entity_type)
 
     # By now the filtered_merged_dict contains all user updates and all triggered data to be added to the entity node
