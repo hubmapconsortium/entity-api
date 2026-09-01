@@ -843,7 +843,7 @@ def remove_none_values(merged_dict):
 Filter out the merged_dict by getting rid of the transitent properties (not to be stored) 
 and properties with None value
 Meaning the returned target property key is different from the original key 
-in the trigger method, e.g., Donor.image_files_to_add
+in the trigger method
 
 Parameters
 ----------
