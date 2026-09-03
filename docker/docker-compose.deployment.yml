@@ -10,5 +10,6 @@ services:
         limits:
           cpus: '8' # 50%
           memory: 19.2G # 60%
-
-
+    volumes:
+      - # Mount conf.d on host machine to the nginx conf.d on container
+      - "./entity-api/nginx/conf.d:/etc/nginx/conf.d"
