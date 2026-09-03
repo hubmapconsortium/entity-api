@@ -462,6 +462,10 @@ def set_submission_id(property_key, normalized_type, request_args, user_token, e
 
 
 """
+DEPRECATED: This function is no longer used.
+The image_files and metadata_files properties have been removed from the schema.
+This function is retained for record-keeping purposes only and should not be called.
+
 TriggerTypeEnum.BEFORE_CREATE
 
 Trigger event method to commit files saved that were previously uploaded with UploadFileHelper.save_file
@@ -513,6 +517,11 @@ def commit_image_files(property_key, normalized_type, request_args, user_token, 
 
 
 """
+DEPRECATED: This function is no longer used.
+The image_files and metadata_files properties have been removed from the schema.
+This function is retained for record-keeping purposes only and should not be called.
+Original docstrings and comments left intact. 
+
 TriggerTypeEnum.BEFORE_UPDATE
 
 Trigger event methods for removing files from an entity during update
@@ -552,6 +561,11 @@ def delete_image_files(property_key, normalized_type, request_args, user_token, 
 
 
 """
+DEPRECATED: This function is no longer used.
+The image_files and metadata_files properties have been removed from the schema.
+This function is retained for record-keeping purposes only and should not be called.
+Original docstrings and comments left intact. 
+
 TriggerTypeEnum.BEFORE_UPDATE
 
 Trigger event method to ONLY update descriptions of existing files
@@ -1854,6 +1868,11 @@ def link_donor_to_lab(property_key, normalized_type, request_args, user_token, e
 ####################################################################################################
 
 """
+DEPRECATED: This function is no longer used.
+The image_files and metadata_files properties have been removed from the schema.
+This function is retained for record-keeping purposes only and should not be called.
+Original docstrings and comments left intact. 
+
 TriggerTypeEnum.BEFORE_CREATE and TriggerTypeEnum.BEFORE_UPDATE
 
 Trigger event method to commit files saved that were previously uploaded with UploadFileHelper.save_file
@@ -1905,6 +1924,11 @@ def commit_metadata_files(property_key, normalized_type, request_args, user_toke
 
 
 """
+DEPRECATED: This function is no longer used.
+The image_files and metadata_files properties have been removed from the schema.
+This function is retained for record-keeping purposes only and should not be called.
+Original docstrings and comments left intact. 
+
 TriggerTypeEnum.BEFORE_UPDATE
 
 Trigger event methods for removing files from an entity during update
@@ -2407,6 +2431,11 @@ def set_activity_creation_action(property_key, normalized_type, request_args, us
 ####################################################################################################
 
 """
+DEPRECATED: This function is no longer used.
+The image_files and metadata_files properties have been removed from the schema.
+This function is retained for record-keeping purposes only and should not be called.
+Original docstrings and comments left intact. 
+
 Trigger event method to commit files saved that were previously uploaded with UploadFileHelper.save_file
 
 The information, filename and optional description is saved in the field with name specified by `target_property_key`

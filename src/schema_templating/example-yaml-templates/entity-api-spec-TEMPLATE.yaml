@@ -270,26 +270,6 @@ components:
             - consortium
             - public
           description: "One of the values: public, consortium"
-        image_files:
-          readOnly: true
-          type: array
-          items:
-            $ref: '#/components/schemas/File'
-          description: "List of uploaded image files and descriptions of the files. Stored in db as a stringfied json array."
-        image_files_to_add:
-          writeOnly: true
-          type: array
-          items:
-            type: string
-            format: file_id
-          description: 'List of temporary file ids with an optional description. Provide as a json array with an temp_file_id and description attribute for each element like {"files": [{"temp_file_id":"dzevgd6xjs4d5grmcp4n","description":"This is image file one"},{"temp_file_id":"yrahjadfhadf","description":"This is image file two"}]}'
-        image_files_to_remove:
-          writeOnly: true
-          type: array
-          items:
-            type: string
-            format: file_id
-          description: 'List of image files previously uploaded to delete. Provide as a json array of the file_uuids of the file like: ["232934234234234234234270c0ea6c51d604a850558ef2247d0b4", "230948203482234234234a57bfe9c056d08a0f8e6cd612baa3bfa"]'
         metadata:
           type: object
           properties:
@@ -444,45 +424,6 @@ components:
           description: "The sample location and orientation in the ancestor organ as specified in the RUI tool. Returned as a json object."
         visit:
           type: string
-          description: "The visit id for the donor/patient when the sample was obtained."
-        image_files:
-          readOnly: true
-          type: array
-          items:
-            $ref: '#/components/schemas/File'
-          description: "List of uploaded image files and descriptions of the files. Stored in db as a stringfied json array."
-        image_files_to_add:
-          writeOnly: true
-          type: array
-          items:
-            type: string
-            format: file_id
-          description: 'List of temporary file ids with an optional description. Provide as a json array with an temp_file_id and description attribute for each element like {"files": [{"temp_file_id":"dzevgd6xjs4d5grmcp4n","description":"This is image file one"},{"temp_file_id":"yrahjadfhadf","description":"This is image file two"}]}'
-        image_files_to_remove:
-          writeOnly: true
-          type: array
-          items:
-            type: string
-            format: file_id
-          description: 'List of image files previously uploaded to delete. Provide as a json array of the file_uuids of the file like: ["232934234234234234234270c0ea6c51d604a850558ef2247d0b4", "230948203482234234234a57bfe9c056d08a0f8e6cd612baa3bfa"]'
-        metadata_files:
-          readOnly: true
-          type: array
-          items:
-            $ref: '#/components/schemas/File'
-          description: "List of uploaded image files and descriptions of the files. Stored in db as a stringfied json array."
-        metadata_files_to_add:
-          type: array
-          items:
-            type: string
-            format: file_id
-          description: 'List of temporary file ids with an optional description. Provide as a json array with an temp_file_id and description attribute for each element like {"files": [{"temp_file_id":"dzevgd6xjs4d5grmcp4n","description":"This is image file one"},{"temp_file_id":"yrahjadfhadf","description":"This is image file two"}]}'
-        metadata_files_to_remove:
-          type: array
-          items:
-            type: string
-            format: file_id
-          description: 'List of image files previously uploaded to delete. Provide as a json array of the file_uuids of the file like: ["232934234234234234234270c0ea6c51d604a850558ef2247d0b4", "230948203482234234234a57bfe9c056d08a0f8e6cd612baa3bfa"]'
     Dataset:
       type: object
       properties:
