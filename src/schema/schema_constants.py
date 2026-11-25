@@ -58,7 +58,7 @@ class TriggerTypeEnum(Enum):
 # Define an enumeration of accepted Neo4j relationship types.
 class Neo4jRelationshipEnum(Enum):
     ACTIVITY_INPUT = 'ACTIVITY_INPUT'
-    ACTIVITY_OUTPUT = 'ACTIVITY_INPUT'
+    ACTIVITY_OUTPUT = 'ACTIVITY_OUTPUT'
     IN_COLLECTION = 'IN_COLLECTION'
     IN_UPLOAD = 'IN_UPLOAD'
     REVISION_OF = 'REVISION_OF'
